@@ -1,0 +1,82 @@
+:root {
+  font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+  color: #20312d;
+  background: #f4f5f1;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  --canvas: #f4f5f1;
+  --paper: #ffffff;
+  --ink: #20312d;
+  --sidebar: #1b2d29;
+  --sidebar-active: #324a45;
+  --selection-mark: #c0a56a;
+  --muted: #687c75;
+  --jade: #2e7669;
+  --jade-dark: #255f55;
+  --jade-soft: #e1ece8;
+  --amber: #b96c26;
+  --amber-soft: #f8ebdf;
+  --red: #b4483e;
+  --red-soft: #f9e7e4;
+  --line: rgba(32, 49, 45, 0.11);
+  --line-strong: rgba(32, 49, 45, 0.19);
+  --shadow: 0 8px 28px rgba(32, 49, 45, 0.12);
+  --font-title: "Noto Serif SC", "Songti SC", serif;
+  --font-number: "DIN Alternate", "Roboto Mono", monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--canvas);
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  background: var(--canvas);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button {
+  color: inherit;
+}
+
+a {
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 3px solid rgba(46, 118, 105, 0.28);
+  outline-offset: 2px;
+}
+
+::selection {
+  color: #fff;
+  background: var(--jade);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
