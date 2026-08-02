@@ -1,0 +1,6 @@
+# 单节点开发执行器配置。生产环境应切换为独立的 SeaTunnel 集群配置。
+seatunnel:
+  engine:
+    http:
+      enable-http: true
+      port: 8080

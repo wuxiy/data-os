@@ -4,3 +4,4 @@ prototype/dist/
 prototype/*.tsbuildinfo
 prototype/qa/*-browser.png
 prototype/concepts/governance-dashboard-v1.png
+services/**/target/

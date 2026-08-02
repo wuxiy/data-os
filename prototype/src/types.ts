@@ -1,10 +1,14 @@
 export type RouteKey =
   | 'management'
+  | 'ingestion'
   | 'governance'
   | 'standards'
   | 'mapping'
   | 'quality'
   | 'mpi'
+  | 'assets'
+  | 'analytics'
+  | 'assistant'
 
 export type Tone = 'healthy' | 'warning' | 'danger' | 'neutral'
 

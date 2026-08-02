@@ -105,6 +105,18 @@
   height: 150px;
 }
 
+.flat {
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.flat .header {
+  justify-content: flex-end;
+  margin-bottom: 2px;
+}
+
 @media (max-width: 600px) {
   .panel {
     padding: 16px 12px;

@@ -7,6 +7,7 @@ import {
   House,
   Landmark,
   Menu,
+  MessageSquareText,
   PackageCheck,
   Settings,
   Waypoints,
@@ -28,12 +29,13 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { label: '首页', icon: House, route: 'management' },
-  { label: '数据接入', icon: Cable },
-  { label: '数据资产', icon: Database },
+  { label: '数据接入', icon: Cable, route: 'ingestion' },
+  { label: '数据资产', icon: Database, route: 'assets' },
   { label: '数据治理', icon: Landmark, route: 'governance', governanceGroup: true },
   { label: '主索引与主数据', icon: Fingerprint, route: 'mpi' },
   { label: '数据服务', icon: Boxes },
-  { label: '分析看板', icon: ChartNoAxesCombined },
+  { label: '分析看板', icon: ChartNoAxesCombined, route: 'analytics' },
+  { label: '智能问数', icon: MessageSquareText, route: 'assistant' },
   { label: '运营中心', icon: Workflow },
   { label: '交付中心', icon: PackageCheck },
 ]

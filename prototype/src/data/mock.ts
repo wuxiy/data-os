@@ -144,9 +144,13 @@ export const riskRanking = [
 
 export const routePaths = {
   management: '/',
+  ingestion: '/ingestion',
   governance: '/governance',
   standards: '/governance/standards',
   mapping: '/governance/mapping',
   quality: '/governance/quality',
   mpi: '/mpi/review',
+  assets: '/assets',
+  analytics: '/analysis',
+  assistant: '/assistant',
 } as const

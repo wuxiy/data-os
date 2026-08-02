@@ -1,0 +1,59 @@
+name: data-os-dev
+
+services:
+  control-plane:
+    image: medical-platform/data-os-control-plane:0.1.0-dev
+    environment:
+      SERVER_PORT: 8080
+      DATAOS_DB_URL: jdbc:postgresql://keycloak-db:5432/keycloak
+      DATAOS_DB_USERNAME: keycloak
+      DATAOS_DB_PASSWORD: ${DATAOS_DB_PASSWORD:?请在远程 .env 中提供 DATAOS_DB_PASSWORD}
+      DATAOS_DB_POOL_SIZE: ${DATAOS_DB_POOL_SIZE:-10}
+      DATAOS_SEED_DEMO: ${DATAOS_SEED_DEMO:-true}
+      SEATUNNEL_BASE_URL: ${SEATUNNEL_BASE_URL:-}
+    expose:
+      - "8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/actuator/health/readiness | grep -q '\"status\":\"UP\"'"]
+      interval: 10s
+      timeout: 4s
+      start_period: 15s
+      retries: 12
+    networks:
+      - platform-net
+    restart: unless-stopped
+
+  portal:
+    image: nginx:1.27
+    ports:
+      - "${DATAOS_PORTAL_PORT:-18081}:80"
+    volumes:
+      - ./portal-dist:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - platform-net
+    depends_on:
+      control-plane:
+        condition: service_healthy
+    restart: unless-stopped
+
+  seatunnel-master:
+    image: ${SEATUNNEL_IMAGE:-apache/seatunnel:2.3.13}
+    profiles:
+      - executor
+    environment:
+      ST_DOCKER_MEMBER_COUNT: "1"
+    command: ["./bin/seatunnel-cluster.sh", "-r", "master"]
+    ports:
+      - "${SEATUNNEL_HTTP_PORT:-18082}:8080"
+      - "${SEATUNNEL_CLUSTER_PORT:-15801}:5801"
+    volumes:
+      - ./seatunnel/seatunnel.yaml:/opt/seatunnel/config/seatunnel.yaml:ro
+    networks:
+      - platform-net
+    restart: unless-stopped
+
+networks:
+  platform-net:
+    external: true
+    name: medical-platform_platform-net

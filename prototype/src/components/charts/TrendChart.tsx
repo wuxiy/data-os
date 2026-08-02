@@ -5,6 +5,7 @@ interface TrendChartProps {
   primaryLabel?: string
   secondaryLabel?: string
   compact?: boolean
+  flat?: boolean
 }
 
 const labels = ['07-03', '07-06', '07-09', '07-12', '07-15', '07-18', '07-21', '07-24', '07-27', '07-30', '08-01']
@@ -16,11 +17,14 @@ export function TrendChart({
   primaryLabel = '质量得分',
   secondaryLabel = '标准映射率',
   compact = false,
+  flat = false,
 }: TrendChartProps) {
+  const accessibleTitle = title || `${primaryLabel}与${secondaryLabel}趋势`
+
   return (
-    <section className={`${styles.panel} ${compact ? styles.compact : ''}`} aria-label={title}>
+    <section className={`${styles.panel} ${compact ? styles.compact : ''} ${flat ? styles.flat : ''}`} aria-label={accessibleTitle}>
       <div className={styles.header}>
-        <h2>{title}</h2>
+        {title ? <h2>{title}</h2> : null}
         <div className={styles.legend}>
           <span><i className={styles.lineSolid} />{primaryLabel}</span>
           <span><i className={styles.lineDash} />{secondaryLabel}</span>

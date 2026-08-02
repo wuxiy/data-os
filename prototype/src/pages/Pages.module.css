@@ -8,6 +8,42 @@
   padding: 20px 24px 32px;
 }
 
+.apiStatus {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 1480px;
+  margin: 10px auto 0;
+  padding: 0 24px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.apiDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--amber);
+  box-shadow: 0 0 0 3px var(--amber-soft);
+}
+
+.apiDotLive {
+  background: var(--jade);
+  box-shadow: 0 0 0 3px var(--jade-soft);
+}
+
+.dashboardScope {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  padding: 0 9px;
+  color: var(--muted);
+  background: var(--surface-sunken);
+  border-radius: 5px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
 .attention {
   display: flex;
   align-items: center;
@@ -18,6 +54,63 @@
   border: 0;
   border-left: 3px solid var(--amber);
   border-radius: var(--radius-panel);
+}
+
+.sourceForm {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.6fr) repeat(2, minmax(150px, 0.8fr)) minmax(250px, 1.4fr);
+  gap: 12px;
+  align-items: end;
+  margin-top: 12px;
+  padding: 15px 17px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-card);
+}
+
+.formField {
+  display: grid;
+  gap: 6px;
+}
+
+.formField label {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.formField input,
+.formField select {
+  min-height: 34px;
+  padding: 0 9px;
+  color: var(--ink);
+  background: var(--surface-raised);
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  outline: 0;
+  font: inherit;
+  font-size: 12px;
+}
+
+.formField input:focus,
+.formField select:focus {
+  border-color: var(--jade);
+  box-shadow: 0 0 0 3px var(--jade-soft);
+}
+
+.formActions {
+  display: flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.formActions span {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
 }
 
 .attentionText {
@@ -51,6 +144,41 @@
   grid-template-columns: minmax(0, 1.5fr) minmax(300px, 0.85fr);
   gap: 16px;
   margin-top: 16px;
+}
+
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  padding: 16px;
+  background: var(--line);
+}
+
+.summaryCard {
+  display: grid;
+  min-height: 88px;
+  grid-template-columns: 25px 1fr;
+  grid-template-rows: auto auto;
+  align-content: center;
+  gap: 2px 8px;
+  padding: 11px;
+  background: var(--paper);
+}
+
+.summaryCard > span {
+  grid-row: span 2;
+  color: var(--jade);
+}
+
+.summaryCard strong {
+  font-family: var(--font-number);
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+}
+
+.summaryCard small {
+  color: var(--muted);
+  font-size: 11px;
 }
 
 .panel {

@@ -39,3 +39,91 @@
 完成第一版可发布级桌面原型：React + Vite 实现管理驾驶舱、治理驾驶舱、数据标准、标准映射、质量闭环与主索引审核六页；责任链按 `issueId → assetId → ruleId → ownerId → ticketId` 展示事件、资产、规则、责任人与工单来源。根据反馈将高饱和绿色改为无渐变深灰松石与低饱和灰玉绿，并删除盾牌十字符号。
 
 生产构建通过，1440×900 与 1280×800 桌面视口无页面整体横向溢出；标准选择、映射筛选/保存、质量复检、MPI 确认与责任链抽屉均完成浏览器实测。视觉对照与发布检查归档在 `prototype/qa/FIDELITY-LEDGER.md`。
+
+## 2026-08-03 三类开源能力前端接入设计
+
+### 目标
+
+在不暴露组件拼盘的前提下，分别设计 Superset 嵌入式分析、OpenMetadata 数据资产/血缘和 DB-GPT 智能问数三个 data-os 业务页面，并保留专业人员进入原生控制台的降级入口。
+
+### 执行计划
+
+- [x] 复核现有设计系统、路由、导航和桌面端布局约束
+- [x] 设计并实现嵌入式分析页：看板目录、业务结果、筛选和证据轨
+- [x] 设计并实现数据资产页：资产检索、概览/血缘/质量和来源证据
+- [x] 设计并实现智能问数页：会话、流式结果形态、SQL/资产证据和反馈
+- [x] 接通三个新路由与主导航，补齐真实业务化演示数据和交互反馈
+- [x] 更新原型说明，明确未来 BFF/API 替换点和原生控制台边界
+- [x] 运行生产构建并检查 1440×900、1280×800 桌面视口
+- [x] 复核键盘焦点、空状态、筛选、页面整体横向溢出和关键点击路径
+
+### 结果复盘
+
+完成数据资产、分析看板、智能问数三个独立工作台及主导航接入。三页统一使用“目录—业务工作区—证据轨”，分别承接 OpenMetadata、Superset、DB-GPT 的能力，但业务界面不暴露组件品牌和原生管理菜单；专业入口保留统一登录深链。生产构建通过，1440×900 与 1280×800 无页面整体横向溢出，资产质量页签、问数查询证据和目录切换完成浏览器实测，运行日志无错误或警告。
+
+## 2026-08-03 技术架构文档与实施计划
+
+### 目标
+
+将已批准的平台蓝图收敛为可供架构评审、研发排期和项目验收的两份执行文档，明确控制面边界、组件集成契约、数据链路、部署拓扑、故障降级，以及 20 周 MVP 的工作包、里程碑、责任人和退出门槛。
+
+### 执行计划
+
+- [x] 复核既有蓝图、项目约束与 data-ops 复用结论
+- [x] 核验 SeaTunnel、DolphinScheduler、Doris、OpenMetadata、Superset、DB-GPT 与 HAPI FHIR 的官方集成边界
+- [x] 编写 `docs/technical-architecture.md`，冻结模块边界、接口模式、数据分层和部署拓扑
+- [x] 编写 `docs/implementation-plan.md`，拆分阶段、工作包、人员、依赖、验收和回滚条件
+- [x] 更新 README 文档地图与蓝图的详细设计入口
+- [x] 检查术语、链接、里程碑、验收指标和架构决策一致性
+
+### 结果复盘
+
+完成两份实施基线文档。技术架构冻结为 React 门户 + Java 21/Spring Boot 3 模块化控制面 + PostgreSQL Outbox，所有开源组件通过稳定 Adapter/BFF 接入；Edge Node 明确为 Java 21 服务、SQLite WAL 状态库与文件 spool，避免为前置机引入 NiFi 服务端或额外消息中间件。Superset、OpenMetadata、DB-GPT、HAPI FHIR、SeaTunnel、DolphinScheduler、dbt 与 Doris 的事实归属、失败降级和替换边界均已落表。
+
+实施计划按 5 人推荐团队拆成 20 周、7 个阶段门，W6 形成端到端 PoC，W20 完成首院 MVP；首院权限与协议样本、组件 BOM、MPI 标注集和 DB-GPT Beta 准入均设置了责任人和截止门槛。已通过 `git diff --check`、Markdown 代码围栏和本地链接检查；未修改或清理用户已有的 `prototype/.vite/` 等工作区内容。
+
+## 2026-08-03 首条垂直切片实现与开发环境部署
+
+### 目标
+
+按 P1 垂直切片先交付可运行的“门户 → 控制面 → PostgreSQL”闭环：数据源登记、采集任务、运行记录、治理摘要和健康检查；不将尚未可用的执行器伪装成成功。
+
+### 执行计划
+
+- [x] 复核 data-ops 开发机服务、账号手册、`platform-net` 和可复用 PostgreSQL
+- [x] 创建 Java 21 / Spring Boot 控制面模块，保留 `tenant_id`、`institution_id` 和 `data_os` schema 隔离
+- [x] 实现数据源、采集任务、采集运行、治理摘要和 readiness API
+- [x] 为运行 API 增加 SeaTunnel REST `POST /submit-job` 适配边界与 `BLOCKED_DEPENDENCY` / `BLOCKED_CONFIGURATION` / `SUBMIT_FAILED` 状态
+- [x] 将治理驾驶舱和数据接入页接入控制面，控制面不可用时保留明确的演示降级
+- [x] 增加不含密钥的开发 Compose、Nginx SPA 回退和 SeaTunnel 可选 profile
+- [x] 本地运行后端 4 个 MockMvc 契约测试并通过 React/Vite 生产构建
+- [x] 在开发机独立目录构建/启动控制面与门户，复用 PostgreSQL 并完成 API、静态资源和 schema 验收
+- [ ] SeaTunnel 镜像拉取、REST 健康和首个真实作业提交（开发机当前访问 Docker Hub 超时，保留为下一次执行器兼容性门）
+- [ ] DolphinScheduler、Doris/dbt、OpenMetadata/Superset/DB-GPT 的真实数据链路和 Edge Node（按 P1/P2 计划继续）
+
+### 结果复盘
+
+本地验证：`mvn -B -Dmaven.repo.local=/private/tmp/dataos-m2 test` 通过，4 个契约测试全绿；`npm run build` 通过（1606 modules）。Compose 通过 `docker compose config --no-interpolate` 校验，Nginx 提供 `/api/` 反向代理和 `/healthz`。
+
+开发环境：`172.16.65.59:/root/data-os-dev-20260803`。新增服务为 `data-os-dev-control-plane-1` 与 `data-os-dev-portal-1`，门户实际端口 `18081`；控制面健康为 `UP`，PostgreSQL 中 `data_os` 已创建 `sources`、`ingestion_jobs`、`job_runs`、`governance_metrics`、`governance_issues` 五张表，验收时分别写入 2 个来源、2 个任务和 1 条阻塞运行记录。现有 data-ops 容器、Doris、Keycloak 和 `platform-net` 未被修改。
+
+验收命令与结果：
+
+```text
+GET  /healthz                         -> {"status":"UP"}
+GET  /api/v1/governance/summary       -> 6 metrics / 3 seeded issues
+POST /api/v1/sources                  -> 201 PENDING
+POST /api/v1/jobs                     -> 201 DRAFT
+POST /api/v1/jobs/{id}/runs           -> 201 BLOCKED_DEPENDENCY
+GET  /api/v1/jobs/{id}/runs           -> total=1
+GET  /ingestion + static JS           -> 200
+```
+
+前端专用 Browser 在远程地址能读取页面标题，但其 DOM/控制台读取连续超时并触发大体积截图通知；因此本轮补充使用生产构建、HTTP 反向代理/资源检查和真实 API 验收，记录该浏览器路径为环境风险，而非应用错误。后续执行器上线时仍需补做 Browser/Playwright 的 1440×900 交互截图验收。
+
+### 最终收口补充
+
+- 控制面加入稳定的 `ExecutorAdapter` 端口和 SeaTunnel REST 超时边界；未配置执行器时明确返回 `中心采集执行器未配置`，不伪造成功运行。
+- 数据接入页已提供数据源登记表单和采集运行反馈；门户 API 不再发送未由后端落库的幂等键，幂等/Outbox 仍列为 P1 后续工作。
+- 修复 Nginx `/assets` 业务路由与 Vite 静态资源目录同名冲突；远程 `/`、`/ingestion`、`/governance`、`/assets`、`/analysis`、`/assistant` 均返回 200，控制面容器为 healthy。
+- 重新构建并部署最终控制面镜像；本地 4 个后端测试、前端生产构建、Compose 配置检查、差异空白检查和敏感信息扫描均通过。共享 PostgreSQL `data_os` schema 验收为 2 个来源、2 个任务、2 条阻塞运行记录。

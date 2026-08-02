@@ -4,6 +4,10 @@ import { AppShell } from './components/layout/AppShell'
 import { Toast } from './components/ui/Primitives'
 import { routePaths } from './data/mock'
 import { DataStandardsPage } from './pages/DataStandardsPage'
+import { DataIngestionPage } from './pages/DataIngestionPage'
+import { AnalyticsPage } from './pages/AnalyticsPage'
+import { AssetCatalogPage } from './pages/AssetCatalogPage'
+import { AssistantPage } from './pages/AssistantPage'
 import { GovernanceDashboardPage } from './pages/GovernanceDashboardPage'
 import { ManagementDashboardPage } from './pages/ManagementDashboardPage'
 import { MpiReviewPage } from './pages/MpiReviewPage'
@@ -45,11 +49,14 @@ export function App() {
   }
 
   function showUnavailable(label: string) {
-    setNotice(`${label}将在下一版接入；当前可体验治理与主索引核心流程`)
+    setNotice(`${label}将在下一版接入；当前可体验治理、资产、分析、问数与主索引核心流程`)
   }
 
   let page
   switch (route) {
+    case 'ingestion':
+      page = <DataIngestionPage onNotice={setNotice} onUnavailable={showUnavailable} onNavigate={navigate} />
+      break
     case 'governance':
       page = <GovernanceDashboardPage onOpenChain={() => setDrawerOpen(true)} onNavigate={navigate} onUnavailable={showUnavailable} onNotice={setNotice} />
       break
@@ -64,6 +71,15 @@ export function App() {
       break
     case 'mpi':
       page = <MpiReviewPage onNotice={setNotice} />
+      break
+    case 'assets':
+      page = <AssetCatalogPage onNotice={setNotice} />
+      break
+    case 'analytics':
+      page = <AnalyticsPage onNotice={setNotice} />
+      break
+    case 'assistant':
+      page = <AssistantPage onNotice={setNotice} />
       break
     default:
       page = <ManagementDashboardPage onOpenChain={() => setDrawerOpen(true)} onUnavailable={showUnavailable} onNotice={setNotice} />
