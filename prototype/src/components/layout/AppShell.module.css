@@ -27,7 +27,7 @@
   width: 232px;
   flex-direction: column;
   padding: 24px 12px 16px;
-  color: #f3f2ec;
+  color: #1c2422;
   background: var(--sidebar);
 }
 
@@ -70,10 +70,10 @@
   align-items: center;
   gap: 13px;
   padding: 0 14px;
-  color: rgba(250, 249, 245, 0.82);
+  color: rgba(28, 36, 34, 0.72);
   background: transparent;
   border: 0;
-  border-radius: 5px;
+  border-radius: var(--radius-control);
   cursor: pointer;
   text-align: left;
   transition: color 150ms ease-out, background 150ms ease-out;
@@ -81,7 +81,7 @@
 
 .navItem::before {
   position: absolute;
-  inset: 9px auto 9px 0;
+  inset: 11px auto 11px 0;
   width: 2px;
   background: transparent;
   border-radius: 1px;
@@ -90,13 +90,13 @@
 
 .navItem:hover,
 .settings:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.055);
+  color: #1c2422;
+  background: rgba(20, 28, 25, 0.05);
 }
 
 .navItemActive {
-  color: #fff;
-  background: var(--sidebar-active);
+  color: #1c2422;
+  background: rgba(46, 118, 105, 0.12);
 }
 
 .navItemActive::before {
@@ -106,8 +106,9 @@
 .navItem span,
 .settings span {
   overflow: hidden;
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 500;
+  letter-spacing: 0.02em;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -128,7 +129,7 @@
   display: none;
 }
 
-@media (max-width: 1179px) and (min-width: 768px) {
+@media (max-width: 1180px) and (min-width: 768px) {
   .sidebar {
     width: 72px;
     padding-inline: 8px;
@@ -170,7 +171,7 @@
     align-items: center;
     gap: 10px;
     padding: 0 16px;
-    color: #f3f2ec;
+    color: #1c2422;
     background: var(--sidebar);
   }
 
@@ -230,3 +231,4 @@
     left: 16px;
   }
 }
+

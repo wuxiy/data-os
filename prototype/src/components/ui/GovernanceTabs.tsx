@@ -23,9 +23,10 @@ export function GovernanceTabs({ route, onNavigate, onUnavailable }: {
         return (
           <button
             key={tab.label}
-            className={active ? styles.active : ''}
+            className={`${active ? styles.active : ''} ${tab.route ? '' : styles.unavailable}`.trim()}
             onClick={() => tab.route ? onNavigate(tab.route) : onUnavailable(tab.label)}
             aria-current={active ? 'page' : undefined}
+            title={tab.route ? undefined : '下一轮接入'}
           >
             {tab.label}
           </button>

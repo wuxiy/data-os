@@ -1,5 +1,6 @@
 :root {
   font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-variant-numeric: tabular-nums;
   color: #20312d;
   background: #f4f5f1;
   font-synthesis: none;
@@ -7,22 +8,32 @@
   --canvas: #f4f5f1;
   --paper: #ffffff;
   --ink: #20312d;
-  --sidebar: #1b2d29;
-  --sidebar-active: #324a45;
+  --sidebar: #eceee9;
   --selection-mark: #c0a56a;
   --muted: #687c75;
   --jade: #2e7669;
   --jade-dark: #255f55;
   --jade-soft: #e1ece8;
   --amber: #b96c26;
+  --amber-dark: #94531b;
   --amber-soft: #f8ebdf;
   --red: #b4483e;
   --red-soft: #f9e7e4;
+  --surface-raised: #f7f8f5;
+  --surface-hover: #f8faf7;
+  --surface-active: #f2f7f4;
+  --surface-sunken: #e9eeea;
+  --surface-overlay: rgba(255, 255, 255, 0.8);
   --line: rgba(32, 49, 45, 0.11);
   --line-strong: rgba(32, 49, 45, 0.19);
+  --ring: rgba(20, 28, 25, 0.05);
   --shadow: 0 8px 28px rgba(32, 49, 45, 0.12);
+  --shadow-card: 0 1px 2px rgba(20, 28, 25, 0.04), 0 4px 16px -8px rgba(20, 28, 25, 0.06);
+  --shadow-raise: 0 2px 4px rgba(20, 28, 25, 0.05), 0 12px 32px -12px rgba(20, 28, 25, 0.12);
+  --radius-panel: 10px;
+  --radius-control: 7px;
   --font-title: "Noto Serif SC", "Songti SC", serif;
-  --font-number: "DIN Alternate", "Roboto Mono", monospace;
+  --font-number: "DIN Alternate", "Helvetica Neue", Arial, sans-serif;
 }
 
 * {

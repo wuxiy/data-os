@@ -5,7 +5,7 @@
   gap: 2px;
   padding: 0 24px;
   overflow-x: auto;
-  background: rgba(255, 255, 255, 0.76);
+  background: transparent;
   border-bottom: 1px solid var(--line);
   scrollbar-width: none;
 }
@@ -47,6 +47,11 @@
 
 .tabs .active::after {
   background: var(--jade);
+}
+
+.tabs .unavailable {
+  opacity: 0.45;
+  cursor: default;
 }
 
 @media (max-width: 767px) {

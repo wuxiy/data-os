@@ -1,8 +1,8 @@
 .chainPanel {
   padding: 19px 20px 20px;
-  background: rgba(255, 255, 255, 0.82);
-  border: 1px solid var(--line);
-  border-radius: 6px;
+  background: var(--paper);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-raise);
 }
 
 .chainHeader {
@@ -21,7 +21,7 @@
 .chainHeader p {
   margin: 4px 0 0;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .sourceSummary {
@@ -30,7 +30,7 @@
   gap: 12px;
   color: var(--muted);
   font-family: var(--font-number);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .sourceSummary b {
@@ -80,27 +80,26 @@
 }
 
 .stepValue {
-  overflow: hidden;
   padding: 11px 10px;
+  overflow-wrap: anywhere;
   color: var(--jade-dark);
-  background: #f8faf7;
-  border: 1px solid rgba(46, 118, 105, 0.36);
-  border-radius: 5px;
+  background: var(--surface-sunken);
+  border-radius: var(--radius-control);
   font-size: 12px;
   font-weight: 600;
-  text-align: center;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.45;
+  text-align: left;
+  white-space: normal;
 }
 
 .stepValue.warning {
-  color: #96551d;
-  border-color: rgba(185, 108, 38, 0.55);
+  color: var(--amber-dark);
+  background: var(--amber-soft);
 }
 
 .stepValue.danger {
   color: var(--red);
-  border-color: rgba(180, 72, 62, 0.55);
+  background: var(--red-soft);
 }
 
 .connector {
@@ -145,7 +144,7 @@
   overflow-y: auto;
   color: var(--ink);
   background: #fff;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-raise);
   transform: translateX(104%);
   visibility: hidden;
   transition: transform 200ms ease-out, visibility 200ms;
@@ -170,7 +169,7 @@
 
 .drawerHeader span {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .drawerHeader h2 {
@@ -187,16 +186,15 @@
   place-items: center;
   background: transparent;
   border: 0;
-  border-radius: 5px;
+  border-radius: var(--radius-control);
   cursor: pointer;
 }
 
 .provenance {
   margin: 16px 22px 5px;
   padding: 13px 14px 9px;
-  background: #f4f5f1;
-  border: 1px solid var(--line);
-  border-radius: 6px;
+  background: var(--canvas);
+  border-radius: 8px;
 }
 
 .provenance dl {
@@ -209,7 +207,7 @@
   gap: 8px;
   margin-bottom: 7px;
   font-family: var(--font-number);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.5;
 }
 
@@ -251,25 +249,24 @@
   height: 35px;
   place-items: center;
   color: var(--jade);
-  background: #fff;
-  border: 1px solid rgba(46, 118, 105, 0.42);
+  background: var(--jade-soft);
   border-radius: 50%;
 }
 
 .nodeIcon.warning {
   color: var(--amber);
-  border-color: rgba(185, 108, 38, 0.45);
+  background: var(--amber-soft);
 }
 
 .nodeIcon.danger {
   color: var(--red);
-  border-color: rgba(180, 72, 62, 0.45);
+  background: var(--red-soft);
 }
 
 .nodeIndex {
   color: var(--muted);
   font-family: var(--font-number);
-  font-size: 9px;
+  font-size: 12px;
   letter-spacing: 0.04em;
 }
 
@@ -282,7 +279,7 @@
 .nodeSource {
   margin: 0 0 7px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .nodeSource {

@@ -37,7 +37,7 @@ export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props
 
   return (
     <div className={styles.page}>
-      <PageHeader title="数据质量闭环" compact />
+      <PageHeader title="数据质量闭环" compact onFilterNotice={onNotice} />
       <GovernanceTabs route="quality" onNavigate={onNavigate} onUnavailable={onUnavailable} />
       <div className={styles.workspace}>
         <aside className={styles.workspaceRail}>

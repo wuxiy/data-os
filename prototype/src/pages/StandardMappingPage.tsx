@@ -38,7 +38,7 @@ export function StandardMappingPage({ onNavigate, onUnavailable, onNotice }: Pro
   }
   return (
     <div className={styles.page}>
-      <PageHeader title="标准映射" compact />
+      <PageHeader title="标准映射" compact onFilterNotice={onNotice} />
       <GovernanceTabs route="mapping" onNavigate={onNavigate} onUnavailable={onUnavailable} />
       <div className={styles.workspace}>
         <aside className={styles.workspaceRail}>

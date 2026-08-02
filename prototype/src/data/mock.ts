@@ -135,6 +135,13 @@ export const mpiCandidates: MpiCandidate[] = [
   { id: 'MPI-C-0033', score: 87, leftName: '赵敏', rightName: '赵敏', system: 'LIS ↔ HIS', risk: '历史号码' },
 ]
 
+export const riskRanking = [
+  { system: 'LIS', owner: '检验科数据管理员', value: '18' },
+  { system: 'EMR', owner: '病案室数据管理员', value: '12' },
+  { system: '手麻系统', owner: '麻醉科数据管理员', value: '7' },
+  { system: '病案首页', owner: '病案室数据管理员', value: '5' },
+]
+
 export const routePaths = {
   management: '/',
   governance: '/governance',

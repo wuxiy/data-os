@@ -15,7 +15,7 @@ import styles from './ResponsibilityChain.module.css'
 const nodes = [
   {
     label: '异常发现',
-    value: 'LIS 检验结果及时率下降',
+    value: '门诊诊断编码存在失效值',
     detail: '首次发现 07-31 09:23',
     source: '质量规则运行结果',
     icon: AlertCircle,
@@ -23,22 +23,22 @@ const nodes = [
   },
   {
     label: '数据对象',
-    value: '检验主题 · result_time',
-    detail: '影响 38 张表',
+    value: '门诊就诊事实表 · diagnosis_code',
+    detail: '影响 428 条记录',
     source: '资产目录与采集元数据',
     icon: Database,
   },
   {
     label: '治理规则',
-    value: '检验结果及时性规则',
-    detail: '规则类型 · 时效性',
+    value: '诊断编码有效值域规则',
+    detail: '规则类型 · 值域有效性',
     source: '质量规则中心',
     icon: FileCheck2,
   },
   {
     label: '责任部门',
-    value: '检验科数据管理员',
-    detail: '责任人 · 周启',
+    value: '门诊部数据管理员',
+    detail: '责任人 · 王敏',
     source: '资产责任人与组织主数据',
     icon: Users,
   },
@@ -76,7 +76,7 @@ export function ResponsibilityChain({ onOpen }: ResponsibilityChainProps) {
           return (
             <div className={styles.chainStep} key={node.label}>
               <div className={styles.stepTitle}><Icon size={18} /><span>{node.label}</span></div>
-              <div className={`${styles.stepValue} ${node.tone ? styles[node.tone] : ''}`}>{node.value}</div>
+              <div className={`${styles.stepValue} ${node.tone ? styles[node.tone] : ''}`} title={node.value}>{node.value}</div>
               {index < nodes.length - 1 ? <span className={styles.connector} aria-hidden="true" /> : null}
             </div>
           )

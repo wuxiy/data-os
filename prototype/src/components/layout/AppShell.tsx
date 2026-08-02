@@ -7,6 +7,7 @@ import {
   House,
   Landmark,
   Menu,
+  PackageCheck,
   Settings,
   Waypoints,
   Workflow,
@@ -34,6 +35,7 @@ const navItems: NavItem[] = [
   { label: '数据服务', icon: Boxes },
   { label: '分析看板', icon: ChartNoAxesCombined },
   { label: '运营中心', icon: Workflow },
+  { label: '交付中心', icon: PackageCheck },
 ]
 
 interface AppShellProps {
@@ -90,14 +92,14 @@ export function AppShell({ route, children, onNavigate, onUnavailable }: AppShel
                 aria-current={isActive ? 'page' : undefined}
                 title={item.label}
               >
-                <Icon size={21} strokeWidth={1.7} />
+                <Icon size={19} strokeWidth={1.5} />
                 <span>{item.label}</span>
               </button>
             )
           })}
         </nav>
         <button className={styles.settings} onClick={() => onUnavailable('系统设置')} title="系统设置">
-          <Settings size={20} strokeWidth={1.7} />
+          <Settings size={19} strokeWidth={1.5} />
           <span>系统设置</span>
         </button>
       </aside>

@@ -2,13 +2,13 @@ import { AlertTriangle, ChevronRight } from 'lucide-react'
 import { TrendChart } from '../components/charts/TrendChart'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Button, MetricStrip, StatusTag } from '../components/ui/Primitives'
-import { managementMetrics } from '../data/mock'
+import { managementMetrics, riskRanking } from '../data/mock'
 import styles from './Pages.module.css'
 
-export function ManagementDashboardPage({ onOpenChain, onUnavailable }: { onOpenChain: () => void; onUnavailable: (label: string) => void }) {
+export function ManagementDashboardPage({ onOpenChain, onUnavailable, onNotice }: { onOpenChain: () => void; onUnavailable: (label: string) => void; onNotice: (message: string) => void }) {
   return (
     <div className={styles.page}>
-      <PageHeader title="医院数据运营总览" eyebrow="管理驾驶舱" subtitle="以结果、风险和交付进展为中心" />
+      <PageHeader title="医院数据运营总览" eyebrow="管理驾驶舱" subtitle="以结果、风险和交付进展为中心" onFilterNotice={onNotice} />
       <MetricStrip metrics={managementMetrics} onSelect={onOpenChain} />
       <div className={styles.content}>
         <section className={styles.attention}>
@@ -49,14 +49,11 @@ export function ManagementDashboardPage({ onOpenChain, onUnavailable }: { onOpen
 }
 
 function RiskRanking({ onSelect }: { onSelect: () => void }) {
-  const risks = [
-    ['LIS', '检验科数据管理员', '18'], ['EMR', '病案室数据管理员', '12'], ['手麻系统', '麻醉科数据管理员', '7'], ['病案首页', '病案室数据管理员', '5'],
-  ]
   return (
     <section className={styles.panel}>
       <div className={styles.panelHeader}><div><h2>高风险系统排行</h2><p>按逾期问题数排序</p></div><button className={styles.textButton} onClick={onSelect}>查看责任 <ChevronRight size={13} /></button></div>
       <ol className={styles.ranking}>
-        {risks.map(([system, owner, value], index) => <li key={system}><span className={styles.rank}>{index + 1}</span><div className={styles.rankBody}><strong>{system}</strong><span>{owner}</span></div><span className={styles.rankValue}>{value}</span></li>)}
+        {riskRanking.map(({ system, owner, value }, index) => <li key={system}><span className={styles.rank}>{String(index + 1).padStart(2, '0')}</span><div className={styles.rankBody}><strong>{system}</strong><span>{owner}</span></div><span className={styles.rankValue}>{value}</span></li>)}
       </ol>
     </section>
   )

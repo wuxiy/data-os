@@ -5,8 +5,8 @@
   justify-content: center;
   gap: 8px;
   padding: 0 14px;
-  border: 1px solid var(--line-strong);
-  border-radius: 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
   cursor: pointer;
   font-size: 13px;
   font-weight: 600;
@@ -24,12 +24,12 @@
 
 .primary {
   color: #fff;
-  background: var(--jade);
-  border-color: var(--jade);
+  background: #205c50;
+  border-color: transparent;
 }
 
 .primary:hover:not(:disabled) {
-  background: var(--jade-dark);
+  background: #1a4f45;
 }
 
 .secondary {
@@ -47,19 +47,13 @@
   border-color: transparent;
 }
 
-.danger {
-  color: var(--red);
-  background: var(--red-soft);
-  border-color: rgba(180, 72, 62, 0.24);
-}
-
 .tag {
   display: inline-flex;
   min-height: 24px;
   align-items: center;
   padding: 0 8px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
+  border: 0;
+  border-radius: 5px;
   font-size: 12px;
   font-weight: 500;
   white-space: nowrap;
@@ -68,31 +62,30 @@
 .healthy {
   color: var(--jade-dark);
   background: var(--jade-soft);
-  border-color: rgba(46, 118, 105, 0.2);
 }
 
 .warning {
-  color: #94531b;
+  color: var(--amber-dark);
   background: var(--amber-soft);
-  border-color: rgba(185, 108, 38, 0.22);
 }
 
 .danger {
   color: var(--red);
   background: var(--red-soft);
-  border-color: rgba(180, 72, 62, 0.2);
 }
 
 .neutral {
   color: var(--muted);
-  background: #f4f5f2;
+  background: var(--canvas);
 }
 
 .metrics {
   display: grid;
+  overflow: hidden;
   grid-template-columns: repeat(6, minmax(0, 1fr));
-  background: rgba(255, 255, 255, 0.76);
-  border-bottom: 1px solid var(--line);
+  background: var(--paper);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-card);
 }
 
 .metric {
@@ -106,12 +99,7 @@
   padding: 18px 22px;
   background: transparent;
   border: 0;
-  border-right: 1px solid var(--line);
   text-align: left;
-}
-
-.metric:last-child {
-  border-right: 0;
 }
 
 .metricInteractive {
@@ -119,7 +107,7 @@
 }
 
 .metricInteractive:hover {
-  background: #f8faf7;
+  background: var(--surface-hover);
 }
 
 .metricLabel,
@@ -132,16 +120,17 @@
 
 .metricLabel {
   margin-bottom: 5px;
-  color: var(--ink);
-  font-size: 13px;
+  color: var(--muted);
+  font-size: 12px;
   font-weight: 600;
 }
 
 .metric strong {
   color: var(--jade);
   font-family: var(--font-number);
-  font-size: clamp(23px, 2.15vw, 30px);
+  font-size: 28px;
   font-weight: 600;
+  letter-spacing: -0.02em;
   line-height: 1.25;
 }
 
@@ -154,7 +143,7 @@
 .metricDetail {
   margin-top: 4px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .metricArrow {
@@ -191,9 +180,8 @@
   padding: 8px 10px 8px 12px;
   color: var(--ink);
   background: var(--paper);
-  border: 1px solid var(--line-strong);
-  border-radius: 8px;
-  box-shadow: var(--shadow);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-card);
   animation: toastIn 180ms ease-out;
   font-size: 13px;
 }

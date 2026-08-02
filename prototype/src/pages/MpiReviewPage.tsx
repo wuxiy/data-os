@@ -32,7 +32,7 @@ export function MpiReviewPage({ onNotice }: { onNotice: (message: string) => voi
 
   return (
     <div className={styles.page}>
-      <PageHeader title="主索引候选审核" eyebrow="主索引与主数据" compact />
+      <PageHeader title="主索引候选审核" eyebrow="主索引与主数据" compact onFilterNotice={onNotice} />
       <div className={styles.mpiWorkspace}>
         <aside className={styles.workspaceRail}>
           <div className={styles.sectionTitle}><h2>候选队列</h2><span>36 待审核</span></div>

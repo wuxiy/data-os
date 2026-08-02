@@ -14,10 +14,10 @@
   justify-content: space-between;
   gap: 20px;
   padding: 15px 18px;
-  background: #f7efe5;
-  border: 1px solid rgba(185, 108, 38, 0.2);
+  background: var(--amber-soft);
+  border: 0;
   border-left: 3px solid var(--amber);
-  border-radius: 5px;
+  border-radius: var(--radius-panel);
 }
 
 .attentionText {
@@ -56,8 +56,8 @@
 .panel {
   min-width: 0;
   background: var(--paper);
-  border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-card);
 }
 
 .panelHeader {
@@ -79,7 +79,7 @@
 .panelHeader p {
   margin: 3px 0 0;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .textButton {
@@ -91,7 +91,7 @@
   background: transparent;
   border: 0;
   cursor: pointer;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
 }
 
@@ -115,25 +115,15 @@
 }
 
 .rank {
-  display: grid;
-  width: 22px;
-  height: 22px;
-  place-items: center;
   color: var(--muted);
-  background: #eef0ec;
-  border-radius: 50%;
   font-family: var(--font-number);
-  font-size: 10px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
 }
 
-.ranking li:nth-child(1) .rank {
-  color: #fff;
-  background: var(--red);
-}
-
+.ranking li:nth-child(1) .rank,
 .ranking li:nth-child(2) .rank {
-  color: #fff;
-  background: var(--amber);
+  color: var(--ink);
 }
 
 .rankBody {
@@ -155,7 +145,7 @@
 .rankBody span {
   margin-top: 2px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .rankValue {
@@ -168,8 +158,8 @@
   margin-top: 16px;
   overflow: hidden;
   background: var(--paper);
-  border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-card);
 }
 
 .tableScroll {
@@ -187,9 +177,10 @@
   height: 38px;
   padding: 0 16px;
   color: var(--muted);
-  background: #f7f8f5;
-  font-size: 10px;
+  background: var(--surface-raised);
+  font-size: 11px;
   font-weight: 600;
+  letter-spacing: 0.06em;
   text-align: left;
   white-space: nowrap;
 }
@@ -206,11 +197,15 @@
 }
 
 .table tbody tr:hover {
-  background: #f8faf7;
+  background: var(--surface-hover);
 }
 
 .activeRow {
-  background: #f2f7f4;
+  background: var(--surface-active);
+}
+
+.clickableRow {
+  cursor: pointer;
 }
 
 .noCellPadding {
@@ -223,8 +218,14 @@
   padding: 7px 10px;
   background: transparent;
   border: 0;
+  border-radius: 4px;
   cursor: pointer;
   text-align: left;
+  transition: background 120ms ease-out;
+}
+
+.tableButton:hover {
+  background: var(--surface-hover);
 }
 
 .tableButton strong,
@@ -235,15 +236,15 @@
 .tableButton span {
   margin-top: 2px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .flowPanel {
   margin-top: 16px;
   padding: 18px;
   background: var(--paper);
-  border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-card);
 }
 
 .flowHeader {
@@ -260,7 +261,7 @@
 
 .flowHeader span {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .flow {
@@ -272,9 +273,8 @@
 .flowStep {
   position: relative;
   padding: 12px;
-  background: #f7f8f5;
-  border: 1px solid var(--line);
-  border-radius: 5px;
+  background: var(--surface-sunken);
+  border-radius: 8px;
 }
 
 .flowStep:not(:last-child)::after {
@@ -296,7 +296,7 @@
   display: block;
   margin-top: 3px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .workspace {
@@ -313,7 +313,7 @@
 }
 
 .workspaceRail {
-  background: #f7f8f5;
+  background: var(--surface-sunken);
   border-right: 1px solid var(--line);
 }
 
@@ -344,7 +344,7 @@
 .sectionTitle span {
   color: var(--muted);
   font-family: var(--font-number);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .search {
@@ -355,8 +355,11 @@
   padding: 0 10px;
   color: var(--muted);
   background: #fff;
-  border: 1px solid var(--line-strong);
-  border-radius: 5px;
+  border-radius: var(--radius-control);
+}
+
+.search:focus-within {
+  box-shadow: 0 0 0 2px rgba(46, 118, 105, 0.5);
 }
 
 .search input {
@@ -401,7 +404,7 @@
 .tree .selected,
 .tree button:hover {
   color: var(--ink);
-  background: #e9eeea;
+  background: rgba(255, 255, 255, 0.72);
 }
 
 .listTools {
@@ -432,7 +435,7 @@
   margin-bottom: 7px;
   color: var(--jade);
   font-family: var(--font-number);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .inspectorBody h2 {
@@ -453,7 +456,7 @@
 .definitionList dt {
   margin-bottom: 5px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .definitionList dd {
@@ -472,7 +475,7 @@
   position: relative;
   padding: 0 0 16px 18px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .versionTrail li::before {
@@ -504,7 +507,7 @@
   display: block;
   margin-bottom: 2px;
   color: var(--ink);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .fieldList {
@@ -521,7 +524,7 @@
 
 .fieldList button:hover,
 .fieldList .selected {
-  background: #e9eeea;
+  background: rgba(255, 255, 255, 0.72);
 }
 
 .fieldList strong,
@@ -531,13 +534,13 @@
 
 .fieldList strong {
   font-family: var(--font-number);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .fieldList span {
   margin-top: 3px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .mappingRows {
@@ -562,7 +565,7 @@
 
 .mappingRow:hover,
 .mappingRowSelected {
-  background: #f2f7f4;
+  background: var(--surface-active);
 }
 
 .mappingRow strong,
@@ -572,13 +575,13 @@
 
 .mappingRow strong {
   font-family: var(--font-number);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .mappingRow span {
   margin-top: 2px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .mappingArrow {
@@ -587,9 +590,8 @@
 
 .mappingTarget {
   padding: 7px 9px;
-  background: #f7f8f5;
-  border: 1px solid var(--line);
-  border-radius: 4px;
+  background: var(--surface-sunken);
+  border-radius: var(--radius-control);
 }
 
 .validationScore {
@@ -607,7 +609,7 @@
 
 .validationScore span {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .checkList {
@@ -622,7 +624,7 @@
   align-items: center;
   gap: 9px;
   border-bottom: 1px solid var(--line);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .checkList svg {
@@ -650,14 +652,13 @@
   padding: 12px 10px;
   color: var(--ink);
   background: transparent;
-  border: 1px solid transparent;
-  border-radius: 5px;
+  border-radius: var(--radius-control);
 }
 
 .queue button:hover,
 .queue .selected {
   background: #fff;
-  border-color: var(--line-strong);
+  box-shadow: var(--shadow-card);
 }
 
 .queueTop {
@@ -670,7 +671,7 @@
 .queueId {
   color: var(--muted);
   font-family: var(--font-number);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .queueTitle {
@@ -685,13 +686,13 @@
   display: block;
   margin-top: 5px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .emptyState {
   padding: 24px 12px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   text-align: center;
 }
 
@@ -709,7 +710,7 @@
 .detailHero p {
   margin: 0;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .detailActions {
@@ -761,7 +762,7 @@
 .timeline time {
   color: var(--muted);
   font-family: var(--font-number);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .timeline strong {
@@ -773,16 +774,15 @@
 .timeline p {
   margin: 0;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.6;
 }
 
 .evidenceBox {
   margin: 0 17px 14px;
   padding: 13px;
-  background: #f7f8f5;
-  border: 1px solid var(--line);
-  border-radius: 5px;
+  background: var(--surface-raised);
+  border-radius: 8px;
 }
 
 .evidenceBox h3 {
@@ -793,7 +793,7 @@
 .evidenceBox p {
   margin: 0;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.7;
 }
 
@@ -804,7 +804,7 @@
 .noteBox label {
   display: block;
   margin-bottom: 7px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
 }
 
@@ -815,15 +815,16 @@
   color: var(--ink);
   resize: vertical;
   background: #fff;
-  border: 1px solid var(--line-strong);
-  border-radius: 5px;
+  border: 0;
+  border-radius: var(--radius-control);
   outline: 0;
-  font-size: 11px;
+  box-shadow: 0 0 0 1px var(--ring);
+  font-size: 12px;
   line-height: 1.6;
 }
 
 .noteBox textarea:focus {
-  border-color: var(--jade);
+  box-shadow: 0 0 0 2px rgba(46, 118, 105, 0.5);
 }
 
 .noteActions {
@@ -862,7 +863,7 @@
 .mpiTop p {
   margin: 0;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .score {
@@ -879,7 +880,7 @@
 .score span {
   display: block;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .compareWrap {
@@ -889,20 +890,23 @@
 .compareTable {
   width: 100%;
   border-collapse: collapse;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .compareTable th,
 .compareTable td {
   padding: 10px 12px;
-  border: 1px solid var(--line);
   text-align: left;
+}
+
+.compareTable td {
+  border-top: 1px solid var(--line);
 }
 
 .compareTable th {
   color: var(--muted);
-  background: #f7f8f5;
-  font-size: 10px;
+  background: var(--surface-raised);
+  font-size: 12px;
 }
 
 .compareTable th:first-child,
@@ -911,17 +915,26 @@
 }
 
 .recommendedValue {
-  background: #f2f7f4;
+  background: var(--surface-active);
 }
 
 .recommendedValue select {
   width: 100%;
   min-height: 34px;
+  padding: 0 26px 0 10px;
   color: var(--ink);
-  background: #fff;
-  border: 1px solid var(--line-strong);
-  border-radius: 4px;
-  font-size: 11px;
+  appearance: none;
+  background: #fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23687c75' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 8px center;
+  border: 0;
+  border-radius: var(--radius-control);
+  box-shadow: 0 0 0 1px var(--ring);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.recommendedValue select:focus-visible {
+  outline: 0;
+  box-shadow: 0 0 0 2px rgba(46, 118, 105, 0.5);
 }
 
 .mpiLower {
@@ -948,7 +961,7 @@
   align-items: flex-start;
   gap: 9px;
   max-width: 560px;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.55;
 }
 
@@ -1005,8 +1018,22 @@
     display: block;
   }
 
-  .mpiWorkspace > .workspaceRail {
-    display: none;
+  .mpiWorkspace > .workspaceRail .queue {
+    display: flex;
+    gap: 5px;
+    overflow-x: auto;
+  }
+
+  .mpiWorkspace > .workspaceRail .queue li {
+    flex: 0 0 auto;
+  }
+
+  .mpiWorkspace > .workspaceRail .queue li + li {
+    margin-top: 0;
+  }
+
+  .mpiWorkspace > .workspaceRail .queue button {
+    min-width: 200px;
   }
 
   .mpiMain {

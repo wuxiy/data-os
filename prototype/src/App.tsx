@@ -51,7 +51,7 @@ export function App() {
   let page
   switch (route) {
     case 'governance':
-      page = <GovernanceDashboardPage onOpenChain={() => setDrawerOpen(true)} onNavigate={navigate} onUnavailable={showUnavailable} />
+      page = <GovernanceDashboardPage onOpenChain={() => setDrawerOpen(true)} onNavigate={navigate} onUnavailable={showUnavailable} onNotice={setNotice} />
       break
     case 'standards':
       page = <DataStandardsPage onNavigate={navigate} onUnavailable={showUnavailable} onNotice={setNotice} />
@@ -66,7 +66,7 @@ export function App() {
       page = <MpiReviewPage onNotice={setNotice} />
       break
     default:
-      page = <ManagementDashboardPage onOpenChain={() => setDrawerOpen(true)} onUnavailable={showUnavailable} />
+      page = <ManagementDashboardPage onOpenChain={() => setDrawerOpen(true)} onUnavailable={showUnavailable} onNotice={setNotice} />
   }
 
   return (

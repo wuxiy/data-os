@@ -20,7 +20,7 @@
 
 ## 图标库存
 
-仅使用 Lucide 线性图标：`House`、`Cable`、`Database`、`Landmark`、`Fingerprint`、`Workflow`、`ChartNoAxesCombined`、`Settings`、`Search`、`Bell`、`ChevronRight`、`X`、`Check`、`AlertTriangle`、`Clock3`、`ArrowRight`。不使用 emoji 或手工 SVG 图标。
+仅使用 Lucide 线性图标：`House`、`Cable`、`Database`、`Landmark`、`Fingerprint`、`Workflow`、`ChartNoAxesCombined`、`Boxes`、`PackageCheck`、`Settings`、`Menu`、`Search`、`Bell`、`ChevronRight`、`X`、`Check`、`AlertTriangle`、`Clock3`、`ArrowRight`。不使用 emoji 或手工 SVG 图标。
 
 ## 文案边界
 

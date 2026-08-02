@@ -27,11 +27,17 @@ export function TrendChart({
         </div>
       </div>
       <div className={styles.chartWrap}>
-        <svg className={styles.chart} viewBox="0 0 620 180" role="img" aria-label={`${primaryLabel}整体稳定，${secondaryLabel}近期回升`}>
-          {[30, 70, 110, 150].map((y) => <line key={y} x1="0" x2="600" y1={y} y2={y} className={styles.grid} />)}
-          <polyline points={primary} className={styles.primaryLine} />
-          <polyline points={secondary} className={styles.secondaryLine} />
-          <circle cx="600" cy="41" r="4" className={styles.point} />
+        <svg className={styles.chart} viewBox="0 0 640 180" role="img" aria-label={`${primaryLabel}整体稳定，${secondaryLabel}近期回升`}>
+          {[30, 70, 110, 150].map((y) => <line key={y} x1="40" x2="640" y1={y} y2={y} className={styles.grid} />)}
+          {[{ y: 30, v: '100' }, { y: 70, v: '95' }, { y: 110, v: '90' }, { y: 150, v: '85' }].map((tick) => (
+            <text key={tick.y} x="34" y={tick.y + 4} textAnchor="end" className={styles.yTick}>{tick.v}</text>
+          ))}
+          <text x="34" y="14" textAnchor="end" className={styles.yUnit}>%</text>
+          <g transform="translate(40 0)">
+            <polyline points={primary} className={styles.primaryLine} />
+            <polyline points={secondary} className={styles.secondaryLine} />
+            <circle cx="600" cy="41" r="4" className={styles.point} />
+          </g>
         </svg>
         <div className={styles.xLabels}>
           {labels.map((label, index) => <span key={label} className={index % 2 === 1 ? styles.hideSmall : ''}>{label}</span>)}
