@@ -14,10 +14,12 @@ public class JobService {
 
     private final JobRepository repository;
     private final SourceService sourceService;
+    private final JobConfigService configService;
 
-    public JobService(JobRepository repository, SourceService sourceService) {
+    public JobService(JobRepository repository, SourceService sourceService, JobConfigService configService) {
         this.repository = repository;
         this.sourceService = sourceService;
+        this.configService = configService;
     }
 
     public List<IngestionJob> list(String tenantId, String institutionId) {
@@ -27,7 +29,7 @@ public class JobService {
     @Transactional
     public IngestionJob create(CreateJobRequest request) {
         sourceService.require(request.sourceId());
-        return repository.save(new IngestionJob(
+        var job = repository.save(new IngestionJob(
                 UUID.randomUUID().toString(),
                 request.sourceId(),
                 request.name().trim(),
@@ -36,7 +38,17 @@ public class JobService {
                 "DRAFT",
                 Instant.now(),
                 null,
-                null));
+                null,
+                null,
+                null,
+                false));
+        if (!request.config().isEmpty()) {
+            configService.save(job.id(), new SaveJobConfigRequest(
+                    request.templateKey() == null || request.templateKey().isBlank()
+                            ? "CUSTOM_JSON" : request.templateKey(),
+                    request.templateVersion(), request.config()));
+        }
+        return repository.findById(job.id()).orElse(job);
     }
 
     private String defaultValue(String value, String fallback) {

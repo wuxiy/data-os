@@ -11,5 +11,8 @@ public record IngestionJob(
         String status,
         Instant createdAt,
         String latestRunStatus,
-        Instant lastRunAt) {
+        Instant lastRunAt,
+        String templateKey,
+        Integer templateVersion,
+        boolean configured) {
 }

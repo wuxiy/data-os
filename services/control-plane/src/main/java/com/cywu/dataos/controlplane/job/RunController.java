@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -30,8 +31,10 @@ public class RunController {
     @PostMapping
     public ResponseEntity<IngestionRun> start(
             @PathVariable String jobId,
-            @Valid @RequestBody(required = false) CreateRunRequest request) {
-        var run = service.start(jobId, request == null ? new CreateRunRequest(java.util.Map.of()) : request);
+            @Valid @RequestBody(required = false) CreateRunRequest request,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
+        var run = service.start(jobId, request == null ? new CreateRunRequest(java.util.Map.of()) : request,
+                idempotencyKey);
         return ResponseEntity.created(URI.create("/api/v1/jobs/" + jobId + "/runs/" + run.id())).body(run);
     }
 

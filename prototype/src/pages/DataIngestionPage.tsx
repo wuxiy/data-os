@@ -1,9 +1,40 @@
-import { Activity, ArrowUpRight, Cable, CheckCircle2, CircleAlert, Play, Plus, RefreshCw, Server, Waypoints } from 'lucide-react'
+import {
+  Activity,
+  ArrowUpRight,
+  Cable,
+  CheckCircle2,
+  CircleAlert,
+  Clock3,
+  FileCog,
+  PanelRightClose,
+  Play,
+  Plus,
+  RefreshCw,
+  Save,
+  Server,
+  Settings2,
+  Waypoints,
+  X,
+} from 'lucide-react'
 import type { FormEvent, ReactNode } from 'react'
 import { useEffect, useMemo, useState } from 'react'
 import { PageHeader } from '../components/ui/PageHeader'
 import { StatusTag } from '../components/ui/Primitives'
-import { createSource, fetchIngestionJobs, fetchIngestionRuns, fetchSources, startIngestionRun, syncIngestionRun, type IngestionJobApiItem, type IngestionRunApiItem, type SourceApiItem } from '../data/controlPlane'
+import {
+  createIngestionJob,
+  createSource,
+  fetchIngestionJobs,
+  fetchIngestionRuns,
+  fetchJobConfig,
+  fetchSources,
+  saveJobConfig,
+  startIngestionRun,
+  syncIngestionRun,
+  type IngestionJobApiItem,
+  type IngestionRunApiItem,
+  type JobConfig,
+  type SourceApiItem,
+} from '../data/controlPlane'
 import type { RouteKey } from '../types'
 import styles from './Pages.module.css'
 
@@ -11,6 +42,54 @@ interface Props {
   onNotice: (message: string) => void
   onUnavailable: (label: string) => void
   onNavigate: (route: RouteKey) => void
+}
+
+interface JobFormState {
+  sourceId: string
+  name: string
+  mode: string
+  templateKey: string
+  templateVersion: number
+  configText: string
+}
+
+const DEFAULT_TEMPLATE_KEY = 'FAKE_TO_CONSOLE'
+const DEFAULT_TEMPLATE_VERSION = 1
+const DEFAULT_FAKE_CONFIG: JobConfig = {
+  env: { 'job.mode': 'BATCH', parallelism: 1 },
+  source: [{
+    plugin_name: 'FakeSource',
+    plugin_output: 'fake',
+    'row.num': 16,
+    schema: { fields: { name: 'string', age: 'int' } },
+  }],
+  transform: [],
+  sink: [{ plugin_name: 'Console', plugin_input: ['fake'] }],
+}
+
+function cloneConfig(config: JobConfig): JobConfig {
+  return JSON.parse(JSON.stringify(config)) as JobConfig
+}
+
+function configForTemplate(templateKey: string, mode: string): JobConfig {
+  if (templateKey === DEFAULT_TEMPLATE_KEY) {
+    const config = cloneConfig(DEFAULT_FAKE_CONFIG)
+    const env = config.env as Record<string, unknown>
+    env['job.mode'] = mode
+    return config
+  }
+  return {}
+}
+
+function newJobForm(sourceId = ''): JobFormState {
+  return {
+    sourceId,
+    name: '',
+    mode: 'BATCH',
+    templateKey: DEFAULT_TEMPLATE_KEY,
+    templateVersion: DEFAULT_TEMPLATE_VERSION,
+    configText: JSON.stringify(configForTemplate(DEFAULT_TEMPLATE_KEY, 'BATCH'), null, 2),
+  }
 }
 
 export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props) {
@@ -22,6 +101,20 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
   const [sourceFormOpen, setSourceFormOpen] = useState(false)
   const [sourceForm, setSourceForm] = useState({ name: '', systemType: 'LIS', protocol: 'JDBC' })
   const [creatingSource, setCreatingSource] = useState(false)
+  const [jobFormOpen, setJobFormOpen] = useState(false)
+  const [jobForm, setJobForm] = useState<JobFormState>(newJobForm())
+  const [creatingJob, setCreatingJob] = useState(false)
+  const [configuringJob, setConfiguringJob] = useState<IngestionJobApiItem | null>(null)
+  const [configLoading, setConfigLoading] = useState(false)
+  const [configSaving, setConfigSaving] = useState(false)
+  const [configError, setConfigError] = useState<string | null>(null)
+  const [configTemplateKey, setConfigTemplateKey] = useState(DEFAULT_TEMPLATE_KEY)
+  const [configTemplateVersion, setConfigTemplateVersion] = useState(DEFAULT_TEMPLATE_VERSION)
+  const [configText, setConfigText] = useState('')
+  const [detailsJob, setDetailsJob] = useState<IngestionJobApiItem | null>(null)
+  const [detailsRuns, setDetailsRuns] = useState<IngestionRunApiItem[]>([])
+  const [detailsLoading, setDetailsLoading] = useState(false)
+  const [detailsError, setDetailsError] = useState<string | null>(null)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -30,6 +123,7 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
       .then(([sourceResponse, jobResponse]) => {
         setSources(sourceResponse.items)
         setJobs(jobResponse.items)
+        setJobForm((current) => current.sourceId || !sourceResponse.items[0] ? current : { ...current, sourceId: sourceResponse.items[0].id })
         setState('live')
         return Promise.all(jobResponse.items.map(async (job) => {
           try {
@@ -58,20 +152,60 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
     }
   }, [])
 
+  useEffect(() => {
+    if (!detailsJob || state !== 'live') return
+    let stopped = false
+    const loadRuns = async () => {
+      setDetailsLoading(true)
+      try {
+        const response = await fetchIngestionRuns(detailsJob.id)
+        if (!stopped) {
+          setDetailsRuns(response.items)
+          setLatestRuns((current) => {
+            const next = { ...current }
+            if (response.items[0]) next[detailsJob.id] = response.items[0]
+            else delete next[detailsJob.id]
+            return next
+          })
+          setJobs((current) => current.map((job) => job.id === detailsJob.id
+            ? { ...job, latestRunStatus: response.items[0]?.status ?? null }
+            : job))
+          setDetailsError(null)
+        }
+      } catch {
+        if (!stopped) setDetailsError('运行记录暂时无法读取，请稍后重试')
+      } finally {
+        if (!stopped) setDetailsLoading(false)
+      }
+    }
+    void loadRuns()
+    const timer = window.setInterval(() => void loadRuns(), 5000)
+    return () => {
+      stopped = true
+      window.clearInterval(timer)
+    }
+  }, [detailsJob?.id, state])
+
   const sourceById = useMemo(() => new Map(sources.map((source) => [source.id, source])), [sources])
-  const visibleSources = sources.length > 0 ? sources : fallbackSources
-  const visibleJobs = jobs.length > 0 ? jobs : fallbackJobs
+  const visibleSources = state === 'fallback' ? fallbackSources : sources
+  const visibleJobs = state === 'fallback' ? fallbackJobs : jobs
 
   async function runJob(job: IngestionJobApiItem) {
     if (state !== 'live') {
       onNotice('控制面未连接，当前仅展示演示任务')
       return
     }
+    if (!job.configured) {
+      onNotice('请先保存采集任务配置，再启动运行')
+      void openJobConfig(job)
+      return
+    }
     setRunningJob(job.id)
     try {
-      const run = await startIngestionRun(job.id)
+      const run = await startIngestionRun(job.id, { idempotencyKey: createRequestKey() })
       setLatestRuns((current) => ({ ...current, [job.id]: run }))
-      onNotice(run.status === 'BLOCKED_DEPENDENCY' ? '运行记录已保存，等待中心采集执行器上线' : `运行已提交：${statusLabel(run.status)}`)
+      setDetailsRuns((current) => detailsJob?.id === job.id ? [run, ...current.filter((item) => item.id !== run.id)] : current)
+      onNotice(run.status === 'BLOCKED_DEPENDENCY' ? '运行记录已保存，等待中心采集执行器上线' : `运行已提交：${statusLabel(run.status).label}`)
     } catch {
       onNotice('运行请求失败，请查看控制面运行日志')
     } finally {
@@ -85,7 +219,8 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
     try {
       const refreshed = await syncIngestionRun(job.id, run.id)
       setLatestRuns((current) => ({ ...current, [job.id]: refreshed }))
-      onNotice(`运行状态已更新：${statusLabel(refreshed.status)}`)
+      setDetailsRuns((current) => current.map((item) => item.id === refreshed.id ? refreshed : item))
+      onNotice(`运行状态已更新：${statusLabel(refreshed.status).label}`)
     } catch {
       onNotice('运行状态同步失败，请稍后重试')
     } finally {
@@ -100,6 +235,7 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
     try {
       const source = await createSource({ ...sourceForm, name: sourceForm.name.trim() })
       setSources((current) => [source, ...current])
+      setJobForm((current) => current.sourceId ? current : { ...current, sourceId: source.id })
       setSourceForm({ name: '', systemType: 'LIS', protocol: 'JDBC' })
       setSourceFormOpen(false)
       onNotice('数据源已登记，状态为待检查')
@@ -108,6 +244,105 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
     } finally {
       setCreatingSource(false)
     }
+  }
+
+  async function submitJob(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (state !== 'live') {
+      onNotice('控制面未连接，无法创建采集任务')
+      return
+    }
+    if (!jobForm.sourceId || !jobForm.name.trim()) {
+      onNotice('请先选择数据源并填写任务名称')
+      return
+    }
+    let config: JobConfig
+    try {
+      config = parseConfig(jobForm.configText)
+    } catch (error) {
+      onNotice(error instanceof Error ? error.message : '配置 JSON 不合法')
+      return
+    }
+    setCreatingJob(true)
+    try {
+      const job = await createIngestionJob({
+        sourceId: jobForm.sourceId,
+        name: jobForm.name.trim(),
+        mode: jobForm.mode,
+        executor: 'SEATUNNEL',
+        templateKey: jobForm.templateKey,
+        templateVersion: jobForm.templateVersion,
+        config,
+      })
+      setJobs((current) => [job, ...current])
+      setJobForm(newJobForm(jobForm.sourceId))
+      setJobFormOpen(false)
+      onNotice(`采集任务已创建：${job.name}`)
+    } catch (error) {
+      onNotice(error instanceof Error ? error.message : '采集任务创建失败，请检查配置内容与控制面日志')
+    } finally {
+      setCreatingJob(false)
+    }
+  }
+
+  async function openJobConfig(job: IngestionJobApiItem) {
+    if (state !== 'live') {
+      onUnavailable('任务配置')
+      return
+    }
+    setDetailsJob(null)
+    setConfiguringJob(job)
+    setConfigLoading(true)
+    setConfigError(null)
+    setConfigTemplateKey(job.templateKey ?? DEFAULT_TEMPLATE_KEY)
+    setConfigTemplateVersion(job.templateVersion ?? DEFAULT_TEMPLATE_VERSION)
+    setConfigText(JSON.stringify(configForTemplate(job.templateKey ?? DEFAULT_TEMPLATE_KEY, job.mode), null, 2))
+    try {
+      const saved = await fetchJobConfig(job.id)
+      setConfigTemplateKey(saved.templateKey)
+      setConfigTemplateVersion(saved.templateVersion)
+      setConfigText(JSON.stringify(saved.config, null, 2))
+    } catch (error) {
+      if (!isNotFound(error)) setConfigError('配置读取失败，请检查控制面日志')
+    } finally {
+      setConfigLoading(false)
+    }
+  }
+
+  async function saveConfiguration() {
+    if (!configuringJob || state !== 'live') return
+    let config: JobConfig
+    try {
+      config = parseConfig(configText)
+    } catch (error) {
+      setConfigError(error instanceof Error ? error.message : '配置 JSON 不合法')
+      return
+    }
+    setConfigSaving(true)
+    setConfigError(null)
+    try {
+      const saved = await saveJobConfig(configuringJob.id, {
+        templateKey: configTemplateKey,
+        templateVersion: configTemplateVersion,
+        config,
+      })
+      setJobs((current) => current.map((item) => item.id === configuringJob.id
+        ? { ...item, configured: true, templateKey: saved.templateKey, templateVersion: saved.templateVersion }
+        : item))
+      setConfiguringJob((current) => current ? { ...current, configured: true, templateKey: saved.templateKey, templateVersion: saved.templateVersion } : current)
+      onNotice(`任务配置已保存：${saved.templateKey} v${saved.templateVersion}`)
+    } catch (error) {
+      setConfigError(error instanceof Error ? error.message : '配置保存失败。请确认 JSON 结构正确，且未填写明文密码或密钥。')
+    } finally {
+      setConfigSaving(false)
+    }
+  }
+
+  function openRunDetails(job: IngestionJobApiItem) {
+    setConfiguringJob(null)
+    setDetailsError(null)
+    setDetailsRuns([])
+    setDetailsJob(job)
   }
 
   return (
@@ -138,6 +373,7 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
             <div className={styles.panelHeader}><div><h2>已登记数据源</h2><p>前置机、院内系统与区域交换入口</p></div><button className={styles.textButton} onClick={() => window.location.reload()}><RefreshCw size={13} />刷新</button></div>
             <ul className={styles.ranking}>
               {visibleSources.map((source) => <li key={source.id}><span className={styles.rank}><Server size={16} /></span><div className={styles.rankBody}><strong>{source.name}</strong><span>{source.systemType} · {source.protocol} · {source.institutionId}</span></div><StatusTag tone={source.status === 'HEALTHY' ? 'healthy' : 'warning'}>{source.status === 'HEALTHY' ? '健康' : '待检查'}</StatusTag></li>)}
+              {visibleSources.length === 0 ? <li className={styles.emptyState}>暂无已登记数据源</li> : null}
             </ul>
           </section>
 
@@ -146,10 +382,10 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
             <div className={styles.summaryGrid}>
               <Summary label="来源数" value={String(visibleSources.length)} icon={<Server size={15} />} />
               <Summary label="任务数" value={String(visibleJobs.length)} icon={<Waypoints size={15} />} />
-              <Summary label="健康来源" value={String(visibleSources.filter((source) => source.status === 'HEALTHY').length)} icon={<CheckCircle2 size={15} />} />
+              <Summary label="已配置任务" value={String(visibleJobs.filter((job) => job.configured).length)} icon={<FileCog size={15} />} />
               <Summary label="待执行" value={String(visibleJobs.filter((job) => {
                 const runStatus = latestRuns[job.id]?.status ?? job.latestRunStatus
-                return runStatus ? !['SUBMITTED', 'RUNNING', 'UNKNOWN'].includes(runStatus) : job.status !== 'RUNNING'
+                return runStatus ? !['SUBMITTING', 'SUBMITTED', 'RUNNING', 'UNKNOWN'].includes(runStatus) : job.status !== 'RUNNING'
               }).length)} icon={<CircleAlert size={15} />} />
             </div>
             <button className={styles.textButton} onClick={() => onNavigate('governance')}>查看治理结果 <ArrowUpRight size={13} /></button>
@@ -157,17 +393,60 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
         </div>
 
         <section className={styles.tablePanel}>
-          <div className={styles.panelHeader}><div><h2>采集任务</h2><p>运行状态由控制面统一回写；可在此手动拉取执行器最新结果</p></div><span className={styles.dashboardScope}>{visibleJobs.length} 个任务</span></div>
+          <div className={styles.panelHeader}><div><h2>采集任务</h2><p>配置模板可复用；运行状态由控制面统一回写</p></div><div className={styles.panelHeaderActions}><span className={styles.dashboardScope}>{visibleJobs.length} 个任务</span><button className={styles.primaryButton} onClick={() => {
+            if (state !== 'live') { onUnavailable('新建采集任务'); return }
+            if (sources.length === 0) { onNotice('请先登记至少一个数据源'); return }
+            setJobForm((current) => current.sourceId ? current : newJobForm(sources[0].id))
+            setJobFormOpen((open) => !open)
+          }}><Plus size={14} />{jobFormOpen ? '收起' : '新建采集任务'}</button></div></div>
+          {jobFormOpen ? <form className={styles.jobForm} onSubmit={(event) => void submitJob(event)}>
+            <div className={styles.formField}><label htmlFor="job-source">数据源</label><select id="job-source" required value={jobForm.sourceId} onChange={(event) => setJobForm((current) => ({ ...current, sourceId: event.target.value }))}>{sources.map((source) => <option value={source.id} key={source.id}>{source.name} · {source.systemType}</option>)}</select></div>
+            <div className={styles.formField}><label htmlFor="job-name">任务名称</label><input id="job-name" required value={jobForm.name} onChange={(event) => setJobForm((current) => ({ ...current, name: event.target.value }))} placeholder="例如：LIS 检验结果批量同步" /></div>
+            <div className={styles.formField}><label htmlFor="job-mode">运行模式</label><select id="job-mode" value={jobForm.mode} onChange={(event) => setJobForm((current) => ({ ...current, mode: event.target.value, configText: JSON.stringify(configForTemplate(current.templateKey, event.target.value), null, 2) }))}><option value="BATCH">批量同步</option><option value="CDC">增量变更</option></select></div>
+            <div className={styles.formField}><label htmlFor="job-template">配置模板</label><select id="job-template" value={jobForm.templateKey} onChange={(event) => setJobForm((current) => ({ ...current, templateKey: event.target.value, configText: JSON.stringify(configForTemplate(event.target.value, current.mode), null, 2) }))}><option value={DEFAULT_TEMPLATE_KEY}>FakeSource → Console（演示）</option><option value="CUSTOM_JSON">自定义 JSON</option></select></div>
+            <div className={`${styles.formField} ${styles.formFieldWide}`}><label htmlFor="job-config">采集配置 JSON</label><textarea id="job-config" className={styles.codeInput} value={jobForm.configText} onChange={(event) => setJobForm((current) => ({ ...current, configText: event.target.value }))} spellCheck={false} /></div>
+            <div className={styles.formActions}><span>仅保存结构配置；密码、密钥请使用后续凭据引用，不写入任务 JSON。</span><button className={styles.primaryButton} type="submit" disabled={creatingJob}>{creatingJob ? '创建中…' : '创建并保存配置'}</button></div>
+          </form> : null}
           <div className={styles.tableScroll}><table className={styles.table}><thead><tr><th>任务</th><th>来源</th><th>模式</th><th>执行通道</th><th>最近运行</th><th>操作</th></tr></thead><tbody>{visibleJobs.map((job) => {
             const run = latestRuns[job.id]
             const latestStatus = run?.status ?? job.latestRunStatus
             const status = latestStatus ? statusLabel(latestStatus) : job.status === 'RUNNING' ? { label: '运行中', tone: 'healthy' as const } : { label: '未运行', tone: 'neutral' as const }
-            const activeRun = Boolean(latestStatus && ['SUBMITTED', 'RUNNING', 'UNKNOWN'].includes(latestStatus))
+            const activeRun = Boolean(latestStatus && ['SUBMITTING', 'SUBMITTED', 'RUNNING', 'UNKNOWN'].includes(latestStatus))
             const canSync = Boolean(run && activeRun)
-            return <tr key={job.id}><td><strong>{job.name}</strong><small>{job.id.slice(0, 8)}</small></td><td>{sourceById.get(job.sourceId)?.name ?? 'LIS 检验系统'}</td><td>{job.mode === 'CDC' ? '增量变更' : '批量同步'}</td><td>{executorLabel(job.executor)}</td><td><StatusTag tone={status.tone}>{status.label}</StatusTag>{run ? <small className={styles.statusDetail}>{businessMessage(run.message)}</small> : null}</td><td><div className={styles.tableActions}><button className={styles.tableButton} disabled={runningJob === job.id || activeRun} onClick={() => void runJob(job)}><Play size={13} />{runningJob === job.id ? '处理中…' : activeRun ? '已有运行' : '启动运行'}</button>{canSync ? <button className={styles.tableButton} disabled={runningJob === job.id} onClick={() => void syncRun(job, run)}><RefreshCw size={13} />同步状态</button> : null}</div></td></tr>
-          })}</tbody></table></div>
+            return <tr key={job.id}><td><strong>{job.name}</strong><small>{job.id.slice(0, 8)}</small><span className={`${styles.configPill} ${job.configured ? styles.configPillReady : styles.configPillMissing}`}>{job.configured ? `${job.templateKey ?? '自定义'} v${job.templateVersion ?? 1}` : '未配置'}</span></td><td>{sourceById.get(job.sourceId)?.name ?? 'LIS 检验系统'}</td><td>{job.mode === 'CDC' ? '增量变更' : '批量同步'}</td><td>{executorLabel(job.executor)}</td><td><StatusTag tone={status.tone}>{status.label}</StatusTag>{run ? <small className={styles.statusDetail}>{businessMessage(run.message)}</small> : null}</td><td><div className={styles.tableActions}><button className={styles.tableButton} onClick={() => void openJobConfig(job)}><Settings2 size={13} />配置</button><button className={styles.tableButton} onClick={() => openRunDetails(job)}><Clock3 size={13} />运行详情</button><button className={styles.tableButton} disabled={runningJob === job.id || activeRun} onClick={() => job.configured ? void runJob(job) : void openJobConfig(job)}><Play size={13} />{runningJob === job.id ? '处理中…' : activeRun ? '已有运行' : job.configured ? '启动运行' : '配置后运行'}</button>{canSync ? <button className={styles.tableButton} disabled={runningJob === job.id} onClick={() => void syncRun(job, run)}><RefreshCw size={13} />同步状态</button> : null}</div></td></tr>
+          })}{visibleJobs.length === 0 ? <tr><td colSpan={6} className={styles.emptyState}>暂无采集任务，先登记数据源再新建任务。</td></tr> : null}</tbody></table></div>
         </section>
       </div>
+
+      {configuringJob ? <>
+        <button className={styles.drawerBackdrop} aria-label="关闭任务配置" onClick={() => setConfiguringJob(null)} />
+        <aside className={styles.sideDrawer} aria-label="任务配置" aria-modal="true">
+          <div className={styles.drawerHeader}><div><span className={styles.drawerEyebrow}>任务配置 · {configuringJob.id.slice(0, 8)}</span><h2>{configuringJob.name}</h2></div><button className={styles.iconButton} aria-label="关闭" onClick={() => setConfiguringJob(null)}><X size={17} /></button></div>
+          <div className={styles.drawerBody}>
+            <div className={styles.drawerNotice}><Settings2 size={16} /><span>保存的是可审计的结构配置。连接密码、Token、Secret 等敏感值必须通过凭据引用接入，本版不会落库。</span></div>
+            <div className={styles.drawerFields}><div className={styles.formField}><label htmlFor="config-template">模板标识</label><select id="config-template" value={configTemplateKey} onChange={(event) => setConfigTemplateKey(event.target.value)}><option value={DEFAULT_TEMPLATE_KEY}>FakeSource → Console</option><option value="CUSTOM_JSON">自定义 JSON</option></select></div><div className={styles.formField}><label htmlFor="config-version">模板版本</label><input id="config-version" type="number" min={1} value={configTemplateVersion} onChange={(event) => setConfigTemplateVersion(Math.max(1, Number(event.target.value) || 1))} /></div></div>
+            <div className={styles.formField}><label htmlFor="config-editor">配置 JSON</label><textarea id="config-editor" className={`${styles.codeInput} ${styles.codeInputLarge}`} value={configText} onChange={(event) => setConfigText(event.target.value)} spellCheck={false} disabled={configLoading} /></div>
+            {configLoading ? <p className={styles.drawerHint}>正在读取已保存配置…</p> : null}
+            {configError ? <p className={styles.formError} role="alert">{configError}</p> : null}
+          </div>
+          <div className={styles.drawerFooter}><button className={styles.secondaryButton} onClick={() => setConfiguringJob(null)}>取消</button><button className={styles.primaryButton} disabled={configLoading || configSaving} onClick={() => void saveConfiguration()}><Save size={14} />{configSaving ? '保存中…' : '保存配置'}</button></div>
+        </aside>
+      </> : null}
+
+      {detailsJob ? <>
+        <button className={styles.drawerBackdrop} aria-label="关闭运行详情" onClick={() => setDetailsJob(null)} />
+        <aside className={styles.sideDrawer} aria-label="运行详情" aria-modal="true">
+          <div className={styles.drawerHeader}><div><span className={styles.drawerEyebrow}>运行详情 · 自动刷新 5 秒</span><h2>{detailsJob.name}</h2></div><button className={styles.iconButton} aria-label="关闭" onClick={() => setDetailsJob(null)}><PanelRightClose size={17} /></button></div>
+          <div className={styles.drawerBody}>
+            <div className={styles.runSummary}><span>执行通道</span><strong>{executorLabel(detailsJob.executor)}</strong><span>配置状态</span><strong className={detailsJob.configured ? styles.textHealthy : styles.textWarning}>{detailsJob.configured ? `${detailsJob.templateKey ?? '自定义'} v${detailsJob.templateVersion ?? 1}` : '未配置'}</strong></div>
+            {detailsLoading && detailsRuns.length === 0 ? <p className={styles.drawerHint}>正在读取运行记录…</p> : null}
+            {detailsError ? <p className={styles.formError} role="alert">{detailsError}</p> : null}
+            {detailsRuns.length === 0 && !detailsLoading ? <div className={styles.emptyState}><Clock3 size={18} /><p>还没有运行记录</p><span>保存任务配置后，可从任务列表启动一次采集。</span></div> : null}
+            <ol className={styles.runTimeline}>{detailsRuns.slice(0, 10).map((run) => { const status = statusLabel(run.status); const active = ['SUBMITTING', 'SUBMITTED', 'RUNNING', 'UNKNOWN'].includes(run.status); return <li key={run.id}><div className={styles.timelineDot} data-tone={status.tone} /><div className={styles.timelineBody}><div className={styles.timelineTitle}><strong>{status.label}</strong><time>{formatTime(run.submittedAt)}</time></div><p>{businessMessage(run.message)}</p><dl><div><dt>运行编号</dt><dd>{run.id.slice(0, 8)}</dd></div>{run.externalId ? <div><dt>外部编号</dt><dd>{run.externalId}</dd></div> : null}{run.finishedAt ? <div><dt>完成时间</dt><dd>{formatTime(run.finishedAt)}</dd></div> : null}</dl>{active ? <button className={styles.textButton} disabled={runningJob === detailsJob.id} onClick={() => void syncRun(detailsJob, run)}><RefreshCw size={12} />同步状态</button> : null}</div></li> })}</ol>
+          </div>
+          <div className={styles.drawerFooter}><button className={styles.secondaryButton} onClick={() => setDetailsJob(null)}>关闭</button><button className={styles.primaryButton} disabled={runningJob === detailsJob.id || detailsRuns.some((run) => ['SUBMITTING', 'SUBMITTED', 'RUNNING', 'UNKNOWN'].includes(run.status))} onClick={() => detailsJob.configured ? void runJob(detailsJob) : void openJobConfig(detailsJob)}><Play size={14} />{detailsJob.configured ? '再次启动' : '配置任务'}</button></div>
+        </aside>
+      </> : null}
     </div>
   )
 }
@@ -182,7 +461,7 @@ const fallbackSources: SourceApiItem[] = [
 ]
 
 const fallbackJobs: IngestionJobApiItem[] = [
-  { id: 'fallback-job', sourceId: 'fallback-lis', name: '检验结果增量同步', mode: 'CDC', executor: 'SEATUNNEL', status: 'RUNNING', createdAt: '', latestRunStatus: null, lastRunAt: null },
+  { id: 'fallback-job', sourceId: 'fallback-lis', name: '检验结果增量同步', mode: 'CDC', executor: 'SEATUNNEL', status: 'RUNNING', createdAt: '', latestRunStatus: null, lastRunAt: null, templateKey: null, templateVersion: null, configured: false },
 ]
 
 function executorLabel(executor: string) {
@@ -193,6 +472,7 @@ function statusLabel(status: string): { label: string; tone: 'healthy' | 'warnin
   switch (status) {
     case 'SUCCEEDED': return { label: '已完成', tone: 'healthy' }
     case 'RUNNING': return { label: '运行中', tone: 'healthy' }
+    case 'SUBMITTING': return { label: '提交中', tone: 'warning' }
     case 'SUBMITTED': return { label: '已提交', tone: 'warning' }
     case 'FAILED':
     case 'SUBMIT_FAILED': return { label: '失败', tone: 'danger' }
@@ -207,4 +487,27 @@ function statusLabel(status: string): { label: string; tone: 'healthy' | 'warnin
 
 function businessMessage(message: string) {
   return message.replace(/SeaTunnel/gi, '中心采集')
+}
+
+function parseConfig(text: string): JobConfig {
+  if (!text.trim()) throw new Error('配置 JSON 不能为空')
+  const parsed: unknown = JSON.parse(text)
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('配置必须是 JSON 对象')
+  return parsed as JobConfig
+}
+
+function isNotFound(error: unknown) {
+  return error instanceof Error && error.message.includes('HTTP 404')
+}
+
+function createRequestKey() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID()
+  return `portal-${Date.now()}-${Math.random().toString(36).slice(2)}`
+}
+
+function formatTime(value: string | null) {
+  if (!value) return '—'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return new Intl.DateTimeFormat('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).format(date)
 }

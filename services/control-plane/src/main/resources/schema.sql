@@ -24,6 +24,15 @@ CREATE TABLE IF NOT EXISTS data_os.ingestion_jobs (
     CONSTRAINT fk_data_os_job_source FOREIGN KEY (source_id) REFERENCES data_os.sources(id)
 );
 
+CREATE TABLE IF NOT EXISTS data_os.ingestion_job_configs (
+    job_id VARCHAR(36) PRIMARY KEY,
+    template_key VARCHAR(128) NOT NULL,
+    template_version INTEGER NOT NULL,
+    config_json TEXT NOT NULL,
+    updated_at TIMESTAMP NOT NULL,
+    CONSTRAINT fk_data_os_job_config_job FOREIGN KEY (job_id) REFERENCES data_os.ingestion_jobs(id)
+);
+
 CREATE TABLE IF NOT EXISTS data_os.governance_metrics (
     metric_key VARCHAR(128) PRIMARY KEY,
     tenant_id VARCHAR(128) NOT NULL,
@@ -62,6 +71,8 @@ CREATE TABLE IF NOT EXISTS data_os.job_runs (
     status VARCHAR(40) NOT NULL,
     executor VARCHAR(64) NOT NULL,
     external_id VARCHAR(128) NULL,
+    request_key VARCHAR(128) NULL,
+    request_fingerprint VARCHAR(64) NULL,
     message VARCHAR(500) NOT NULL,
     submitted_at TIMESTAMP NOT NULL,
     started_at TIMESTAMP NULL,
@@ -69,5 +80,9 @@ CREATE TABLE IF NOT EXISTS data_os.job_runs (
     CONSTRAINT fk_data_os_run_job FOREIGN KEY (job_id) REFERENCES data_os.ingestion_jobs(id)
 );
 
+ALTER TABLE data_os.job_runs ADD COLUMN IF NOT EXISTS request_key VARCHAR(128) NULL;
+ALTER TABLE data_os.job_runs ADD COLUMN IF NOT EXISTS request_fingerprint VARCHAR(64) NULL;
+
 CREATE INDEX IF NOT EXISTS idx_data_os_runs_job ON data_os.job_runs(job_id, submitted_at DESC);
 CREATE INDEX IF NOT EXISTS idx_data_os_runs_sync ON data_os.job_runs(status, submitted_at, external_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_data_os_runs_request ON data_os.job_runs(job_id, request_key);

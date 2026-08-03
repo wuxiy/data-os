@@ -19,14 +19,39 @@ public class RunRepository {
     }
 
     public IngestionRun save(IngestionRun run) {
+        return save(run, null);
+    }
+
+    public IngestionRun save(IngestionRun run, String requestKey) {
+        return save(run, requestKey, null);
+    }
+
+    public IngestionRun save(IngestionRun run, String requestKey, String requestFingerprint) {
         jdbc.update("""
                 INSERT INTO data_os.job_runs
-                    (id, job_id, status, executor, external_id, message,
+                    (id, job_id, status, executor, external_id, request_key, request_fingerprint, message,
                      submitted_at, started_at, finished_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, run.id(), run.jobId(), run.status(), run.executor(), run.externalId(), run.message(),
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, run.id(), run.jobId(), run.status(), run.executor(), run.externalId(), requestKey,
+                requestFingerprint, run.message(),
                 timestamp(run.submittedAt()), timestamp(run.startedAt()), timestamp(run.finishedAt()));
         return run;
+    }
+
+    public Optional<RunRequest> findByRequestKey(String jobId, String requestKey) {
+        return jdbc.query("""
+                SELECT id, job_id, status, executor, external_id, request_fingerprint, message,
+                       submitted_at, started_at, finished_at
+                FROM data_os.job_runs
+                WHERE job_id = ? AND request_key = ?
+                ORDER BY submitted_at DESC
+                LIMIT 1
+                """, (resultSet, rowNumber) -> new RunRequest(new IngestionRun(
+                        resultSet.getString("id"), resultSet.getString("job_id"), resultSet.getString("status"),
+                        resultSet.getString("executor"), resultSet.getString("external_id"),
+                        resultSet.getString("message"), resultSet.getTimestamp("submitted_at").toInstant(),
+                        instant(resultSet.getTimestamp("started_at")), instant(resultSet.getTimestamp("finished_at"))),
+                resultSet.getString("request_fingerprint")), jobId, requestKey).stream().findFirst();
     }
 
     public List<IngestionRun> findAll(String jobId) {
@@ -77,7 +102,7 @@ public class RunRepository {
                 SELECT id, job_id, status, executor, external_id, message,
                        submitted_at, started_at, finished_at
                 FROM data_os.job_runs
-                WHERE job_id = ? AND status IN ('SUBMITTED', 'RUNNING', 'UNKNOWN')
+                WHERE job_id = ? AND status IN ('SUBMITTING', 'SUBMITTED', 'RUNNING', 'UNKNOWN')
                 ORDER BY submitted_at DESC
                 LIMIT 1
                 FOR UPDATE
@@ -95,7 +120,7 @@ public class RunRepository {
                     started_at = COALESCE(?, started_at),
                     finished_at = COALESCE(?, finished_at)
                 WHERE id = ?
-                  AND status IN ('SUBMITTED', 'RUNNING', 'UNKNOWN')
+                  AND status IN ('SUBMITTING', 'SUBMITTED', 'RUNNING', 'UNKNOWN')
                   AND NOT (status = 'RUNNING' AND ? = 'SUBMITTED')
                 """, status, message, timestamp(startedAt), timestamp(finishedAt), runId, status);
     }
@@ -104,6 +129,23 @@ public class RunRepository {
     public int updateStatusAndJobLastRunAt(String runId, String jobId, String status, String message,
                                            Instant startedAt, Instant finishedAt, Instant lastRunAt) {
         var updated = updateStatus(runId, status, message, startedAt, finishedAt);
+        if (updated > 0) {
+            updateJobLastRunAt(jobId, lastRunAt);
+        }
+        return updated;
+    }
+
+    @Transactional
+    public int completeSubmissionAndJobLastRunAt(String runId, String jobId, String status, String externalId,
+                                                 String message, Instant startedAt, Instant finishedAt,
+                                                 Instant lastRunAt) {
+        var updated = jdbc.update("""
+                UPDATE data_os.job_runs
+                SET status = ?, external_id = ?, message = ?,
+                    started_at = COALESCE(?, started_at),
+                    finished_at = COALESCE(?, finished_at)
+                WHERE id = ? AND status = 'SUBMITTING'
+                """, status, externalId, message, timestamp(startedAt), timestamp(finishedAt), runId);
         if (updated > 0) {
             updateJobLastRunAt(jobId, lastRunAt);
         }
@@ -124,5 +166,8 @@ public class RunRepository {
 
     private Instant instant(Timestamp value) {
         return value == null ? null : value.toInstant();
+    }
+
+    public record RunRequest(IngestionRun run, String requestFingerprint) {
     }
 }

@@ -56,6 +56,26 @@ POST /api/v1/jobs/{jobId}/runs/{runId}/sync
 
 `UNKNOWN` 记录不进入后台无限重试，但会阻止同一任务重复启动；业务人员可通过门户“同步状态”触发一次人工重试。`ingestion_jobs.status` 仍表示任务生命周期，最近一次执行结果以 `job_runs` 为准。
 
+任务配置由控制面统一保存，门户不直接写 SeaTunnel 文件。创建任务时可同时提交 `templateKey`、`templateVersion` 和结构化 `config`；已有任务通过以下接口读取或更新：
+
+```text
+GET /api/v1/jobs/{jobId}/config
+PUT /api/v1/jobs/{jobId}/config
+```
+
+`env`、`source`、`transform`、`sink` 是当前模板边界；`source` 和 `sink` 不能为空。配置递归检查 `password`、`secret` 和 `token` 等键，发现明文凭据会返回 `400 INVALID_REQUEST`，应改用后续凭据引用能力。运行请求体可以为空，控制面会使用已保存配置；门户每次启动发送新的 `Idempotency-Key`，网络重试使用同一个 key 且请求内容一致时只返回原运行记录，不会重复提交；同一个 key 搭配不同配置会返回 `409 CONFLICT`。
+
+一条可验收的 FakeSource → Console 配置如下（仅用于执行器烟囱测试，不代表院内真实连接凭据）：
+
+```json
+{
+  "env": {"job.mode": "BATCH", "parallelism": 1},
+  "source": [{"plugin_name": "FakeSource", "plugin_output": "fake", "row.num": 16}],
+  "transform": [],
+  "sink": [{"plugin_name": "Console", "plugin_input": ["fake"]}]
+}
+```
+
 ## 验收
 
 ```bash
@@ -65,6 +85,9 @@ curl -fsS http://127.0.0.1:18081/api/v1/sources
 curl -fsS http://127.0.0.1:18082/overview
 # 查询某条运行记录（需先从 POST /api/v1/jobs/{jobId}/runs 获取 runId）
 curl -fsS -X POST http://127.0.0.1:18081/api/v1/jobs/{jobId}/runs/{runId}/sync
+# 用已保存任务配置启动，并用同一 key 重试验证幂等
+curl -fsS -X POST http://127.0.0.1:18081/api/v1/jobs/{jobId}/runs \
+  -H 'Content-Type: application/json' -H 'Idempotency-Key: acceptance-run-1' -d '{}'
 ```
 
 浏览器访问 `http://开发机地址:18081/`。治理驾驶舱顶部显示“控制面已连接”时，指标与问题来自复用 PostgreSQL 的 `data_os` schema；控制面不可用时，前端保留演示数据并明确标识降级状态。

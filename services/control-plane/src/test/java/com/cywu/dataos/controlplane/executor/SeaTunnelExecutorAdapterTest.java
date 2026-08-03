@@ -41,7 +41,7 @@ class SeaTunnelExecutorAdapterTest {
             var adapter = new SeaTunnelExecutorAdapter(
                     RestClient.builder(), "http://127.0.0.1:" + server.getAddress().getPort() + "/", "UTC");
             var job = new IngestionJob("job-1", "source-1", "门诊 CDC", "CDC", "SEATUNNEL",
-                    "ACTIVE", null, null, null);
+                    "ACTIVE", null, null, null, null, null, false);
 
             var submission = adapter.submit(job, Map.of("source", Map.of("plugin_name", "FakeSource"),
                     "env", Map.of("job.mode", "CDC")));

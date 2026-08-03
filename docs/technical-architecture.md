@@ -178,7 +178,7 @@ flowchart LR
 | API 前缀 | 用途 |
 |---|---|
 | `/api/v1/sources`、`/connections`、`/edge-nodes` | 接入和前置节点 |
-| `/api/v1/jobs`、`/runs`、`/backfills` | 任务、运行、补数 |
+| `/api/v1/jobs`、`/api/v1/jobs/{id}/config`、`/runs`、`/backfills` | 任务、版本化配置、运行、补数 |
 | `/api/v1/assets`、`/lineage` | 资产与血缘统一投影 |
 | `/api/v1/standards`、`/mappings`、`/quality`、`/issues` | 治理闭环 |
 | `/api/v1/mpi`、`/master-data` | 主索引与主数据 |
@@ -187,7 +187,20 @@ flowchart LR
 | `/api/v1/operations`、`/evidence` | 运营和交付证据 |
 | `/edge/v1/heartbeat`、`/events`、`/artifacts`、`/commands` | Edge Node 出站通信 |
 
-所有创建或发布类请求携带 `Idempotency-Key`；异步操作返回 `operation_id`，前端订阅 SSE 状态或轮询统一操作接口，不等待底层任务执行完成。
+所有可重试的运行、发布和补数命令携带 `Idempotency-Key`；当前首条采集切片已在运行命令落地按任务维度的幂等重放。异步操作返回 `operation_id`，前端订阅 SSE 状态或轮询统一操作接口，不等待底层任务执行完成。
+
+### 4.6 采集任务配置契约（首条切片）
+
+采集任务定义与运行输入分离：`ingestion_jobs` 保存业务名称、来源、模式和执行器，`ingestion_job_configs` 保存当前生效的 `template_key`、`template_version`、结构化 JSON 与更新时间。门户创建任务或编辑任务配置时只调用控制面 API，控制面返回 `configured` 投影供页面决定是否允许启动。
+
+当前配置最小校验规则：
+
+- `env` 必须为对象；`source` 与 `sink` 必须为非空数组；`template_version >= 1`。
+- 结构 JSON 只表达连接器和转换参数，不保存真实密码、Secret 或 Token。配置中递归出现包含 `password`、`secret` 或等于 `token` 的键，统一返回 `400 INVALID_REQUEST`。
+- 运行请求体为空时，适配器读取任务已保存配置；请求显式带配置时只用于本次运行，不覆盖任务版本。
+- `Idempotency-Key` 在同一任务内最多 128 个字符；控制面保存规范化运行配置的 SHA-256 指纹，相同 key 且指纹一致时返回已存在运行记录，指纹不一致返回 `409 CONFLICT`，避免浏览器重试造成重复提交或静默忽略新配置。
+
+首期模板采用 `FAKE_TO_CONSOLE`（用于验收）和 `CUSTOM_JSON` 两类入口。院内 JDBC/HTTP/SFTP/HL7 连接器在拿到脱敏样本和凭据引用后，以新增模板版本接入，不修改运行 API。
 
 ### 4.5 身份与会话最小基线
 

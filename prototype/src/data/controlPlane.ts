@@ -51,6 +51,29 @@ export interface IngestionJobApiItem {
   createdAt: string
   latestRunStatus: string | null
   lastRunAt: string | null
+  templateKey: string | null
+  templateVersion: number | null
+  configured: boolean
+}
+
+export type JobConfig = Record<string, unknown>
+
+export interface IngestionJobConfigApiItem {
+  jobId: string
+  templateKey: string
+  templateVersion: number
+  config: JobConfig
+  updatedAt: string
+}
+
+export interface CreateIngestionJobInput {
+  sourceId: string
+  name: string
+  mode: string
+  executor: string
+  templateKey: string
+  templateVersion: number
+  config: JobConfig
 }
 
 export interface IngestionRunApiItem {
@@ -72,6 +95,27 @@ export interface IngestionRunListApiResponse {
 
 const API_BASE_URL = (import.meta.env.VITE_DATAOS_API_BASE_URL ?? '/api').replace(/\/$/, '')
 
+class ControlPlaneError extends Error {
+  readonly status: number
+
+  constructor(message: string, status: number) {
+    super(message)
+    this.name = 'ControlPlaneError'
+    this.status = status
+  }
+}
+
+async function responseError(response: Response, prefix: string): Promise<never> {
+  let detail = ''
+  try {
+    const payload = await response.json() as { message?: string; detail?: string }
+    detail = payload.message ?? payload.detail ?? ''
+  } catch {
+    // Keep the HTTP status when the upstream did not return JSON.
+  }
+  throw new ControlPlaneError(`${prefix}${detail ? `：${detail}` : ''}（HTTP ${response.status}）`, response.status)
+}
+
 export async function fetchGovernanceSummary(signal?: AbortSignal): Promise<GovernanceApiSummary> {
   const response = await fetch(`${API_BASE_URL}/v1/governance/summary`, {
     headers: { Accept: 'application/json' },
@@ -88,7 +132,7 @@ async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
     headers: { Accept: 'application/json' },
     signal,
   })
-  if (!response.ok) throw new Error(`控制面请求失败：${response.status}`)
+  if (!response.ok) await responseError(response, '控制面请求失败')
   return response.json() as Promise<T>
 }
 
@@ -111,18 +155,54 @@ export async function createSource(input: {
     body: JSON.stringify(input),
     signal,
   })
-  if (!response.ok) throw new Error(`数据源创建失败：${response.status}`)
+  if (!response.ok) await responseError(response, '数据源创建失败')
   return response.json() as Promise<SourceApiItem>
 }
 
-export async function startIngestionRun(jobId: string, signal?: AbortSignal): Promise<IngestionRunApiItem> {
-  const response = await fetch(`${API_BASE_URL}/v1/jobs/${jobId}/runs`, {
+export async function createIngestionJob(input: CreateIngestionJobInput, signal?: AbortSignal): Promise<IngestionJobApiItem> {
+  const response = await fetch(`${API_BASE_URL}/v1/jobs`, {
     method: 'POST',
     headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-    body: JSON.stringify({}),
+    body: JSON.stringify(input),
     signal,
   })
-  if (!response.ok) throw new Error(`运行请求失败：${response.status}`)
+  if (!response.ok) await responseError(response, '采集任务创建失败')
+  return response.json() as Promise<IngestionJobApiItem>
+}
+
+export async function fetchJobConfig(jobId: string, signal?: AbortSignal): Promise<IngestionJobConfigApiItem> {
+  return getJson(`/v1/jobs/${jobId}/config`, signal)
+}
+
+export async function saveJobConfig(jobId: string, input: {
+  templateKey: string
+  templateVersion: number
+  config: JobConfig
+}, signal?: AbortSignal): Promise<IngestionJobConfigApiItem> {
+  const response = await fetch(`${API_BASE_URL}/v1/jobs/${jobId}/config`, {
+    method: 'PUT',
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+    signal,
+  })
+  if (!response.ok) await responseError(response, '采集任务配置保存失败')
+  return response.json() as Promise<IngestionJobConfigApiItem>
+}
+
+export async function startIngestionRun(jobId: string, options: {
+  signal?: AbortSignal
+  idempotencyKey?: string
+  config?: JobConfig
+} = {}): Promise<IngestionRunApiItem> {
+  const headers: Record<string, string> = { Accept: 'application/json', 'Content-Type': 'application/json' }
+  if (options.idempotencyKey) headers['Idempotency-Key'] = options.idempotencyKey
+  const response = await fetch(`${API_BASE_URL}/v1/jobs/${jobId}/runs`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ config: options.config ?? {} }),
+    signal: options.signal,
+  })
+  if (!response.ok) await responseError(response, '运行请求失败')
   return response.json() as Promise<IngestionRunApiItem>
 }
 
@@ -136,6 +216,6 @@ export async function syncIngestionRun(jobId: string, runId: string, signal?: Ab
     headers: { Accept: 'application/json' },
     signal,
   })
-  if (!response.ok) throw new Error(`运行状态同步失败：${response.status}`)
+  if (!response.ok) await responseError(response, '运行状态同步失败')
   return response.json() as Promise<IngestionRunApiItem>
 }

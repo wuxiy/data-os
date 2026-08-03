@@ -22,7 +22,13 @@ public class JobRepository {
                 SELECT j.id, j.source_id, j.name, j.mode, j.executor, j.status, j.created_at,
                        (SELECT r.status FROM data_os.job_runs r
                         WHERE r.job_id = j.id ORDER BY r.submitted_at DESC LIMIT 1) AS latest_run_status,
-                       j.last_run_at
+                       j.last_run_at,
+                       (SELECT c.template_key FROM data_os.ingestion_job_configs c
+                        WHERE c.job_id = j.id) AS template_key,
+                       (SELECT c.template_version FROM data_os.ingestion_job_configs c
+                        WHERE c.job_id = j.id) AS template_version,
+                       CASE WHEN EXISTS (SELECT 1 FROM data_os.ingestion_job_configs c
+                                         WHERE c.job_id = j.id) THEN TRUE ELSE FALSE END AS configured
                 FROM data_os.ingestion_jobs j
                 JOIN data_os.sources s ON s.id = j.source_id
                 WHERE s.tenant_id = ? AND s.institution_id = ?
@@ -45,7 +51,13 @@ public class JobRepository {
                 SELECT j.id, j.source_id, j.name, j.mode, j.executor, j.status, j.created_at,
                        (SELECT r.status FROM data_os.job_runs r
                         WHERE r.job_id = j.id ORDER BY r.submitted_at DESC LIMIT 1) AS latest_run_status,
-                       j.last_run_at
+                       j.last_run_at,
+                       (SELECT c.template_key FROM data_os.ingestion_job_configs c
+                        WHERE c.job_id = j.id) AS template_key,
+                       (SELECT c.template_version FROM data_os.ingestion_job_configs c
+                        WHERE c.job_id = j.id) AS template_version,
+                       CASE WHEN EXISTS (SELECT 1 FROM data_os.ingestion_job_configs c
+                                         WHERE c.job_id = j.id) THEN TRUE ELSE FALSE END AS configured
                 FROM data_os.ingestion_jobs j
                 WHERE j.id = ?
                 """, this::map, id).stream().findFirst();
@@ -56,7 +68,13 @@ public class JobRepository {
                 SELECT j.id, j.source_id, j.name, j.mode, j.executor, j.status, j.created_at,
                        (SELECT r.status FROM data_os.job_runs r
                         WHERE r.job_id = j.id ORDER BY r.submitted_at DESC LIMIT 1) AS latest_run_status,
-                       j.last_run_at
+                       j.last_run_at,
+                       (SELECT c.template_key FROM data_os.ingestion_job_configs c
+                        WHERE c.job_id = j.id) AS template_key,
+                       (SELECT c.template_version FROM data_os.ingestion_job_configs c
+                        WHERE c.job_id = j.id) AS template_version,
+                       CASE WHEN EXISTS (SELECT 1 FROM data_os.ingestion_job_configs c
+                                         WHERE c.job_id = j.id) THEN TRUE ELSE FALSE END AS configured
                 FROM data_os.ingestion_jobs j
                 WHERE j.id = ?
                 FOR UPDATE
@@ -73,7 +91,10 @@ public class JobRepository {
                 resultSet.getString("status"),
                 resultSet.getTimestamp("created_at").toInstant(),
                 resultSet.getString("latest_run_status"),
-                resultSet.getTimestamp("last_run_at") == null ? null : resultSet.getTimestamp("last_run_at").toInstant());
+                resultSet.getTimestamp("last_run_at") == null ? null : resultSet.getTimestamp("last_run_at").toInstant(),
+                resultSet.getString("template_key"),
+                resultSet.getObject("template_version") == null ? null : resultSet.getInt("template_version"),
+                resultSet.getBoolean("configured"));
     }
 
     private Timestamp timestamp(Instant instant) {

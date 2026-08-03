@@ -23,6 +23,11 @@ public class ApiExceptionHandler {
         return problem(HttpStatus.CONFLICT, "CONFLICT", exception.getMessage());
     }
 
+    @ExceptionHandler(InvalidRequestException.class)
+    ProblemDetail invalidRequest(InvalidRequestException exception) {
+        return problem(HttpStatus.BAD_REQUEST, "INVALID_REQUEST", exception.getMessage());
+    }
+
     @ExceptionHandler(DuplicateKeyException.class)
     ProblemDetail duplicate(DuplicateKeyException exception) {
         return problem(HttpStatus.CONFLICT, "DUPLICATE_RESOURCE", "相同业务对象已经存在");
@@ -43,6 +48,9 @@ public class ApiExceptionHandler {
         var detail = ProblemDetail.forStatusAndDetail(status, message);
         detail.setTitle("data-os API error");
         detail.setProperty("code", code);
+        // Keep the RFC 9457 `detail` field and expose the same text as `message`
+        // for the portal and existing Chinese business clients.
+        detail.setProperty("message", message);
         detail.setProperty("timestamp", Instant.now());
         detail.setProperty("trace", Map.of("service", "control-plane"));
         return detail;
