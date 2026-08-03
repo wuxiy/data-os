@@ -25,12 +25,24 @@ DATAOS_SEED_DEMO=true
 docker compose -f docker-compose.yml up -d control-plane portal
 ```
 
-确认 SeaTunnel 镜像已经拉取且 REST 配置可用后，再启动执行器：
+SeaTunnel 使用 Apache 2.3.13 二进制包构建本地开发镜像。Dockerfile 会在构建阶段下载并校验固定 SHA512，干净检出即可复现：
+
+```bash
+docker build \
+  --build-arg SEATUNNEL_VERSION=2.3.13 \
+  --build-arg SEATUNNEL_SHA512=499fc1926a7a6f771b1e4034b6d6a43af028984741ec7745a9f50505a267d7d6b35b164a56be957cb1b0b56afc34e68b917289025244cd86c49d48583cc617e7 \
+  -t "${SEATUNNEL_IMAGE:-medical-platform/data-os-seatunnel:2.3.13-dev}" \
+  seatunnel
+```
+
+运行时镜像默认是 `medical-platform/data-os-seatunnel:2.3.13-dev`；若已有合规镜像，可通过 `SEATUNNEL_IMAGE` 覆盖。使用已构建镜像时不需要 `--build`：
 
 ```bash
 printf '\nSEATUNNEL_BASE_URL=http://seatunnel-master:8080\n' >> .env
 docker compose -f docker-compose.yml --profile executor up -d seatunnel-master
 ```
+
+SeaTunnel Zeta REST API 使用 `http://seatunnel-master:8080/submit-job`，控制面会将提交结果写入运行记录；`5801` 仅用于集群内部通信。
 
 ## 验收
 
@@ -38,6 +50,7 @@ docker compose -f docker-compose.yml --profile executor up -d seatunnel-master
 curl -fsS http://127.0.0.1:18081/healthz
 curl -fsS http://127.0.0.1:18081/api/v1/governance/summary
 curl -fsS http://127.0.0.1:18081/api/v1/sources
+curl -fsS http://127.0.0.1:18082/overview
 ```
 
 浏览器访问 `http://开发机地址:18081/`。治理驾驶舱顶部显示“控制面已连接”时，指标与问题来自复用 PostgreSQL 的 `data_os` schema；控制面不可用时，前端保留演示数据并明确标识降级状态。

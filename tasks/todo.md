@@ -98,7 +98,7 @@
 - [x] 增加不含密钥的开发 Compose、Nginx SPA 回退和 SeaTunnel 可选 profile
 - [x] 本地运行后端 4 个 MockMvc 契约测试并通过 React/Vite 生产构建
 - [x] 在开发机独立目录构建/启动控制面与门户，复用 PostgreSQL 并完成 API、静态资源和 schema 验收
-- [ ] SeaTunnel 镜像拉取、REST 健康和首个真实作业提交（开发机当前访问 Docker Hub 超时，保留为下一次执行器兼容性门）
+- [x] SeaTunnel 二进制包校验、本地执行器镜像构建、REST 健康和首个真实作业提交
 - [ ] DolphinScheduler、Doris/dbt、OpenMetadata/Superset/DB-GPT 的真实数据链路和 Edge Node（按 P1/P2 计划继续）
 
 ### 结果复盘
@@ -127,3 +127,19 @@ GET  /ingestion + static JS           -> 200
 - 数据接入页已提供数据源登记表单和采集运行反馈；门户 API 不再发送未由后端落库的幂等键，幂等/Outbox 仍列为 P1 后续工作。
 - 修复 Nginx `/assets` 业务路由与 Vite 静态资源目录同名冲突；远程 `/`、`/ingestion`、`/governance`、`/assets`、`/analysis`、`/assistant` 均返回 200，控制面容器为 healthy。
 - 重新构建并部署最终控制面镜像；本地 4 个后端测试、前端生产构建、Compose 配置检查、差异空白检查和敏感信息扫描均通过。共享 PostgreSQL `data_os` schema 验收为 2 个来源、2 个任务、2 条阻塞运行记录。
+
+## 2026-08-03 SeaTunnel 重新部署与接入验收
+
+### 目标
+
+恢复可执行的中心采集执行器，将 SeaTunnel Zeta 通过内部 REST 地址接入 data-os 控制面，并验证一条真实提交链路。
+
+### 结果复盘
+
+- Docker Hub 镜像拉取在开发机前台会话中断，改用 Apache 官方 2.3.13 二进制包；部署 Dockerfile 在构建阶段下载并校验固定 SHA512，可从干净检出复现 `medical-platform/data-os-seatunnel:2.3.13-dev`，未修改 data-ops 原有 Compose。
+- SeaTunnel 以单节点 `master_and_worker` 启动，REST `18082`、集群通信 `15801`，容器 healthy，`workers=1`；`ST_DOCKER_MEMBER_COUNT=1` 已生效。
+- 控制面 `.env` 配置 `SEATUNNEL_BASE_URL=http://seatunnel-master:8080`。修正平台 `CDC` 到 SeaTunnel `STREAMING` 的模式映射；适配器对 400/401/403 等配置错误、408/429/5xx 暂时不可用做分层归类，并提供一次短退避重试。
+- 直接 REST 烟囱任务完成 `FakeSource → Console` 提交与 `FINISHED` 验证；经 data-os `/api/v1/jobs/{id}/runs` 提交的任务返回 `201 SUBMITTED`、获得外部 `jobId`，SeaTunnel 状态验证为 `RUNNING` 后按验收要求停止为 `CANCELED`，释放执行资源。
+- 控制面本地测试由 4 个增加到 6 个并全绿；SeaTunnel 容器与控制面最近日志无 `ERROR`、`Exception` 或启动失败。
+
+本轮仍未实现 SeaTunnel 运行状态回写控制面（当前运行记录保持 `SUBMITTED`），由后续状态同步 Worker / Outbox 迭代承接；真实 HIS/EMR/LIS 连接器配置需在拿到院内只读账号和脱敏样本后单独验收。
