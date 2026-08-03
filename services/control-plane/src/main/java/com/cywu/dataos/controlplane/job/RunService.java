@@ -8,6 +8,7 @@ import com.cywu.dataos.controlplane.executor.AdapterConfigurationException;
 import com.cywu.dataos.controlplane.executor.AdapterUnavailableException;
 import com.cywu.dataos.controlplane.executor.ExecutorAdapter;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class RunService {
@@ -24,9 +25,13 @@ public class RunService {
         this.adapters = adapters;
     }
 
+    @Transactional
     public IngestionRun start(String jobId, CreateRunRequest request) {
-        var job = jobRepository.findById(jobId)
+        var job = jobRepository.findByIdForUpdate(jobId)
                 .orElseThrow(() -> new ResourceNotFoundException("未找到采集作业：" + jobId));
+        runRepository.findActive(jobId).ifPresent(active -> {
+            throw new com.cywu.dataos.controlplane.api.ConflictException("采集作业已有运行中的记录：" + active.id());
+        });
         var submittedAt = Instant.now();
         var run = new IngestionRun(
                 UUID.randomUUID().toString(),
@@ -41,24 +46,34 @@ public class RunService {
 
         var adapter = adapters.stream().filter(item -> item.supports(job.executor())).findFirst().orElse(null);
         if (adapter == null) {
-            return runRepository.save(new IngestionRun(run.id(), run.jobId(), "UNSUPPORTED_EXECUTOR", run.executor(),
+            return save(new IngestionRun(run.id(), run.jobId(), "UNSUPPORTED_EXECUTOR", run.executor(),
                     null, "暂不支持执行器：" + job.executor(), submittedAt, null, null));
         }
 
         try {
             var submission = adapter.submit(job, request.config());
-            return runRepository.save(new IngestionRun(run.id(), run.jobId(), "SUBMITTED", run.executor(), submission.externalId(),
+            if (submission == null || submission.externalId() == null || submission.externalId().isBlank()) {
+                return save(new IngestionRun(run.id(), run.jobId(), "SUBMIT_FAILED", run.executor(), null,
+                        "中心采集执行器未返回外部运行编号", submittedAt, null, Instant.now()));
+            }
+            return save(new IngestionRun(run.id(), run.jobId(), "SUBMITTED", run.executor(), submission.externalId(),
                     submission.message(), submittedAt, Instant.now(), null));
         } catch (AdapterConfigurationException exception) {
-            return runRepository.save(new IngestionRun(run.id(), run.jobId(), "BLOCKED_CONFIGURATION", run.executor(),
+            return save(new IngestionRun(run.id(), run.jobId(), "BLOCKED_CONFIGURATION", run.executor(),
                     null, exception.getMessage(), submittedAt, null, null));
         } catch (AdapterUnavailableException exception) {
-            return runRepository.save(new IngestionRun(run.id(), run.jobId(), "BLOCKED_DEPENDENCY", run.executor(),
+            return save(new IngestionRun(run.id(), run.jobId(), "BLOCKED_DEPENDENCY", run.executor(),
                     null, exception.getMessage(), submittedAt, null, null));
         } catch (RuntimeException exception) {
-            return runRepository.save(new IngestionRun(run.id(), run.jobId(), "SUBMIT_FAILED", run.executor(), null,
+            return save(new IngestionRun(run.id(), run.jobId(), "SUBMIT_FAILED", run.executor(), null,
                     "执行器提交失败：" + safeMessage(exception), submittedAt, null, Instant.now()));
         }
+    }
+
+    private IngestionRun save(IngestionRun run) {
+        var saved = runRepository.save(run);
+        runRepository.updateJobLastRunAt(run.jobId(), run.submittedAt());
+        return saved;
     }
 
     public java.util.List<IngestionRun> list(String jobId) {

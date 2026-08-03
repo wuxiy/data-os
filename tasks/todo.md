@@ -143,3 +143,24 @@ GET  /ingestion + static JS           -> 200
 - 控制面本地测试由 4 个增加到 6 个并全绿；SeaTunnel 容器与控制面最近日志无 `ERROR`、`Exception` 或启动失败。
 
 本轮仍未实现 SeaTunnel 运行状态回写控制面（当前运行记录保持 `SUBMITTED`），由后续状态同步 Worker / Outbox 迭代承接；真实 HIS/EMR/LIS 连接器配置需在拿到院内只读账号和脱敏样本后单独验收。
+
+## 2026-08-03 第二迭代：SeaTunnel 运行闭环
+
+### 目标
+
+把“控制面提交成功”推进为“控制面可查询并回写执行状态”的最小闭环，继续保持单节点、轻运维和可替换执行器边界。
+
+### 执行计划
+
+- [x] 扩展执行器适配器查询契约，冻结 `SUBMITTED/RUNNING/SUCCEEDED/FAILED/CANCELED/UNKNOWN` 归一状态
+- [x] 增加 SeaTunnel `/job-info/{jobId}` 查询与官方/2.3.13 时间字段兼容解析
+- [x] 增加运行记录更新仓储、定时同步 Worker 和按运行记录手动同步 API
+- [x] 增加状态回写单元测试、MockMvc 契约测试和异常/未知作业测试
+- [ ] 在开发机提交一条短生命周期作业，验收 `SUBMITTED → SUCCEEDED/CANCELED` 回写（等待开发机 SSH 凭据更新）
+- [x] 更新门户运行反馈、部署说明和技术架构文档，完成双代理审查
+
+### 结果复盘
+
+- 本地控制面 Maven 全量测试通过：10 个测试全绿；前端 `npm run build` 通过；Compose 配置解析和 `git diff --check` 通过。
+- 运行闭环现已包含：SeaTunnel REST 状态查询、固定 UTC 解析时区（仅 `startTime` 回填实际启动时间，`createTime` 不冒充 `started_at`）、404 归一为 `UNKNOWN` 并由门户人工重试、配置错误终止轮询、CAS 防旧状态覆盖终态、同作业活动运行行锁、`latestRunStatus` 派生投影、状态索引和门户手动同步。
+- 开发机当前 SeaTunnel 仍健康（2.3.13、1 worker、无运行中作业），但本轮新控制面镜像尚未替换远程实例：账号手册中的 SSH 凭据连续被拒绝，待用户提供更新凭据或恢复访问后执行远程部署与 `SUBMITTED → SUCCEEDED/CANCELED` 证据验收。

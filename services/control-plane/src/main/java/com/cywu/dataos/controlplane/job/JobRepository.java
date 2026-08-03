@@ -19,7 +19,10 @@ public class JobRepository {
 
     public List<IngestionJob> findAll(String tenantId, String institutionId) {
         return jdbc.query("""
-                SELECT j.id, j.source_id, j.name, j.mode, j.executor, j.status, j.created_at, j.last_run_at
+                SELECT j.id, j.source_id, j.name, j.mode, j.executor, j.status, j.created_at,
+                       (SELECT r.status FROM data_os.job_runs r
+                        WHERE r.job_id = j.id ORDER BY r.submitted_at DESC LIMIT 1) AS latest_run_status,
+                       j.last_run_at
                 FROM data_os.ingestion_jobs j
                 JOIN data_os.sources s ON s.id = j.source_id
                 WHERE s.tenant_id = ? AND s.institution_id = ?
@@ -39,9 +42,24 @@ public class JobRepository {
 
     public Optional<IngestionJob> findById(String id) {
         return jdbc.query("""
-                SELECT j.id, j.source_id, j.name, j.mode, j.executor, j.status, j.created_at, j.last_run_at
+                SELECT j.id, j.source_id, j.name, j.mode, j.executor, j.status, j.created_at,
+                       (SELECT r.status FROM data_os.job_runs r
+                        WHERE r.job_id = j.id ORDER BY r.submitted_at DESC LIMIT 1) AS latest_run_status,
+                       j.last_run_at
                 FROM data_os.ingestion_jobs j
                 WHERE j.id = ?
+                """, this::map, id).stream().findFirst();
+    }
+
+    public Optional<IngestionJob> findByIdForUpdate(String id) {
+        return jdbc.query("""
+                SELECT j.id, j.source_id, j.name, j.mode, j.executor, j.status, j.created_at,
+                       (SELECT r.status FROM data_os.job_runs r
+                        WHERE r.job_id = j.id ORDER BY r.submitted_at DESC LIMIT 1) AS latest_run_status,
+                       j.last_run_at
+                FROM data_os.ingestion_jobs j
+                WHERE j.id = ?
+                FOR UPDATE
                 """, this::map, id).stream().findFirst();
     }
 
@@ -54,6 +72,7 @@ public class JobRepository {
                 resultSet.getString("executor"),
                 resultSet.getString("status"),
                 resultSet.getTimestamp("created_at").toInstant(),
+                resultSet.getString("latest_run_status"),
                 resultSet.getTimestamp("last_run_at") == null ? null : resultSet.getTimestamp("last_run_at").toInstant());
     }
 

@@ -17,7 +17,7 @@
 
 - 架构蓝图已定稿并通过评审；技术架构和 20 周 MVP 实施计划已形成实施基线，外部依赖与兼容性决策门需在 W1—W2 完成。
 - 前端已完成 10 个桌面路由页面：新增“数据接入”工作台，并保留治理、资产、分析、问数和主索引等业务工作台；所有页面使用统一门户，不暴露组件原生菜单。
-- 控制面首条垂直切片已实现：`GET/POST /api/v1/sources`、`GET/POST /api/v1/jobs`、`POST/GET /api/v1/jobs/{id}/runs`、`GET /api/v1/governance/summary` 与 `/actuator/health/readiness`。
+- 控制面首条垂直切片已实现：`GET/POST /api/v1/sources`、`GET/POST /api/v1/jobs`、`POST/GET /api/v1/jobs/{id}/runs`、`POST /api/v1/jobs/{jobId}/runs/{runId}/sync`、`GET /api/v1/governance/summary` 与 `/actuator/health/readiness`。运行记录支持 SeaTunnel 状态归一、定时回写和门户手动同步；作业接口同时返回派生的 `latestRunStatus`，避免把任务生命周期与运行状态混为一谈。
 - 已部署到开发机 `172.16.65.59` 的独立 `/root/data-os-dev-20260803` 目录：门户 `18081`、控制面容器和 `data_os` schema 已通过 API 验收；SeaTunnel 2.3.13 已用 Apache 官方二进制包构建为本地镜像，REST 端口 `18082`，控制面已配置内部地址并完成真实提交验收。
 
 ## 运行原型

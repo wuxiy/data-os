@@ -8,6 +8,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.sql.Timestamp;
+import java.time.Instant;
+
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -25,6 +29,9 @@ class ControlPlaneApiTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private JdbcTemplate jdbc;
 
     @Test
     void registersAndListsSourceThroughPublicApi() throws Exception {
@@ -85,16 +92,49 @@ class ControlPlaneApiTest {
                 .andReturn().getResponse().getContentAsString();
         var jobId = job.replaceAll(".*\\\"id\\\":\\\"([^\\\"]+)\\\".*", "$1");
 
-        mockMvc.perform(post("/api/v1/jobs/" + jobId + "/runs")
+        var runResponse = mockMvc.perform(post("/api/v1/jobs/" + jobId + "/runs")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.status", is("BLOCKED_DEPENDENCY")))
-                .andExpect(jsonPath("$.executor", is("SEATUNNEL")));
+                .andExpect(jsonPath("$.executor", is("SEATUNNEL")))
+                .andReturn().getResponse().getContentAsString();
+        var runId = runResponse.replaceAll(".*\\\"id\\\":\\\"([^\\\"]+)\\\".*", "$1");
+
+        mockMvc.perform(post("/api/v1/jobs/" + jobId + "/runs/" + runId + "/sync"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status", is("BLOCKED_DEPENDENCY")))
+                .andExpect(jsonPath("$.message", is("中心采集执行器未配置")));
 
         mockMvc.perform(get("/api/v1/jobs/" + jobId + "/runs"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.total", is(1)))
                 .andExpect(jsonPath("$.items[0].message", is("中心采集执行器未配置")));
+    }
+
+    @Test
+    void rejectsDuplicateActiveRunForSameJob() throws Exception {
+        var source = mockMvc.perform(post("/api/v1/sources")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"重复运行源\",\"systemType\":\"LIS\",\"protocol\":\"JDBC\"}"))
+                .andReturn().getResponse().getContentAsString();
+        var sourceId = source.replaceAll(".*\\\"id\\\":\\\"([^\\\"]+)\\\".*", "$1");
+        var job = mockMvc.perform(post("/api/v1/jobs")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"sourceId\":\"" + sourceId + "\",\"name\":\"重复运行作业\"}"))
+                .andReturn().getResponse().getContentAsString();
+        var jobId = job.replaceAll(".*\\\"id\\\":\\\"([^\\\"]+)\\\".*", "$1");
+        var now = Timestamp.from(Instant.now());
+        jdbc.update("""
+                INSERT INTO data_os.job_runs
+                    (id, job_id, status, executor, external_id, message, submitted_at, started_at, finished_at)
+                VALUES (?, ?, 'SUBMITTED', 'SEATUNNEL', 'external-active', '中心采集作业已提交', ?, ?, NULL)
+                """, "active-run", jobId, now, now);
+
+        mockMvc.perform(post("/api/v1/jobs/" + jobId + "/runs")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code", is("CONFLICT")));
     }
 }

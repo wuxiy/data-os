@@ -367,6 +367,34 @@
   font-size: 12px;
 }
 
+.tableActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tableActions .tableButton {
+  display: inline-flex;
+  width: auto;
+  min-height: 30px;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 7px;
+  color: var(--jade);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.statusDetail {
+  display: block;
+  max-width: 210px;
+  margin-top: 3px;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 10px;
+  text-overflow: ellipsis;
+}
+
 .flowPanel {
   margin-top: 16px;
   padding: 18px;

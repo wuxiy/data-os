@@ -10,5 +10,6 @@ public record IngestionJob(
         String executor,
         String status,
         Instant createdAt,
+        String latestRunStatus,
         Instant lastRunAt) {
 }

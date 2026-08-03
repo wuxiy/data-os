@@ -216,10 +216,12 @@ AssistantAdapter: ask / cancel / getEvidence / feedback
 ### 5.2 SeaTunnel 与 DolphinScheduler
 
 - SeaTunnelAdapter 将版本化接入配置渲染为 JSON/HOCON，通过 REST API V2 提交、停止、查询作业和检查点；生产不依赖页面模拟操作。
+- 当前首条垂直切片已落地 SeaTunnel 提交与运行查询：控制面通过 `/job-info/{jobId}` 将 `SUBMITTED/RUNNING/FINISHED/FAILED/CANCELED` 归一为平台运行状态，并保留外部开始/结束时间。
 - DolphinScheduler 是 DAG、计划、补数和运行历史的权威来源；data-os 保存业务投影和外部工作流映射。
 - 标准流程为 `L0 证据确认 → L1 装载 → dbt build → 质量结果 → OpenMetadata 摄取 → 数据产品发布`。
 - Portal 发布任务时先落库和 Outbox，再由 Worker 发布到执行器；发布失败不改变上一个生效版本。
-- 状态同步采用增量轮询和明确的超时窗口。连续失败进入死信表和人工重放，不静默丢失。
+- 状态同步采用控制面后台增量轮询，同时提供 `POST /api/v1/jobs/{jobId}/runs/{runId}/sync` 供门户人工刷新；本轮使用 PostgreSQL 运行表直接回写，连续依赖失败保留可重试状态，配置型状态查询失败转为 `FAILED`，`UNKNOWN` 只允许人工重试，后续接入 Outbox/死信表时不改变适配器契约。任务生命周期状态与最近一次运行状态分离，后者以 `job_runs` 为准。
+- 开发档位限制单控制面实例与每轮最多 100 条候选；进入区域多副本前必须替换为数据库租约/`SKIP LOCKED`、`next_sync_at` 退避和并行 worker，避免重复查询与长尾饥饿。
 
 ### 5.3 dbt、Doris 与 OpenMetadata
 

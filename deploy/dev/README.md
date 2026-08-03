@@ -17,6 +17,10 @@
 ```dotenv
 DATAOS_DB_PASSWORD=复用 keycloak-db 的数据库密码
 DATAOS_SEED_DEMO=true
+# 可选：控制面运行状态同步周期，单位毫秒
+DATAOS_RUN_SYNC_INTERVAL_MS=30000
+DATAOS_RUN_SYNC_INITIAL_DELAY_MS=10000
+DATAOS_SEATUNNEL_TIME_ZONE=UTC
 ```
 
 先启动门户和控制面：
@@ -44,6 +48,14 @@ docker compose -f docker-compose.yml --profile executor up -d seatunnel-master
 
 SeaTunnel Zeta REST API 使用 `http://seatunnel-master:8080/submit-job`，控制面会将提交结果写入运行记录；`5801` 仅用于集群内部通信。
 
+控制面后台按 `DATAOS_RUN_SYNC_INTERVAL_MS` 查询 `SUBMITTED/RUNNING` 运行记录，并调用 SeaTunnel `/job-info/{jobId}` 将 `FINISHED/FAILED/CANCELED` 等外部状态归一后回写。`startTime` 才会回填运行记录的实际启动时间；SeaTunnel 的 `createTime` 仅代表创建/提交时间，不会冒充 `started_at`。门户“数据接入 → 采集任务”可对仍在运行的记录点击“同步状态”，对应接口为：
+
+```text
+POST /api/v1/jobs/{jobId}/runs/{runId}/sync
+```
+
+`UNKNOWN` 记录不进入后台无限重试，但会阻止同一任务重复启动；业务人员可通过门户“同步状态”触发一次人工重试。`ingestion_jobs.status` 仍表示任务生命周期，最近一次执行结果以 `job_runs` 为准。
+
 ## 验收
 
 ```bash
@@ -51,6 +63,8 @@ curl -fsS http://127.0.0.1:18081/healthz
 curl -fsS http://127.0.0.1:18081/api/v1/governance/summary
 curl -fsS http://127.0.0.1:18081/api/v1/sources
 curl -fsS http://127.0.0.1:18082/overview
+# 查询某条运行记录（需先从 POST /api/v1/jobs/{jobId}/runs 获取 runId）
+curl -fsS -X POST http://127.0.0.1:18081/api/v1/jobs/{jobId}/runs/{runId}/sync
 ```
 
 浏览器访问 `http://开发机地址:18081/`。治理驾驶舱顶部显示“控制面已连接”时，指标与问题来自复用 PostgreSQL 的 `data_os` schema；控制面不可用时，前端保留演示数据并明确标识降级状态。

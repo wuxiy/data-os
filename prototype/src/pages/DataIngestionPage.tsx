@@ -3,7 +3,7 @@ import type { FormEvent, ReactNode } from 'react'
 import { useEffect, useMemo, useState } from 'react'
 import { PageHeader } from '../components/ui/PageHeader'
 import { StatusTag } from '../components/ui/Primitives'
-import { createSource, fetchIngestionJobs, fetchSources, startIngestionRun, type IngestionJobApiItem, type SourceApiItem } from '../data/controlPlane'
+import { createSource, fetchIngestionJobs, fetchIngestionRuns, fetchSources, startIngestionRun, syncIngestionRun, type IngestionJobApiItem, type IngestionRunApiItem, type SourceApiItem } from '../data/controlPlane'
 import type { RouteKey } from '../types'
 import styles from './Pages.module.css'
 
@@ -16,6 +16,7 @@ interface Props {
 export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props) {
   const [sources, setSources] = useState<SourceApiItem[]>([])
   const [jobs, setJobs] = useState<IngestionJobApiItem[]>([])
+  const [latestRuns, setLatestRuns] = useState<Record<string, IngestionRunApiItem>>({})
   const [state, setState] = useState<'loading' | 'live' | 'fallback'>('loading')
   const [runningJob, setRunningJob] = useState<string | null>(null)
   const [sourceFormOpen, setSourceFormOpen] = useState(false)
@@ -30,8 +31,26 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
         setSources(sourceResponse.items)
         setJobs(jobResponse.items)
         setState('live')
+        return Promise.all(jobResponse.items.map(async (job) => {
+          try {
+            const response = await fetchIngestionRuns(job.id, controller.signal)
+            return [job.id, response.items[0]] as const
+          } catch {
+            return [job.id, undefined] as const
+          }
+        }))
       })
-      .catch(() => setState('fallback'))
+      .then((runs) => {
+        if (controller.signal.aborted) return
+        const loadedRuns: Record<string, IngestionRunApiItem> = {}
+        runs.forEach(([jobId, run]) => {
+          if (run) loadedRuns[jobId] = run
+        })
+        setLatestRuns(loadedRuns)
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setState('fallback')
+      })
       .finally(() => window.clearTimeout(timeout))
     return () => {
       window.clearTimeout(timeout)
@@ -51,9 +70,24 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
     setRunningJob(job.id)
     try {
       const run = await startIngestionRun(job.id)
-      onNotice(run.status === 'BLOCKED_DEPENDENCY' ? '运行记录已保存，等待中心采集执行器上线' : `运行已提交：${run.status}`)
+      setLatestRuns((current) => ({ ...current, [job.id]: run }))
+      onNotice(run.status === 'BLOCKED_DEPENDENCY' ? '运行记录已保存，等待中心采集执行器上线' : `运行已提交：${statusLabel(run.status)}`)
     } catch {
       onNotice('运行请求失败，请查看控制面运行日志')
+    } finally {
+      setRunningJob(null)
+    }
+  }
+
+  async function syncRun(job: IngestionJobApiItem, run: IngestionRunApiItem) {
+    if (state !== 'live') return
+    setRunningJob(job.id)
+    try {
+      const refreshed = await syncIngestionRun(job.id, run.id)
+      setLatestRuns((current) => ({ ...current, [job.id]: refreshed }))
+      onNotice(`运行状态已更新：${statusLabel(refreshed.status)}`)
+    } catch {
+      onNotice('运行状态同步失败，请稍后重试')
     } finally {
       setRunningJob(null)
     }
@@ -113,15 +147,25 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
               <Summary label="来源数" value={String(visibleSources.length)} icon={<Server size={15} />} />
               <Summary label="任务数" value={String(visibleJobs.length)} icon={<Waypoints size={15} />} />
               <Summary label="健康来源" value={String(visibleSources.filter((source) => source.status === 'HEALTHY').length)} icon={<CheckCircle2 size={15} />} />
-              <Summary label="待执行" value={String(visibleJobs.filter((job) => job.status !== 'RUNNING').length)} icon={<CircleAlert size={15} />} />
+              <Summary label="待执行" value={String(visibleJobs.filter((job) => {
+                const runStatus = latestRuns[job.id]?.status ?? job.latestRunStatus
+                return runStatus ? !['SUBMITTED', 'RUNNING', 'UNKNOWN'].includes(runStatus) : job.status !== 'RUNNING'
+              }).length)} icon={<CircleAlert size={15} />} />
             </div>
             <button className={styles.textButton} onClick={() => onNavigate('governance')}>查看治理结果 <ArrowUpRight size={13} /></button>
           </section>
         </div>
 
         <section className={styles.tablePanel}>
-          <div className={styles.panelHeader}><div><h2>采集任务</h2><p>提交运行后，若执行器未上线会保留可追踪的阻塞记录</p></div><span className={styles.dashboardScope}>{visibleJobs.length} 个任务</span></div>
-          <div className={styles.tableScroll}><table className={styles.table}><thead><tr><th>任务</th><th>来源</th><th>模式</th><th>执行通道</th><th>状态</th><th>操作</th></tr></thead><tbody>{visibleJobs.map((job) => <tr key={job.id}><td><strong>{job.name}</strong><small>{job.id.slice(0, 8)}</small></td><td>{sourceById.get(job.sourceId)?.name ?? 'LIS 检验系统'}</td><td>{job.mode === 'CDC' ? '增量变更' : '批量同步'}</td><td>{executorLabel(job.executor)}</td><td><StatusTag tone={job.status === 'RUNNING' ? 'healthy' : 'warning'}>{job.status === 'RUNNING' ? '运行中' : '草稿'}</StatusTag></td><td><button className={styles.tableButton} disabled={runningJob === job.id} onClick={() => void runJob(job)}><Play size={13} />{runningJob === job.id ? '提交中' : '启动运行'}</button></td></tr>)}</tbody></table></div>
+          <div className={styles.panelHeader}><div><h2>采集任务</h2><p>运行状态由控制面统一回写；可在此手动拉取执行器最新结果</p></div><span className={styles.dashboardScope}>{visibleJobs.length} 个任务</span></div>
+          <div className={styles.tableScroll}><table className={styles.table}><thead><tr><th>任务</th><th>来源</th><th>模式</th><th>执行通道</th><th>最近运行</th><th>操作</th></tr></thead><tbody>{visibleJobs.map((job) => {
+            const run = latestRuns[job.id]
+            const latestStatus = run?.status ?? job.latestRunStatus
+            const status = latestStatus ? statusLabel(latestStatus) : job.status === 'RUNNING' ? { label: '运行中', tone: 'healthy' as const } : { label: '未运行', tone: 'neutral' as const }
+            const activeRun = Boolean(latestStatus && ['SUBMITTED', 'RUNNING', 'UNKNOWN'].includes(latestStatus))
+            const canSync = Boolean(run && activeRun)
+            return <tr key={job.id}><td><strong>{job.name}</strong><small>{job.id.slice(0, 8)}</small></td><td>{sourceById.get(job.sourceId)?.name ?? 'LIS 检验系统'}</td><td>{job.mode === 'CDC' ? '增量变更' : '批量同步'}</td><td>{executorLabel(job.executor)}</td><td><StatusTag tone={status.tone}>{status.label}</StatusTag>{run ? <small className={styles.statusDetail}>{businessMessage(run.message)}</small> : null}</td><td><div className={styles.tableActions}><button className={styles.tableButton} disabled={runningJob === job.id || activeRun} onClick={() => void runJob(job)}><Play size={13} />{runningJob === job.id ? '处理中…' : activeRun ? '已有运行' : '启动运行'}</button>{canSync ? <button className={styles.tableButton} disabled={runningJob === job.id} onClick={() => void syncRun(job, run)}><RefreshCw size={13} />同步状态</button> : null}</div></td></tr>
+          })}</tbody></table></div>
         </section>
       </div>
     </div>
@@ -138,9 +182,29 @@ const fallbackSources: SourceApiItem[] = [
 ]
 
 const fallbackJobs: IngestionJobApiItem[] = [
-  { id: 'fallback-job', sourceId: 'fallback-lis', name: '检验结果增量同步', mode: 'CDC', executor: 'SEATUNNEL', status: 'RUNNING', createdAt: '', lastRunAt: null },
+  { id: 'fallback-job', sourceId: 'fallback-lis', name: '检验结果增量同步', mode: 'CDC', executor: 'SEATUNNEL', status: 'RUNNING', createdAt: '', latestRunStatus: null, lastRunAt: null },
 ]
 
 function executorLabel(executor: string) {
   return executor.toUpperCase() === 'SEATUNNEL' ? '中心采集执行器' : '平台执行通道'
+}
+
+function statusLabel(status: string): { label: string; tone: 'healthy' | 'warning' | 'danger' | 'neutral' } {
+  switch (status) {
+    case 'SUCCEEDED': return { label: '已完成', tone: 'healthy' }
+    case 'RUNNING': return { label: '运行中', tone: 'healthy' }
+    case 'SUBMITTED': return { label: '已提交', tone: 'warning' }
+    case 'FAILED':
+    case 'SUBMIT_FAILED': return { label: '失败', tone: 'danger' }
+    case 'CANCELED': return { label: '已取消', tone: 'neutral' }
+    case 'BLOCKED_CONFIGURATION':
+    case 'BLOCKED_DEPENDENCY':
+    case 'UNSUPPORTED_EXECUTOR': return { label: '待处理', tone: 'warning' }
+    case 'UNKNOWN': return { label: '状态待确认', tone: 'warning' }
+    default: return { label: '待处理', tone: 'neutral' }
+  }
+}
+
+function businessMessage(message: string) {
+  return message.replace(/SeaTunnel/gi, '中心采集')
 }

@@ -22,6 +22,10 @@ data-os:
   seed-demo: ${DATAOS_SEED_DEMO:false}
   seatunnel:
     base-url: ${SEATUNNEL_BASE_URL:}
+    time-zone: ${DATAOS_SEATUNNEL_TIME_ZONE:UTC}
+  runs:
+    sync-interval-ms: ${DATAOS_RUN_SYNC_INTERVAL_MS:30000}
+    sync-initial-delay-ms: ${DATAOS_RUN_SYNC_INITIAL_DELAY_MS:10000}
 
 management:
   endpoints:

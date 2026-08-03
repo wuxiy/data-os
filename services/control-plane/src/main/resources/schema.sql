@@ -70,3 +70,4 @@ CREATE TABLE IF NOT EXISTS data_os.job_runs (
 );
 
 CREATE INDEX IF NOT EXISTS idx_data_os_runs_job ON data_os.job_runs(job_id, submitted_at DESC);
+CREATE INDEX IF NOT EXISTS idx_data_os_runs_sync ON data_os.job_runs(status, submitted_at, external_id);

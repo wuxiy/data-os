@@ -49,6 +49,7 @@ export interface IngestionJobApiItem {
   executor: string
   status: string
   createdAt: string
+  latestRunStatus: string | null
   lastRunAt: string | null
 }
 
@@ -62,6 +63,11 @@ export interface IngestionRunApiItem {
   submittedAt: string
   startedAt: string | null
   finishedAt: string | null
+}
+
+export interface IngestionRunListApiResponse {
+  items: IngestionRunApiItem[]
+  total: number
 }
 
 const API_BASE_URL = (import.meta.env.VITE_DATAOS_API_BASE_URL ?? '/api').replace(/\/$/, '')
@@ -117,5 +123,19 @@ export async function startIngestionRun(jobId: string, signal?: AbortSignal): Pr
     signal,
   })
   if (!response.ok) throw new Error(`运行请求失败：${response.status}`)
+  return response.json() as Promise<IngestionRunApiItem>
+}
+
+export async function fetchIngestionRuns(jobId: string, signal?: AbortSignal): Promise<IngestionRunListApiResponse> {
+  return getJson(`/v1/jobs/${jobId}/runs`, signal)
+}
+
+export async function syncIngestionRun(jobId: string, runId: string, signal?: AbortSignal): Promise<IngestionRunApiItem> {
+  const response = await fetch(`${API_BASE_URL}/v1/jobs/${jobId}/runs/${runId}/sync`, {
+    method: 'POST',
+    headers: { Accept: 'application/json' },
+    signal,
+  })
+  if (!response.ok) throw new Error(`运行状态同步失败：${response.status}`)
   return response.json() as Promise<IngestionRunApiItem>
 }

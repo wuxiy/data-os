@@ -9,3 +9,6 @@ spring:
 
 data-os:
   seed-demo: false
+  runs:
+    sync-interval-ms: 3600000
+    sync-initial-delay-ms: 3600000

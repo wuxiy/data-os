@@ -39,9 +39,9 @@ class SeaTunnelExecutorAdapterTest {
         server.start();
         try {
             var adapter = new SeaTunnelExecutorAdapter(
-                    RestClient.builder(), "http://127.0.0.1:" + server.getAddress().getPort() + "/");
+                    RestClient.builder(), "http://127.0.0.1:" + server.getAddress().getPort() + "/", "UTC");
             var job = new IngestionJob("job-1", "source-1", "门诊 CDC", "CDC", "SEATUNNEL",
-                    "ACTIVE", null, null);
+                    "ACTIVE", null, null, null);
 
             var submission = adapter.submit(job, Map.of("source", Map.of("plugin_name", "FakeSource"),
                     "env", Map.of("job.mode", "CDC")));
@@ -52,6 +52,57 @@ class SeaTunnelExecutorAdapterTest {
                 assertThat(body).contains("\"job.mode\":\"STREAMING\"");
                 assertThat(body).contains("\"job.name\":\"门诊 CDC\"");
             });
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void mapsSeaTunnelFinishedStatusToSucceeded() throws IOException {
+        var server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/job-info/seatunnel-123", exchange -> {
+            var response = """
+                    {"jobId":"seatunnel-123","jobStatus":"FINISHED","errorMsg":null,
+                     "createTime":"2026-08-03 09:00:00","finishedTime":"2026-08-03 09:00:02"}
+                    """.replace("\n", "").replace("\r", "").getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, response.length);
+            try (var output = exchange.getResponseBody()) {
+                output.write(response);
+            }
+        });
+        server.start();
+        try {
+            var adapter = new SeaTunnelExecutorAdapter(
+                    RestClient.builder(), "http://127.0.0.1:" + server.getAddress().getPort(), "UTC");
+
+            var status = adapter.status("seatunnel-123");
+
+            assertThat(status.status()).isEqualTo("SUCCEEDED");
+            assertThat(status.message()).isEqualTo("中心采集作业已完成");
+            assertThat(status.startedAt()).isNull();
+            assertThat(status.finishedAt()).isNotNull();
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void mapsMissingExternalJobToManualReviewStatus() throws IOException {
+        var server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/job-info/missing", exchange -> {
+            exchange.sendResponseHeaders(404, -1);
+            exchange.close();
+        });
+        server.start();
+        try {
+            var adapter = new SeaTunnelExecutorAdapter(
+                    RestClient.builder(), "http://127.0.0.1:" + server.getAddress().getPort(), "UTC");
+
+            var status = adapter.status("missing");
+
+            assertThat(status.status()).isEqualTo("UNKNOWN");
+            assertThat(status.message()).isEqualTo("中心采集作业暂未找到，请人工重试");
         } finally {
             server.stop(0);
         }

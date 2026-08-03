@@ -35,6 +35,7 @@ public class JobService {
                 defaultValue(request.executor(), "SEATUNNEL").toUpperCase(),
                 "DRAFT",
                 Instant.now(),
+                null,
                 null));
     }
 

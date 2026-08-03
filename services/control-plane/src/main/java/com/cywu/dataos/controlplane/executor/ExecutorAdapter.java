@@ -9,4 +9,6 @@ public interface ExecutorAdapter {
     boolean supports(String executor);
 
     AdapterSubmission submit(IngestionJob job, Map<String, Object> config);
+
+    AdapterRunStatus status(String externalId);
 }
