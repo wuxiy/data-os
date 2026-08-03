@@ -156,11 +156,12 @@ GET  /ingestion + static JS           -> 200
 - [x] 增加 SeaTunnel `/job-info/{jobId}` 查询与官方/2.3.13 时间字段兼容解析
 - [x] 增加运行记录更新仓储、定时同步 Worker 和按运行记录手动同步 API
 - [x] 增加状态回写单元测试、MockMvc 契约测试和异常/未知作业测试
-- [ ] 在开发机提交一条短生命周期作业，验收 `SUBMITTED → SUCCEEDED/CANCELED` 回写（等待开发机 SSH 凭据更新）
+- [x] 在开发机提交一条短生命周期作业，验收 `SUBMITTED → SUCCEEDED/CANCELED` 回写
 - [x] 更新门户运行反馈、部署说明和技术架构文档，完成双代理审查
 
 ### 结果复盘
 
 - 本地控制面 Maven 全量测试通过：10 个测试全绿；前端 `npm run build` 通过；Compose 配置解析和 `git diff --check` 通过。
 - 运行闭环现已包含：SeaTunnel REST 状态查询、固定 UTC 解析时区（仅 `startTime` 回填实际启动时间，`createTime` 不冒充 `started_at`）、404 归一为 `UNKNOWN` 并由门户人工重试、配置错误终止轮询、CAS 防旧状态覆盖终态、同作业活动运行行锁、`latestRunStatus` 派生投影、状态索引和门户手动同步。
-- 开发机当前 SeaTunnel 仍健康（2.3.13、1 worker、无运行中作业），但本轮新控制面镜像尚未替换远程实例：账号手册中的 SSH 凭据连续被拒绝，待用户提供更新凭据或恢复访问后执行远程部署与 `SUBMITTED → SUCCEEDED/CANCELED` 证据验收。
+- 开发机已完成可回滚重部署：控制面镜像按 `fe9bc7a` 重建，门户静态包、Compose 和运行配置已替换；远程保留 `rollback-pre-fe9bc7a` 备份目录，SeaTunnel 执行器未重建。
+- 真实验收任务 `FakeSource → Console` 经 data-os API 返回 `201 SUBMITTED`，外部作业 `FINISHED`，16 行数据写入完成；控制面运行记录自动回写 `SUCCEEDED`，任务投影 `latestRunStatus=SUCCEEDED`，SeaTunnel 概览为 2 个 finished、0 个 running，三容器 healthy，最近 10 分钟无错误日志。
