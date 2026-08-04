@@ -39,6 +39,8 @@ export interface SourceApiItem {
   protocol: string
   status: string
   createdAt: string
+  lastCheckedAt: string | null
+  lastCheckMessage: string | null
 }
 
 export interface IngestionJobApiItem {
@@ -159,6 +161,17 @@ export async function createSource(input: {
   return response.json() as Promise<SourceApiItem>
 }
 
+export async function checkSource(sourceId: string, config: JobConfig, signal?: AbortSignal): Promise<SourceApiItem> {
+  const response = await fetch(`${API_BASE_URL}/v1/sources/${sourceId}/check`, {
+    method: 'POST',
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ config }),
+    signal,
+  })
+  if (!response.ok) await responseError(response, '数据源检查失败')
+  return response.json() as Promise<SourceApiItem>
+}
+
 export async function createIngestionJob(input: CreateIngestionJobInput, signal?: AbortSignal): Promise<IngestionJobApiItem> {
   const response = await fetch(`${API_BASE_URL}/v1/jobs`, {
     method: 'POST',
@@ -167,6 +180,17 @@ export async function createIngestionJob(input: CreateIngestionJobInput, signal?
     signal,
   })
   if (!response.ok) await responseError(response, '采集任务创建失败')
+  return response.json() as Promise<IngestionJobApiItem>
+}
+
+export async function updateIngestionJobStatus(jobId: string, status: string, signal?: AbortSignal): Promise<IngestionJobApiItem> {
+  const response = await fetch(`${API_BASE_URL}/v1/jobs/${jobId}/status`, {
+    method: 'PUT',
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status }),
+    signal,
+  })
+  if (!response.ok) await responseError(response, '任务状态更新失败')
   return response.json() as Promise<IngestionJobApiItem>
 }
 
@@ -217,5 +241,15 @@ export async function syncIngestionRun(jobId: string, runId: string, signal?: Ab
     signal,
   })
   if (!response.ok) await responseError(response, '运行状态同步失败')
+  return response.json() as Promise<IngestionRunApiItem>
+}
+
+export async function retryIngestionRun(jobId: string, runId: string, signal?: AbortSignal): Promise<IngestionRunApiItem> {
+  const response = await fetch(`${API_BASE_URL}/v1/jobs/${jobId}/runs/${runId}/retry`, {
+    method: 'POST',
+    headers: { Accept: 'application/json' },
+    signal,
+  })
+  if (!response.ok) await responseError(response, '运行重试失败')
   return response.json() as Promise<IngestionRunApiItem>
 }

@@ -46,6 +46,14 @@ public class JobRepository {
         return job;
     }
 
+    public int updateStatus(String jobId, String status) {
+        return jdbc.update("""
+                UPDATE data_os.ingestion_jobs
+                SET status = ?
+                WHERE id = ?
+                """, status, jobId);
+    }
+
     public Optional<IngestionJob> findById(String id) {
         return jdbc.query("""
                 SELECT j.id, j.source_id, j.name, j.mode, j.executor, j.status, j.created_at,

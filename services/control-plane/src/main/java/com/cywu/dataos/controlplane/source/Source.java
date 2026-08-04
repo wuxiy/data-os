@@ -10,5 +10,7 @@ public record Source(
         String systemType,
         String protocol,
         String status,
-        Instant createdAt) {
+        Instant createdAt,
+        Instant lastCheckedAt,
+        String lastCheckMessage) {
 }

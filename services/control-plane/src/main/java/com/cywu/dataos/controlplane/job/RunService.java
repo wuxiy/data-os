@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.HexFormat;
 
@@ -12,6 +13,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.cywu.dataos.controlplane.api.InvalidRequestException;
 import com.cywu.dataos.controlplane.api.ResourceNotFoundException;
+import com.cywu.dataos.controlplane.api.ConflictException;
 import com.cywu.dataos.controlplane.executor.AdapterConfigurationException;
 import com.cywu.dataos.controlplane.executor.AdapterUnavailableException;
 import com.cywu.dataos.controlplane.executor.ExecutorAdapter;
@@ -21,6 +23,10 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class RunService {
+
+    private static final Set<String> RETRYABLE_TERMINAL_STATUSES = Set.of(
+            "FAILED", "CANCELED", "BLOCKED_CONFIGURATION", "BLOCKED_DEPENDENCY", "SUBMIT_FAILED",
+            "UNSUPPORTED_EXECUTOR");
 
     private final JobRepository jobRepository;
     private final RunRepository runRepository;
@@ -97,6 +103,16 @@ public class RunService {
                 return new RunClaim(null, null, Map.of(), existing.get().run());
             }
         }
+        if ("PAUSED".equals(job.status())) {
+            throw new ConflictException("采集任务已暂停，恢复后才能启动运行");
+        }
+        if ("ARCHIVED".equals(job.status())) {
+            throw new ConflictException("采集任务已归档，不能启动运行");
+        }
+        if ("DRAFT".equals(job.status())) {
+            jobRepository.updateStatus(job.id(), "ACTIVE");
+            job = withStatus(job, "ACTIVE");
+        }
         runRepository.findActive(jobId).ifPresent(active -> {
             throw new com.cywu.dataos.controlplane.api.ConflictException("采集作业已有运行中的记录：" + active.id());
         });
@@ -148,12 +164,27 @@ public class RunService {
         return runRepository.findAll(jobId);
     }
 
+    public IngestionRun retry(String jobId, String runId) {
+        var run = runRepository.findById(jobId, runId)
+                .orElseThrow(() -> new ResourceNotFoundException("未找到采集运行记录：" + runId));
+        if (!RETRYABLE_TERMINAL_STATUSES.contains(run.status())) {
+            throw new ConflictException("只有失败、阻塞或取消的运行记录才能重试");
+        }
+        return start(jobId, new CreateRunRequest(Map.of()), "retry-" + runId + "-" + UUID.randomUUID());
+    }
+
     private String safeMessage(Exception exception) {
         var message = exception.getMessage();
         if (message == null || message.isBlank()) {
             return "未知错误";
         }
         return message.length() > 240 ? message.substring(0, 240) : message;
+    }
+
+    private IngestionJob withStatus(IngestionJob job, String status) {
+        return new IngestionJob(job.id(), job.sourceId(), job.name(), job.mode(), job.executor(), status,
+                job.createdAt(), job.latestRunStatus(), job.lastRunAt(), job.templateKey(), job.templateVersion(),
+                job.configured());
     }
 
     private String fingerprint(Map<String, Object> config) {

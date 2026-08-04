@@ -3,8 +3,6 @@ package com.cywu.dataos.controlplane.source;
 import java.sql.Timestamp;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
-
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -20,6 +18,7 @@ public class SourceRepository {
     public List<Source> findAll(String tenantId, String institutionId) {
         return jdbc.query("""
                 SELECT id, tenant_id, institution_id, name, system_type, protocol, status, created_at
+                       , last_checked_at, last_check_message
                 FROM data_os.sources
                 WHERE tenant_id = ? AND institution_id = ?
                 ORDER BY created_at DESC
@@ -28,7 +27,8 @@ public class SourceRepository {
 
     public Optional<Source> findById(String id) {
         return jdbc.query("""
-                SELECT id, tenant_id, institution_id, name, system_type, protocol, status, created_at
+                SELECT id, tenant_id, institution_id, name, system_type, protocol, status, created_at,
+                       last_checked_at, last_check_message
                 FROM data_os.sources WHERE id = ?
                 """, this::map, id).stream().findFirst();
     }
@@ -36,11 +36,21 @@ public class SourceRepository {
     public Source save(Source source) {
         jdbc.update("""
                 INSERT INTO data_os.sources
-                    (id, tenant_id, institution_id, name, system_type, protocol, status, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    (id, tenant_id, institution_id, name, system_type, protocol, status, created_at,
+                     last_checked_at, last_check_message)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, source.id(), source.tenantId(), source.institutionId(), source.name(),
-                source.systemType(), source.protocol(), source.status(), Timestamp.from(source.createdAt()));
+                source.systemType(), source.protocol(), source.status(), Timestamp.from(source.createdAt()),
+                timestamp(source.lastCheckedAt()), source.lastCheckMessage());
         return source;
+    }
+
+    public int updateCheck(String sourceId, String status, String message, java.time.Instant checkedAt) {
+        return jdbc.update("""
+                UPDATE data_os.sources
+                SET status = ?, last_checked_at = ?, last_check_message = ?
+                WHERE id = ?
+                """, status, Timestamp.from(checkedAt), message, sourceId);
     }
 
     public boolean exists(String id) {
@@ -57,6 +67,12 @@ public class SourceRepository {
                 resultSet.getString("system_type"),
                 resultSet.getString("protocol"),
                 resultSet.getString("status"),
-                resultSet.getTimestamp("created_at").toInstant());
+                resultSet.getTimestamp("created_at").toInstant(),
+                resultSet.getTimestamp("last_checked_at") == null ? null : resultSet.getTimestamp("last_checked_at").toInstant(),
+                resultSet.getString("last_check_message"));
+    }
+
+    private Timestamp timestamp(java.time.Instant value) {
+        return value == null ? null : Timestamp.from(value);
     }
 }

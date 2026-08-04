@@ -6,9 +6,12 @@ import {
   CircleAlert,
   Clock3,
   FileCog,
+  Archive,
+  Pause,
   PanelRightClose,
   Play,
   Plus,
+  RotateCcw,
   RefreshCw,
   Save,
   Server,
@@ -23,6 +26,7 @@ import { StatusTag } from '../components/ui/Primitives'
 import {
   createIngestionJob,
   createSource,
+  checkSource,
   fetchIngestionJobs,
   fetchIngestionRuns,
   fetchJobConfig,
@@ -30,6 +34,8 @@ import {
   saveJobConfig,
   startIngestionRun,
   syncIngestionRun,
+  retryIngestionRun,
+  updateIngestionJobStatus,
   type IngestionJobApiItem,
   type IngestionRunApiItem,
   type JobConfig,
@@ -96,7 +102,7 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
   const [sources, setSources] = useState<SourceApiItem[]>([])
   const [jobs, setJobs] = useState<IngestionJobApiItem[]>([])
   const [latestRuns, setLatestRuns] = useState<Record<string, IngestionRunApiItem>>({})
-  const [state, setState] = useState<'loading' | 'live' | 'fallback'>('loading')
+  const [state, setState] = useState<'loading' | 'live' | 'unavailable'>('loading')
   const [runningJob, setRunningJob] = useState<string | null>(null)
   const [sourceFormOpen, setSourceFormOpen] = useState(false)
   const [sourceForm, setSourceForm] = useState({ name: '', systemType: 'LIS', protocol: 'JDBC' })
@@ -115,6 +121,10 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
   const [detailsRuns, setDetailsRuns] = useState<IngestionRunApiItem[]>([])
   const [detailsLoading, setDetailsLoading] = useState(false)
   const [detailsError, setDetailsError] = useState<string | null>(null)
+  const [checkingSource, setCheckingSource] = useState<SourceApiItem | null>(null)
+  const [sourceCheckText, setSourceCheckText] = useState('')
+  const [sourceCheckLoading, setSourceCheckLoading] = useState(false)
+  const [sourceCheckError, setSourceCheckError] = useState<string | null>(null)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -143,7 +153,12 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
         setLatestRuns(loadedRuns)
       })
       .catch(() => {
-        if (!controller.signal.aborted) setState('fallback')
+        if (!controller.signal.aborted) {
+          setSources([])
+          setJobs([])
+          setLatestRuns({})
+          setState('unavailable')
+        }
       })
       .finally(() => window.clearTimeout(timeout))
     return () => {
@@ -187,12 +202,12 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
   }, [detailsJob?.id, state])
 
   const sourceById = useMemo(() => new Map(sources.map((source) => [source.id, source])), [sources])
-  const visibleSources = state === 'fallback' ? fallbackSources : sources
-  const visibleJobs = state === 'fallback' ? fallbackJobs : jobs
+  const visibleSources = sources
+  const visibleJobs = jobs
 
   async function runJob(job: IngestionJobApiItem) {
     if (state !== 'live') {
-      onNotice('控制面未连接，当前仅展示演示任务')
+      onNotice('控制面未连接，当前未加载业务数据')
       return
     }
     if (!job.configured) {
@@ -213,6 +228,21 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
     }
   }
 
+  async function changeJobStatus(job: IngestionJobApiItem, status: string) {
+    if (state !== 'live') return
+    setRunningJob(job.id)
+    try {
+      const updated = await updateIngestionJobStatus(job.id, status)
+      setJobs((current) => current.map((item) => item.id === updated.id ? updated : item))
+      if (detailsJob?.id === updated.id) setDetailsJob(updated)
+      onNotice(`任务状态已更新：${jobLifecycleLabel(updated.status)}`)
+    } catch (error) {
+      onNotice(error instanceof Error ? error.message : '任务状态更新失败，请稍后重试')
+    } finally {
+      setRunningJob(null)
+    }
+  }
+
   async function syncRun(job: IngestionJobApiItem, run: IngestionRunApiItem) {
     if (state !== 'live') return
     setRunningJob(job.id)
@@ -225,6 +255,54 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
       onNotice('运行状态同步失败，请稍后重试')
     } finally {
       setRunningJob(null)
+    }
+  }
+
+  async function retryRun(job: IngestionJobApiItem, run: IngestionRunApiItem) {
+    if (state !== 'live') return
+    setRunningJob(job.id)
+    try {
+      const retried = await retryIngestionRun(job.id, run.id)
+      setLatestRuns((current) => ({ ...current, [job.id]: retried }))
+      setDetailsRuns((current) => detailsJob?.id === job.id
+        ? [retried, ...current.filter((item) => item.id !== retried.id)]
+        : current)
+      onNotice(`已创建重试运行：${statusLabel(retried.status).label}`)
+    } catch (error) {
+      onNotice(error instanceof Error ? error.message : '运行重试失败，请先确认任务未暂停且没有活动运行')
+    } finally {
+      setRunningJob(null)
+    }
+  }
+
+  function openSourceCheck(source: SourceApiItem) {
+    setConfiguringJob(null)
+    setDetailsJob(null)
+    setCheckingSource(source)
+    setSourceCheckError(null)
+    setSourceCheckText(JSON.stringify(sourceCheckDefaults(source.protocol), null, 2))
+  }
+
+  async function submitSourceCheck() {
+    if (!checkingSource || state !== 'live') return
+    let config: JobConfig
+    try {
+      config = parseConfig(sourceCheckText)
+    } catch (error) {
+      setSourceCheckError(error instanceof Error ? error.message : '检查配置 JSON 不合法')
+      return
+    }
+    setSourceCheckLoading(true)
+    setSourceCheckError(null)
+    try {
+      const updated = await checkSource(checkingSource.id, config)
+      setSources((current) => current.map((item) => item.id === updated.id ? updated : item))
+      setCheckingSource(updated)
+      onNotice(`数据源检查完成：${sourceStatusLabel(updated.status).label}`)
+    } catch (error) {
+      setSourceCheckError(error instanceof Error ? error.message : '数据源检查失败，请稍后重试')
+    } finally {
+      setSourceCheckLoading(false)
     }
   }
 
@@ -290,6 +368,7 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
       onUnavailable('任务配置')
       return
     }
+    setCheckingSource(null)
     setDetailsJob(null)
     setConfiguringJob(job)
     setConfigLoading(true)
@@ -339,6 +418,7 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
   }
 
   function openRunDetails(job: IngestionJobApiItem) {
+    setCheckingSource(null)
     setConfiguringJob(null)
     setDetailsError(null)
     setDetailsRuns([])
@@ -350,8 +430,9 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
       <PageHeader title="数据接入" onFilterNotice={onNotice} />
       <div className={styles.apiStatus} role="status" aria-live="polite">
         <span className={`${styles.apiDot} ${state === 'live' ? styles.apiDotLive : ''}`} />
-        {state === 'loading' ? '正在连接采集控制面…' : state === 'live' ? '控制面已连接 · 数据源与任务来自 PostgreSQL' : '演示数据 · 控制面暂不可用'}
+        {state === 'loading' ? '正在连接采集控制面…' : state === 'live' ? '控制面已连接 · 数据源与任务来自 PostgreSQL' : '控制面暂不可用 · 未加载业务数据'}
       </div>
+      {state === 'unavailable' ? <div className={styles.connectionNotice} role="alert"><CircleAlert size={17} /><div><strong>采集控制面不可用</strong><span>当前页面没有展示演示状态；请恢复控制面后重新加载。</span></div><button className={styles.secondaryButton} onClick={() => window.location.reload()}><RefreshCw size={13} />重新连接</button></div> : null}
       <div className={styles.content}>
         <section className={styles.attention}>
           <div className={styles.attentionText}>
@@ -372,7 +453,7 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
           <section className={styles.panel}>
             <div className={styles.panelHeader}><div><h2>已登记数据源</h2><p>前置机、院内系统与区域交换入口</p></div><button className={styles.textButton} onClick={() => window.location.reload()}><RefreshCw size={13} />刷新</button></div>
             <ul className={styles.ranking}>
-              {visibleSources.map((source) => <li key={source.id}><span className={styles.rank}><Server size={16} /></span><div className={styles.rankBody}><strong>{source.name}</strong><span>{source.systemType} · {source.protocol} · {source.institutionId}</span></div><StatusTag tone={source.status === 'HEALTHY' ? 'healthy' : 'warning'}>{source.status === 'HEALTHY' ? '健康' : '待检查'}</StatusTag></li>)}
+              {visibleSources.map((source) => { const health = sourceStatusLabel(source.status); return <li key={source.id}><span className={styles.rank}><Server size={16} /></span><div className={styles.rankBody}><strong>{source.name}</strong><span>{source.systemType} · {source.protocol} · {source.institutionId}</span>{source.lastCheckMessage ? <small className={styles.statusDetail}>{source.lastCheckMessage} · {formatTime(source.lastCheckedAt)}</small> : null}</div><div className={styles.sourceRowActions}><StatusTag tone={health.tone}>{health.label}</StatusTag>{state === 'live' ? <button className={styles.tableButton} onClick={() => openSourceCheck(source)}><CheckCircle2 size={13} />检查</button> : null}</div></li> })}
               {visibleSources.length === 0 ? <li className={styles.emptyState}>暂无已登记数据源</li> : null}
             </ul>
           </section>
@@ -410,13 +491,30 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
           <div className={styles.tableScroll}><table className={styles.table}><thead><tr><th>任务</th><th>来源</th><th>模式</th><th>执行通道</th><th>最近运行</th><th>操作</th></tr></thead><tbody>{visibleJobs.map((job) => {
             const run = latestRuns[job.id]
             const latestStatus = run?.status ?? job.latestRunStatus
-            const status = latestStatus ? statusLabel(latestStatus) : job.status === 'RUNNING' ? { label: '运行中', tone: 'healthy' as const } : { label: '未运行', tone: 'neutral' as const }
+            const status = latestStatus ? statusLabel(latestStatus) : jobLifecycleStatusLabel(job.status)
             const activeRun = Boolean(latestStatus && ['SUBMITTING', 'SUBMITTED', 'RUNNING', 'UNKNOWN'].includes(latestStatus))
             const canSync = Boolean(run && activeRun)
-            return <tr key={job.id}><td><strong>{job.name}</strong><small>{job.id.slice(0, 8)}</small><span className={`${styles.configPill} ${job.configured ? styles.configPillReady : styles.configPillMissing}`}>{job.configured ? `${job.templateKey ?? '自定义'} v${job.templateVersion ?? 1}` : '未配置'}</span></td><td>{sourceById.get(job.sourceId)?.name ?? 'LIS 检验系统'}</td><td>{job.mode === 'CDC' ? '增量变更' : '批量同步'}</td><td>{executorLabel(job.executor)}</td><td><StatusTag tone={status.tone}>{status.label}</StatusTag>{run ? <small className={styles.statusDetail}>{businessMessage(run.message)}</small> : null}</td><td><div className={styles.tableActions}><button className={styles.tableButton} onClick={() => void openJobConfig(job)}><Settings2 size={13} />配置</button><button className={styles.tableButton} onClick={() => openRunDetails(job)}><Clock3 size={13} />运行详情</button><button className={styles.tableButton} disabled={runningJob === job.id || activeRun} onClick={() => job.configured ? void runJob(job) : void openJobConfig(job)}><Play size={13} />{runningJob === job.id ? '处理中…' : activeRun ? '已有运行' : job.configured ? '启动运行' : '配置后运行'}</button>{canSync ? <button className={styles.tableButton} disabled={runningJob === job.id} onClick={() => void syncRun(job, run)}><RefreshCw size={13} />同步状态</button> : null}</div></td></tr>
+            const canRetry = Boolean(run && retryableRunStatus(run.status))
+            const lifecycle = jobLifecycleStatusLabel(job.status)
+            const canStart = job.status !== 'PAUSED' && job.status !== 'ARCHIVED'
+            return <tr key={job.id}><td><strong>{job.name}</strong><small>{job.id.slice(0, 8)}</small><span className={`${styles.configPill} ${job.configured ? styles.configPillReady : styles.configPillMissing}`}>{job.configured ? `${job.templateKey ?? '自定义'} v${job.templateVersion ?? 1}` : '未配置'}</span><span className={`${styles.lifecyclePill} ${lifecycleClass(lifecycle.tone)}`}>{lifecycle.label}</span></td><td>{sourceById.get(job.sourceId)?.name ?? '来源未登记'}</td><td>{job.mode === 'CDC' ? '增量变更' : '批量同步'}</td><td>{executorLabel(job.executor)}</td><td><StatusTag tone={status.tone}>{status.label}</StatusTag>{run ? <small className={styles.statusDetail}>{businessMessage(run.message)}</small> : null}</td><td><div className={styles.tableActions}>{job.status === 'ACTIVE' ? <button className={styles.tableButton} disabled={runningJob === job.id} onClick={() => void changeJobStatus(job, 'PAUSED')}><Pause size={13} />暂停</button> : job.status === 'PAUSED' || job.status === 'DRAFT' ? <button className={styles.tableButton} disabled={runningJob === job.id} onClick={() => void changeJobStatus(job, 'ACTIVE')}><Play size={13} />启用</button> : null}{job.status !== 'ARCHIVED' ? <button className={styles.tableButton} disabled={runningJob === job.id || activeRun} onClick={() => void changeJobStatus(job, 'ARCHIVED')}><Archive size={13} />归档</button> : null}<button className={styles.tableButton} onClick={() => void openJobConfig(job)}><Settings2 size={13} />配置</button><button className={styles.tableButton} onClick={() => openRunDetails(job)}><Clock3 size={13} />详情</button><button className={styles.tableButton} disabled={runningJob === job.id || activeRun || !canStart} onClick={() => job.configured ? void runJob(job) : void openJobConfig(job)}><Play size={13} />{runningJob === job.id ? '处理中…' : activeRun ? '已有运行' : !canStart ? '已暂停' : job.configured ? '启动' : '配置后运行'}</button>{canSync ? <button className={styles.tableButton} disabled={runningJob === job.id} onClick={() => void syncRun(job, run)}><RefreshCw size={13} />同步</button> : null}{canRetry ? <button className={styles.tableButton} disabled={runningJob === job.id || !canStart || activeRun} onClick={() => void retryRun(job, run)}><RotateCcw size={13} />重试</button> : null}</div></td></tr>
           })}{visibleJobs.length === 0 ? <tr><td colSpan={6} className={styles.emptyState}>暂无采集任务，先登记数据源再新建任务。</td></tr> : null}</tbody></table></div>
         </section>
       </div>
+
+      {checkingSource ? <>
+        <button className={styles.drawerBackdrop} aria-label="关闭数据源检查" onClick={() => setCheckingSource(null)} />
+        <aside className={styles.sideDrawer} aria-label="数据源可用性检查" aria-modal="true">
+          <div className={styles.drawerHeader}><div><span className={styles.drawerEyebrow}>数据源检查 · {checkingSource.protocol}</span><h2>{checkingSource.name}</h2></div><button className={styles.iconButton} aria-label="关闭" onClick={() => setCheckingSource(null)}><X size={17} /></button></div>
+          <div className={styles.drawerBody}>
+            <div className={styles.drawerNotice}><CheckCircle2 size={16} /><span>检查只在当前请求中使用连接参数，不会把密码或 Token 写入来源记录。结果会回写为健康、失败或待配置，并显示最近检查时间。</span></div>
+            <div className={styles.formField}><label htmlFor="source-check-editor">检查配置 JSON</label><textarea id="source-check-editor" className={`${styles.codeInput} ${styles.codeInputLarge}`} value={sourceCheckText} onChange={(event) => setSourceCheckText(event.target.value)} spellCheck={false} disabled={sourceCheckLoading} /></div>
+            {sourceCheckError ? <p className={styles.formError} role="alert">{sourceCheckError}</p> : null}
+            {checkingSource.lastCheckMessage ? <div className={styles.checkResult}><StatusTag tone={sourceStatusLabel(checkingSource.status).tone}>{sourceStatusLabel(checkingSource.status).label}</StatusTag><p>{checkingSource.lastCheckMessage}</p><small>最近检查：{formatTime(checkingSource.lastCheckedAt)}</small></div> : null}
+          </div>
+          <div className={styles.drawerFooter}><button className={styles.secondaryButton} onClick={() => setCheckingSource(null)}>关闭</button><button className={styles.primaryButton} disabled={sourceCheckLoading} onClick={() => void submitSourceCheck()}><CheckCircle2 size={14} />{sourceCheckLoading ? '检查中…' : '开始检查'}</button></div>
+        </aside>
+      </> : null}
 
       {configuringJob ? <>
         <button className={styles.drawerBackdrop} aria-label="关闭任务配置" onClick={() => setConfiguringJob(null)} />
@@ -442,9 +540,9 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
             {detailsLoading && detailsRuns.length === 0 ? <p className={styles.drawerHint}>正在读取运行记录…</p> : null}
             {detailsError ? <p className={styles.formError} role="alert">{detailsError}</p> : null}
             {detailsRuns.length === 0 && !detailsLoading ? <div className={styles.emptyState}><Clock3 size={18} /><p>还没有运行记录</p><span>保存任务配置后，可从任务列表启动一次采集。</span></div> : null}
-            <ol className={styles.runTimeline}>{detailsRuns.slice(0, 10).map((run) => { const status = statusLabel(run.status); const active = ['SUBMITTING', 'SUBMITTED', 'RUNNING', 'UNKNOWN'].includes(run.status); return <li key={run.id}><div className={styles.timelineDot} data-tone={status.tone} /><div className={styles.timelineBody}><div className={styles.timelineTitle}><strong>{status.label}</strong><time>{formatTime(run.submittedAt)}</time></div><p>{businessMessage(run.message)}</p><dl><div><dt>运行编号</dt><dd>{run.id.slice(0, 8)}</dd></div>{run.externalId ? <div><dt>外部编号</dt><dd>{run.externalId}</dd></div> : null}{run.finishedAt ? <div><dt>完成时间</dt><dd>{formatTime(run.finishedAt)}</dd></div> : null}</dl>{active ? <button className={styles.textButton} disabled={runningJob === detailsJob.id} onClick={() => void syncRun(detailsJob, run)}><RefreshCw size={12} />同步状态</button> : null}</div></li> })}</ol>
+            <ol className={styles.runTimeline}>{detailsRuns.slice(0, 10).map((run) => { const status = statusLabel(run.status); const active = ['SUBMITTING', 'SUBMITTED', 'RUNNING', 'UNKNOWN'].includes(run.status); const retryable = retryableRunStatus(run.status); return <li key={run.id}><div className={styles.timelineDot} data-tone={status.tone} /><div className={styles.timelineBody}><div className={styles.timelineTitle}><strong>{status.label}</strong><time>{formatTime(run.submittedAt)}</time></div><p>{businessMessage(run.message)}</p><dl><div><dt>运行编号</dt><dd>{run.id.slice(0, 8)}</dd></div>{run.externalId ? <div><dt>外部编号</dt><dd>{run.externalId}</dd></div> : null}{run.finishedAt ? <div><dt>完成时间</dt><dd>{formatTime(run.finishedAt)}</dd></div> : null}</dl><div className={styles.timelineActions}>{active ? <button className={styles.textButton} disabled={runningJob === detailsJob.id} onClick={() => void syncRun(detailsJob, run)}><RefreshCw size={12} />同步状态</button> : null}{retryable ? <button className={styles.textButton} disabled={runningJob === detailsJob.id || detailsJob.status === 'PAUSED' || detailsJob.status === 'ARCHIVED'} onClick={() => void retryRun(detailsJob, run)}><RotateCcw size={12} />重试</button> : null}</div></div></li> })}</ol>
           </div>
-          <div className={styles.drawerFooter}><button className={styles.secondaryButton} onClick={() => setDetailsJob(null)}>关闭</button><button className={styles.primaryButton} disabled={runningJob === detailsJob.id || detailsRuns.some((run) => ['SUBMITTING', 'SUBMITTED', 'RUNNING', 'UNKNOWN'].includes(run.status))} onClick={() => detailsJob.configured ? void runJob(detailsJob) : void openJobConfig(detailsJob)}><Play size={14} />{detailsJob.configured ? '再次启动' : '配置任务'}</button></div>
+          <div className={styles.drawerFooter}><button className={styles.secondaryButton} onClick={() => setDetailsJob(null)}>关闭</button><button className={styles.primaryButton} disabled={runningJob === detailsJob.id || detailsJob.status === 'PAUSED' || detailsJob.status === 'ARCHIVED' || detailsRuns.some((run) => ['SUBMITTING', 'SUBMITTED', 'RUNNING', 'UNKNOWN'].includes(run.status))} onClick={() => detailsJob.configured ? void runJob(detailsJob) : void openJobConfig(detailsJob)}><Play size={14} />{detailsJob.status === 'PAUSED' ? '已暂停' : detailsJob.status === 'ARCHIVED' ? '已归档' : detailsJob.configured ? '再次启动' : '配置任务'}</button></div>
         </aside>
       </> : null}
     </div>
@@ -455,17 +553,49 @@ function Summary({ label, value, icon }: { label: string; value: string; icon: R
   return <div className={styles.summaryCard}><span>{icon}</span><strong>{value}</strong><small>{label}</small></div>
 }
 
-const fallbackSources: SourceApiItem[] = [
-  { id: 'fallback-lis', tenantId: 'default', institutionId: 'demo-hospital', name: 'LIS 检验系统', systemType: 'LIS', protocol: 'JDBC', status: 'HEALTHY', createdAt: '' },
-  { id: 'fallback-emr', tenantId: 'default', institutionId: 'demo-hospital', name: 'EMR 病历系统', systemType: 'EMR', protocol: 'HTTP', status: 'PENDING', createdAt: '' },
-]
-
-const fallbackJobs: IngestionJobApiItem[] = [
-  { id: 'fallback-job', sourceId: 'fallback-lis', name: '检验结果增量同步', mode: 'CDC', executor: 'SEATUNNEL', status: 'RUNNING', createdAt: '', latestRunStatus: null, lastRunAt: null, templateKey: null, templateVersion: null, configured: false },
-]
-
 function executorLabel(executor: string) {
   return executor.toUpperCase() === 'SEATUNNEL' ? '中心采集执行器' : '平台执行通道'
+}
+
+function sourceStatusLabel(status: string): { label: string; tone: 'healthy' | 'warning' | 'danger' | 'neutral' } {
+  switch (status) {
+    case 'HEALTHY': return { label: '健康', tone: 'healthy' }
+    case 'UNHEALTHY': return { label: '连接失败', tone: 'danger' }
+    case 'BLOCKED_CONFIGURATION': return { label: '待配置', tone: 'warning' }
+    default: return { label: '待检查', tone: 'warning' }
+  }
+}
+
+function sourceCheckDefaults(protocol: string): JobConfig {
+  if (protocol.toUpperCase() === 'JDBC') return { jdbcUrl: 'jdbc:postgresql://主机:5432/数据库', username: '只读账号' }
+  if (protocol.toUpperCase() === 'HTTP' || protocol.toUpperCase() === 'FHIR') return { url: 'http://前置机地址/health' }
+  return {}
+}
+
+function jobLifecycleStatusLabel(status: string): { label: string; tone: 'healthy' | 'warning' | 'danger' | 'neutral' } {
+  switch (status) {
+    case 'ACTIVE': return { label: '已启用', tone: 'healthy' }
+    case 'PAUSED': return { label: '已暂停', tone: 'warning' }
+    case 'ARCHIVED': return { label: '已归档', tone: 'neutral' }
+    default: return { label: '草稿', tone: 'neutral' }
+  }
+}
+
+function jobLifecycleLabel(status: string) {
+  return jobLifecycleStatusLabel(status).label
+}
+
+function lifecycleClass(tone: 'healthy' | 'warning' | 'danger' | 'neutral') {
+  switch (tone) {
+    case 'healthy': return styles.lifecycleHealthy
+    case 'warning': return styles.lifecycleWarning
+    case 'danger': return styles.lifecycleDanger
+    default: return styles.lifecycleNeutral
+  }
+}
+
+function retryableRunStatus(status: string) {
+  return ['FAILED', 'CANCELED', 'BLOCKED_CONFIGURATION', 'BLOCKED_DEPENDENCY', 'SUBMIT_FAILED', 'UNSUPPORTED_EXECUTOR'].includes(status)
 }
 
 function statusLabel(status: string): { label: string; tone: 'healthy' | 'warning' | 'danger' | 'neutral' } {

@@ -178,7 +178,8 @@ flowchart LR
 | API 前缀 | 用途 |
 |---|---|
 | `/api/v1/sources`、`/connections`、`/edge-nodes` | 接入和前置节点 |
-| `/api/v1/jobs`、`/api/v1/jobs/{id}/config`、`/runs`、`/backfills` | 任务、版本化配置、运行、补数 |
+| `/api/v1/jobs`、`/api/v1/jobs/{id}/status`、`/api/v1/jobs/{id}/config`、`/runs`、`/backfills` | 任务生命周期、版本化配置、运行、补数 |
+| `/api/v1/sources`、`/api/v1/sources/{id}/check` | 数据源登记和 JDBC/HTTP/FHIR 可用性检查 |
 | `/api/v1/assets`、`/lineage` | 资产与血缘统一投影 |
 | `/api/v1/standards`、`/mappings`、`/quality`、`/issues` | 治理闭环 |
 | `/api/v1/mpi`、`/master-data` | 主索引与主数据 |
@@ -201,6 +202,13 @@ flowchart LR
 - `Idempotency-Key` 在同一任务内最多 128 个字符；控制面保存规范化运行配置的 SHA-256 指纹，相同 key 且指纹一致时返回已存在运行记录，指纹不一致返回 `409 CONFLICT`，避免浏览器重试造成重复提交或静默忽略新配置。
 
 首期模板采用 `FAKE_TO_CONSOLE`（用于验收）和 `CUSTOM_JSON` 两类入口。院内 JDBC/HTTP/SFTP/HL7 连接器在拿到脱敏样本和凭据引用后，以新增模板版本接入，不修改运行 API。
+
+### 4.7 任务生命周期与来源检查契约
+
+- `ingestion_jobs.status` 是任务生命周期事实，当前支持 `DRAFT`、`ACTIVE`、`PAUSED`、`ARCHIVED`；`job_runs.status` 只表示某一次执行结果。控制面启动运行时会把草稿任务提升为 `ACTIVE`，暂停和归档任务返回 `409 CONFLICT`，不创建运行占位记录。
+- `POST /api/v1/jobs/{jobId}/runs/{runId}/retry` 只接受 `FAILED`、`CANCELED`、`BLOCKED_CONFIGURATION`、`BLOCKED_DEPENDENCY`、`SUBMIT_FAILED` 和 `UNSUPPORTED_EXECUTOR` 等终态；重试生成新的运行 ID 和幂等键，重新使用任务已保存配置，原运行记录保持不可变。
+- 数据源检查通过 `SourceCheckAdapter` 端口隔离协议差异。JDBC 适配器使用请求内的临时连接参数建立短连接，HTTP/FHIR 适配器只执行受控健康请求；密码不写入 `sources` 表。检查调用不持有数据库事务，完成后仅以一次短更新回写 `status`、`last_checked_at` 和 `last_check_message`。
+- 适配器无法支持的协议返回 `BLOCKED_CONFIGURATION`，网络/认证失败返回 `UNHEALTHY`；门户必须显示结果与时间，不能把“待检查”渲染为“健康”。
 
 ### 4.5 身份与会话最小基线
 

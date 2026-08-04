@@ -9,6 +9,8 @@ CREATE TABLE IF NOT EXISTS data_os.sources (
     protocol VARCHAR(64) NOT NULL,
     status VARCHAR(32) NOT NULL,
     created_at TIMESTAMP NOT NULL,
+    last_checked_at TIMESTAMP NULL,
+    last_check_message VARCHAR(500) NULL,
     CONSTRAINT uq_data_os_source_name UNIQUE (tenant_id, institution_id, name)
 );
 
@@ -82,6 +84,8 @@ CREATE TABLE IF NOT EXISTS data_os.job_runs (
 
 ALTER TABLE data_os.job_runs ADD COLUMN IF NOT EXISTS request_key VARCHAR(128) NULL;
 ALTER TABLE data_os.job_runs ADD COLUMN IF NOT EXISTS request_fingerprint VARCHAR(64) NULL;
+ALTER TABLE data_os.sources ADD COLUMN IF NOT EXISTS last_checked_at TIMESTAMP NULL;
+ALTER TABLE data_os.sources ADD COLUMN IF NOT EXISTS last_check_message VARCHAR(500) NULL;
 
 CREATE INDEX IF NOT EXISTS idx_data_os_runs_job ON data_os.job_runs(job_id, submitted_at DESC);
 CREATE INDEX IF NOT EXISTS idx_data_os_runs_sync ON data_os.job_runs(status, submitted_at, external_id);

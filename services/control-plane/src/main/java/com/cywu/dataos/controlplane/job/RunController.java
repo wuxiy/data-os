@@ -38,6 +38,12 @@ public class RunController {
         return ResponseEntity.created(URI.create("/api/v1/jobs/" + jobId + "/runs/" + run.id())).body(run);
     }
 
+    @PostMapping("/{runId}/retry")
+    public ResponseEntity<IngestionRun> retry(@PathVariable String jobId, @PathVariable String runId) {
+        var run = service.retry(jobId, runId);
+        return ResponseEntity.created(URI.create("/api/v1/jobs/" + jobId + "/runs/" + run.id())).body(run);
+    }
+
     public record RunListResponse(java.util.List<IngestionRun> items, int total) {
     }
 }

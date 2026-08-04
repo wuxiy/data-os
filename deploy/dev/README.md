@@ -65,12 +65,47 @@ PUT /api/v1/jobs/{jobId}/config
 
 `env`、`source`、`transform`、`sink` 是当前模板边界；`source` 和 `sink` 不能为空。配置递归检查 `password`、`secret` 和 `token` 等键，发现明文凭据会返回 `400 INVALID_REQUEST`，应改用后续凭据引用能力。运行请求体可以为空，控制面会使用已保存配置；门户每次启动发送新的 `Idempotency-Key`，网络重试使用同一个 key 且请求内容一致时只返回原运行记录，不会重复提交；同一个 key 搭配不同配置会返回 `409 CONFLICT`。
 
+任务生命周期通过以下接口操作：
+
+```text
+PUT /api/v1/jobs/{jobId}/status
+```
+
+状态为 `DRAFT`、`ACTIVE`、`PAUSED`、`ARCHIVED`。`PAUSED` 和 `ARCHIVED` 会阻止新运行；失败、阻塞或取消的运行可通过以下接口创建一条新的重试记录，重试会重新读取任务已保存配置：
+
+```text
+POST /api/v1/jobs/{jobId}/runs/{runId}/retry
+```
+
+数据源登记后可通过以下接口进行可用性检查。检查配置只在本次请求中使用，不会落库；检查结果和最近检查时间会写回来源记录。当前实现支持 JDBC、HTTP/FHIR，SFTP 会明确返回待配置而不会伪造健康：
+
+```text
+POST /api/v1/sources/{sourceId}/check
+```
+
+JDBC 示例：
+
+```json
+{"config":{"jdbcUrl":"jdbc:postgresql://host:5432/db","username":"readonly"}}
+```
+
+HTTP/FHIR 示例：
+
+```json
+{"config":{"url":"http://edge-node:8080/health"}}
+```
+
 一条可验收的 FakeSource → Console 配置如下（仅用于执行器烟囱测试，不代表院内真实连接凭据）：
 
 ```json
 {
   "env": {"job.mode": "BATCH", "parallelism": 1},
-  "source": [{"plugin_name": "FakeSource", "plugin_output": "fake", "row.num": 16}],
+  "source": [{
+    "plugin_name": "FakeSource",
+    "plugin_output": "fake",
+    "row.num": 16,
+    "schema": {"fields": {"name": "string", "age": "int"}}
+  }],
   "transform": [],
   "sink": [{"plugin_name": "Console", "plugin_input": ["fake"]}]
 }

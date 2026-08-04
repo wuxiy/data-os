@@ -32,6 +32,36 @@
   box-shadow: 0 0 0 3px var(--jade-soft);
 }
 
+.connectionNotice {
+  display: flex;
+  max-width: 1480px;
+  margin: 14px auto 0;
+  padding: 12px 18px;
+  align-items: center;
+  gap: 10px;
+  color: var(--red);
+  background: var(--red-soft);
+  border: 1px solid color-mix(in srgb, var(--red) 26%, var(--line));
+  border-left: 3px solid var(--red);
+  border-radius: var(--radius-panel);
+}
+
+.connectionNotice > div {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+}
+
+.connectionNotice strong {
+  color: var(--ink);
+  font-size: 12px;
+}
+
+.connectionNotice span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
 .dashboardScope {
   display: inline-flex;
   min-height: 30px;
@@ -228,6 +258,34 @@
   background: var(--amber-soft);
 }
 
+.lifecyclePill {
+  display: inline-flex;
+  margin: 4px 0 0 4px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+}
+
+.lifecycleHealthy {
+  color: var(--jade-dark);
+  background: var(--jade-soft);
+}
+
+.lifecycleWarning {
+  color: var(--amber-dark, #a15c16);
+  background: var(--amber-soft);
+}
+
+.lifecycleDanger {
+  color: var(--red);
+  background: var(--red-soft);
+}
+
+.lifecycleNeutral {
+  color: var(--muted);
+  background: var(--surface-sunken);
+}
+
 .drawerBackdrop {
   position: fixed;
   z-index: 30;
@@ -346,6 +404,24 @@
   border-radius: 5px;
   font-size: 11px;
   line-height: 1.5;
+}
+
+.checkResult {
+  margin-top: 18px;
+  padding: 12px;
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.checkResult p {
+  margin: 9px 0 4px;
+  font-size: 12px;
+}
+
+.checkResult small {
+  color: var(--muted);
+  font-size: 11px;
 }
 
 .drawerFooter {
@@ -470,6 +546,13 @@
   padding: 8px 9px;
   background: var(--surface-raised);
   border-radius: 5px;
+}
+
+.timelineActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
 }
 
 .timelineBody dl > div {
@@ -656,6 +739,23 @@
   margin-top: 2px;
   color: var(--muted);
   font-size: 12px;
+}
+
+.sourceRowActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sourceRowActions .tableButton {
+  display: inline-flex;
+  width: auto;
+  min-height: 28px;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  color: var(--jade);
+  font-size: 11px;
 }
 
 .rankValue {

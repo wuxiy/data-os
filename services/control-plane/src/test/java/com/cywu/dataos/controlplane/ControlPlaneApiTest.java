@@ -11,7 +11,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.net.InetSocketAddress;
 
+import com.sun.net.httpserver.HttpServer;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -137,6 +139,10 @@ class ControlPlaneApiTest {
                         .content("{}"))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code", is("CONFLICT")));
+
+        mockMvc.perform(post("/api/v1/jobs/" + jobId + "/runs/active-run/retry"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message", is("只有失败、阻塞或取消的运行记录才能重试")));
     }
 
     @Test
@@ -293,5 +299,189 @@ class ControlPlaneApiTest {
         mockMvc.perform(get("/api/v1/jobs/" + jobId + "/runs"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.total", is(1)));
+    }
+
+    @Test
+    void pausesJobAndBlocksNewRunsUntilResumed() throws Exception {
+        var source = mockMvc.perform(post("/api/v1/sources")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"生命周期测试源\",\"systemType\":\"LIS\",\"protocol\":\"JDBC\"}"))
+                .andReturn().getResponse().getContentAsString();
+        var sourceId = source.replaceAll(".*\\\"id\\\":\\\"([^\\\"]+)\\\".*", "$1");
+        var job = mockMvc.perform(post("/api/v1/jobs")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"sourceId\":\"" + sourceId + "\",\"name\":\"可暂停任务\"}"))
+                .andReturn().getResponse().getContentAsString();
+        var jobId = job.replaceAll(".*\\\"id\\\":\\\"([^\\\"]+)\\\".*", "$1");
+
+        mockMvc.perform(put("/api/v1/jobs/" + jobId + "/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"ACTIVE\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status", is("ACTIVE")));
+
+        mockMvc.perform(put("/api/v1/jobs/" + jobId + "/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"PAUSED\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status", is("PAUSED")));
+
+        mockMvc.perform(post("/api/v1/jobs/" + jobId + "/runs")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message", is("采集任务已暂停，恢复后才能启动运行")));
+
+        mockMvc.perform(put("/api/v1/jobs/" + jobId + "/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"ACTIVE\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status", is("ACTIVE")));
+
+        var keyedRun = mockMvc.perform(post("/api/v1/jobs/" + jobId + "/runs")
+                        .header("Idempotency-Key", "lifecycle-run-1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status", is("BLOCKED_DEPENDENCY")))
+                .andReturn().getResponse().getContentAsString();
+        var keyedRunId = keyedRun.replaceAll(".*\\\"id\\\":\\\"([^\\\"]+)\\\".*", "$1");
+
+        mockMvc.perform(put("/api/v1/jobs/" + jobId + "/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"PAUSED\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status", is("PAUSED")));
+
+        mockMvc.perform(post("/api/v1/jobs/" + jobId + "/runs")
+                        .header("Idempotency-Key", "lifecycle-run-1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id", is(keyedRunId)));
+
+        mockMvc.perform(put("/api/v1/jobs/" + jobId + "/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"ACTIVE\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status", is("ACTIVE")));
+
+        mockMvc.perform(post("/api/v1/jobs/" + jobId + "/runs")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status", is("BLOCKED_DEPENDENCY")));
+
+        mockMvc.perform(put("/api/v1/jobs/" + jobId + "/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"ARCHIVED\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status", is("ARCHIVED")));
+
+        mockMvc.perform(post("/api/v1/jobs/" + jobId + "/runs")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message", is("采集任务已归档，不能启动运行")));
+
+        mockMvc.perform(put("/api/v1/jobs/" + jobId + "/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"ACTIVE\"}"))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void retriesTerminalRunWithNewRunRecord() throws Exception {
+        var source = mockMvc.perform(post("/api/v1/sources")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"重试测试源\",\"systemType\":\"LIS\",\"protocol\":\"JDBC\"}"))
+                .andReturn().getResponse().getContentAsString();
+        var sourceId = source.replaceAll(".*\\\"id\\\":\\\"([^\\\"]+)\\\".*", "$1");
+        var job = mockMvc.perform(post("/api/v1/jobs")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"sourceId\":\"" + sourceId + "\",\"name\":\"可重试任务\"}"))
+                .andReturn().getResponse().getContentAsString();
+        var jobId = job.replaceAll(".*\\\"id\\\":\\\"([^\\\"]+)\\\".*", "$1");
+        var first = mockMvc.perform(post("/api/v1/jobs/" + jobId + "/runs")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status", is("BLOCKED_DEPENDENCY")))
+                .andReturn().getResponse().getContentAsString();
+        var firstRunId = first.replaceAll(".*\\\"id\\\":\\\"([^\\\"]+)\\\".*", "$1");
+
+        mockMvc.perform(post("/api/v1/jobs/" + jobId + "/runs/" + firstRunId + "/retry"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id", org.hamcrest.Matchers.not(is(firstRunId))))
+                .andExpect(jsonPath("$.status", is("BLOCKED_DEPENDENCY")));
+
+        mockMvc.perform(get("/api/v1/jobs/" + jobId + "/runs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total", is(2)));
+    }
+
+    @Test
+    void checksJdbcSourceAndPersistsHealthyResult() throws Exception {
+        var source = mockMvc.perform(post("/api/v1/sources")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"可用性测试源\",\"systemType\":\"LIS\",\"protocol\":\"JDBC\"}"))
+                .andReturn().getResponse().getContentAsString();
+        var sourceId = source.replaceAll(".*\\\"id\\\":\\\"([^\\\"]+)\\\".*", "$1");
+
+        mockMvc.perform(post("/api/v1/sources/" + sourceId + "/check")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"config\":{\"jdbcUrl\":\"jdbc:h2:mem:source-check;DB_CLOSE_DELAY=-1\"}}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status", is("HEALTHY")))
+                .andExpect(jsonPath("$.lastCheckedAt", org.hamcrest.Matchers.notNullValue()))
+                .andExpect(jsonPath("$.lastCheckMessage", is("JDBC 连接成功")));
+
+        mockMvc.perform(get("/api/v1/sources"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].status", is("HEALTHY")))
+                .andExpect(jsonPath("$.items[0].lastCheckMessage", is("JDBC 连接成功")));
+    }
+
+    @Test
+    void reportsSourceCheckConfigurationFailureWithoutPretendingHealthy() throws Exception {
+        var source = mockMvc.perform(post("/api/v1/sources")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"待配置检查源\",\"systemType\":\"LIS\",\"protocol\":\"JDBC\"}"))
+                .andReturn().getResponse().getContentAsString();
+        var sourceId = source.replaceAll(".*\\\"id\\\":\\\"([^\\\"]+)\\\".*", "$1");
+
+        mockMvc.perform(post("/api/v1/sources/" + sourceId + "/check")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status", is("BLOCKED_CONFIGURATION")))
+                .andExpect(jsonPath("$.lastCheckMessage", is("JDBC 检查需要 jdbcUrl")));
+    }
+
+    @Test
+    void checksFhirSourceThroughPublicApi() throws Exception {
+        var server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/metadata", exchange -> {
+            exchange.sendResponseHeaders(200, -1);
+            exchange.close();
+        });
+        server.start();
+        try {
+            var source = mockMvc.perform(post("/api/v1/sources")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"name\":\"FHIR 检查源\",\"systemType\":\"EMR\",\"protocol\":\"FHIR\"}"))
+                    .andExpect(status().isCreated())
+                    .andReturn().getResponse().getContentAsString();
+            var sourceId = source.replaceAll(".*\\\"id\\\":\\\"([^\\\"]+)\\\".*", "$1");
+
+            mockMvc.perform(post("/api/v1/sources/" + sourceId + "/check")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"config\":{\"url\":\"http://127.0.0.1:" + server.getAddress().getPort() + "/metadata\"}}"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status", is("HEALTHY")))
+                    .andExpect(jsonPath("$.lastCheckMessage", is("FHIR 服务可访问（HTTP 200）")));
+        } finally {
+            server.stop(0);
+        }
     }
 }
