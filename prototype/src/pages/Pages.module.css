@@ -235,6 +235,36 @@
   min-height: 390px;
 }
 
+.configDetails {
+  width: 100%;
+}
+
+.configDetails summary {
+  display: flex;
+  min-height: 30px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--ink);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  list-style-position: inside;
+}
+
+.configDetails summary span {
+  color: var(--jade-dark);
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.configDetails > label {
+  display: block;
+  margin: 4px 0 6px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
 .configPill {
   display: inline-flex;
   max-width: 190px;

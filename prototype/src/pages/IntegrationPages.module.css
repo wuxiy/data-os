@@ -300,6 +300,58 @@
   margin-top: 15px;
 }
 
+.externalLinkButton {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 11px;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: border-color 150ms ease-out, background-color 150ms ease-out, transform 150ms ease-out;
+}
+
+.externalLinkButton:hover {
+  background: var(--surface-hover);
+  border-color: rgba(46, 118, 105, 0.5);
+}
+
+.externalLinkButton:active {
+  transform: scale(0.97);
+}
+
+.externalLinkButtonPrimary {
+  color: #fff;
+  background: #205c50;
+  border-color: transparent;
+}
+
+.externalLinkButtonPrimary:hover {
+  color: #fff;
+  background: #1a4f45;
+  border-color: transparent;
+}
+
+.externalLinkButtonQuiet {
+  width: 100%;
+  color: var(--jade);
+  background: transparent;
+  border-color: transparent;
+}
+
+.externalLinkButtonQuiet:hover {
+  color: var(--jade-dark);
+  background: var(--surface-raised);
+  border-color: transparent;
+}
+
 /* Embedded analytics */
 .embeddedShell {
   margin: 16px;
@@ -920,6 +972,299 @@
   color: var(--jade-dark);
   font-family: var(--font-number);
   font-size: 12px;
+}
+
+/* Technical asset view */
+.technicalWorkspace {
+  min-height: calc(100vh - 75px);
+  padding: 16px;
+  background: var(--canvas);
+  border-top: 1px solid var(--line);
+}
+
+.technicalHeader {
+  display: flex;
+  min-height: 78px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 0 18px;
+  background: var(--paper);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-card);
+}
+
+.technicalIdentity,
+.technicalHeaderActions,
+.technicalPanelHeader,
+.technicalFooter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.technicalIdentity {
+  min-width: 0;
+}
+
+.technicalIdentity > div:last-child {
+  min-width: 0;
+}
+
+.technicalIcon {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  place-items: center;
+  color: var(--jade);
+  background: var(--jade-soft);
+  border-radius: 9px;
+}
+
+.technicalIdentity span,
+.technicalIdentity p,
+.technicalPanelHeader span,
+.technicalFooter span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.technicalIdentity span {
+  display: block;
+  overflow: hidden;
+  font-family: var(--font-number);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.technicalIdentity h2 {
+  margin: 3px 0 0;
+  font-family: var(--font-title);
+  font-size: 18px;
+}
+
+.technicalIdentity p {
+  margin: 3px 0 0;
+}
+
+.technicalHeaderActions {
+  flex: 0 0 auto;
+}
+
+.technicalSummary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 14px;
+  overflow: hidden;
+  background: var(--paper);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-card);
+}
+
+.technicalSummary > div {
+  min-width: 0;
+  padding: 14px 16px;
+}
+
+.technicalSummary > div + div {
+  border-left: 1px solid var(--line);
+}
+
+.technicalSummary span,
+.technicalSummary strong,
+.technicalSummary small {
+  display: block;
+}
+
+.technicalSummary span,
+.technicalSummary small {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.technicalSummary strong {
+  margin: 5px 0 3px;
+  color: var(--jade-dark);
+  font-family: var(--font-number);
+  font-size: 16px;
+}
+
+.technicalGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(280px, 0.75fr);
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.technicalPanel,
+.technicalLineage {
+  min-width: 0;
+  overflow: hidden;
+  background: var(--paper);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-card);
+}
+
+.technicalPanelHeader {
+  min-height: 54px;
+  justify-content: space-between;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.technicalPanelHeader > div {
+  min-width: 0;
+}
+
+.technicalPanelHeader h3 {
+  margin: 0;
+  font-size: 13px;
+}
+
+.technicalPanelHeader span {
+  display: block;
+  margin-top: 3px;
+}
+
+.technicalPanelHeader > svg {
+  flex: 0 0 auto;
+  color: var(--jade);
+}
+
+.technicalDefinition {
+  margin: 0;
+  padding: 6px 16px 10px;
+}
+
+.technicalDefinition > div {
+  display: grid;
+  grid-template-columns: 100px minmax(0, 1fr);
+  gap: 12px;
+  min-height: 42px;
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+}
+
+.technicalDefinition > div:last-child {
+  border-bottom: 0;
+}
+
+.technicalDefinition dt,
+.technicalDefinition dd {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 5px;
+  margin: 0;
+  font-size: 11px;
+}
+
+.technicalDefinition dt {
+  color: var(--muted);
+}
+
+.technicalDefinition dt svg {
+  color: var(--jade);
+}
+
+.technicalDefinition dd {
+  overflow: hidden;
+  justify-content: flex-end;
+  font-family: var(--font-number);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.technicalNotice {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 4px 16px 16px;
+  padding: 10px;
+  color: var(--jade-dark);
+  background: var(--jade-soft);
+  border-left: 2px solid var(--jade);
+  border-radius: 5px;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.technicalNotice svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+.technicalLineage {
+  margin-top: 14px;
+}
+
+.technicalLineageRow {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  padding: 16px;
+}
+
+.technicalLineageNode {
+  position: relative;
+  min-width: 0;
+  padding: 13px;
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+}
+
+.technicalLineageNode:not(:last-child)::after {
+  position: absolute;
+  top: 50%;
+  left: calc(100% + 6px);
+  width: 6px;
+  height: 6px;
+  border-top: 1px solid var(--muted);
+  border-right: 1px solid var(--muted);
+  content: '';
+  transform: rotate(45deg);
+}
+
+.technicalLineageNode span,
+.technicalLineageNode strong,
+.technicalLineageNode small {
+  display: block;
+}
+
+.technicalLineageNode span {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.technicalLineageNode strong {
+  overflow: hidden;
+  margin-top: 5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.technicalLineageNode small {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.technicalFooter {
+  min-height: 48px;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 0 16px;
+  border-top: 1px solid var(--line);
+}
+
+.technicalFooter .button {
+  min-height: 30px;
+  padding: 0 8px;
+  font-size: 11px;
 }
 
 /* Assistant */

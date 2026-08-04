@@ -7,6 +7,7 @@ import { DataStandardsPage } from './pages/DataStandardsPage'
 import { DataIngestionPage } from './pages/DataIngestionPage'
 import { AnalyticsPage } from './pages/AnalyticsPage'
 import { AssetCatalogPage } from './pages/AssetCatalogPage'
+import { AssetTechnicalPage } from './pages/AssetTechnicalPage'
 import { AssistantPage } from './pages/AssistantPage'
 import { GovernanceDashboardPage } from './pages/GovernanceDashboardPage'
 import { ManagementDashboardPage } from './pages/ManagementDashboardPage'
@@ -75,11 +76,17 @@ export function App() {
     case 'assets':
       page = <AssetCatalogPage onNotice={setNotice} />
       break
+    case 'assetTechnical':
+      page = <AssetTechnicalPage onNotice={setNotice} />
+      break
     case 'analytics':
       page = <AnalyticsPage onNotice={setNotice} />
       break
     case 'assistant':
       page = <AssistantPage onNotice={setNotice} />
+      break
+    case 'assistantWorkspace':
+      page = <AssistantPage onNotice={setNotice} professional />
       break
     default:
       page = <ManagementDashboardPage onOpenChain={() => setDrawerOpen(true)} onUnavailable={showUnavailable} onNotice={setNotice} />

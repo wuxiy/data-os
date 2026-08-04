@@ -85,7 +85,13 @@ export function AppShell({ route, children, onNavigate, onUnavailable }: AppShel
         <nav className={styles.nav}>
           {navItems.map((item) => {
             const Icon = item.icon
-            const isActive = item.governanceGroup ? governanceActive : item.route === route
+            const isActive = item.governanceGroup
+              ? governanceActive
+              : item.route === 'assets'
+                ? ['assets', 'assetTechnical'].includes(route)
+                : item.route === 'assistant'
+                  ? ['assistant', 'assistantWorkspace'].includes(route)
+                  : item.route === route
             return (
               <button
                 key={item.label}

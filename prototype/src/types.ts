@@ -7,8 +7,10 @@ export type RouteKey =
   | 'quality'
   | 'mpi'
   | 'assets'
+  | 'assetTechnical'
   | 'analytics'
   | 'assistant'
+  | 'assistantWorkspace'
 
 export type Tone = 'healthy' | 'warning' | 'danger' | 'neutral'
 

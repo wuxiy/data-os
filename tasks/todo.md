@@ -209,3 +209,22 @@ GET  /ingestion + static JS           -> 200
 远程开发环境 `/root/data-os-dev-20260803` 已创建回滚副本 `/root/rollback-pre-fourth-20260804`，仅重建控制面和门户，复用 PostgreSQL 与 SeaTunnel。验收结果：门户 `/healthz`、控制面来源/任务 API、SeaTunnel 2.3.13 概览均正常；HTTP 来源检查回写 `HEALTHY`；新增任务通过保存配置更新（FakeSource schema）和重试接口重新提交，SeaTunnel 外部运行 `1136821537278656513` 回写 `SUCCEEDED`，三容器均 running，成功后 90 秒控制面无新增错误日志。
 
 剩余边界：真实 HIS/EMR/LIS 连接器、院内前置机 Agent、凭据/密钥托管与安全策略仍需拿到院内只读账号和脱敏样本后单独验收；本轮安全能力仍按原要求暂不展开。
+
+## 2026-08-04 门户深链与配置默认展开缺陷修复
+
+### 目标
+
+修复数据资产技术视图、智能问数专业工作区无法打开，以及数据接入配置 JSON 默认不可见的问题，确保业务按钮都有可访问的真实目标。
+
+### 执行计划
+
+- [x] 建立门户交互契约回路，确认旧提交在深链、标签页和配置展开断言上失败
+- [x] 新增 `/assets/technical` 技术视图路由与资产参数传递
+- [x] 新增 `/assistant/workspace` 专业问数工作区路由与会话参数传递
+- [x] 将两个入口改为真实新标签页链接，并保持导航激活状态
+- [x] 让新建任务和任务配置抽屉中的采集配置 JSON 默认展开
+- [x] 更新原型说明、教训记录，运行交互契约 smoke 与生产构建
+
+### 结果复盘
+
+旧提交 `aae681e` 运行 `node prototype/qa/portal-interactions-smoke.mjs aae681e` 按预期失败；当前版本运行 `node prototype/qa/portal-interactions-smoke.mjs` 通过。新增技术视图和专业问数深链均使用真实 `target="_blank"` 入口，配置 JSON 使用 `<details open>` 默认展开。前端 `npm run build` 通过（1607 modules）。系统 Chromium 包装器路径失效且 Playwright 浏览器下载受网络阻塞，本轮以源码契约回路和生产构建完成验证，后续开发机应补做真实浏览器截图验收。

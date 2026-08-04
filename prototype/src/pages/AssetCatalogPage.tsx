@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Button, StatusTag } from '../components/ui/Primitives'
 import { assets, type AssetItem } from '../data/integrations'
+import { routePaths } from '../data/mock'
 import styles from './IntegrationPages.module.css'
 
 type AssetTab = 'overview' | 'lineage' | 'quality'
@@ -15,7 +16,10 @@ const lineageIcons = {
 }
 
 export function AssetCatalogPage({ onNotice }: { onNotice: (message: string) => void }) {
-  const [selectedId, setSelectedId] = useState(assets[0].id)
+  const [selectedId, setSelectedId] = useState(() => {
+    const requestedId = new URLSearchParams(window.location.search).get('asset')
+    return assets.some((asset) => asset.id === requestedId) ? requestedId! : assets[0].id
+  })
   const [activeTab, setActiveTab] = useState<AssetTab>('lineage')
   const [query, setQuery] = useState('')
   const selected = assets.find((item) => item.id === selectedId) ?? assets[0]
@@ -77,7 +81,12 @@ export function AssetCatalogPage({ onNotice }: { onNotice: (message: string) => 
             </div>
             <div className={styles.toolbarActions}>
               <Button onClick={() => onNotice('资产关注已开启，质量与结构变化将进入个人待办')}>关注变化</Button>
-              <Button variant="primary" onClick={() => onNotice('专业元数据视图将在新标签页打开，并沿用统一登录')}>打开技术视图 <ExternalLink size={13} /></Button>
+              <a
+                className={`${styles.externalLinkButton} ${styles.externalLinkButtonPrimary}`}
+                href={`${routePaths.assetTechnical}?asset=${encodeURIComponent(selected.id)}`}
+                target="_blank"
+                rel="noreferrer"
+              >打开技术视图 <ExternalLink size={13} /></a>
             </div>
           </div>
           <nav className={styles.assetTabs} aria-label="资产详情视图">

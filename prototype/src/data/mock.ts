@@ -151,6 +151,8 @@ export const routePaths = {
   quality: '/governance/quality',
   mpi: '/mpi/review',
   assets: '/assets',
+  assetTechnical: '/assets/technical',
   analytics: '/analysis',
   assistant: '/assistant',
+  assistantWorkspace: '/assistant/workspace',
 } as const

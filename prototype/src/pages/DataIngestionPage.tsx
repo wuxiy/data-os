@@ -135,6 +135,7 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
         setJobs(jobResponse.items)
         setJobForm((current) => current.sourceId || !sourceResponse.items[0] ? current : { ...current, sourceId: sourceResponse.items[0].id })
         setState('live')
+        setJobFormOpen(true)
         return Promise.all(jobResponse.items.map(async (job) => {
           try {
             const response = await fetchIngestionRuns(job.id, controller.signal)
@@ -485,7 +486,7 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
             <div className={styles.formField}><label htmlFor="job-name">任务名称</label><input id="job-name" required value={jobForm.name} onChange={(event) => setJobForm((current) => ({ ...current, name: event.target.value }))} placeholder="例如：LIS 检验结果批量同步" /></div>
             <div className={styles.formField}><label htmlFor="job-mode">运行模式</label><select id="job-mode" value={jobForm.mode} onChange={(event) => setJobForm((current) => ({ ...current, mode: event.target.value, configText: JSON.stringify(configForTemplate(current.templateKey, event.target.value), null, 2) }))}><option value="BATCH">批量同步</option><option value="CDC">增量变更</option></select></div>
             <div className={styles.formField}><label htmlFor="job-template">配置模板</label><select id="job-template" value={jobForm.templateKey} onChange={(event) => setJobForm((current) => ({ ...current, templateKey: event.target.value, configText: JSON.stringify(configForTemplate(event.target.value, current.mode), null, 2) }))}><option value={DEFAULT_TEMPLATE_KEY}>FakeSource → Console（演示）</option><option value="CUSTOM_JSON">自定义 JSON</option></select></div>
-            <div className={`${styles.formField} ${styles.formFieldWide}`}><label htmlFor="job-config">采集配置 JSON</label><textarea id="job-config" className={styles.codeInput} value={jobForm.configText} onChange={(event) => setJobForm((current) => ({ ...current, configText: event.target.value }))} spellCheck={false} /></div>
+            <div className={`${styles.formField} ${styles.formFieldWide}`}><details className={styles.configDetails} open><summary>采集配置 JSON <span>默认展开 · 可编辑</span></summary><label htmlFor="job-config">配置内容</label><textarea id="job-config" className={styles.codeInput} value={jobForm.configText} onChange={(event) => setJobForm((current) => ({ ...current, configText: event.target.value }))} spellCheck={false} /></details></div>
             <div className={styles.formActions}><span>仅保存结构配置；密码、密钥请使用后续凭据引用，不写入任务 JSON。</span><button className={styles.primaryButton} type="submit" disabled={creatingJob}>{creatingJob ? '创建中…' : '创建并保存配置'}</button></div>
           </form> : null}
           <div className={styles.tableScroll}><table className={styles.table}><thead><tr><th>任务</th><th>来源</th><th>模式</th><th>执行通道</th><th>最近运行</th><th>操作</th></tr></thead><tbody>{visibleJobs.map((job) => {
@@ -523,7 +524,7 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
           <div className={styles.drawerBody}>
             <div className={styles.drawerNotice}><Settings2 size={16} /><span>保存的是可审计的结构配置。连接密码、Token、Secret 等敏感值必须通过凭据引用接入，本版不会落库。</span></div>
             <div className={styles.drawerFields}><div className={styles.formField}><label htmlFor="config-template">模板标识</label><select id="config-template" value={configTemplateKey} onChange={(event) => setConfigTemplateKey(event.target.value)}><option value={DEFAULT_TEMPLATE_KEY}>FakeSource → Console</option><option value="CUSTOM_JSON">自定义 JSON</option></select></div><div className={styles.formField}><label htmlFor="config-version">模板版本</label><input id="config-version" type="number" min={1} value={configTemplateVersion} onChange={(event) => setConfigTemplateVersion(Math.max(1, Number(event.target.value) || 1))} /></div></div>
-            <div className={styles.formField}><label htmlFor="config-editor">配置 JSON</label><textarea id="config-editor" className={`${styles.codeInput} ${styles.codeInputLarge}`} value={configText} onChange={(event) => setConfigText(event.target.value)} spellCheck={false} disabled={configLoading} /></div>
+            <div className={styles.formField}><details className={styles.configDetails} open><summary>配置 JSON <span>默认展开 · 可编辑</span></summary><label htmlFor="config-editor">配置内容</label><textarea id="config-editor" className={`${styles.codeInput} ${styles.codeInputLarge}`} value={configText} onChange={(event) => setConfigText(event.target.value)} spellCheck={false} disabled={configLoading} /></details></div>
             {configLoading ? <p className={styles.drawerHint}>正在读取已保存配置…</p> : null}
             {configError ? <p className={styles.formError} role="alert">{configError}</p> : null}
           </div>

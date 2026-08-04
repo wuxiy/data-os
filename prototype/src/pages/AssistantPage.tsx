@@ -4,12 +4,14 @@ import type { FormEvent } from 'react'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Button, StatusTag } from '../components/ui/Primitives'
 import { assistantScenarios } from '../data/integrations'
+import { routePaths } from '../data/mock'
 import styles from './IntegrationPages.module.css'
 
-export function AssistantPage({ onNotice }: { onNotice: (message: string) => void }) {
-  const [selectedId, setSelectedId] = useState(assistantScenarios[0].id)
+export function AssistantPage({ onNotice, professional = false }: { onNotice: (message: string) => void; professional?: boolean }) {
+  const initialScenario = assistantScenarios.find((scenario) => scenario.id === new URLSearchParams(window.location.search).get('scenario')) ?? assistantScenarios[0]
+  const [selectedId, setSelectedId] = useState(initialScenario.id)
   const [draft, setDraft] = useState('')
-  const [displayQuestion, setDisplayQuestion] = useState(assistantScenarios[0].question)
+  const [displayQuestion, setDisplayQuestion] = useState(initialScenario.question)
   const [showSql, setShowSql] = useState(false)
   const selected = assistantScenarios.find((item) => item.id === selectedId) ?? assistantScenarios[0]
 
@@ -32,9 +34,9 @@ export function AssistantPage({ onNotice }: { onNotice: (message: string) => voi
   return (
     <div className={styles.integrationPage}>
       <PageHeader
-        title="智能问数"
-        eyebrow="受控只读分析"
-        subtitle="自然语言提出业务问题，回答必须同时给出数据来源、查询口径和可复核证据"
+        title={professional ? '专业问数工作区' : '智能问数'}
+        eyebrow={professional ? '受控只读分析 · 专业模式' : '受控只读分析'}
+        subtitle={professional ? '面向数据分析人员的可复核工作区，保留查询口径、SQL 和数据资产证据。' : '自然语言提出业务问题，回答必须同时给出数据来源、查询口径和可复核证据'}
         compact
         onFilterNotice={onNotice}
       />
@@ -142,7 +144,12 @@ export function AssistantPage({ onNotice }: { onNotice: (message: string) => voi
             </section>
             <div className={styles.safeBoundary}><ShieldCheck size={15} /><span>查询由受控服务执行；助手不能修改标准、质量规则、主数据或源系统。</span></div>
             <Button className={styles.evidenceAction} onClick={() => setShowSql(true)}><Code2 size={14} />查看查询与口径</Button>
-            <Button className={styles.evidenceAction} variant="quiet" onClick={() => onNotice('专业问数工作区将在新标签页打开，并沿用统一登录')}>进入专业工作区 <ExternalLink size={13} /></Button>
+            <a
+              className={`${styles.externalLinkButton} ${styles.externalLinkButtonQuiet} ${styles.evidenceAction}`}
+              href={`${routePaths.assistantWorkspace}?scenario=${encodeURIComponent(selected.id)}`}
+              target="_blank"
+              rel="noreferrer"
+            >进入专业工作区 <ExternalLink size={13} /></a>
           </div>
         </aside>
       </div>

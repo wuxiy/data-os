@@ -26,8 +26,10 @@ npm run preview
 - `/governance/quality`：质量问题闭环
 - `/mpi/review`：主索引候选审核
 - `/assets`：数据资产、血缘影响和质量结果
+- `/assets/technical?asset=asset-outpatient-visit`：数据资产技术视图深链（新标签页打开）
 - `/analysis`：嵌入式分析看板与指标证据
 - `/assistant`：受控智能问数与查询证据
+- `/assistant/workspace?scenario=assistant-outpatient`：智能问数专业工作区深链（新标签页打开）
 
 部署到静态服务器时，需要将以上前端路由统一回退至 `index.html`。
 
@@ -35,7 +37,7 @@ npm run preview
 
 责任链通过 `issueId → assetId → ruleId → ownerId → ticketId` 关联生成：异常来自质量规则运行结果，数据对象来自资产目录与采集元数据，治理规则来自规则中心，责任部门来自资产责任人与组织主数据，处理结果来自治理工单。
 
-治理驾驶舱已通过 `src/data/controlPlane.ts` 接入控制面；数据接入页同样读取数据源与采集任务 API，控制面不可用时明确降级为演示数据。其余页面当前数据位于 `src/data/mock.ts`。接入后端时，建议保持页面组件的展示模型不变，将 mock 数据替换为按页面聚合的 BFF/API 响应，避免前端直接拼接五类治理来源。
+治理驾驶舱已通过 `src/data/controlPlane.ts` 接入控制面；数据接入页同样读取数据源与采集任务 API，控制面不可用时明确展示不可用空态，不用演示状态冒充真实数据。其余页面当前数据位于 `src/data/mock.ts`。接入后端时，建议保持页面组件的展示模型不变，将 mock 数据替换为按页面聚合的 BFF/API 响应，避免前端直接拼接五类治理来源。
 
 ## 三类开源能力接入边界
 
