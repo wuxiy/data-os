@@ -125,7 +125,20 @@ curl -fsS -X POST http://127.0.0.1:18081/api/v1/jobs/{jobId}/runs \
   -H 'Content-Type: application/json' -H 'Idempotency-Key: acceptance-run-1' -d '{}'
 ```
 
-浏览器访问 `http://开发机地址:18081/`。治理驾驶舱顶部显示“控制面已连接”时，指标与问题来自复用 PostgreSQL 的 `data_os` schema；控制面不可用时，前端保留演示数据并明确标识降级状态。
+浏览器访问 `http://开发机地址:18081/`。治理驾驶舱顶部显示“控制面已连接”时，指标与问题来自复用 PostgreSQL 的 `data_os` schema；数据质量闭环页同样从 `governance_issues` 与 `governance_issue_events` 读取真实队列和处理记录。控制面不可用时，治理驾驶舱可保留指标降级标识，但数据接入和质量闭环不会展示演示业务数据，而是显示不可用空态。
+
+质量问题闭环 API：
+
+```bash
+curl 'http://开发机地址:18081/api/v1/governance/issues?status=OVERDUE'
+curl 'http://开发机地址:18081/api/v1/governance/issues/{issueId}'
+curl -X PUT 'http://开发机地址:18081/api/v1/governance/issues/{issueId}/workflow' \
+  -H 'Content-Type: application/json' \
+  -d '{"status":"IN_PROGRESS","note":"已补齐接口数据，准备复检。"}'
+curl -X POST 'http://开发机地址:18081/api/v1/governance/issues/{issueId}/recheck' \
+  -H 'Content-Type: application/json' \
+  -d '{"note":"按原质量规则重新执行复检"}'
+```
 
 ## 回滚
 

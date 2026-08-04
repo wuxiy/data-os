@@ -61,11 +61,33 @@ CREATE TABLE IF NOT EXISTS data_os.governance_issues (
     owner_name VARCHAR(200) NOT NULL,
     ticket_id VARCHAR(128) NOT NULL,
     impact VARCHAR(500) NOT NULL,
-    due_at TIMESTAMP NULL
+    due_at TIMESTAMP NULL,
+    object_label VARCHAR(500) NOT NULL DEFAULT '',
+    processing_note TEXT NULL,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_action_at TIMESTAMP NULL,
+    last_action VARCHAR(64) NULL
+);
+
+ALTER TABLE data_os.governance_issues ADD COLUMN IF NOT EXISTS object_label VARCHAR(500) NOT NULL DEFAULT '';
+ALTER TABLE data_os.governance_issues ADD COLUMN IF NOT EXISTS processing_note TEXT NULL;
+ALTER TABLE data_os.governance_issues ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE data_os.governance_issues ADD COLUMN IF NOT EXISTS last_action_at TIMESTAMP NULL;
+ALTER TABLE data_os.governance_issues ADD COLUMN IF NOT EXISTS last_action VARCHAR(64) NULL;
+
+CREATE TABLE IF NOT EXISTS data_os.governance_issue_events (
+    id VARCHAR(36) PRIMARY KEY,
+    issue_id VARCHAR(64) NOT NULL,
+    event_type VARCHAR(64) NOT NULL,
+    note VARCHAR(1000) NOT NULL,
+    actor VARCHAR(200) NOT NULL,
+    created_at TIMESTAMP NOT NULL,
+    CONSTRAINT fk_data_os_issue_event_issue FOREIGN KEY (issue_id) REFERENCES data_os.governance_issues(id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_data_os_jobs_source ON data_os.ingestion_jobs(source_id);
 CREATE INDEX IF NOT EXISTS idx_data_os_issue_scope ON data_os.governance_issues(tenant_id, institution_id);
+CREATE INDEX IF NOT EXISTS idx_data_os_issue_events_issue ON data_os.governance_issue_events(issue_id, created_at DESC);
 
 CREATE TABLE IF NOT EXISTS data_os.job_runs (
     id VARCHAR(36) PRIMARY KEY,

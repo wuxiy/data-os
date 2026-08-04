@@ -13,5 +13,10 @@ public record GovernanceIssue(
         String ownerName,
         String ticketId,
         String impact,
-        Instant dueAt) {
+        Instant dueAt,
+        String objectLabel,
+        String processingNote,
+        Instant updatedAt,
+        Instant lastActionAt,
+        String lastAction) {
 }

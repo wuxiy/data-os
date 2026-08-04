@@ -73,6 +73,87 @@ class ControlPlaneApiTest {
     }
 
     @Test
+    void managesGovernanceIssueWorkflowThroughPublicApi() throws Exception {
+        var now = Timestamp.from(Instant.now());
+        jdbc.update("""
+                INSERT INTO data_os.governance_issues
+                    (id, tenant_id, institution_id, title, severity, status, dataset_id, rule_id,
+                     owner_department, owner_name, ticket_id, impact, due_at)
+                VALUES ('DQ-TEST-001', 'default', 'demo-hospital', '测试质量问题', 'HIGH', 'OVERDUE',
+                        'asset-test', 'rule-test', '信息中心', '测试负责人', 'TICKET-TEST-001',
+                        '测试主题 / 1 张表', ?)
+                """, now);
+
+        mockMvc.perform(get("/api/v1/governance/issues")
+                        .param("status", "OVERDUE")
+                        .param("query", "测试"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total", is(1)))
+                .andExpect(jsonPath("$.items", hasSize(1)))
+                .andExpect(jsonPath("$.items[0].id", is("DQ-TEST-001")))
+                .andExpect(jsonPath("$.items[0].status", is("OVERDUE")));
+
+        mockMvc.perform(get("/api/v1/governance/issues/DQ-TEST-001"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.issue.title", is("测试质量问题")))
+                .andExpect(jsonPath("$.events", hasSize(0)));
+
+        mockMvc.perform(put("/api/v1/governance/issues/DQ-TEST-001/workflow")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"status":"IN_PROGRESS","note":"已补齐接口数据，准备复检。"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.issue.status", is("IN_PROGRESS")))
+                .andExpect(jsonPath("$.issue.processingNote", is("已补齐接口数据，准备复检。")))
+                .andExpect(jsonPath("$.events", hasSize(1)))
+                .andExpect(jsonPath("$.events[0].eventType", is("WORKFLOW_UPDATED")));
+
+        mockMvc.perform(post("/api/v1/governance/issues/DQ-TEST-001/recheck")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"note\":\"按原规则重新执行\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.issue.status", is("RECHECKING")))
+                .andExpect(jsonPath("$.events", hasSize(2)))
+                .andExpect(jsonPath("$.events[0].eventType", is("RECHECK_REQUESTED")));
+    }
+
+    @Test
+    void protectsGovernanceIssueWorkflowBoundaries() throws Exception {
+        var now = Timestamp.from(Instant.now());
+        jdbc.update("""
+                INSERT INTO data_os.governance_issues
+                    (id, tenant_id, institution_id, title, severity, status, dataset_id, rule_id,
+                     owner_department, owner_name, ticket_id, impact, due_at)
+                VALUES ('DQ-TEST-002', 'default', 'demo-hospital', '边界质量问题', 'MEDIUM', 'CLOSED',
+                        'asset-test', 'rule-test', '信息中心', '测试负责人', 'TICKET-TEST-002',
+                        '测试主题 / 1 张表', ?)
+                """, now);
+
+        mockMvc.perform(put("/api/v1/governance/issues/DQ-TEST-002/workflow")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"UNKNOWN\",\"note\":\"非法状态\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("INVALID_REQUEST")));
+
+        mockMvc.perform(put("/api/v1/governance/issues/DQ-TEST-002/workflow")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"IN_PROGRESS\",\"note\":\"" + "x".repeat(1001) + "\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("VALIDATION_ERROR")))
+                .andExpect(jsonPath("$.fields.note", is("note 不能超过 1000 个字符")));
+
+        mockMvc.perform(post("/api/v1/governance/issues/DQ-TEST-002/recheck"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message", is("已关闭的治理问题不能直接复检")));
+
+        jdbc.update("UPDATE data_os.governance_issues SET status = 'RECHECKING' WHERE id = 'DQ-TEST-002'");
+        mockMvc.perform(post("/api/v1/governance/issues/DQ-TEST-002/recheck"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message", is("治理问题已在复检中，请等待结果")));
+    }
+
+    @Test
     void validatesSourceRequiredFields() throws Exception {
         mockMvc.perform(post("/api/v1/sources")
                         .contentType(MediaType.APPLICATION_JSON)

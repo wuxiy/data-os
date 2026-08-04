@@ -20,6 +20,11 @@ export interface GovernanceApiIssue {
   ticketId: string
   impact: string
   dueAt: string | null
+  objectLabel?: string
+  processingNote?: string | null
+  updatedAt?: string | null
+  lastActionAt?: string | null
+  lastAction?: string | null
 }
 
 export interface GovernanceApiSummary {
@@ -28,6 +33,25 @@ export interface GovernanceApiSummary {
   institutionId: string
   metrics: GovernanceApiMetric[]
   issues: GovernanceApiIssue[]
+}
+
+export interface GovernanceIssueEventApiItem {
+  id: string
+  issueId: string
+  eventType: string
+  note: string
+  actor: string
+  createdAt: string
+}
+
+export interface GovernanceIssueDetailApiResponse {
+  issue: GovernanceApiIssue
+  events: GovernanceIssueEventApiItem[]
+}
+
+export interface GovernanceIssueListApiResponse {
+  items: GovernanceApiIssue[]
+  total: number
 }
 
 export interface SourceApiItem {
@@ -127,6 +151,47 @@ export async function fetchGovernanceSummary(signal?: AbortSignal): Promise<Gove
     throw new Error(`治理摘要请求失败：${response.status}`)
   }
   return response.json() as Promise<GovernanceApiSummary>
+}
+
+export async function fetchGovernanceIssues(options: {
+  status?: string
+  query?: string
+  signal?: AbortSignal
+} = {}): Promise<GovernanceIssueListApiResponse> {
+  const params = new URLSearchParams()
+  if (options.status) params.set('status', options.status)
+  if (options.query) params.set('query', options.query)
+  const suffix = params.toString() ? `?${params.toString()}` : ''
+  return getJson(`/v1/governance/issues${suffix}`, options.signal)
+}
+
+export async function fetchGovernanceIssue(issueId: string, signal?: AbortSignal): Promise<GovernanceIssueDetailApiResponse> {
+  return getJson(`/v1/governance/issues/${encodeURIComponent(issueId)}`, signal)
+}
+
+export async function updateGovernanceIssueWorkflow(issueId: string, input: {
+  status: string
+  note: string
+}, signal?: AbortSignal): Promise<GovernanceIssueDetailApiResponse> {
+  const response = await fetch(`${API_BASE_URL}/v1/governance/issues/${encodeURIComponent(issueId)}/workflow`, {
+    method: 'PUT',
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+    signal,
+  })
+  if (!response.ok) await responseError(response, '治理问题更新失败')
+  return response.json() as Promise<GovernanceIssueDetailApiResponse>
+}
+
+export async function requestGovernanceIssueRecheck(issueId: string, note?: string, signal?: AbortSignal): Promise<GovernanceIssueDetailApiResponse> {
+  const response = await fetch(`${API_BASE_URL}/v1/governance/issues/${encodeURIComponent(issueId)}/recheck`, {
+    method: 'POST',
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify(note ? { note } : {}),
+    signal,
+  })
+  if (!response.ok) await responseError(response, '治理问题复检请求失败')
+  return response.json() as Promise<GovernanceIssueDetailApiResponse>
 }
 
 async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {

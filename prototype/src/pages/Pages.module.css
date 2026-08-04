@@ -436,6 +436,14 @@
   line-height: 1.5;
 }
 
+.spin {
+  animation: data-os-spin 1s linear infinite;
+}
+
+@keyframes data-os-spin {
+  to { transform: rotate(360deg); }
+}
+
 .checkResult {
   margin-top: 18px;
   padding: 12px;
