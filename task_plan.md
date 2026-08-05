@@ -10,7 +10,7 @@
 - [x] Phase 2: 形成 mock/真实数据边界与落地验收清单
 - [x] Phase 3: 实现显式运行模式、真实 API 优先和可诊断降级
 - [x] Phase 4: 增加后端/前端测试并完成浏览器交互验证
-- [ ] Phase 5: 部署开发环境、更新文档、提交并推送
+- [x] Phase 5: 完成本地交付构建、文档、提交；远程开发环境基线已复核，最新包部署受 SSH 认证阻塞
 
 ## Key Questions
 
@@ -23,6 +23,7 @@
 
 - 生产默认真实 API；mock 只能通过显式 demo 配置/入口启用，不能在 API 失败时静默替代真实数据。
 - `DEMO` 质量执行器仅保留开发/验收用途，部署文档必须给出 HTTP/dbt 执行器切换方式和启动阻断检查。
+- FakeSource 演示模板不仅由前端隐藏，控制面生产保存/启动路径也必须再次校验；运行环境默认按 production 处理，开发 Compose 显式 opt-in。
 - 不在本轮凭空伪造 OpenMetadata、Superset、DB-GPT、MPI 等未落库能力；这些页面要明确标注原型/只读演示边界，并预留真实 Adapter。
 
 ## Errors Encountered
@@ -31,4 +32,4 @@
 
 ## Status
 
-**Currently in Phase 5** - 本地双模式验证和测试已通过，准备构建并部署开发环境、完成远程复核和提交推送。
+**Completed for local delivery** - 本地生产/演示包已构建，控制面 Maven 42 项全绿，mock audit、交互 smoke、浏览器双模式复核和代码审查完成；提交为 `5cd77ee`，下一步推送当前分支。远程开发机通过既有隧道复核了上一版 DEMO 基线，但新 SSH 连接对现有凭据认证失败，因此本轮最新静态包和控制面 JAR 未覆盖远程目录，未进行任何破坏性操作。

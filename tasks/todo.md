@@ -313,7 +313,7 @@ SLA worker 扫描到期问题并写入 `sla_overdue_at`、`SLA_OVERDUE` 事件�
 - [x] 增加 mock audit、前端构建、后端契约测试和本地浏览器双模式验证
 - [x] 重新构建本地生产/演示包，保留开发环境显式 DEMO 配置并完成远程可访问性复核
 - [x] 完成代码审查并按审查结果补齐后端 FakeSource 防线、生产启动保护和 API 失败边界
-- [ ] 提交并推送本轮变更
+- [x] 创建交付提交（`5cd77ee`）；推送当前分支待完成
 
 ### 结果复盘
 
@@ -321,4 +321,4 @@ SLA worker 扫描到期问题并写入 `sla_overdue_at`、`SLA_OVERDUE` 事件�
 
 阶段验证：`npm run qa:mock` 通过，前端构建通过；后端新增运行状态与 DEMO 保护测试，Maven 全量测试通过；本地浏览器已验证真实模式静态模块阻断、治理 mock 清除和显式演示模式样例可见，控制台无应用 error/warn。远程部署、代码审查和推送待本节最后阶段完成。
 
-补充复盘：代码审查发现并已修复三处落地风险——治理静态链路现在同时要求演示模式和控制面可用；真实模式新建/保存任务默认 `CUSTOM_JSON`，FakeSource 在前端和控制面生产路径均被阻断，历史 FakeSource 任务也不能启动；控制面新增 `RuntimeConfigurationValidator`，生产环境默认 fail-closed 并拒绝演示种子/DEMO 执行器。最终本地验证为前端 mock audit、交互 smoke、生产构建通过，控制面 Maven 全量 42 项通过（failures/errors/skipped 均为 0），`git diff --check` 通过。远程开发机既有隧道可浏览器访问，但新 SSH 连接因凭据认证失败，未覆盖本轮最新静态包；此前已部署的开发环境基线未做破坏性操作，待恢复 SSH 凭据后按回滚副本流程重建门户和控制面。
+补充复盘：代码审查发现并已修复三处落地风险——治理静态链路现在同时要求演示模式和控制面可用；真实模式新建/保存任务默认 `CUSTOM_JSON`，FakeSource 在前端和控制面生产路径均被阻断，历史 FakeSource 任务也不能启动；控制面新增 `RuntimeConfigurationValidator`，生产环境默认 fail-closed 并拒绝演示种子/DEMO 执行器。最终本地验证为前端 mock audit、交互 smoke、生产构建通过，控制面 Maven 全量 42 项通过（failures/errors/skipped 均为 0），`git diff --check` 通过；交付提交为 `5cd77ee`。远程开发机既有隧道可浏览器访问，但新 SSH 连接因凭据认证失败，未覆盖本轮最新静态包；此前已部署的开发环境基线未做破坏性操作，待恢复 SSH 凭据后按回滚副本流程重建门户和控制面。
