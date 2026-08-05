@@ -10,7 +10,7 @@
 - [x] Phase 2: 形成 mock/真实数据边界与落地验收清单
 - [x] Phase 3: 实现显式运行模式、真实 API 优先和可诊断降级
 - [x] Phase 4: 增加后端/前端测试并完成浏览器交互验证
-- [x] Phase 5: 完成本地交付构建、文档、提交；远程开发环境基线已复核，最新包部署受 SSH 认证阻塞
+- [x] Phase 5: 完成本地交付构建、文档、提交并部署远程开发环境；完成服务端与真实浏览器验收
 
 ## Key Questions
 
@@ -32,4 +32,4 @@
 
 ## Status
 
-**Completed for local delivery** - 本地生产/演示包已构建，控制面 Maven 42 项全绿，mock audit、交互 smoke、浏览器双模式复核和代码审查完成；提交为 `5cd77ee`，下一步推送当前分支。远程开发机通过既有隧道复核了上一版 DEMO 基线，但新 SSH 连接对现有凭据认证失败，因此本轮最新静态包和控制面 JAR 未覆盖远程目录，未进行任何破坏性操作。
+**Completed for local and remote development delivery** - 本地生产/演示包已构建，控制面 Maven 42 项全绿，mock audit、交互 smoke、浏览器双模式复核和代码审查完成；源码已同步到 `origin/main`（`8d3f744`）。远程开发机 `/root/data-os-dev-20260803` 已创建 `rollback-pre-mock-20260805`，门户演示包与控制面 JAR 已按校验和覆盖并滚动重建；控制面、门户和既有 SeaTunnel 均健康，真实浏览器已验收首页、治理驾驶舱、资产技术视图、专业问数工作区和数据接入配置。开发环境继续显式使用 DEMO 数据与执行器，生产环境仍由后端 fail-closed 防线阻断隐式演示配置。

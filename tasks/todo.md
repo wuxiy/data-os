@@ -319,6 +319,14 @@ SLA worker 扫描到期问题并写入 `sla_overdue_at`、`SLA_OVERDUE` 事件�
 
 前端 mock 已从隐式 fallback 改为显式模式：标准、映射、MPI、资产、分析、问数和管理驾驶舱在真实模式不渲染静态样例，显示待接入真实服务和已落地工作区入口；`VITE_DATAOS_DEMO_MODE=true` 才启用脱敏原型数据并显示“演示模式”。治理驾驶舱保留真实控制面摘要，API 失败时不再显示问题、责任链和趋势 mock。控制面新增运行状态接口，`DEMO` 质量执行器必须设置 `DATAOS_QUALITY_DEMO_ENABLED=true` 才会生效。
 
-阶段验证：`npm run qa:mock` 通过，前端构建通过；后端新增运行状态与 DEMO 保护测试，Maven 全量测试通过；本地浏览器已验证真实模式静态模块阻断、治理 mock 清除和显式演示模式样例可见，控制台无应用 error/warn。远程部署、代码审查和推送待本节最后阶段完成。
+阶段验证：`npm run qa:mock` 通过，前端构建通过；后端新增运行状态与 DEMO 保护测试，Maven 全量测试通过；本地浏览器已验证真实模式静态模块阻断、治理 mock 清除和显式演示模式样例可见，控制台无应用 error/warn。远程部署、代码审查和源码同步已在本节补充复盘中完成。
 
 补充复盘：代码审查发现并已修复三处落地风险——治理静态链路现在同时要求演示模式和控制面可用；真实模式新建/保存任务默认 `CUSTOM_JSON`，FakeSource 在前端和控制面生产路径均被阻断，历史 FakeSource 任务也不能启动；控制面新增 `RuntimeConfigurationValidator`，生产环境默认 fail-closed 并拒绝演示种子/DEMO 执行器。最终本地验证为前端 mock audit、交互 smoke、生产构建通过，控制面 Maven 全量 42 项通过（failures/errors/skipped 均为 0），`git diff --check` 通过；交付提交为 `5cd77ee`。远程开发机既有隧道可浏览器访问，但新 SSH 连接因凭据认证失败，未覆盖本轮最新静态包；此前已部署的开发环境基线未做破坏性操作，待恢复 SSH 凭据后按回滚副本流程重建门户和控制面。
+
+### 2026-08-05 远程开发部署补充复盘
+
+- SSH 认证恢复后，在 `/root/data-os-dev-20260803` 创建回滚副本 `rollback-pre-mock-20260805`，只重建控制面与门户，复用 PostgreSQL 和 SeaTunnel。
+- 远程门户入口校验和与本地演示包一致：`f8db9f61faa7ada23ff5c866f8717dbc3b8803c2d624acc197a431cca62e2c3b`；控制面 JAR 校验和为 `b16e37da010d623e88000061c4d4777fc94ae1a6f70db77d2e8a69d7351899f4`。
+- `/healthz` 与 readiness 均为 `UP`；`/api/v1/system/status` 明确返回开发 `DEMO` 模式、SeaTunnel 已配置、通知 Webhook 未配置告警；SeaTunnel 2.3.13 `/overview` 正常且容器未重建。
+- 真实浏览器验收通过：首页演示边界可见；治理驾驶舱显示 PostgreSQL 指标与 3 条问题；数据资产可进入技术视图；智能问数可进入专业工作区；数据接入的采集配置 JSON 默认展开并可编辑。未提交表单或修改远程业务数据。
+- 当前开发环境的 `FakeSource → Console（演示）` 和 DEMO 质量执行器是显式验收配置；交付生产仍必须使用真实采集配置/规则执行器，并由后端生产策略拒绝 FakeSource、演示种子和 DEMO 执行器。
