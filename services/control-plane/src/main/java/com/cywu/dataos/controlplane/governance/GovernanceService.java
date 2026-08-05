@@ -5,6 +5,7 @@ import java.util.List;
 
 import com.cywu.dataos.controlplane.api.ConflictException;
 import com.cywu.dataos.controlplane.api.ResourceNotFoundException;
+import com.cywu.dataos.controlplane.quality.QualityWorkflowService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -12,9 +13,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class GovernanceService {
 
     private final GovernanceRepository repository;
+    private final QualityWorkflowService qualityWorkflow;
 
-    public GovernanceService(GovernanceRepository repository) {
+    public GovernanceService(GovernanceRepository repository, QualityWorkflowService qualityWorkflow) {
         this.repository = repository;
+        this.qualityWorkflow = qualityWorkflow;
     }
 
     public GovernanceSummary summary(String tenantId, String institutionId) {
@@ -36,7 +39,11 @@ public class GovernanceService {
 
     public GovernanceIssueDetail detail(String issueId, String tenantId, String institutionId) {
         var issue = require(issueId, tenantId, institutionId);
-        return new GovernanceIssueDetail(issue, repository.findEvents(issue.id()));
+        var tenant = defaultValue(tenantId, "default");
+        var institution = defaultValue(institutionId, "demo-hospital");
+        return new GovernanceIssueDetail(issue, repository.findEvents(issue.id()),
+                repository.findLatestQualityRun(issue.id(), tenant, institution).orElse(null),
+                repository.findQualityRuns(issue.id(), tenant, institution), repository.findNotifications(issue.id()));
     }
 
     @Transactional
@@ -44,7 +51,10 @@ public class GovernanceService {
                                                  UpdateGovernanceIssueRequest request) {
         var resolvedTenant = defaultValue(tenantId, "default");
         var resolvedInstitution = defaultValue(institutionId, "demo-hospital");
-        require(issueId, resolvedTenant, resolvedInstitution);
+        var current = require(issueId, resolvedTenant, resolvedInstitution);
+        if ("RECHECKING".equals(current.status())) {
+            throw new ConflictException("治理问题正在复检中，不能改写工作流状态");
+        }
         var status = normalizeStatus(request.status());
         var now = Instant.now();
         var updated = repository.updateWorkflow(issueId, resolvedTenant, resolvedInstitution, status,
@@ -54,27 +64,14 @@ public class GovernanceService {
         return detail(issueId, resolvedTenant, resolvedInstitution);
     }
 
-    @Transactional
     public GovernanceIssueDetail requestRecheck(String issueId, String tenantId, String institutionId,
                                                 RecheckGovernanceIssueRequest request) {
         var resolvedTenant = defaultValue(tenantId, "default");
         var resolvedInstitution = defaultValue(institutionId, "demo-hospital");
-        var current = require(issueId, resolvedTenant, resolvedInstitution);
-        if ("CLOSED".equals(current.status())) {
-            throw new ConflictException("已关闭的治理问题不能直接复检");
-        }
-        if ("RECHECKING".equals(current.status())) {
-            throw new ConflictException("治理问题已在复检中，请等待结果");
-        }
-        var now = Instant.now();
         var note = request == null || request.note() == null || request.note().isBlank()
                 ? "已按原质量规则发起复检"
                 : request.note().trim();
-        var updated = repository.updateWorkflow(issueId, resolvedTenant, resolvedInstitution, "RECHECKING",
-                current.processingNote(), now, "RECHECK_REQUESTED");
-        if (updated != 1) throw new ResourceNotFoundException("未找到治理问题：" + issueId);
-        repository.insertEvent(issueId, "RECHECK_REQUESTED", note, "当前治理负责人", now);
-        return detail(issueId, resolvedTenant, resolvedInstitution);
+        return qualityWorkflow.requestRecheck(issueId, resolvedTenant, resolvedInstitution, note);
     }
 
     private GovernanceIssue require(String issueId, String tenantId, String institutionId) {
@@ -83,8 +80,8 @@ public class GovernanceService {
     }
 
     private String normalizeStatus(String status) {
-        var normalized = status == null ? "" : status.trim().toUpperCase();
-        if (!List.of("OVERDUE", "IN_PROGRESS", "PENDING", "PENDING_RECHECK", "RECHECKING", "CLOSED").contains(normalized)) {
+        var normalized = status == null ? "" : status.trim().toUpperCase(java.util.Locale.ROOT);
+        if (!List.of("OVERDUE", "IN_PROGRESS", "PENDING", "PENDING_RECHECK", "RETURNED", "CLOSED").contains(normalized)) {
             throw new com.cywu.dataos.controlplane.api.InvalidRequestException("不支持的治理问题状态：" + status);
         }
         return normalized;

@@ -181,7 +181,7 @@ flowchart LR
 | `/api/v1/jobs`、`/api/v1/jobs/{id}/status`、`/api/v1/jobs/{id}/config`、`/runs`、`/backfills` | 任务生命周期、版本化配置、运行、补数 |
 | `/api/v1/sources`、`/api/v1/sources/{id}/check` | 数据源登记和 JDBC/HTTP/FHIR 可用性检查 |
 | `/api/v1/assets`、`/lineage` | 资产与血缘统一投影 |
-| `/api/v1/standards`、`/mappings`、`/quality`、`/issues` | 治理闭环 |
+| `/api/v1/standards`、`/mappings`、`/quality`、`/issues`、`/governance/sla/scan`、`/governance/issues/{issueId}/notifications/remind`、`/governance/notifications/deliver` | 治理闭环、SLA 和责任人通知 |
 | `/api/v1/mpi`、`/master-data` | 主索引与主数据 |
 | `/api/v1/analytics` | Superset 看板目录和嵌入会话 |
 | `/api/v1/assistant` | DB-GPT 问答、证据和反馈 |
@@ -243,6 +243,8 @@ AssistantAdapter: ask / cancel / getEvidence / feedback
 - Portal 发布任务时先落库和 Outbox，再由 Worker 发布到执行器；发布失败不改变上一个生效版本。
 - 状态同步采用控制面后台增量轮询，同时提供 `POST /api/v1/jobs/{jobId}/runs/{runId}/sync` 供门户人工刷新；本轮使用 PostgreSQL 运行表直接回写，连续依赖失败保留可重试状态，配置型状态查询失败转为 `FAILED`，`UNKNOWN` 只允许人工重试，后续接入 Outbox/死信表时不改变适配器契约。任务生命周期状态与最近一次运行状态分离，后者以 `job_runs` 为准。
 - 开发档位限制单控制面实例与每轮最多 100 条候选；进入区域多副本前必须替换为数据库租约/`SKIP LOCKED`、`next_sync_at` 退避和并行 worker，避免重复查询与长尾饥饿。
+- 质量复检使用独立 `QualityRuleExecutor` 端口：控制面先持久化 `quality_rule_runs` 执行批次，再在事务外调用 `HTTP/DBT` 适配器，后台轮询并回写 `status/passed/execution_batch_id/sample_evidence`。`SUBMITTING` 也属于可恢复扫描态；提交阶段使用数据库租约和 worker 所有权，临时执行器不可用时保留该态并指数退避，执行批次号作为外部执行器 `Idempotency-Key`。人工同步对 `SUBMITTING` 遵守下次投递时间，只触发状态轮询，不会绕过投递退避。`SUCCEEDED + passed=true` 触发 `AUTO_CLOSED`，失败、取消或未通过触发 `AUTO_RETURNED/RECHECK_FAILED`；所有流转均通过条件更新和事件表保证幂等，详情同时返回最近批次和历史批次（最近 20 条）。开发环境可用确定性的 `DEMO` 适配器跑通交付验收，生产应替换为 dbt、Great Expectations 或院内质量服务。
+- SLA worker 扫描 `due_at`，在 `sla_overdue_at` 首次写入时生成 `SLA_OVERDUE` 事件；复检中的问题不被强制改成逾期状态，避免覆盖执行态。责任人通知以 `WEBHOOK` 适配器为第一通道，通知表保存幂等键、尝试次数、退避时间、租约和最终状态；投递前通过条件更新抢占 `SENDING`，完成时校验 worker，避免定时任务与人工接口并发外发。未配置通道时显示 `SKIPPED`，不得伪造送达事实；门户主动提醒也复用该队列，关闭问题拒绝提醒，同一 `Idempotency-Key` 不重复生成事件或通知。
 
 ### 5.3 dbt、Doris 与 OpenMetadata
 

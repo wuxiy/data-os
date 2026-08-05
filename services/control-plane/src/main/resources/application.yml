@@ -23,6 +23,21 @@ data-os:
   seatunnel:
     base-url: ${SEATUNNEL_BASE_URL:}
     time-zone: ${DATAOS_SEATUNNEL_TIME_ZONE:UTC}
+  quality:
+    executor: ${DATAOS_QUALITY_EXECUTOR:HTTP}
+    base-url: ${DATAOS_QUALITY_EXECUTOR_BASE_URL:}
+    demo-delay-ms: ${DATAOS_QUALITY_DEMO_DELAY_MS:500}
+    poll-interval-ms: ${DATAOS_QUALITY_POLL_INTERVAL_MS:30000}
+    poll-initial-delay-ms: ${DATAOS_QUALITY_POLL_INITIAL_DELAY_MS:10000}
+    sla-scan-interval-ms: ${DATAOS_QUALITY_SLA_SCAN_INTERVAL_MS:60000}
+    sla-scan-initial-delay-ms: ${DATAOS_QUALITY_SLA_SCAN_INITIAL_DELAY_MS:15000}
+    submit-lease-ms: ${DATAOS_QUALITY_SUBMIT_LEASE_MS:120000}
+  notification:
+    webhook-url: ${DATAOS_NOTIFICATION_WEBHOOK_URL:}
+    max-attempts: ${DATAOS_NOTIFICATION_MAX_ATTEMPTS:5}
+    lease-ms: ${DATAOS_NOTIFICATION_LEASE_MS:120000}
+    delivery-interval-ms: ${DATAOS_NOTIFICATION_DELIVERY_INTERVAL_MS:30000}
+    delivery-initial-delay-ms: ${DATAOS_NOTIFICATION_DELIVERY_INITIAL_DELAY_MS:10000}
   runs:
     sync-interval-ms: ${DATAOS_RUN_SYNC_INTERVAL_MS:30000}
     sync-initial-delay-ms: ${DATAOS_RUN_SYNC_INITIAL_DELAY_MS:10000}

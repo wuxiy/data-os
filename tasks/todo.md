@@ -271,3 +271,29 @@ GET  /ingestion + static JS           -> 200
 验证证据：控制面 Maven 全量测试 23 项通过（治理 API 16、SeaTunnel 适配器 4、运行同步 1、来源检查 2，failures/errors 均为 0）；前端 `npm run build`、`node prototype/qa/portal-interactions-smoke.mjs` 和 `git diff --check` 通过。开发机 `/root/data-os-dev-20260803` 已创建 `rollback-pre-fifth-20260805-001336` 回滚副本，控制面镜像和门户静态包已部署，`/healthz` 返回 `UP`，真实治理问题接口返回 3 条记录，SeaTunnel 容器未重建且保持 running。桌面浏览器以 1440×900 视口访问 `http://127.0.0.1:18081/governance/quality`（SSH 转发至开发机）验证真实问题队列、LIS 搜索、责任链详情和责任人提醒边界，控制台 error/warn 为空；截图：`/private/tmp/data-os-browser-quality-final-1440.png`。
 
 剩余边界：质量规则执行器、责任人通知通道和权限审计仍未接入；当前“开始复检”只登记请求并回写状态，下一轮需接入 dbt/质量规则运行记录、结果证据和自动关闭/退回策略。
+
+## 2026-08-05 第六迭代：质量复检执行与通知闭环
+
+### 目标
+
+把复检从“控制面登记请求”推进为可观察、可回写、可自动流转的质量工作流：请求进入质量规则执行器，执行批次、通过/失败、样本证据可追溯；规则结果驱动自动关闭或退回，SLA 扫描产生逾期事件；责任人能够通过统一通知适配器收到可重试的提醒。
+
+### 计划与测试接缝
+
+- [x] 冻结质量规则执行器、执行批次、样本证据、通知适配器和 SLA 扫描 API/事件契约
+- [x] 先补 MockMvc/适配器契约测试：复检投递、执行器状态轮询、结果回写、关闭/退回、SLA 逾期、通知 claim/重试和 HTTP/DBT 映射
+- [x] 实现可替换质量规则执行器适配器（HTTP/dbt 运行契约）与异步轮询 Worker
+- [x] 扩展治理问题模型：执行批次、结果、样本证据、自动流转策略和事件记录
+- [x] 增加责任人通知通道（Webhook 优先，失败重试与幂等记录），门户展示投递状态
+- [x] 开发环境部署质量执行器测试适配器，完成真实复检成功/失败、自动关闭/退回、SLA 逾期和通知验收
+- [x] 完成前端交互回归、全量测试、代码审查、部署回滚记录并推送
+
+### 结果复盘
+
+本轮把复检从“登记请求”推进为可观察执行闭环：新增 `quality_rule_runs` 和 `governance_notifications` 持久化模型，复检先创建执行批次再投递 `QualityRuleExecutor`；开发档位提供确定性的 `DEMO` 适配器，生产可切换到共用 HTTP 契约的 dbt/院内规则执行器。后台轮询状态并回写 `passed`、`executionBatchId`、`sampleEvidence` 和执行时间；通过自动生成 `AUTO_CLOSED`，失败/取消/未通过自动生成 `AUTO_RETURNED` 或 `RECHECK_FAILED`，重复同步不会重复流转。
+
+SLA worker 扫描到期问题并写入 `sla_overdue_at`、`SLA_OVERDUE` 事件；复检中的问题保留 `RECHECKING`，避免覆盖执行态。`SUBMITTING` 批次纳入恢复扫描，暂时不可用时保留中间态并退避重试；`RECHECKING` 期间禁止工作流覆盖。责任人通知使用 `WEBHOOK` 通道、幂等键、数据库租约 claim、指数退避和最大尝试次数；开发环境未配置 URL 时明确记录 `SKIPPED`，门户提醒责任人也复用同一队列。门户展示执行器、执行批次、结果、最近错误、样本证据、事件和通知状态，并支持“同步复检结果”。
+
+验证证据：控制面 Maven 全量测试 34 项通过（治理 API 26、HTTP/DBT 质量执行器 1、SeaTunnel 4、运行同步 1、来源检查 2，failures/errors 均为 0）；门户 `npm run build` 和交互 smoke 通过。开发机 `/root/data-os-dev-20260803` 创建回滚副本 `rollback-pre-sixth-20260805-0935`、`rollback-pre-hardening-20260805-1015` 和最终部署前的 `rollback-pre-final-hardening-20260805-1047`，控制面镜像 digest 为 `sha256:700889c883ad38c87ce21f9ec568566fa74db207c0b4d804cebe12493a89f254`；仅重建控制面与门户，SeaTunnel 容器 `a91cb39a12622dba4c792e305b68b0926dfb93331f70acf4a015fefbda4172c8` 保持 `running/healthy` 且 `/overview` 正常。远程临时问题验证 `SUBMITTED → SUCCEEDED`、`passed=true/false`、样本证据 1 条、`AUTO_CLOSED/AUTO_RETURNED`、同一提醒幂等键只生成 1 条事件/通知、通知 `SKIPPED`，临时数据已清理。通过浏览器转发端口 `28082` 验证最终门户质量页真实连接和“提醒责任人”交互，控制台 error/warn 为空；最终截图和构建 hash、远程输出已归档至 `docs/validation/quality-hardening-20260805.md`。
+
+本轮新增的生产边界：通知 URL 为空不会宣称送达；外部通道在 worker 崩溃后的极端窗口仍需依赖下游按 `idempotencyKey` 去重；`DEMO` 执行器仅用于开发验收，不得作为生产规则事实源；质量轮询在区域多副本部署仍需把进程内 `inFlight` 扩展为数据库租约/`SKIP LOCKED`。

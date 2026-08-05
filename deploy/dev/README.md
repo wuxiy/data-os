@@ -21,6 +21,15 @@ DATAOS_SEED_DEMO=true
 DATAOS_RUN_SYNC_INTERVAL_MS=30000
 DATAOS_RUN_SYNC_INITIAL_DELAY_MS=10000
 DATAOS_SEATUNNEL_TIME_ZONE=UTC
+# 开发环境默认使用确定性的 DEMO 质量执行器；生产改为 HTTP/DBT 并配置执行器地址。
+DATAOS_QUALITY_EXECUTOR=DEMO
+DATAOS_QUALITY_EXECUTOR_BASE_URL=
+DATAOS_QUALITY_SUBMIT_LEASE_MS=120000
+DATAOS_QUALITY_DEMO_DELAY_MS=1500
+# 可选：责任人 Webhook；为空时通知会记录为 SKIPPED，不会伪造已送达。
+DATAOS_NOTIFICATION_WEBHOOK_URL=
+DATAOS_NOTIFICATION_MAX_ATTEMPTS=5
+DATAOS_NOTIFICATION_LEASE_MS=120000
 ```
 
 先启动门户和控制面：
@@ -138,7 +147,25 @@ curl -X PUT 'http://开发机地址:18081/api/v1/governance/issues/{issueId}/wor
 curl -X POST 'http://开发机地址:18081/api/v1/governance/issues/{issueId}/recheck' \
   -H 'Content-Type: application/json' \
   -d '{"note":"按原质量规则重新执行复检"}'
+curl -X POST 'http://开发机地址:18081/api/v1/governance/issues/{issueId}/runs/{runId}/sync'
+curl -X POST 'http://开发机地址:18081/api/v1/governance/issues/{issueId}/notifications/remind' \
+  -H 'Idempotency-Key: reminder-20260805-001'
+curl -X POST 'http://开发机地址:18081/api/v1/governance/sla/scan'
+curl -X POST 'http://开发机地址:18081/api/v1/governance/notifications/deliver'
 ```
+
+复检提交后，控制面先落库 `quality_rule_runs` 执行批次，再在事务外投递质量规则执行器。后台按轮询周期读取 `SUBMITTING/SUBMITTED/RUNNING/UNKNOWN` 批次；控制面在投递前重启时会恢复 `SUBMITTING`，执行器暂时不可用则保留中间态并按退避策略重试。状态同步会将执行状态、通过标记、执行批次号和 `sampleEvidence` 回写 PostgreSQL。`SUCCEEDED + passed=true` 自动关闭问题；失败、取消或 `passed=false` 自动退回问题并记录事件。每个状态转换使用条件更新，重复轮询不会重复生成事件。
+
+SLA 扫描只处理 `due_at < now` 且尚未标记逾期、未关闭的问题；复检中的问题保留 `RECHECKING`，但记录 `sla_overdue_at` 和 `SLA_OVERDUE` 事件，避免打断正在执行的复检。通知通过 `WEBHOOK` 适配器投递，带幂等键、数据库租约抢占、指数退避和最大尝试次数；未配置 URL 时明确记录 `SKIPPED`，不会把“未配置”显示成“已送达”。门户的“提醒责任人”会新增提醒事件并进入同一通知队列。
+
+生产质量执行器需要实现以下最小 HTTP 契约：
+
+```text
+POST {QUALITY_RULE_EXECUTOR_BASE_URL}/api/v1/quality/runs
+GET  {QUALITY_RULE_EXECUTOR_BASE_URL}/api/v1/quality/runs/{externalId}
+```
+
+提交请求会携带 `Idempotency-Key: executionBatchId`，执行器需按该键去重；提交响应返回 `externalId`（或 `runId`/`id`）；状态响应返回 `status`、`passed`、`executionBatchId`、`message`、`sampleEvidence`、`startedAt`、`finishedAt`。时间字段支持 ISO-8601 UTC、带偏移或无偏移（无偏移按 UTC）。`DATAOS_QUALITY_EXECUTOR=DBT` 与 `HTTP` 共用该适配器，便于后续将 dbt、Great Expectations 或院内规则服务替换为同一执行契约。关闭问题不能提醒责任人，同一提醒 `Idempotency-Key` 不会重复生成事件或通知。
 
 ## 回滚
 
