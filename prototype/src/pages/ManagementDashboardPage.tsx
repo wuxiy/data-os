@@ -1,16 +1,18 @@
 import { AlertTriangle, ChevronRight } from 'lucide-react'
+import { DemoDataBoundary } from '../components/ui/DemoDataBoundary'
 import { TrendChart } from '../components/charts/TrendChart'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Button, MetricStrip, StatusTag } from '../components/ui/Primitives'
 import { managementMetrics, riskRanking } from '../data/mock'
 import styles from './Pages.module.css'
 
-export function ManagementDashboardPage({ onOpenChain, onUnavailable, onNotice }: { onOpenChain: () => void; onUnavailable: (label: string) => void; onNotice: (message: string) => void }) {
+export function ManagementDashboardPage({ onOpenChain, onUnavailable, onNotice, onNavigate }: { onOpenChain: () => void; onUnavailable: (label: string) => void; onNotice: (message: string) => void; onNavigate: (route: 'ingestion' | 'governance' | 'quality') => void }) {
   return (
     <div className={styles.page}>
       <PageHeader title="医院数据运营总览" eyebrow="管理驾驶舱" subtitle="以结果、风险和交付进展为中心" onFilterNotice={onNotice} />
-      <MetricStrip metrics={managementMetrics} onSelect={onOpenChain} />
       <div className={styles.content}>
+        <DemoDataBoundary moduleName="医院数据运营总览" onNavigate={onNavigate}>
+        <MetricStrip metrics={managementMetrics} onSelect={onOpenChain} />
         <section className={styles.attention}>
           <div className={styles.attentionText}>
             <AlertTriangle size={21} />
@@ -43,6 +45,7 @@ export function ManagementDashboardPage({ onOpenChain, onUnavailable, onNotice }
             </table>
           </div>
         </section>
+        </DemoDataBoundary>
       </div>
     </div>
   )

@@ -34,19 +34,22 @@ public class RunService {
     private final java.util.List<ExecutorAdapter> adapters;
     private final TransactionTemplate transactions;
     private final ObjectMapper objectMapper;
+    private final JobConfigurationPolicy configurationPolicy;
 
     public RunService(JobRepository jobRepository,
                       RunRepository runRepository,
                       JobConfigService jobConfigService,
                       java.util.List<ExecutorAdapter> adapters,
                       PlatformTransactionManager transactionManager,
-                      ObjectMapper objectMapper) {
+                      ObjectMapper objectMapper,
+                      JobConfigurationPolicy configurationPolicy) {
         this.jobRepository = jobRepository;
         this.runRepository = runRepository;
         this.jobConfigService = jobConfigService;
         this.adapters = adapters;
         this.transactions = new TransactionTemplate(transactionManager);
         this.objectMapper = objectMapper;
+        this.configurationPolicy = configurationPolicy;
     }
 
     /**
@@ -93,6 +96,7 @@ public class RunService {
         var config = request.config().isEmpty()
                 ? jobConfigService.findOptional(job.id()).map(IngestionJobConfig::config).orElse(Map.of())
                 : request.config();
+        configurationPolicy.validateRun(job, config);
         var requestFingerprint = requestKey == null ? null : fingerprint(config);
         if (requestKey != null) {
             var existing = runRepository.findByRequestKey(jobId, requestKey);

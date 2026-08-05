@@ -10,9 +10,10 @@ import {
 } from 'lucide-react'
 import { useEffect } from 'react'
 import { Button } from '../ui/Primitives'
+import { frontendDemoMode } from '../../data/runtime'
 import styles from './ResponsibilityChain.module.css'
 
-const nodes = [
+const demoNodes = [
   {
     label: '异常发现',
     value: '门诊诊断编码存在失效值',
@@ -52,6 +53,8 @@ const nodes = [
   },
 ]
 
+const nodes = frontendDemoMode ? demoNodes : []
+
 interface ResponsibilityChainProps {
   onOpen: () => void
 }
@@ -65,8 +68,8 @@ export function ResponsibilityChain({ onOpen }: ResponsibilityChainProps) {
           <p>异常不是结果，责任与处理动作必须可追溯</p>
         </div>
         <div className={styles.sourceSummary}>
-          <span>来源：质量事件 <b>DQ-20260801-023</b></span>
-          <span>生成 08-01 14:26 · 刷新 14:30</span>
+          <span>来源：{frontendDemoMode ? <><b>质量事件 DQ-20260801-023</b></> : '真实问题事件待绑定'}</span>
+          <span>{frontendDemoMode ? '生成 08-01 14:26 · 刷新 14:30' : '等待真实溯源服务'}</span>
           <button onClick={onOpen}>查看来源 <ExternalLink size={13} /></button>
         </div>
       </div>
@@ -115,9 +118,9 @@ export function ResponsibilityDrawer({ open, onClose, onAction }: Responsibility
         </div>
         <div className={styles.provenance}>
           <dl>
-            <div><dt>链路编号</dt><dd>RC-20260801-023</dd></div>
-            <div><dt>关联方式</dt><dd>issueId → assetId → ruleId → ownerId → ticketId</dd></div>
-            <div><dt>最近刷新</dt><dd>08-01 14:30</dd></div>
+            <div><dt>链路编号</dt><dd>{frontendDemoMode ? 'RC-20260801-023' : '待真实事件绑定'}</dd></div>
+            <div><dt>关联方式</dt><dd>{frontendDemoMode ? 'issueId → assetId → ruleId → ownerId → ticketId' : '等待问题、资产、规则和责任人 API'}</dd></div>
+            <div><dt>最近刷新</dt><dd>{frontendDemoMode ? '08-01 14:30' : '—'}</dd></div>
           </dl>
           <Button variant="quiet" onClick={() => onAction('责任链已刷新，节点来源与 08-01 14:30 快照一致')}><RefreshCcw size={14} />刷新链路</Button>
         </div>

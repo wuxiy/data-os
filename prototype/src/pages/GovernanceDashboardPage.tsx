@@ -6,7 +6,7 @@ import { GovernanceTabs } from '../components/ui/GovernanceTabs'
 import { PageHeader } from '../components/ui/PageHeader'
 import { MetricStrip, StatusTag } from '../components/ui/Primitives'
 import { fetchGovernanceSummary, type GovernanceApiIssue } from '../data/controlPlane'
-import { governanceMetrics, riskRanking } from '../data/mock'
+import { frontendDemoMode } from '../data/runtime'
 import type { Metric } from '../types'
 import type { RouteKey } from '../types'
 import styles from './Pages.module.css'
@@ -19,9 +19,9 @@ interface Props {
 }
 
 export function GovernanceDashboardPage({ onOpenChain, onNavigate, onUnavailable, onNotice }: Props) {
-  const [metrics, setMetrics] = useState<Metric[]>(governanceMetrics)
+  const [metrics, setMetrics] = useState<Metric[]>([])
   const [issues, setIssues] = useState<GovernanceApiIssue[]>([])
-  const [apiState, setApiState] = useState<'loading' | 'live' | 'fallback'>('loading')
+  const [apiState, setApiState] = useState<'loading' | 'live' | 'unavailable'>('loading')
 
   useEffect(() => {
     const controller = new AbortController()
@@ -38,7 +38,7 @@ export function GovernanceDashboardPage({ onOpenChain, onNavigate, onUnavailable
         setIssues(summary.issues)
         setApiState('live')
       })
-      .catch(() => setApiState('fallback'))
+      .catch(() => setApiState('unavailable'))
       .finally(() => window.clearTimeout(timeout))
     return () => {
       window.clearTimeout(timeout)
@@ -52,17 +52,19 @@ export function GovernanceDashboardPage({ onOpenChain, onNavigate, onUnavailable
       <GovernanceTabs route="governance" onNavigate={onNavigate} onUnavailable={onUnavailable} />
       <div className={styles.apiStatus} role="status" aria-live="polite">
         <span className={`${styles.apiDot} ${apiState === 'live' ? styles.apiDotLive : ''}`} />
-        {apiState === 'loading' ? '正在连接治理控制面…' : apiState === 'live' ? '控制面已连接 · 指标与问题来自 PostgreSQL' : '演示数据 · 控制面暂不可用'}
+        {apiState === 'loading' ? '正在连接治理控制面…' : apiState === 'live' ? '控制面已连接 · 指标与问题来自 PostgreSQL' : '控制面暂不可用 · 未加载真实治理指标或问题'}
       </div>
-      <MetricStrip metrics={metrics} onSelect={onOpenChain} />
+      {apiState === 'unavailable' ? <div className={styles.connectionNotice} role="alert"><div><strong>治理控制面不可用</strong><span>为避免误导，当前没有展示本地演示指标或问题。请恢复控制面后重新连接。</span></div><button className={styles.secondaryButton} onClick={() => window.location.reload()}>重新连接</button></div> : null}
+      <MetricStrip metrics={metrics} onSelect={frontendDemoMode && apiState === 'live' ? onOpenChain : undefined} />
       <div className={styles.content}>
-        <ResponsibilityChain onOpen={onOpenChain} />
+        {frontendDemoMode && apiState === 'live' ? <ResponsibilityChain onOpen={onOpenChain} /> : <div className={styles.connectionNotice} role="status"><div><strong>{apiState === 'unavailable' ? '责任链暂不可用' : '责任链详情待接入真实溯源服务'}</strong><span>{apiState === 'unavailable' ? '控制面未返回真实治理数据，静态责任链样例已关闭。' : '当前仅展示控制面真实指标和问题队列；静态责任链样例已关闭。'}</span></div></div>}
         <div className={styles.twoColumns}>
-          <TrendChart />
+          {frontendDemoMode && apiState === 'live' ? <TrendChart /> : <section className={styles.panel}><div className={styles.panelHeader}><div><h2>治理趋势</h2><p>等待指标时序 API 接入</p></div></div><div className={styles.emptyRow}>{apiState === 'unavailable' ? '控制面不可用，未加载趋势数据' : '当前版本不展示静态趋势样例'}</div></section>}
           <section className={styles.panel}>
             <div className={styles.panelHeader}><div><h2>高风险系统排行</h2><p>按逾期与高危问题综合排序</p></div><button className={styles.textButton} onClick={() => onNavigate('quality')}>查看全部 <ChevronRight size={13} /></button></div>
             <ol className={styles.ranking}>
-              {riskRanking.map(({ system, owner, value }, index) => <li key={system}><span className={styles.rank}>{String(index + 1).padStart(2, '0')}</span><div className={styles.rankBody}><strong>{system}</strong><span>{owner}</span></div><span className={styles.rankValue}>{value}</span></li>)}
+              {riskRankingFromIssues(issues).map(({ system, owner, value }, index) => <li key={system}><span className={styles.rank}>{String(index + 1).padStart(2, '0')}</span><div className={styles.rankBody}><strong>{system}</strong><span>{owner}</span></div><span className={styles.rankValue}>{value}</span></li>)}
+              {apiState === 'live' && issues.length === 0 ? <li className={styles.emptyRow}>当前机构暂无高风险问题</li> : null}
             </ol>
           </section>
         </div>
@@ -72,8 +74,8 @@ export function GovernanceDashboardPage({ onOpenChain, onNavigate, onUnavailable
             <table className={styles.table}>
               <thead><tr><th>问题</th><th>影响范围</th><th>责任部门</th><th>SLA</th><th>状态</th></tr></thead>
               <tbody>
-                {(issues.length > 0 ? issues : fallbackIssues).slice(0, 5).map((issue, index) => (
-                  <tr className={index === 0 ? styles.clickableRow : undefined} onClick={index === 0 ? onOpenChain : undefined} key={issue.id}>
+                {issues.slice(0, 5).map((issue, index) => (
+                  <tr className={index === 0 && frontendDemoMode ? styles.clickableRow : undefined} onClick={index === 0 && frontendDemoMode ? onOpenChain : undefined} key={issue.id}>
                     <td>{issue.title}</td>
                     <td>{issue.impact}</td>
                     <td>{issue.ownerDepartment}</td>
@@ -81,6 +83,7 @@ export function GovernanceDashboardPage({ onOpenChain, onNavigate, onUnavailable
                     <td><StatusTag tone={issueTone(issue.status)}>{issueStatus(issue.status)}</StatusTag></td>
                   </tr>
                 ))}
+                {apiState === 'live' && issues.length === 0 ? <tr><td colSpan={5} className={styles.emptyRow}>当前机构暂无待办问题</td></tr> : null}
               </tbody>
             </table>
           </div>
@@ -90,15 +93,16 @@ export function GovernanceDashboardPage({ onOpenChain, onNavigate, onUnavailable
   )
 }
 
-const fallbackIssues: GovernanceApiIssue[] = [
-  { id: 'fallback-1', title: 'LIS 检验结果及时率下降', severity: 'HIGH', status: 'OVERDUE', datasetId: 'asset-lis', ruleId: 'rule-time', ownerDepartment: '检验科', ownerName: '检验科数据管理员', ticketId: 'TICKET-1', impact: '检验主题 / 38 张表', dueAt: '2026-08-02T18:00:00+08:00' },
-  { id: 'fallback-2', title: 'EMR 病历诊断规范映射缺失', severity: 'HIGH', status: 'OVERDUE', datasetId: 'asset-emr', ruleId: 'rule-code', ownerDepartment: '病案室', ownerName: '病案室数据管理员', ticketId: 'TICKET-2', impact: '病历主题 / 21 张表', dueAt: '2026-08-02T18:00:00+08:00' },
-  { id: 'fallback-3', title: '手麻系统手术记录字段缺失', severity: 'MEDIUM', status: 'IN_PROGRESS', datasetId: 'asset-surgery', ruleId: 'rule-fields', ownerDepartment: '麻醉科', ownerName: '麻醉科数据管理员', ticketId: 'TICKET-3', impact: '手术主题 / 12 张表', dueAt: '2026-08-03T18:00:00+08:00' },
-  { id: 'fallback-4', title: '病案首页关键字段值域不符', severity: 'MEDIUM', status: 'IN_PROGRESS', datasetId: 'asset-home', ruleId: 'rule-domain', ownerDepartment: '病案室', ownerName: '病案室数据管理员', ticketId: 'TICKET-4', impact: '病案首页 / 9 张表', dueAt: '2026-08-04T18:00:00+08:00' },
-]
-
 function formatMetricValue(value: number) {
   return Number.isInteger(value) ? String(value) : value.toFixed(1)
+}
+
+function riskRankingFromIssues(issues: GovernanceApiIssue[]) {
+  return issues.slice(0, 4).map((issue) => ({
+    system: issue.datasetId,
+    owner: issue.ownerDepartment,
+    value: issue.status === 'OVERDUE' ? '逾期' : '1',
+  }))
 }
 
 function formatDueAt(value: string | null) {

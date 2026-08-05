@@ -1,5 +1,6 @@
 import { ArrowRight, CheckCircle2, Filter, Link2, Search } from 'lucide-react'
 import { useState } from 'react'
+import { DemoDataBoundary } from '../components/ui/DemoDataBoundary'
 import { GovernanceTabs } from '../components/ui/GovernanceTabs'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Button, StatusTag } from '../components/ui/Primitives'
@@ -40,7 +41,8 @@ export function StandardMappingPage({ onNavigate, onUnavailable, onNotice }: Pro
     <div className={styles.page}>
       <PageHeader title="标准映射" compact onFilterNotice={onNotice} />
       <GovernanceTabs route="mapping" onNavigate={onNavigate} onUnavailable={onUnavailable} />
-      <div className={styles.workspace}>
+      <DemoDataBoundary moduleName="标准映射" onNavigate={onNavigate}>
+        <div className={styles.workspace}>
         <aside className={styles.workspaceRail}>
           <div className={styles.sectionTitle}><h2>源数据结构</h2><span>HIS / 门诊诊断</span></div>
           <div className={styles.search}><Search size={15} /><input placeholder="搜索源字段" aria-label="搜索源字段" /></div>
@@ -79,7 +81,8 @@ export function StandardMappingPage({ onNavigate, onUnavailable, onNotice }: Pro
             </dl>
           </div>
         </aside>
-      </div>
+        </div>
+      </DemoDataBoundary>
     </div>
   )
 }

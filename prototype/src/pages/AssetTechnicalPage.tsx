@@ -1,5 +1,6 @@
 import { ArrowLeft, Braces, Database, ExternalLink, KeyRound, Link2, Rows3, ShieldCheck, TableProperties } from 'lucide-react'
 import { useMemo } from 'react'
+import { DemoDataBoundary } from '../components/ui/DemoDataBoundary'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Button, StatusTag } from '../components/ui/Primitives'
 import { assets, type AssetItem } from '../data/integrations'
@@ -31,7 +32,8 @@ export function AssetTechnicalPage({ onNotice }: { onNotice: (message: string) =
         compact
         onFilterNotice={onNotice}
       />
-      <div className={styles.technicalWorkspace}>
+      <DemoDataBoundary moduleName="数据资产技术视图">
+        <div className={styles.technicalWorkspace}>
         <header className={styles.technicalHeader}>
           <div className={styles.technicalIdentity}>
             <div className={styles.technicalIcon}><TableProperties size={19} /></div>
@@ -78,7 +80,8 @@ export function AssetTechnicalPage({ onNotice }: { onNotice: (message: string) =
           <div className={styles.technicalLineageRow}>{asset.lineage.map((node) => <div className={styles.technicalLineageNode} key={`${node.stage}-${node.name}`}><span>{node.stage}</span><strong>{node.name}</strong><small>{node.detail}</small></div>)}</div>
           <div className={styles.technicalFooter}><span>技术视图是资产详情的深链，不复制底层元数据控制台。</span><Button variant="quiet" onClick={() => void copyTechnicalId()}>复制技术编号 <ExternalLink size={13} /></Button></div>
         </section>
-      </div>
+        </div>
+      </DemoDataBoundary>
     </div>
   )
 }

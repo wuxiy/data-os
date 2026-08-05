@@ -1,0 +1,55 @@
+package com.cywu.dataos.controlplane.job;
+
+import java.util.Collection;
+import java.util.Map;
+
+import com.cywu.dataos.controlplane.api.ConflictException;
+import com.cywu.dataos.controlplane.api.InvalidRequestException;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+
+/** Keeps demo-only ingestion templates out of explicitly marked production runs. */
+@Component
+public final class JobConfigurationPolicy {
+
+    private final String environment;
+
+    public JobConfigurationPolicy(@Value("${data-os.runtime.environment:production}") String environment) {
+        this.environment = environment == null ? "" : environment.trim();
+    }
+
+    public void validateTemplateForSave(String templateKey) {
+        if (isProduction() && isDemoTemplate(templateKey)) {
+            throw new InvalidRequestException("生产环境不允许保存 FakeSource 演示模板，请改用真实连接器配置");
+        }
+    }
+
+    public void validateRun(IngestionJob job, Map<String, Object> config) {
+        if (isProduction() && (isDemoTemplate(job.templateKey()) || containsFakeSource(config))) {
+            throw new ConflictException("生产环境不允许启动 FakeSource 演示采集任务");
+        }
+    }
+
+    private boolean isProduction() {
+        return "production".equalsIgnoreCase(environment);
+    }
+
+    private boolean isDemoTemplate(String templateKey) {
+        return templateKey != null && "FAKE_TO_CONSOLE".equalsIgnoreCase(templateKey.trim());
+    }
+
+    private boolean containsFakeSource(Object value) {
+        if (value instanceof Map<?, ?> map) {
+            for (var entry : map.entrySet()) {
+                if ("plugin_name".equalsIgnoreCase(String.valueOf(entry.getKey()))
+                        && "fakesource".equalsIgnoreCase(String.valueOf(entry.getValue()).trim())) {
+                    return true;
+                }
+                if (containsFakeSource(entry.getValue())) return true;
+            }
+        } else if (value instanceof Collection<?> collection) {
+            for (var item : collection) if (containsFakeSource(item)) return true;
+        }
+        return false;
+    }
+}

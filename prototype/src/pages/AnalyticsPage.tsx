@@ -1,12 +1,13 @@
 import { ChartNoAxesCombined, ExternalLink, FileText, Maximize2, Pencil, RefreshCw, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { DemoDataBoundary } from '../components/ui/DemoDataBoundary'
 import { TrendChart } from '../components/charts/TrendChart'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Button, StatusTag } from '../components/ui/Primitives'
 import { dashboards } from '../data/integrations'
 import styles from './IntegrationPages.module.css'
 
-export function AnalyticsPage({ onNotice }: { onNotice: (message: string) => void }) {
+export function AnalyticsPage({ onNotice, onNavigate }: { onNotice: (message: string) => void; onNavigate: (route: 'ingestion' | 'governance' | 'quality') => void }) {
   const [selectedId, setSelectedId] = useState(dashboards[0].id)
   const [query, setQuery] = useState('')
   const selected = dashboards.find((item) => item.id === selectedId) ?? dashboards[0]
@@ -25,7 +26,8 @@ export function AnalyticsPage({ onNotice }: { onNotice: (message: string) => voi
         compact
         onFilterNotice={onNotice}
       />
-      <div className={styles.integrationWorkspace}>
+      <DemoDataBoundary moduleName="分析看板" onNavigate={onNavigate}>
+        <div className={styles.integrationWorkspace}>
         <aside className={styles.catalogRail} aria-label="分析看板目录">
           <div className={styles.railHeader}><h2>看板目录</h2><span className={styles.railCount}>{visible.length} 项</span></div>
           <label className={styles.railSearch}>
@@ -127,7 +129,8 @@ export function AnalyticsPage({ onNotice }: { onNotice: (message: string) => voi
             <Button className={styles.evidenceAction} variant="quiet" onClick={() => onNotice('专业分析设计器将在新标签页打开，并沿用统一登录')}><Pencil size={14} />进入专业编辑 <ExternalLink size={13} /></Button>
           </div>
         </aside>
-      </div>
+        </div>
+      </DemoDataBoundary>
     </div>
   )
 }

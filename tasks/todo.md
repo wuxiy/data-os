@@ -297,3 +297,28 @@ SLA worker 扫描到期问题并写入 `sla_overdue_at`、`SLA_OVERDUE` 事件�
 验证证据：控制面 Maven 全量测试 34 项通过（治理 API 26、HTTP/DBT 质量执行器 1、SeaTunnel 4、运行同步 1、来源检查 2，failures/errors 均为 0）；门户 `npm run build` 和交互 smoke 通过。开发机 `/root/data-os-dev-20260803` 创建回滚副本 `rollback-pre-sixth-20260805-0935`、`rollback-pre-hardening-20260805-1015` 和最终部署前的 `rollback-pre-final-hardening-20260805-1047`，控制面镜像 digest 为 `sha256:700889c883ad38c87ce21f9ec568566fa74db207c0b4d804cebe12493a89f254`；仅重建控制面与门户，SeaTunnel 容器 `a91cb39a12622dba4c792e305b68b0926dfb93331f70acf4a015fefbda4172c8` 保持 `running/healthy` 且 `/overview` 正常。远程临时问题验证 `SUBMITTED → SUCCEEDED`、`passed=true/false`、样本证据 1 条、`AUTO_CLOSED/AUTO_RETURNED`、同一提醒幂等键只生成 1 条事件/通知、通知 `SKIPPED`，临时数据已清理。通过浏览器转发端口 `28082` 验证最终门户质量页真实连接和“提醒责任人”交互，控制台 error/warn 为空；最终截图和构建 hash、远程输出已归档至 `docs/validation/quality-hardening-20260805.md`。
 
 本轮新增的生产边界：通知 URL 为空不会宣称送达；外部通道在 worker 崩溃后的极端窗口仍需依赖下游按 `idempotencyKey` 去重；`DEMO` 执行器仅用于开发验收，不得作为生产规则事实源；质量轮询在区域多副本部署仍需把进程内 `inFlight` 扩展为数据库租约/`SKIP LOCKED`。
+
+## 2026-08-05 第七迭代：mock 核查与真实模式边界
+
+### 目标
+
+检查前端静态 mock、控制面 DEMO 执行器和 API 失败降级是否会误导交付使用，并将演示与真实模式做成可验证、可诊断的运行边界。
+
+### 执行计划
+
+- [x] 盘点所有 `mock.ts`、`integrations.ts`、fallback 和 DEMO 配置引用
+- [x] 移除治理驾驶舱 API 失败时的本地问题 fallback，真实模式不展示静态责任链/趋势样例
+- [x] 增加 `VITE_DATAOS_DEMO_MODE` 显式前端演示开关和静态页面边界组件
+- [x] 增加 `/api/v1/system/status` 运行诊断接口，保护 DEMO 质量执行器并报告非敏感告警
+- [x] 增加 mock audit、前端构建、后端契约测试和本地浏览器双模式验证
+- [x] 重新构建本地生产/演示包，保留开发环境显式 DEMO 配置并完成远程可访问性复核
+- [x] 完成代码审查并按审查结果补齐后端 FakeSource 防线、生产启动保护和 API 失败边界
+- [ ] 提交并推送本轮变更
+
+### 结果复盘
+
+前端 mock 已从隐式 fallback 改为显式模式：标准、映射、MPI、资产、分析、问数和管理驾驶舱在真实模式不渲染静态样例，显示待接入真实服务和已落地工作区入口；`VITE_DATAOS_DEMO_MODE=true` 才启用脱敏原型数据并显示“演示模式”。治理驾驶舱保留真实控制面摘要，API 失败时不再显示问题、责任链和趋势 mock。控制面新增运行状态接口，`DEMO` 质量执行器必须设置 `DATAOS_QUALITY_DEMO_ENABLED=true` 才会生效。
+
+阶段验证：`npm run qa:mock` 通过，前端构建通过；后端新增运行状态与 DEMO 保护测试，Maven 全量测试通过；本地浏览器已验证真实模式静态模块阻断、治理 mock 清除和显式演示模式样例可见，控制台无应用 error/warn。远程部署、代码审查和推送待本节最后阶段完成。
+
+补充复盘：代码审查发现并已修复三处落地风险——治理静态链路现在同时要求演示模式和控制面可用；真实模式新建/保存任务默认 `CUSTOM_JSON`，FakeSource 在前端和控制面生产路径均被阻断，历史 FakeSource 任务也不能启动；控制面新增 `RuntimeConfigurationValidator`，生产环境默认 fail-closed 并拒绝演示种子/DEMO 执行器。最终本地验证为前端 mock audit、交互 smoke、生产构建通过，控制面 Maven 全量 42 项通过（failures/errors/skipped 均为 0），`git diff --check` 通过。远程开发机既有隧道可浏览器访问，但新 SSH 连接因凭据认证失败，未覆盖本轮最新静态包；此前已部署的开发环境基线未做破坏性操作，待恢复 SSH 凭据后按回滚副本流程重建门户和控制面。

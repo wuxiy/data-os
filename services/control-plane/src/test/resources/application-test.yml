@@ -8,9 +8,12 @@ spring:
       mode: always
 
 data-os:
+  runtime:
+    environment: test
   seed-demo: false
   quality:
     executor: DEMO
+    demo-enabled: true
     demo-delay-ms: 0
     poll-interval-ms: 3600000
     poll-initial-delay-ms: 3600000

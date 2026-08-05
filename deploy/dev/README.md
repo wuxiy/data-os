@@ -16,6 +16,7 @@
 
 ```dotenv
 DATAOS_DB_PASSWORD=复用 keycloak-db 的数据库密码
+DATAOS_RUNTIME_ENV=development
 DATAOS_SEED_DEMO=true
 # 可选：控制面运行状态同步周期，单位毫秒
 DATAOS_RUN_SYNC_INTERVAL_MS=30000
@@ -24,6 +25,7 @@ DATAOS_SEATUNNEL_TIME_ZONE=UTC
 # 开发环境默认使用确定性的 DEMO 质量执行器；生产改为 HTTP/DBT 并配置执行器地址。
 DATAOS_QUALITY_EXECUTOR=DEMO
 DATAOS_QUALITY_EXECUTOR_BASE_URL=
+DATAOS_QUALITY_DEMO_ENABLED=true
 DATAOS_QUALITY_SUBMIT_LEASE_MS=120000
 DATAOS_QUALITY_DEMO_DELAY_MS=1500
 # 可选：责任人 Webhook；为空时通知会记录为 SKIPPED，不会伪造已送达。
@@ -31,6 +33,14 @@ DATAOS_NOTIFICATION_WEBHOOK_URL=
 DATAOS_NOTIFICATION_MAX_ATTEMPTS=5
 DATAOS_NOTIFICATION_LEASE_MS=120000
 ```
+
+开发门户静态包若要展示受控原型页，构建时显式设置 `VITE_DATAOS_DEMO_MODE=true`；未设置时为真实模式，标准、MPI、资产、分析和问数页面不会渲染静态样例。控制面运行状态可通过以下接口检查：
+
+```text
+GET /api/v1/system/status
+```
+
+控制面默认按生产环境处理；开发 Compose 显式设置 `DATAOS_RUNTIME_ENV=development`。生产环境仍应显式设置 `DATAOS_RUNTIME_ENV=production`，且不得沿用 `DATAOS_SEED_DEMO=true` 或 `DATAOS_QUALITY_EXECUTOR=DEMO`；应切换为 `HTTP` 或 `DBT` 并配置 `DATAOS_QUALITY_EXECUTOR_BASE_URL`，`DATAOS_QUALITY_DEMO_ENABLED` 保持 `false`。控制面会在启动阶段阻断违反该约束的配置，历史 FakeSource 任务也不能在生产启动。
 
 先启动门户和控制面：
 
@@ -134,7 +144,7 @@ curl -fsS -X POST http://127.0.0.1:18081/api/v1/jobs/{jobId}/runs \
   -H 'Content-Type: application/json' -H 'Idempotency-Key: acceptance-run-1' -d '{}'
 ```
 
-浏览器访问 `http://开发机地址:18081/`。治理驾驶舱顶部显示“控制面已连接”时，指标与问题来自复用 PostgreSQL 的 `data_os` schema；数据质量闭环页同样从 `governance_issues` 与 `governance_issue_events` 读取真实队列和处理记录。控制面不可用时，治理驾驶舱可保留指标降级标识，但数据接入和质量闭环不会展示演示业务数据，而是显示不可用空态。
+浏览器访问 `http://开发机地址:18081/`。治理驾驶舱顶部显示“控制面已连接”时，指标与问题来自复用 PostgreSQL 的 `data_os` schema；数据质量闭环页同样从 `governance_issues` 与 `governance_issue_events` 读取真实队列和处理记录。控制面不可用时，治理驾驶舱、数据接入和质量闭环均不会展示演示业务数据，而是显示不可用空态。门户顶部的运行状态条会显示真实/演示模式、质量执行器配置和未配置告警。
 
 质量问题闭环 API：
 

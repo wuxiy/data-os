@@ -1,5 +1,6 @@
 import { ChartNoAxesCombined, Database, ExternalLink, FileCheck2, FileText, Search, Table2, Waypoints, Workflow } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { DemoDataBoundary } from '../components/ui/DemoDataBoundary'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Button, StatusTag } from '../components/ui/Primitives'
 import { assets, type AssetItem } from '../data/integrations'
@@ -15,7 +16,7 @@ const lineageIcons = {
   consumer: ChartNoAxesCombined,
 }
 
-export function AssetCatalogPage({ onNotice }: { onNotice: (message: string) => void }) {
+export function AssetCatalogPage({ onNotice, onNavigate }: { onNotice: (message: string) => void; onNavigate: (route: 'ingestion' | 'governance' | 'quality') => void }) {
   const [selectedId, setSelectedId] = useState(() => {
     const requestedId = new URLSearchParams(window.location.search).get('asset')
     return assets.some((asset) => asset.id === requestedId) ? requestedId! : assets[0].id
@@ -43,7 +44,8 @@ export function AssetCatalogPage({ onNotice }: { onNotice: (message: string) => 
         compact
         onFilterNotice={onNotice}
       />
-      <div className={styles.integrationWorkspace}>
+      <DemoDataBoundary moduleName="数据资产目录" onNavigate={onNavigate}>
+        <div className={styles.integrationWorkspace}>
         <aside className={styles.catalogRail} aria-label="数据资产目录">
           <div className={styles.railHeader}><h2>资产目录</h2><span className={styles.railCount}>{visible.length} 项</span></div>
           <label className={styles.railSearch}>
@@ -137,7 +139,8 @@ export function AssetCatalogPage({ onNotice }: { onNotice: (message: string) => 
             <Button className={styles.evidenceAction} onClick={() => onNotice('已生成当前资产的变更影响清单')}>生成影响清单</Button>
           </div>
         </aside>
-      </div>
+        </div>
+      </DemoDataBoundary>
     </div>
   )
 }

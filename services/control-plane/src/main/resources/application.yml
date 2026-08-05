@@ -19,6 +19,9 @@ spring:
       continue-on-error: false
 
 data-os:
+  runtime:
+    # Fail closed: production is the default unless a local/dev deployment opts in explicitly.
+    environment: ${DATAOS_RUNTIME_ENV:production}
   seed-demo: ${DATAOS_SEED_DEMO:false}
   seatunnel:
     base-url: ${SEATUNNEL_BASE_URL:}
@@ -26,6 +29,7 @@ data-os:
   quality:
     executor: ${DATAOS_QUALITY_EXECUTOR:HTTP}
     base-url: ${DATAOS_QUALITY_EXECUTOR_BASE_URL:}
+    demo-enabled: ${DATAOS_QUALITY_DEMO_ENABLED:false}
     demo-delay-ms: ${DATAOS_QUALITY_DEMO_DELAY_MS:500}
     poll-interval-ms: ${DATAOS_QUALITY_POLL_INTERVAL_MS:30000}
     poll-initial-delay-ms: ${DATAOS_QUALITY_POLL_INITIAL_DELAY_MS:10000}

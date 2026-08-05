@@ -1,13 +1,14 @@
 import { AlertTriangle, Code2, ExternalLink, FileText, MessageSquareText, Send, ShieldCheck, ThumbsDown, ThumbsUp } from 'lucide-react'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
+import { DemoDataBoundary } from '../components/ui/DemoDataBoundary'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Button, StatusTag } from '../components/ui/Primitives'
 import { assistantScenarios } from '../data/integrations'
 import { routePaths } from '../data/mock'
 import styles from './IntegrationPages.module.css'
 
-export function AssistantPage({ onNotice, professional = false }: { onNotice: (message: string) => void; professional?: boolean }) {
+export function AssistantPage({ onNotice, onNavigate, professional = false }: { onNotice: (message: string) => void; onNavigate: (route: 'ingestion' | 'governance' | 'quality') => void; professional?: boolean }) {
   const initialScenario = assistantScenarios.find((scenario) => scenario.id === new URLSearchParams(window.location.search).get('scenario')) ?? assistantScenarios[0]
   const [selectedId, setSelectedId] = useState(initialScenario.id)
   const [draft, setDraft] = useState('')
@@ -40,7 +41,8 @@ export function AssistantPage({ onNotice, professional = false }: { onNotice: (m
         compact
         onFilterNotice={onNotice}
       />
-      <div className={styles.assistantWorkspace}>
+      <DemoDataBoundary moduleName={professional ? '专业问数工作区' : '智能问数'} onNavigate={onNavigate}>
+        <div className={styles.assistantWorkspace}>
         <aside className={styles.conversationRail} aria-label="问数会话">
           <div className={styles.railHeader}><h2>最近会话</h2><span className={styles.railCount}>{assistantScenarios.length}</span></div>
           <ul className={styles.conversationList}>
@@ -152,7 +154,8 @@ export function AssistantPage({ onNotice, professional = false }: { onNotice: (m
             >进入专业工作区 <ExternalLink size={13} /></a>
           </div>
         </aside>
-      </div>
+        </div>
+      </DemoDataBoundary>
     </div>
   )
 }

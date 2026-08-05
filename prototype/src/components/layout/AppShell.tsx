@@ -18,6 +18,7 @@ import {
 import type { ReactNode } from 'react'
 import { useState } from 'react'
 import type { RouteKey } from '../../types'
+import { RuntimeStatusBanner } from '../ui/RuntimeStatusBanner'
 import styles from './AppShell.module.css'
 
 interface NavItem {
@@ -112,6 +113,7 @@ export function AppShell({ route, children, onNavigate, onUnavailable }: AppShel
         </button>
       </aside>
       <main id="main-content" className={styles.main} tabIndex={-1}>
+        <RuntimeStatusBanner />
         {children}
       </main>
     </div>

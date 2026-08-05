@@ -1,5 +1,6 @@
 import { CheckCircle2, GitMerge, RotateCcw, Search, ShieldCheck } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { DemoDataBoundary } from '../components/ui/DemoDataBoundary'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Button, StatusTag } from '../components/ui/Primitives'
 import { mpiCandidates } from '../data/mock'
@@ -14,7 +15,7 @@ const comparison = [
   ['院内患者号', 'H000183729', 'E00962817', '保留为多标识'],
 ]
 
-export function MpiReviewPage({ onNotice }: { onNotice: (message: string) => void }) {
+export function MpiReviewPage({ onNotice, onNavigate }: { onNotice: (message: string) => void; onNavigate: (route: 'ingestion' | 'governance' | 'quality') => void }) {
   const [selectedId, setSelectedId] = useState(mpiCandidates[0].id)
   const [confirmed, setConfirmed] = useState(false)
   const [merged, setMerged] = useState(false)
@@ -33,7 +34,8 @@ export function MpiReviewPage({ onNotice }: { onNotice: (message: string) => voi
   return (
     <div className={styles.page}>
       <PageHeader title="主索引候选审核" eyebrow="主索引与主数据" compact onFilterNotice={onNotice} />
-      <div className={styles.mpiWorkspace}>
+      <DemoDataBoundary moduleName="主索引候选审核" onNavigate={onNavigate}>
+        <div className={styles.mpiWorkspace}>
         <aside className={styles.workspaceRail}>
           <div className={styles.sectionTitle}><h2>候选队列</h2><span>36 待审核</span></div>
           <div className={styles.search}><Search size={15} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="患者姓名或候选号" aria-label="搜索主索引候选" /></div>
@@ -70,7 +72,8 @@ export function MpiReviewPage({ onNotice }: { onNotice: (message: string) => voi
             <div className={styles.actionGroup}><Button onClick={() => onNotice('候选已退回规则调整队列')} disabled={merged}><RotateCcw size={14} />退回</Button><Button variant="primary" disabled={!confirmed || merged} onClick={confirmRelation}><GitMerge size={14} />{merged ? '已建立关联' : '确认建立关联'}</Button></div>
           </div>
         </section>
-      </div>
+        </div>
+      </DemoDataBoundary>
     </div>
   )
 }

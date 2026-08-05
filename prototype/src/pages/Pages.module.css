@@ -62,6 +62,13 @@
   font-size: 11px;
 }
 
+.emptyRow {
+  padding: 18px 12px !important;
+  color: var(--muted);
+  text-align: center;
+  font-size: 12px;
+}
+
 .dashboardScope {
   display: inline-flex;
   min-height: 30px;

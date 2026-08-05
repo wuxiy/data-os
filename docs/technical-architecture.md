@@ -185,10 +185,13 @@ flowchart LR
 | `/api/v1/mpi`、`/master-data` | 主索引与主数据 |
 | `/api/v1/analytics` | Superset 看板目录和嵌入会话 |
 | `/api/v1/assistant` | DB-GPT 问答、证据和反馈 |
+| `/api/v1/system/status` | 非敏感运行模式、执行器配置和降级告警 |
 | `/api/v1/operations`、`/evidence` | 运营和交付证据 |
 | `/edge/v1/heartbeat`、`/events`、`/artifacts`、`/commands` | Edge Node 出站通信 |
 
 所有可重试的运行、发布和补数命令携带 `Idempotency-Key`；当前首条采集切片已在运行命令落地按任务维度的幂等重放。异步操作返回 `operation_id`，前端订阅 SSE 状态或轮询统一操作接口，不等待底层任务执行完成。
+
+门户静态原型数据不是业务事实。默认真实构建不渲染未接入服务的样例，只有显式设置 `VITE_DATAOS_DEMO_MODE=true` 才启用脱敏/合成演示数据；控制面 API 失败不得静默回退到问题、指标或责任链 mock。门户通过 `/api/v1/system/status` 展示 LIVE/DEMO、执行器配置和通知通道告警。控制面 `DATAOS_RUNTIME_ENV` 默认按 production 处理，显式标记 production 时会阻断演示种子、DEMO 质量执行器及历史 FakeSource 采集任务。
 
 ### 4.6 采集任务配置契约（首条切片）
 
@@ -243,7 +246,7 @@ AssistantAdapter: ask / cancel / getEvidence / feedback
 - Portal 发布任务时先落库和 Outbox，再由 Worker 发布到执行器；发布失败不改变上一个生效版本。
 - 状态同步采用控制面后台增量轮询，同时提供 `POST /api/v1/jobs/{jobId}/runs/{runId}/sync` 供门户人工刷新；本轮使用 PostgreSQL 运行表直接回写，连续依赖失败保留可重试状态，配置型状态查询失败转为 `FAILED`，`UNKNOWN` 只允许人工重试，后续接入 Outbox/死信表时不改变适配器契约。任务生命周期状态与最近一次运行状态分离，后者以 `job_runs` 为准。
 - 开发档位限制单控制面实例与每轮最多 100 条候选；进入区域多副本前必须替换为数据库租约/`SKIP LOCKED`、`next_sync_at` 退避和并行 worker，避免重复查询与长尾饥饿。
-- 质量复检使用独立 `QualityRuleExecutor` 端口：控制面先持久化 `quality_rule_runs` 执行批次，再在事务外调用 `HTTP/DBT` 适配器，后台轮询并回写 `status/passed/execution_batch_id/sample_evidence`。`SUBMITTING` 也属于可恢复扫描态；提交阶段使用数据库租约和 worker 所有权，临时执行器不可用时保留该态并指数退避，执行批次号作为外部执行器 `Idempotency-Key`。人工同步对 `SUBMITTING` 遵守下次投递时间，只触发状态轮询，不会绕过投递退避。`SUCCEEDED + passed=true` 触发 `AUTO_CLOSED`，失败、取消或未通过触发 `AUTO_RETURNED/RECHECK_FAILED`；所有流转均通过条件更新和事件表保证幂等，详情同时返回最近批次和历史批次（最近 20 条）。开发环境可用确定性的 `DEMO` 适配器跑通交付验收，生产应替换为 dbt、Great Expectations 或院内质量服务。
+- 质量复检使用独立 `QualityRuleExecutor` 端口：控制面先持久化 `quality_rule_runs` 执行批次，再在事务外调用 `HTTP/DBT` 适配器，后台轮询并回写 `status/passed/execution_batch_id/sample_evidence`。`SUBMITTING` 也属于可恢复扫描态；提交阶段使用数据库租约和 worker 所有权，临时执行器不可用时保留该态并指数退避，执行批次号作为外部执行器 `Idempotency-Key`。人工同步对 `SUBMITTING` 遵守下次投递时间，只触发状态轮询，不会绕过投递退避。`SUCCEEDED + passed=true` 触发 `AUTO_CLOSED`，失败、取消或未通过触发 `AUTO_RETURNED/RECHECK_FAILED`；所有流转均通过条件更新和事件表保证幂等，详情同时返回最近批次和历史批次（最近 20 条）。开发环境可用确定性的 `DEMO` 适配器跑通交付验收，但必须显式设置 `DATAOS_QUALITY_DEMO_ENABLED=true`；生产应替换为 dbt、Great Expectations 或院内质量服务并关闭 DEMO。
 - SLA worker 扫描 `due_at`，在 `sla_overdue_at` 首次写入时生成 `SLA_OVERDUE` 事件；复检中的问题不被强制改成逾期状态，避免覆盖执行态。责任人通知以 `WEBHOOK` 适配器为第一通道，通知表保存幂等键、尝试次数、退避时间、租约和最终状态；投递前通过条件更新抢占 `SENDING`，完成时校验 worker，避免定时任务与人工接口并发外发。未配置通道时显示 `SKIPPED`，不得伪造送达事实；门户主动提醒也复用该队列，关闭问题拒绝提醒，同一 `Idempotency-Key` 不重复生成事件或通知。
 
 ### 5.3 dbt、Doris 与 OpenMetadata
@@ -418,6 +421,7 @@ MVP 使用 Micrometer/Prometheus 指标和 Grafana；应用日志输出结构化
 | DB-GPT/模型不可用 | 降级到指标和资产检索 | 返回无证据的编造回答 | 取消未完成查询，恢复后新建请求 |
 | HAPI FHIR MDM 不可用 | 进入待匹配区 | 临时生成不可追溯黄金 ID | 重放待匹配任务 |
 | DolphinScheduler 不可用 | 已运行作业按执行器能力继续 | 门户伪造“成功”状态 | 对账实例并恢复业务投影 |
+| 门户控制面不可用 | 已落地工作区显示真实不可用状态；静态模块不渲染样例 | 用 mock 问题/指标冒充实时事实 | 恢复 `/api/v1` 后重新加载 |
 
 Outbox 重试采用有上限的指数退避；超过阈值进入死信队列，由运营中心显示责任组件、影响对象、首次失败时间和一键重放入口。
 

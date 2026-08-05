@@ -8,7 +8,7 @@ interface PageHeaderProps {
   onFilterNotice?: (message: string) => void
 }
 
-const FILTER_NOTICE = '演示数据不随筛选变化，实际部署后按所选范围过滤'
+const FILTER_NOTICE = '当前筛选控件用于范围选择；真实数据过滤由对应数据服务执行'
 
 export function PageHeader({ title, eyebrow, subtitle, compact = false, onFilterNotice }: PageHeaderProps) {
   const notifyFilter = () => onFilterNotice?.(FILTER_NOTICE)

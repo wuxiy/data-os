@@ -1,5 +1,6 @@
 import { ChevronRight, Filter, Plus, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { DemoDataBoundary } from '../components/ui/DemoDataBoundary'
 import { GovernanceTabs } from '../components/ui/GovernanceTabs'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Button, StatusTag } from '../components/ui/Primitives'
@@ -30,7 +31,8 @@ export function DataStandardsPage({ onNavigate, onUnavailable, onNotice }: Props
     <div className={styles.page}>
       <PageHeader title="数据标准" compact onFilterNotice={onNotice} />
       <GovernanceTabs route="standards" onNavigate={onNavigate} onUnavailable={onUnavailable} />
-      <div className={styles.workspace}>
+      <DemoDataBoundary moduleName="数据标准" onNavigate={onNavigate}>
+        <div className={styles.workspace}>
         <aside className={styles.workspaceRail}>
           <div className={styles.sectionTitle}><h2>标准分类</h2><span>5 个主题</span></div>
           <div className={styles.search}><Search size={15} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索标准名称或编码" aria-label="搜索数据标准" /></div>
@@ -71,7 +73,8 @@ export function DataStandardsPage({ onNavigate, onUnavailable, onNotice }: Props
             </ol>
           </div>
         </aside>
-      </div>
+        </div>
+      </DemoDataBoundary>
     </div>
   )
 }

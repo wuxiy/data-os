@@ -19,14 +19,17 @@ public class DemoQualityRuleExecutor implements QualityRuleExecutor {
 
     private final Map<String, DemoRun> runs = new ConcurrentHashMap<>();
     private final long delayMs;
+    private final boolean enabled;
 
-    public DemoQualityRuleExecutor(@Value("${data-os.quality.demo-delay-ms:500}") long delayMs) {
+    public DemoQualityRuleExecutor(@Value("${data-os.quality.demo-delay-ms:500}") long delayMs,
+                                   @Value("${data-os.quality.demo-enabled:false}") boolean enabled) {
         this.delayMs = Math.max(0, delayMs);
+        this.enabled = enabled;
     }
 
     @Override
     public boolean supports(String executor) {
-        return "DEMO".equalsIgnoreCase(executor);
+        return enabled && "DEMO".equalsIgnoreCase(executor);
     }
 
     @Override

@@ -50,7 +50,7 @@ export function App() {
   }
 
   function showUnavailable(label: string) {
-    setNotice(`${label}将在下一版接入；当前可体验治理、资产、分析、问数与主索引核心流程`)
+    setNotice(`${label}尚未接入真实服务；当前可用的是数据接入、治理驾驶舱和质量闭环。演示模块需显式启用 VITE_DATAOS_DEMO_MODE`)
   }
 
   let page
@@ -71,25 +71,25 @@ export function App() {
       page = <QualityIssuesPage onNavigate={navigate} onUnavailable={showUnavailable} onNotice={setNotice} />
       break
     case 'mpi':
-      page = <MpiReviewPage onNotice={setNotice} />
+      page = <MpiReviewPage onNotice={setNotice} onNavigate={navigate} />
       break
     case 'assets':
-      page = <AssetCatalogPage onNotice={setNotice} />
+      page = <AssetCatalogPage onNotice={setNotice} onNavigate={navigate} />
       break
     case 'assetTechnical':
       page = <AssetTechnicalPage onNotice={setNotice} />
       break
     case 'analytics':
-      page = <AnalyticsPage onNotice={setNotice} />
+      page = <AnalyticsPage onNotice={setNotice} onNavigate={navigate} />
       break
     case 'assistant':
-      page = <AssistantPage onNotice={setNotice} />
+      page = <AssistantPage onNotice={setNotice} onNavigate={navigate} />
       break
     case 'assistantWorkspace':
-      page = <AssistantPage onNotice={setNotice} professional />
+      page = <AssistantPage onNotice={setNotice} onNavigate={navigate} professional />
       break
     default:
-      page = <ManagementDashboardPage onOpenChain={() => setDrawerOpen(true)} onUnavailable={showUnavailable} onNotice={setNotice} />
+      page = <ManagementDashboardPage onOpenChain={() => setDrawerOpen(true)} onUnavailable={showUnavailable} onNotice={setNotice} onNavigate={navigate} />
   }
 
   return (

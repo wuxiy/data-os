@@ -99,6 +99,17 @@ export interface GovernanceIssueListApiResponse {
   total: number
 }
 
+export interface RuntimeStatusApiResponse {
+  mode: 'LIVE' | 'DEMO'
+  seedDemoEnabled: boolean
+  qualityExecutor: string
+  qualityExecutorConfigured: boolean
+  demoQualityExecutorEnabled: boolean
+  seatunnelConfigured: boolean
+  notificationConfigured: boolean
+  warnings: string[]
+}
+
 export interface SourceApiItem {
   id: string
   tenantId: string
@@ -196,6 +207,10 @@ export async function fetchGovernanceSummary(signal?: AbortSignal): Promise<Gove
     throw new Error(`治理摘要请求失败：${response.status}`)
   }
   return response.json() as Promise<GovernanceApiSummary>
+}
+
+export async function fetchRuntimeStatus(signal?: AbortSignal): Promise<RuntimeStatusApiResponse> {
+  return getJson('/v1/system/status', signal)
 }
 
 export async function fetchGovernanceIssues(options: {

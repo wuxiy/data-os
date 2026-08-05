@@ -12,6 +12,7 @@
 - `services/control-plane/`：Java 21 / Spring Boot 控制面首条垂直切片，含数据源、采集任务、运行记录和治理摘要 API。
 - `deploy/dev/`：不含密钥的开发环境 Compose 覆盖；复用 data-ops 的 PostgreSQL 与 `platform-net`。
 - `tasks/`：执行计划与结果复盘（`todo.md`）、经验教训（`lessons.md`）。
+- `docs/mock-production-readiness.md`：mock/真实运行模式边界、落地使用方式与验收清单。
 
 ## 当前状态
 
@@ -19,6 +20,7 @@
 - 前端已完成 10 个桌面路由页面：新增“数据接入”工作台，并保留治理、资产、分析、问数和主索引等业务工作台；所有页面使用统一门户，不暴露组件原生菜单。
 - 控制面首条垂直切片已实现：`GET/POST /api/v1/sources`、`POST /api/v1/sources/{id}/check`、`GET/POST /api/v1/jobs`、`PUT /api/v1/jobs/{id}/status`、`GET/PUT /api/v1/jobs/{id}/config`、`POST/GET /api/v1/jobs/{id}/runs`、`POST /api/v1/jobs/{jobId}/runs/{runId}/sync`、`POST /api/v1/jobs/{jobId}/runs/{runId}/retry`、`GET /api/v1/governance/summary`、`GET /api/v1/governance/issues`、`GET /api/v1/governance/issues/{id}`、`PUT /api/v1/governance/issues/{id}/workflow`、`POST /api/v1/governance/issues/{id}/recheck`、`POST /api/v1/governance/issues/{issueId}/runs/{runId}/sync`、`POST /api/v1/governance/issues/{issueId}/notifications/remind`、`POST /api/v1/governance/sla/scan`、`POST /api/v1/governance/notifications/deliver` 与 `/actuator/health/readiness`。任务配置以模板标识、版本和结构 JSON 持久化，运行请求可使用已保存配置并支持 `Idempotency-Key` 重放；密码、Secret、Token 等明文键会被拒绝。运行记录支持 SeaTunnel 状态归一、定时回写、手动同步和终态重试；任务生命周期 `DRAFT/ACTIVE/PAUSED/ARCHIVED` 与最近运行状态分离，暂停/归档任务不会接受新运行。数据源检查当前支持 JDBC、HTTP/FHIR，并将最近检查时间和结果回写 PostgreSQL。治理问题支持查询、责任/证据详情、处理说明和复检事件持久化；复检会投递到可替换的质量规则执行器，`SUBMITTING` 中间态可恢复、临时不可用自动退避重试，回写执行批次、通过/失败和样本证据，并驱动自动关闭/退回；SLA 扫描和责任人通知也持久化到 PostgreSQL，通知以数据库租约抢占避免并发重复外发。
 - 数据接入页已具备交付所需的桌面闭环：登记数据源、检查来源可用性、新建采集任务、编辑/保存配置、启用/暂停/归档任务、幂等启动、失败重试、运行详情抽屉和 5 秒状态刷新；数据质量闭环页支持真实问题队列、责任链详情、处理说明和复检操作。控制面不可用时，数据接入与质量闭环均展示明确不可用空态，不把演示状态当作真实业务事实。
+- mock 数据已改为显式演示边界：`VITE_DATAOS_DEMO_MODE=true` 才展示标准、MPI、资产、分析和问数的脱敏原型数据；真实模式不再静默渲染样例。门户顶部读取 `/api/v1/system/status`，展示控制面、质量执行器、SeaTunnel 和通知通道配置告警。
 - 已部署到开发机 `172.16.65.59` 的独立 `/root/data-os-dev-20260803` 目录：门户 `18081`、控制面容器和 `data_os` schema 已通过 API 验收；SeaTunnel 2.3.13 已用 Apache 官方二进制包构建为本地镜像，REST 端口 `18082`，控制面已配置内部地址并完成真实提交验收。
 
 ## 运行原型
@@ -30,3 +32,4 @@ npm run dev
 ```
 
 生产构建与路由回退要求见 `prototype/README.md`。
+控制面运行环境默认按生产处理并关闭演示数据；开发/验收环境如需演示种子和 DEMO 执行器，应显式配置 `DATAOS_RUNTIME_ENV=development`、`DATAOS_SEED_DEMO=true` 和 `DATAOS_QUALITY_DEMO_ENABLED=true`。生产环境设置 `DATAOS_RUNTIME_ENV=production`，控制面会启动阻断演示配置与历史 FakeSource 任务。

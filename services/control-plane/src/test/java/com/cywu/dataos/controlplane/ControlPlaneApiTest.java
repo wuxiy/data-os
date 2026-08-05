@@ -56,6 +56,19 @@ class ControlPlaneApiTest {
     private NotificationService notificationService;
 
     @Test
+    void exposesNonSensitiveRuntimeStatusForPortalDiagnostics() throws Exception {
+        mockMvc.perform(get("/api/v1/system/status"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.mode", is("DEMO")))
+                .andExpect(jsonPath("$.qualityExecutor", is("DEMO")))
+                .andExpect(jsonPath("$.qualityExecutorConfigured", is(true)))
+                .andExpect(jsonPath("$.demoQualityExecutorEnabled", is(true)))
+                .andExpect(jsonPath("$.seatunnelConfigured", is(false)))
+                .andExpect(jsonPath("$.notificationConfigured", is(false)))
+                .andExpect(jsonPath("$.warnings", hasSize(2)));
+    }
+
+    @Test
     void registersAndListsSourceThroughPublicApi() throws Exception {
         mockMvc.perform(post("/api/v1/sources")
                         .contentType(MediaType.APPLICATION_JSON)
