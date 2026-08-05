@@ -25,6 +25,7 @@ export interface GovernanceApiIssue {
   updatedAt?: string | null
   lastActionAt?: string | null
   lastAction?: string | null
+  slaOverdueAt?: string | null
 }
 
 export interface GovernanceApiSummary {
@@ -44,9 +45,53 @@ export interface GovernanceIssueEventApiItem {
   createdAt: string
 }
 
+export interface GovernanceQualityRunApiItem {
+  id: string
+  issueId: string
+  tenantId: string
+  institutionId: string
+  ruleId: string
+  datasetId: string
+  executor: string
+  status: string
+  externalId: string | null
+  executionBatchId: string
+  passed: boolean | null
+  resultMessage: string | null
+  sampleEvidence: Array<Record<string, unknown>>
+  submittedAt: string
+  startedAt: string | null
+  finishedAt: string | null
+  attemptCount: number
+  nextPollAt: string | null
+  lastError: string | null
+  updatedAt: string
+}
+
+export interface GovernanceNotificationApiItem {
+  id: string
+  issueId: string
+  eventId: string | null
+  channel: string
+  recipient: string
+  subject: string
+  body: string
+  status: string
+  idempotencyKey: string
+  attemptCount: number
+  lastError: string | null
+  nextAttemptAt: string | null
+  sentAt: string | null
+  createdAt: string
+  updatedAt: string
+}
+
 export interface GovernanceIssueDetailApiResponse {
   issue: GovernanceApiIssue
   events: GovernanceIssueEventApiItem[]
+  latestRun: GovernanceQualityRunApiItem | null
+  runs: GovernanceQualityRunApiItem[]
+  notifications: GovernanceNotificationApiItem[]
 }
 
 export interface GovernanceIssueListApiResponse {
@@ -191,6 +236,29 @@ export async function requestGovernanceIssueRecheck(issueId: string, note?: stri
     signal,
   })
   if (!response.ok) await responseError(response, '治理问题复检请求失败')
+  return response.json() as Promise<GovernanceIssueDetailApiResponse>
+}
+
+export async function syncGovernanceIssueRun(issueId: string, runId: string, signal?: AbortSignal): Promise<GovernanceIssueDetailApiResponse> {
+  const response = await fetch(`${API_BASE_URL}/v1/governance/issues/${encodeURIComponent(issueId)}/runs/${encodeURIComponent(runId)}/sync`, {
+    method: 'POST',
+    headers: { Accept: 'application/json' },
+    signal,
+  })
+  if (!response.ok) await responseError(response, '质量复检结果同步失败')
+  return response.json() as Promise<GovernanceIssueDetailApiResponse>
+}
+
+export async function remindGovernanceIssueOwner(issueId: string, signal?: AbortSignal): Promise<GovernanceIssueDetailApiResponse> {
+  const idempotencyKey = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : `reminder-${Date.now()}-${Math.random().toString(36).slice(2)}`
+  const response = await fetch(`${API_BASE_URL}/v1/governance/issues/${encodeURIComponent(issueId)}/notifications/remind`, {
+    method: 'POST',
+    headers: { Accept: 'application/json', 'Idempotency-Key': idempotencyKey },
+    signal,
+  })
+  if (!response.ok) await responseError(response, '责任人提醒请求失败')
   return response.json() as Promise<GovernanceIssueDetailApiResponse>
 }
 

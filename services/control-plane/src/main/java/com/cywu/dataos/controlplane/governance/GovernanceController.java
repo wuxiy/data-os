@@ -6,19 +6,29 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RequestBody;
 
 import jakarta.validation.Valid;
+import com.cywu.dataos.controlplane.quality.GovernanceNotificationDeliveryResult;
+import com.cywu.dataos.controlplane.quality.GovernanceSlaScanResult;
+import com.cywu.dataos.controlplane.quality.NotificationService;
+import com.cywu.dataos.controlplane.quality.QualityWorkflowService;
 
 @RestController
 @RequestMapping("/api/v1/governance")
 public class GovernanceController {
 
     private final GovernanceService service;
+    private final QualityWorkflowService qualityWorkflow;
+    private final NotificationService notifications;
 
-    public GovernanceController(GovernanceService service) {
+    public GovernanceController(GovernanceService service, QualityWorkflowService qualityWorkflow,
+                                NotificationService notifications) {
         this.service = service;
+        this.qualityWorkflow = qualityWorkflow;
+        this.notifications = notifications;
     }
 
     @GetMapping("/summary")
@@ -61,5 +71,40 @@ public class GovernanceController {
             @RequestParam(required = false) String institutionId,
             @Valid @RequestBody(required = false) RecheckGovernanceIssueRequest request) {
         return service.requestRecheck(issueId, tenantId, institutionId, request);
+    }
+
+    @PostMapping("/issues/{issueId}/runs/{runId}/sync")
+    public GovernanceIssueDetail syncQualityRun(
+            @PathVariable String issueId,
+            @PathVariable String runId,
+            @RequestParam(required = false) String tenantId,
+            @RequestParam(required = false) String institutionId) {
+        return qualityWorkflow.sync(issueId, runId, tenantId, institutionId);
+    }
+
+    @PostMapping("/issues/{issueId}/notifications/remind")
+    public GovernanceIssueDetail remindOwner(
+            @PathVariable String issueId,
+            @RequestParam(required = false) String tenantId,
+            @RequestParam(required = false) String institutionId,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
+        var tenant = tenantId == null || tenantId.isBlank() ? "default" : tenantId.trim();
+        var institution = institutionId == null || institutionId.isBlank() ? "demo-hospital" : institutionId.trim();
+        notifications.remind(issueId, tenant, institution, idempotencyKey);
+        return service.detail(issueId, tenant, institution);
+    }
+
+    @PostMapping("/sla/scan")
+    public GovernanceSlaScanResult scanSla(
+            @RequestParam(required = false) String tenantId,
+            @RequestParam(required = false) String institutionId) {
+        return qualityWorkflow.scanSla(tenantId, institutionId);
+    }
+
+    @PostMapping("/notifications/deliver")
+    public GovernanceNotificationDeliveryResult deliverNotifications() {
+        var summary = notifications.deliverPending();
+        return new GovernanceNotificationDeliveryResult(summary.processed(), summary.sent(),
+                summary.skipped(), summary.failed());
     }
 }

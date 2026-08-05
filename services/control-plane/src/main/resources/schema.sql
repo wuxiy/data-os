@@ -74,6 +74,7 @@ ALTER TABLE data_os.governance_issues ADD COLUMN IF NOT EXISTS processing_note T
 ALTER TABLE data_os.governance_issues ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP;
 ALTER TABLE data_os.governance_issues ADD COLUMN IF NOT EXISTS last_action_at TIMESTAMP NULL;
 ALTER TABLE data_os.governance_issues ADD COLUMN IF NOT EXISTS last_action VARCHAR(64) NULL;
+ALTER TABLE data_os.governance_issues ADD COLUMN IF NOT EXISTS sla_overdue_at TIMESTAMP NULL;
 
 CREATE TABLE IF NOT EXISTS data_os.governance_issue_events (
     id VARCHAR(36) PRIMARY KEY,
@@ -88,6 +89,54 @@ CREATE TABLE IF NOT EXISTS data_os.governance_issue_events (
 CREATE INDEX IF NOT EXISTS idx_data_os_jobs_source ON data_os.ingestion_jobs(source_id);
 CREATE INDEX IF NOT EXISTS idx_data_os_issue_scope ON data_os.governance_issues(tenant_id, institution_id);
 CREATE INDEX IF NOT EXISTS idx_data_os_issue_events_issue ON data_os.governance_issue_events(issue_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS data_os.quality_rule_runs (
+    id VARCHAR(36) PRIMARY KEY,
+    issue_id VARCHAR(64) NOT NULL,
+    tenant_id VARCHAR(128) NOT NULL,
+    institution_id VARCHAR(128) NOT NULL,
+    rule_id VARCHAR(200) NOT NULL,
+    dataset_id VARCHAR(200) NOT NULL,
+    executor VARCHAR(64) NOT NULL,
+    status VARCHAR(40) NOT NULL,
+    external_id VARCHAR(200) NULL,
+    execution_batch_id VARCHAR(128) NOT NULL,
+    passed BOOLEAN NULL,
+    result_message VARCHAR(1000) NULL,
+    sample_evidence_json TEXT NULL,
+    sample_evidence_count INTEGER NOT NULL DEFAULT 0,
+    submitted_at TIMESTAMP NOT NULL,
+    started_at TIMESTAMP NULL,
+    finished_at TIMESTAMP NULL,
+    attempt_count INTEGER NOT NULL DEFAULT 0,
+    next_poll_at TIMESTAMP NULL,
+    submit_lease_until TIMESTAMP NULL,
+    submit_lease_by VARCHAR(128) NULL,
+    last_error VARCHAR(1000) NULL,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_data_os_quality_run_issue FOREIGN KEY (issue_id) REFERENCES data_os.governance_issues(id)
+);
+
+CREATE TABLE IF NOT EXISTS data_os.governance_notifications (
+    id VARCHAR(36) PRIMARY KEY,
+    issue_id VARCHAR(64) NOT NULL,
+    event_id VARCHAR(36) NULL,
+    channel VARCHAR(64) NOT NULL,
+    recipient VARCHAR(200) NOT NULL,
+    subject VARCHAR(300) NOT NULL,
+    body TEXT NOT NULL,
+    status VARCHAR(32) NOT NULL,
+    idempotency_key VARCHAR(200) NOT NULL,
+    attempt_count INTEGER NOT NULL DEFAULT 0,
+    last_error VARCHAR(1000) NULL,
+    next_attempt_at TIMESTAMP NULL,
+    locked_until TIMESTAMP NULL,
+    locked_by VARCHAR(128) NULL,
+    sent_at TIMESTAMP NULL,
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL,
+    CONSTRAINT fk_data_os_notification_issue FOREIGN KEY (issue_id) REFERENCES data_os.governance_issues(id)
+);
 
 CREATE TABLE IF NOT EXISTS data_os.job_runs (
     id VARCHAR(36) PRIMARY KEY,
@@ -108,7 +157,16 @@ ALTER TABLE data_os.job_runs ADD COLUMN IF NOT EXISTS request_key VARCHAR(128) N
 ALTER TABLE data_os.job_runs ADD COLUMN IF NOT EXISTS request_fingerprint VARCHAR(64) NULL;
 ALTER TABLE data_os.sources ADD COLUMN IF NOT EXISTS last_checked_at TIMESTAMP NULL;
 ALTER TABLE data_os.sources ADD COLUMN IF NOT EXISTS last_check_message VARCHAR(500) NULL;
+ALTER TABLE data_os.governance_notifications ADD COLUMN IF NOT EXISTS locked_until TIMESTAMP NULL;
+ALTER TABLE data_os.governance_notifications ADD COLUMN IF NOT EXISTS locked_by VARCHAR(128) NULL;
+ALTER TABLE data_os.quality_rule_runs ADD COLUMN IF NOT EXISTS submit_lease_until TIMESTAMP NULL;
+ALTER TABLE data_os.quality_rule_runs ADD COLUMN IF NOT EXISTS submit_lease_by VARCHAR(128) NULL;
 
 CREATE INDEX IF NOT EXISTS idx_data_os_runs_job ON data_os.job_runs(job_id, submitted_at DESC);
 CREATE INDEX IF NOT EXISTS idx_data_os_runs_sync ON data_os.job_runs(status, submitted_at, external_id);
 CREATE UNIQUE INDEX IF NOT EXISTS uq_data_os_runs_request ON data_os.job_runs(job_id, request_key);
+CREATE INDEX IF NOT EXISTS idx_data_os_quality_runs_issue ON data_os.quality_rule_runs(issue_id, submitted_at DESC);
+CREATE INDEX IF NOT EXISTS idx_data_os_quality_runs_sync ON data_os.quality_rule_runs(status, next_poll_at, submit_lease_until, submitted_at);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_data_os_quality_run_external ON data_os.quality_rule_runs(executor, external_id);
+CREATE INDEX IF NOT EXISTS idx_data_os_notifications_pending ON data_os.governance_notifications(status, next_attempt_at, locked_until, created_at);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_data_os_notification_key ON data_os.governance_notifications(idempotency_key);

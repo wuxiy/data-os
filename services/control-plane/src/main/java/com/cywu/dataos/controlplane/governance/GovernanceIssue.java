@@ -18,5 +18,6 @@ public record GovernanceIssue(
         String processingNote,
         Instant updatedAt,
         Instant lastActionAt,
-        String lastAction) {
+        String lastAction,
+        Instant slaOverdueAt) {
 }

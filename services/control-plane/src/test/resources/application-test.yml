@@ -9,6 +9,17 @@ spring:
 
 data-os:
   seed-demo: false
+  quality:
+    executor: DEMO
+    demo-delay-ms: 0
+    poll-interval-ms: 3600000
+    poll-initial-delay-ms: 3600000
+    sla-scan-interval-ms: 3600000
+    sla-scan-initial-delay-ms: 3600000
+    submit-lease-ms: 120000
+  notification:
+    delivery-interval-ms: 3600000
+    delivery-initial-delay-ms: 3600000
   runs:
     sync-interval-ms: 3600000
     sync-initial-delay-ms: 3600000

@@ -1,4 +1,4 @@
-import { CircleAlert, LoaderCircle, Play, Search, Send } from 'lucide-react'
+import { CircleAlert, LoaderCircle, RefreshCw, Search, Send } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { GovernanceTabs } from '../components/ui/GovernanceTabs'
 import { PageHeader } from '../components/ui/PageHeader'
@@ -6,7 +6,9 @@ import { Button, StatusTag } from '../components/ui/Primitives'
 import {
   fetchGovernanceIssue,
   fetchGovernanceIssues,
+  remindGovernanceIssueOwner,
   requestGovernanceIssueRecheck,
+  syncGovernanceIssueRun,
   updateGovernanceIssueWorkflow,
   type GovernanceApiIssue,
   type GovernanceIssueDetailApiResponse,
@@ -21,7 +23,7 @@ interface Props {
 }
 
 type ApiState = 'loading' | 'live' | 'unavailable'
-type ActionState = 'note' | 'recheck' | null
+type ActionState = 'note' | 'recheck' | 'sync' | 'notify' | null
 
 export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props) {
   const [apiState, setApiState] = useState<ApiState>('loading')
@@ -80,7 +82,7 @@ export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props
   }, [issues, query])
 
   const selected = detail?.issue ?? issues.find((issue) => issue.id === selectedId) ?? null
-  const canEdit = selected != null && selected.status !== 'CLOSED'
+  const canEdit = selected != null && selected.status !== 'CLOSED' && selected.status !== 'RECHECKING'
   const canRecheck = canEdit && selected?.status !== 'RECHECKING'
 
   async function startRetest() {
@@ -90,7 +92,14 @@ export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props
     try {
       const next = await requestGovernanceIssueRecheck(selected.id, '按原质量规则重新执行复检')
       applyDetail(next)
-      onNotice('复检请求已记录，状态已回写为复检中')
+      const run = next.latestRun
+      if (next.issue.status === 'RETURNED' || run?.status === 'SUBMIT_FAILED') {
+        onNotice('复检投递失败，问题已退回，请检查执行器配置')
+      } else if (run?.status === 'SUBMITTING') {
+        onNotice('复检请求已登记，执行器暂不可用，将按策略自动重试')
+      } else {
+        onNotice('复检请求已投递，等待质量规则执行器回写结果')
+      }
     } catch (error) {
       setActionError(error instanceof Error ? error.message : '复检请求失败，请稍后重试')
     } finally {
@@ -109,6 +118,36 @@ export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props
       onNotice('处理说明已保存，治理问题状态已回写')
     } catch (error) {
       setActionError(error instanceof Error ? error.message : '处理说明保存失败，请稍后重试')
+    } finally {
+      setActionState(null)
+    }
+  }
+
+  async function syncRun() {
+    if (!selected || !detail?.latestRun || actionState) return
+    setActionState('sync')
+    setActionError(null)
+    try {
+      const next = await syncGovernanceIssueRun(selected.id, detail.latestRun.id)
+      applyDetail(next)
+      onNotice(next.latestRun?.status === 'SUCCEEDED' ? (next.latestRun.passed ? '质量复检通过，问题已自动关闭' : '质量复检未通过，问题已退回') : '质量执行批次状态已同步')
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : '质量复检结果同步失败，请稍后重试')
+    } finally {
+      setActionState(null)
+    }
+  }
+
+  async function remindOwner() {
+    if (!selected || actionState) return
+    setActionState('notify')
+    setActionError(null)
+    try {
+      const next = await remindGovernanceIssueOwner(selected.id)
+      applyDetail(next)
+      onNotice('责任人提醒已加入通知队列')
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : '责任人提醒请求失败，请稍后重试')
     } finally {
       setActionState(null)
     }
@@ -144,7 +183,7 @@ export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props
             <div className={styles.detailHero}>
               <StatusTag tone={statusTone(selected.status)}>{issueStatus(selected.status)}</StatusTag>
               <h2>{selected.title}</h2><p>{selected.id} · {selected.objectLabel || selected.datasetId}</p>
-              <div className={styles.detailActions}><Button variant="primary" onClick={() => void startRetest()} disabled={!canRecheck || actionState !== null}>{actionState === 'recheck' ? '提交中…' : selected.status === 'RECHECKING' ? '复检中' : '开始复检'}</Button><Button onClick={() => onUnavailable('责任人提醒')}>提醒责任人</Button></div>
+              <div className={styles.detailActions}><Button variant="primary" onClick={() => void startRetest()} disabled={!canRecheck || actionState !== null}>{actionState === 'recheck' ? '提交中…' : selected.status === 'RECHECKING' ? '复检中' : '开始复检'}</Button>{detail.latestRun && !isTerminalRun(detail.latestRun.status) ? <Button onClick={() => void syncRun()} disabled={actionState !== null}><RefreshCw size={14} className={actionState === 'sync' ? styles.spin : undefined} />{actionState === 'sync' ? '同步中…' : '同步复检结果'}</Button> : null}<Button onClick={() => void remindOwner()} disabled={actionState !== null || selected.status === 'CLOSED'}>{actionState === 'notify' ? '提醒中…' : selected.status === 'CLOSED' ? '问题已关闭' : '提醒责任人'}</Button></div>
             </div>
             <ol className={styles.timeline}>
               {detail.events.map((event) => <li key={event.id}><time>{formatDateTime(event.createdAt)}</time><div><strong>{eventTitle(event.eventType)}</strong><p>{event.note} · {event.actor}</p></div></li>)}
@@ -157,6 +196,18 @@ export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props
             <div className={styles.sectionTitle}><h3>影响与证据</h3><StatusTag tone={severityTone(selected.severity)}>{severityLabel(selected.severity)}风险</StatusTag></div>
             <div className={styles.evidenceBox}><h3>影响范围</h3><p>{selected.impact}</p></div>
             <div className={styles.evidenceBox}><h3>规则证据</h3><p>{selected.ruleId}<br />最近更新：{formatDateTime(selected.updatedAt)}<br />规则结果来源：治理规则运行记录</p></div>
+            <div className={styles.evidenceBox}>
+              <h3>复检执行批次</h3>
+              {detail.latestRun ? <>
+                <p><StatusTag tone={runTone(detail.latestRun.status)}>{runStatus(detail.latestRun.status)}</StatusTag><br />执行器：{detail.latestRun.executor}<br />批次：<code className={styles.inlineCode}>{detail.latestRun.executionBatchId}</code><br />提交：{formatDateTime(detail.latestRun.submittedAt)}{detail.latestRun.finishedAt ? <><br />完成：{formatDateTime(detail.latestRun.finishedAt)}</> : null}</p>
+                <p className={styles.evidenceMessage}>尝试 {detail.latestRun.attemptCount} 次{detail.latestRun.nextPollAt ? <> · 下次重试/轮询：{formatDateTime(detail.latestRun.nextPollAt)}</> : null}</p>
+                {detail.latestRun.resultMessage ? <p className={styles.evidenceMessage}>{detail.latestRun.resultMessage}</p> : null}
+                {detail.latestRun.lastError ? <p className={styles.formError}>最近错误：{detail.latestRun.lastError}</p> : null}
+                {detail.latestRun.sampleEvidence.length > 0 ? <div className={styles.sampleEvidence}><strong>样本证据（{detail.latestRun.sampleEvidence.length}）</strong>{detail.latestRun.sampleEvidence.map((item, index) => <pre key={`${detail.latestRun?.id}-${index}`}>{JSON.stringify(item, null, 2)}</pre>)}</div> : null}
+                {detail.runs.length > 1 ? <div className={styles.runHistory}><strong>历史执行批次（{detail.runs.length}）</strong>{detail.runs.slice(1).map((run) => <div className={styles.runHistoryItem} key={run.id}><StatusTag tone={runTone(run.status)}>{runStatus(run.status)}</StatusTag><span>{run.executionBatchId}</span><time>{formatDateTime(run.submittedAt)}</time><small>{run.sampleEvidence.length} 条证据</small></div>)}</div> : null}
+              </> : <p>尚未提交质量规则复检。</p>}
+            </div>
+            <div className={styles.evidenceBox}><h3>责任人通知</h3>{detail.notifications.length > 0 ? detail.notifications.slice(0, 3).map((notification) => <p key={notification.id}><StatusTag tone={notificationTone(notification.status)}>{notificationStatus(notification.status)}</StatusTag> {notification.channel} · {notification.recipient}<br />{notification.subject}{notification.lastError ? <><br /><span className={styles.evidenceMessage}>{notification.lastError}</span></> : null}</p>) : <p>当前没有通知记录。</p>}</div>
             <div className={styles.evidenceBox}><h3>责任归属</h3><p>{selected.ownerDepartment} · {selected.ownerName}<br />来源：资产责任人与组织主数据</p></div>
             <div className={styles.noteBox}>
               <label htmlFor="processing-note">处理说明</label>
@@ -182,18 +233,44 @@ function severityTone(value: string): 'danger' | 'warning' | 'neutral' {
 }
 
 function statusTone(value: string): 'danger' | 'warning' | 'healthy' | 'neutral' {
-  if (value === 'OVERDUE') return 'danger'
+  if (value === 'OVERDUE' || value === 'RETURNED') return 'danger'
   if (value === 'RECHECKING' || value === 'IN_PROGRESS' || value === 'PENDING_RECHECK') return 'warning'
   if (value === 'CLOSED') return 'healthy'
   return 'neutral'
 }
 
 function issueStatus(value: string) {
-  return ({ OVERDUE: '逾期', IN_PROGRESS: '处理中', PENDING: '待处理', PENDING_RECHECK: '待复检', RECHECKING: '复检中', CLOSED: '已关闭' } as Record<string, string>)[value] ?? value
+  return ({ OVERDUE: '逾期', IN_PROGRESS: '处理中', PENDING: '待处理', PENDING_RECHECK: '待复检', RECHECKING: '复检中', RETURNED: '已退回', CLOSED: '已关闭' } as Record<string, string>)[value] ?? value
 }
 
 function eventTitle(value: string) {
-  return ({ WORKFLOW_UPDATED: '责任人提交处理说明', RECHECK_REQUESTED: '已发起质量规则复检' } as Record<string, string>)[value] ?? '治理问题状态更新'
+  return ({ WORKFLOW_UPDATED: '责任人提交处理说明', RECHECK_REQUESTED: '已发起质量规则复检', AUTO_CLOSED: '复检通过，问题已自动关闭', AUTO_RETURNED: '复检未通过，问题已退回', RECHECK_FAILED: '复检执行失败', RECHECK_SUBMIT_FAILED: '复检投递失败', SLA_OVERDUE: 'SLA 已逾期', RESPONSIBLE_REMINDER_REQUESTED: '已提醒责任人' } as Record<string, string>)[value] ?? '治理问题状态更新'
+}
+
+function isTerminalRun(value: string) {
+  return ['SUCCEEDED', 'FAILED', 'CANCELED', 'SUBMIT_FAILED'].includes(value)
+}
+
+function runStatus(value: string) {
+  return ({ SUBMITTING: '提交中', SUBMITTED: '已投递', RUNNING: '执行中', SUCCEEDED: '已完成', FAILED: '失败', CANCELED: '已取消', SUBMIT_FAILED: '投递失败', UNKNOWN: '待确认' } as Record<string, string>)[value] ?? value
+}
+
+function runTone(value: string): 'danger' | 'warning' | 'healthy' | 'neutral' {
+  if (value === 'FAILED' || value === 'CANCELED' || value === 'SUBMIT_FAILED') return 'danger'
+  if (value === 'SUBMITTING' || value === 'SUBMITTED' || value === 'RUNNING' || value === 'UNKNOWN') return 'warning'
+  if (value === 'SUCCEEDED') return 'healthy'
+  return 'neutral'
+}
+
+function notificationStatus(value: string) {
+  return ({ PENDING: '待投递', SENT: '已送达', SKIPPED: '已跳过', FAILED: '待重试' } as Record<string, string>)[value] ?? value
+}
+
+function notificationTone(value: string): 'danger' | 'warning' | 'healthy' | 'neutral' {
+  if (value === 'FAILED') return 'danger'
+  if (value === 'PENDING') return 'warning'
+  if (value === 'SENT') return 'healthy'
+  return 'neutral'
 }
 
 function formatDateTime(value: string | null | undefined) {
