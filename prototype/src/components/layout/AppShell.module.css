@@ -114,7 +114,44 @@
 }
 
 .settings {
+  margin-top: 0;
+}
+
+.sidebarBottom {
   margin-top: auto;
+}
+
+.authPanel {
+  display: grid;
+  gap: 4px;
+  padding: 10px 14px 8px;
+  border-top: 1px solid var(--line);
+}
+
+.authName {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.logoutButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font-size: 12px;
+  text-align: left;
+}
+
+.logoutButton:hover {
+  color: var(--red);
 }
 
 .main {
@@ -142,7 +179,8 @@
 
   .brand span,
   .navItem span,
-  .settings span {
+  .settings span,
+  .authPanel {
     display: none;
   }
 
@@ -231,4 +269,3 @@
     left: 16px;
   }
 }
-

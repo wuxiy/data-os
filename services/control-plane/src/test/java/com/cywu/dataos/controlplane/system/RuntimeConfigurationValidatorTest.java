@@ -4,6 +4,9 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.junit.jupiter.api.Test;
+import com.cywu.dataos.controlplane.credential.CredentialProperties;
+import com.cywu.dataos.controlplane.security.AuthProperties;
+import com.cywu.dataos.controlplane.source.SourceNetworkProperties;
 
 class RuntimeConfigurationValidatorTest {
 
@@ -33,5 +36,40 @@ class RuntimeConfigurationValidatorTest {
         var validator = new RuntimeConfigurationValidator("development", true, "DEMO", true);
 
         assertDoesNotThrow(validator::validate);
+    }
+
+    @Test
+    void productionAcceptsOnlyExplicitlyHardenedConfiguration() {
+        var auth = new AuthProperties();
+        auth.setMode("enforced");
+        auth.setIssuerUri("https://id.example.test/realms/data-os");
+        auth.setAudience("data-os");
+        var credentials = new CredentialProperties();
+        credentials.setEncryptionKey(java.util.Base64.getEncoder().encodeToString(new byte[32]));
+        var network = new SourceNetworkProperties();
+        network.setAllowedHosts(java.util.List.of("source.example.test"));
+
+        var validator = new RuntimeConfigurationValidator("production", false, "HTTP", false,
+                auth, credentials, network);
+
+        assertDoesNotThrow(validator::validate);
+    }
+
+    @Test
+    void productionRejectsMissingAudienceOrUnsafeResponseLimit() {
+        var auth = new AuthProperties();
+        auth.setMode("ENFORCED");
+        auth.setIssuerUri("https://id.example.test/realms/data-os");
+        auth.setAudience(" ");
+        var credentials = new CredentialProperties();
+        credentials.setEncryptionKey(java.util.Base64.getEncoder().encodeToString(new byte[32]));
+        var network = new SourceNetworkProperties();
+        network.setAllowedHosts(java.util.List.of("source.example.test"));
+        network.setMaxResponseBytes(2);
+
+        var validator = new RuntimeConfigurationValidator("production", false, "HTTP", false,
+                auth, credentials, network);
+
+        assertThrows(IllegalStateException.class, validator::validate);
     }
 }

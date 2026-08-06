@@ -7,6 +7,7 @@ import java.util.Optional;
 
 import com.cywu.dataos.controlplane.api.InvalidRequestException;
 import com.cywu.dataos.controlplane.api.ResourceNotFoundException;
+import com.cywu.dataos.controlplane.security.TenantScope;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,12 +17,14 @@ public class JobConfigService {
     private final JobRepository jobRepository;
     private final JobConfigRepository configRepository;
     private final JobConfigurationPolicy configurationPolicy;
+    private final TenantScope tenantScope;
 
     public JobConfigService(JobRepository jobRepository, JobConfigRepository configRepository,
-                            JobConfigurationPolicy configurationPolicy) {
+                            JobConfigurationPolicy configurationPolicy, TenantScope tenantScope) {
         this.jobRepository = jobRepository;
         this.configRepository = configRepository;
         this.configurationPolicy = configurationPolicy;
+        this.tenantScope = tenantScope;
     }
 
     public Optional<IngestionJobConfig> findOptional(String jobId) {
@@ -77,7 +80,8 @@ public class JobConfigService {
     }
 
     private void requireJob(String jobId) {
-        if (jobRepository.findById(jobId).isEmpty()) {
+        var scope = tenantScope.current();
+        if (jobRepository.findById(jobId, scope.tenantId(), scope.institutionId()).isEmpty()) {
             throw new ResourceNotFoundException("未找到采集作业：" + jobId);
         }
     }

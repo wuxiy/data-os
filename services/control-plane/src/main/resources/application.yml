@@ -1,6 +1,7 @@
 server:
   port: ${SERVER_PORT:8080}
   shutdown: graceful
+  forward-headers-strategy: framework
 
 spring:
   application:
@@ -15,13 +16,35 @@ spring:
       connection-timeout: 3000
   sql:
     init:
-      mode: always
+      mode: never
       continue-on-error: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    validate-on-migrate: true
+    baseline-on-migrate: ${DATAOS_FLYWAY_BASELINE_ON_MIGRATE:false}
+    baseline-version: ${DATAOS_FLYWAY_BASELINE_VERSION:0}
+    clean-disabled: true
 
 data-os:
   runtime:
     # Fail closed: production is the default unless a local/dev deployment opts in explicitly.
     environment: ${DATAOS_RUNTIME_ENV:production}
+  auth:
+    mode: ${DATAOS_AUTH_MODE:ENFORCED}
+    issuer-uri: ${DATAOS_OIDC_ISSUER_URI:}
+    audience: ${DATAOS_OIDC_AUDIENCE:data-os}
+    clock-skew-seconds: ${DATAOS_OIDC_CLOCK_SKEW_SECONDS:60}
+    default-tenant-id: ${DATAOS_DEFAULT_TENANT_ID:default}
+    default-institution-id: ${DATAOS_DEFAULT_INSTITUTION_ID:demo-hospital}
+  credentials:
+    encryption-key: ${DATAOS_CREDENTIAL_ENCRYPTION_KEY:}
+  source-network:
+    allow-http: ${DATAOS_SOURCE_ALLOW_HTTP:false}
+    allow-private-networks: ${DATAOS_SOURCE_ALLOW_PRIVATE_NETWORKS:false}
+    allow-test-protocols: ${DATAOS_SOURCE_ALLOW_TEST_PROTOCOLS:false}
+    max-response-bytes: ${DATAOS_SOURCE_MAX_RESPONSE_BYTES:65536}
+    allowed-hosts: ${DATAOS_SOURCE_ALLOWED_HOSTS:}
   seed-demo: ${DATAOS_SEED_DEMO:false}
   seatunnel:
     base-url: ${SEATUNNEL_BASE_URL:}
@@ -50,7 +73,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        include: health,info,metrics,prometheus
   endpoint:
     health:
       probes:
@@ -61,6 +84,9 @@ management:
       enabled: true
     readinessstate:
       enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
 
 info:
   app:

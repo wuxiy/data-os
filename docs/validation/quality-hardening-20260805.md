@@ -16,7 +16,7 @@
 
 ## 开发环境部署
 
-- 目标：`root@172.16.65.59:/root/data-os-dev-20260803`。
+- 目标：隔离开发机的 `/root/data-os-dev-20260803`。
 - 新建回滚副本：`rollback-pre-final-hardening-20260805-1047`，保存控制面 jar、Docker Compose、Nginx 配置和门户静态包。
 - 控制面镜像 digest：`sha256:700889c883ad38c87ce21f9ec568566fa74db207c0b4d804cebe12493a89f254`。
 - 远程 `/root/data-os-dev-20260803/control-plane/target/data-os-control-plane-0.1.0-SNAPSHOT.jar` hash 与本地构建一致：`eebeed364d32853bf2cbd82b50d2cd15267910528c7f2f4390c504e9823fc7ca`。

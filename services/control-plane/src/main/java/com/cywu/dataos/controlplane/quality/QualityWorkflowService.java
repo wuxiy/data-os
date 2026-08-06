@@ -16,6 +16,7 @@ import com.cywu.dataos.controlplane.governance.GovernanceIssue;
 import com.cywu.dataos.controlplane.governance.GovernanceIssueDetail;
 import com.cywu.dataos.controlplane.governance.GovernanceIssueEvent;
 import com.cywu.dataos.controlplane.governance.GovernanceRepository;
+import com.cywu.dataos.controlplane.security.TenantScope;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -43,6 +44,7 @@ public class QualityWorkflowService {
     private final long submitLeaseMs;
     private final java.util.Set<String> inFlight = ConcurrentHashMap.newKeySet();
     private final String workerId = "quality-worker-" + UUID.randomUUID();
+    private final TenantScope tenantScope;
 
     public QualityWorkflowService(GovernanceRepository repository,
                                   List<QualityRuleExecutor> executors,
@@ -53,7 +55,8 @@ public class QualityWorkflowService {
                                   @Value("${data-os.quality.poll-initial-delay-ms:10000}") long pollInitialDelayMs,
                                   @Value("${data-os.quality.sla-scan-interval-ms:60000}") long slaScanIntervalMs,
                                   @Value("${data-os.quality.sla-scan-initial-delay-ms:15000}") long slaScanInitialDelayMs,
-                                  @Value("${data-os.quality.submit-lease-ms:120000}") long submitLeaseMs) {
+                                  @Value("${data-os.quality.submit-lease-ms:120000}") long submitLeaseMs,
+                                  TenantScope tenantScope) {
         this.repository = repository;
         this.executors = executors;
         this.notifications = notifications;
@@ -64,6 +67,7 @@ public class QualityWorkflowService {
         this.slaScanIntervalMs = slaScanIntervalMs;
         this.slaScanInitialDelayMs = slaScanInitialDelayMs;
         this.submitLeaseMs = submitLeaseMs;
+        this.tenantScope = tenantScope;
     }
 
     @PostConstruct
@@ -76,7 +80,8 @@ public class QualityWorkflowService {
     }
 
     public GovernanceIssueDetail requestRecheck(String issueId, String tenantId, String institutionId, String note) {
-        var claim = transactions.execute(status -> claimRecheck(issueId, tenantId, institutionId, note));
+        var scope = tenantScope.resolve(tenantId, institutionId);
+        var claim = transactions.execute(status -> claimRecheck(issueId, scope.tenantId(), scope.institutionId(), note));
         if (claim == null) throw new IllegalStateException("质量复检批次未创建");
 
         submitRun(claim);
@@ -84,8 +89,9 @@ public class QualityWorkflowService {
     }
 
     public GovernanceIssueDetail sync(String issueId, String runId, String tenantId, String institutionId) {
-        var resolvedTenant = defaultValue(tenantId, "default");
-        var resolvedInstitution = defaultValue(institutionId, "demo-hospital");
+        var scope = tenantScope.resolve(tenantId, institutionId);
+        var resolvedTenant = scope.tenantId();
+        var resolvedInstitution = scope.institutionId();
         repository.findIssue(issueId, resolvedTenant, resolvedInstitution)
                 .orElseThrow(() -> new ResourceNotFoundException("未找到治理问题：" + issueId));
         var run = repository.findQualityRun(runId, issueId, resolvedTenant, resolvedInstitution)
@@ -108,9 +114,8 @@ public class QualityWorkflowService {
     }
 
     public GovernanceSlaScanResult scanSla(String tenantId, String institutionId) {
-        var tenant = defaultValue(tenantId, "default");
-        var institution = defaultValue(institutionId, "demo-hospital");
-        return scanSlaScope(tenant, institution);
+        var scope = tenantScope.resolve(tenantId, institutionId);
+        return scanSlaScope(scope.tenantId(), scope.institutionId());
     }
 
     @Scheduled(
@@ -123,8 +128,8 @@ public class QualityWorkflowService {
     }
 
     private RecheckClaim claimRecheck(String issueId, String tenantId, String institutionId, String note) {
-        var tenant = defaultValue(tenantId, "default");
-        var institution = defaultValue(institutionId, "demo-hospital");
+        var tenant = tenantId;
+        var institution = institutionId;
         var issue = repository.findIssue(issueId, tenant, institution)
                 .orElseThrow(() -> new ResourceNotFoundException("未找到治理问题：" + issueId));
         if ("CLOSED".equals(issue.status())) {
@@ -321,10 +326,6 @@ public class QualityWorkflowService {
             case "CANCELED", "CANCELLED", "STOPPED" -> "CANCELED";
             default -> "UNKNOWN";
         };
-    }
-
-    private String defaultValue(String value, String fallback) {
-        return value == null || value.isBlank() ? fallback : value.trim();
     }
 
     private void validateDelay(String name, long value, long min, long max) {

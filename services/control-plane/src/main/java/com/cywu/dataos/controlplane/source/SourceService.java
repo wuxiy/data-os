@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import com.cywu.dataos.controlplane.api.ResourceNotFoundException;
+import com.cywu.dataos.controlplane.security.TenantScope;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,22 +15,26 @@ public class SourceService {
 
     private final SourceRepository repository;
     private final List<SourceCheckAdapter> checkAdapters;
+    private final TenantScope tenantScope;
 
-    public SourceService(SourceRepository repository, List<SourceCheckAdapter> checkAdapters) {
+    public SourceService(SourceRepository repository, List<SourceCheckAdapter> checkAdapters, TenantScope tenantScope) {
         this.repository = repository;
         this.checkAdapters = checkAdapters;
+        this.tenantScope = tenantScope;
     }
 
     public List<Source> list(String tenantId, String institutionId) {
-        return repository.findAll(defaultValue(tenantId, "default"), defaultValue(institutionId, "demo-hospital"));
+        var scope = tenantScope.resolve(tenantId, institutionId);
+        return repository.findAll(scope.tenantId(), scope.institutionId());
     }
 
     @Transactional
     public Source create(CreateSourceRequest request) {
+        var scope = tenantScope.resolve(request.tenantId(), request.institutionId());
         var source = new Source(
                 UUID.randomUUID().toString(),
-                defaultValue(request.tenantId(), "default"),
-                defaultValue(request.institutionId(), "demo-hospital"),
+                scope.tenantId(),
+                scope.institutionId(),
                 request.name().trim(),
                 request.systemType().trim().toUpperCase(),
                 request.protocol().trim().toUpperCase(),
@@ -41,7 +46,8 @@ public class SourceService {
     }
 
     public Source require(String id) {
-        return repository.findById(id)
+        var scope = tenantScope.current();
+        return repository.findById(id, scope.tenantId(), scope.institutionId())
                 .orElseThrow(() -> new ResourceNotFoundException("未找到数据源：" + id));
     }
 
@@ -55,7 +61,8 @@ public class SourceService {
         var result = adapter == null
                 ? SourceCheckResult.blockedConfiguration("暂不支持该协议的可用性检查：" + source.protocol())
                 : checkAdapter(adapter, source, config);
-        repository.updateCheck(source.id(), result.status(), result.message(), Instant.now());
+        repository.updateCheck(source.id(), source.tenantId(), source.institutionId(), result.status(),
+                result.message(), Instant.now());
         return require(source.id());
     }
 
@@ -71,9 +78,5 @@ public class SourceService {
         var message = exception.getMessage();
         if (message == null || message.isBlank()) return "未知错误";
         return message.length() > 240 ? message.substring(0, 240) : message;
-    }
-
-    private String defaultValue(String value, String fallback) {
-        return value == null || value.isBlank() ? fallback : value.trim();
     }
 }

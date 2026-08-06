@@ -1,6 +1,6 @@
 # data-os 开发环境部署
 
-这套覆盖只新增 data-os 控制面、桌面门户和可选的 SeaTunnel 单节点执行器，不修改 data-ops 的 Compose 文件。PostgreSQL 复用 `medical-platform-keycloak-db-1`，通过 `data_os` schema 隔离表。
+这套覆盖只新增 data-os 控制面、桌面门户和可选的 SeaTunnel 单节点执行器，不修改 data-ops 的 Compose 文件。开发环境仍可复用 `medical-platform-keycloak-db-1`，通过 `data_os` schema 隔离表；生产部署必须使用独立业务数据库，不能复用 Keycloak 数据库。
 
 ## 组件
 
@@ -17,6 +17,13 @@
 ```dotenv
 DATAOS_DB_PASSWORD=复用 keycloak-db 的数据库密码
 DATAOS_RUNTIME_ENV=development
+DATAOS_AUTH_MODE=DISABLED
+# 开发环境显式放开本机/测试来源检查；生产必须全部关闭并配置来源白名单。
+DATAOS_SOURCE_ALLOW_HTTP=true
+DATAOS_SOURCE_ALLOW_PRIVATE_NETWORKS=true
+DATAOS_SOURCE_ALLOW_TEST_PROTOCOLS=true
+DATAOS_SOURCE_ALLOWED_HOSTS=
+DATAOS_FLYWAY_BASELINE_ON_MIGRATE=true
 DATAOS_SEED_DEMO=true
 # 可选：控制面运行状态同步周期，单位毫秒
 DATAOS_RUN_SYNC_INTERVAL_MS=30000
@@ -41,6 +48,8 @@ GET /api/v1/system/status
 ```
 
 控制面默认按生产环境处理；开发 Compose 显式设置 `DATAOS_RUNTIME_ENV=development`。生产环境仍应显式设置 `DATAOS_RUNTIME_ENV=production`，且不得沿用 `DATAOS_SEED_DEMO=true` 或 `DATAOS_QUALITY_EXECUTOR=DEMO`；应切换为 `HTTP` 或 `DBT` 并配置 `DATAOS_QUALITY_EXECUTOR_BASE_URL`，`DATAOS_QUALITY_DEMO_ENABLED` 保持 `false`。控制面会在启动阶段阻断违反该约束的配置，历史 FakeSource 任务也不能在生产启动。
+
+当前 Compose 的 `DATAOS_AUTH_MODE=DISABLED` 仅用于隔离开发门户免登录联调；生产必须改为 `ENFORCED`，并提供 OIDC issuer、audience 以及 Token 中的 `tenant_id`、`institution_id` 和角色声明。Flyway 在现有开发库上通过 `DATAOS_FLYWAY_BASELINE_ON_MIGRATE=true` 接管历史 `schema.sql` 表；生产新库保持默认 `false`，只执行版本化迁移。
 
 先启动门户和控制面：
 
@@ -100,6 +109,15 @@ POST /api/v1/jobs/{jobId}/runs/{runId}/retry
 
 ```text
 POST /api/v1/sources/{sourceId}/check
+```
+
+凭据引用只保存 AES-GCM 加密密文，API 响应不回显 secret。创建凭据后在采集配置中使用 `credentialRef`，不要在任务 JSON 或来源检查请求中提交 password、secret、token 等明文键：
+
+```bash
+curl -fsS -X POST http://开发机地址:18081/api/v1/credentials \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"lis-readonly","provider":"JDBC","secret":{"username":"readonly","password":"<provided-at-runtime>"},"metadata":{"owner":"信息中心"}}'
+curl -fsS http://开发机地址:18081/api/v1/credentials
 ```
 
 JDBC 示例：

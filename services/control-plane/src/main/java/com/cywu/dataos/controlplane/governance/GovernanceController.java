@@ -15,6 +15,7 @@ import com.cywu.dataos.controlplane.quality.GovernanceNotificationDeliveryResult
 import com.cywu.dataos.controlplane.quality.GovernanceSlaScanResult;
 import com.cywu.dataos.controlplane.quality.NotificationService;
 import com.cywu.dataos.controlplane.quality.QualityWorkflowService;
+import com.cywu.dataos.controlplane.security.TenantScope;
 
 @RestController
 @RequestMapping("/api/v1/governance")
@@ -23,12 +24,14 @@ public class GovernanceController {
     private final GovernanceService service;
     private final QualityWorkflowService qualityWorkflow;
     private final NotificationService notifications;
+    private final TenantScope tenantScope;
 
     public GovernanceController(GovernanceService service, QualityWorkflowService qualityWorkflow,
-                                NotificationService notifications) {
+                                NotificationService notifications, TenantScope tenantScope) {
         this.service = service;
         this.qualityWorkflow = qualityWorkflow;
         this.notifications = notifications;
+        this.tenantScope = tenantScope;
     }
 
     @GetMapping("/summary")
@@ -88,10 +91,9 @@ public class GovernanceController {
             @RequestParam(required = false) String tenantId,
             @RequestParam(required = false) String institutionId,
             @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
-        var tenant = tenantId == null || tenantId.isBlank() ? "default" : tenantId.trim();
-        var institution = institutionId == null || institutionId.isBlank() ? "demo-hospital" : institutionId.trim();
-        notifications.remind(issueId, tenant, institution, idempotencyKey);
-        return service.detail(issueId, tenant, institution);
+        var scope = tenantScope.resolve(tenantId, institutionId);
+        notifications.remind(issueId, scope.tenantId(), scope.institutionId(), idempotencyKey);
+        return service.detail(issueId, scope.tenantId(), scope.institutionId());
     }
 
     @PostMapping("/sla/scan")

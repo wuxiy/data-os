@@ -17,6 +17,7 @@ import com.cywu.dataos.controlplane.api.ConflictException;
 import com.cywu.dataos.controlplane.executor.AdapterConfigurationException;
 import com.cywu.dataos.controlplane.executor.AdapterUnavailableException;
 import com.cywu.dataos.controlplane.executor.ExecutorAdapter;
+import com.cywu.dataos.controlplane.security.TenantScope;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.stereotype.Service;
@@ -35,6 +36,7 @@ public class RunService {
     private final TransactionTemplate transactions;
     private final ObjectMapper objectMapper;
     private final JobConfigurationPolicy configurationPolicy;
+    private final TenantScope tenantScope;
 
     public RunService(JobRepository jobRepository,
                       RunRepository runRepository,
@@ -42,7 +44,8 @@ public class RunService {
                       java.util.List<ExecutorAdapter> adapters,
                       PlatformTransactionManager transactionManager,
                       ObjectMapper objectMapper,
-                      JobConfigurationPolicy configurationPolicy) {
+                      JobConfigurationPolicy configurationPolicy,
+                      TenantScope tenantScope) {
         this.jobRepository = jobRepository;
         this.runRepository = runRepository;
         this.jobConfigService = jobConfigService;
@@ -50,6 +53,7 @@ public class RunService {
         this.transactions = new TransactionTemplate(transactionManager);
         this.objectMapper = objectMapper;
         this.configurationPolicy = configurationPolicy;
+        this.tenantScope = tenantScope;
     }
 
     /**
@@ -59,8 +63,9 @@ public class RunService {
      * row lock during a network call.
      */
     public IngestionRun start(String jobId, CreateRunRequest request, String idempotencyKey) {
+        var scope = tenantScope.current();
         var claim = transactions.execute(status -> claim(jobId,
-                request == null ? new CreateRunRequest(Map.of()) : request, idempotencyKey));
+                request == null ? new CreateRunRequest(Map.of()) : request, idempotencyKey, scope));
         if (claim == null) {
             throw new IllegalStateException("采集运行占位记录未创建");
         }
@@ -89,8 +94,9 @@ public class RunService {
         }
     }
 
-    private RunClaim claim(String jobId, CreateRunRequest request, String idempotencyKey) {
-        var job = jobRepository.findByIdForUpdate(jobId)
+    private RunClaim claim(String jobId, CreateRunRequest request, String idempotencyKey,
+                           TenantScope.Scope scope) {
+        var job = jobRepository.findByIdForUpdate(jobId, scope.tenantId(), scope.institutionId())
                 .orElseThrow(() -> new ResourceNotFoundException("未找到采集作业：" + jobId));
         var requestKey = normalizeIdempotencyKey(idempotencyKey);
         var config = request.config().isEmpty()
@@ -114,7 +120,7 @@ public class RunService {
             throw new ConflictException("采集任务已归档，不能启动运行");
         }
         if ("DRAFT".equals(job.status())) {
-            jobRepository.updateStatus(job.id(), "ACTIVE");
+            jobRepository.updateStatus(job.id(), scope.tenantId(), scope.institutionId(), "ACTIVE");
             job = withStatus(job, "ACTIVE");
         }
         runRepository.findActive(jobId).ifPresent(active -> {
@@ -162,14 +168,16 @@ public class RunService {
     }
 
     public java.util.List<IngestionRun> list(String jobId) {
-        if (jobRepository.findById(jobId).isEmpty()) {
+        var scope = tenantScope.current();
+        if (jobRepository.findById(jobId, scope.tenantId(), scope.institutionId()).isEmpty()) {
             throw new ResourceNotFoundException("未找到采集作业：" + jobId);
         }
-        return runRepository.findAll(jobId);
+        return runRepository.findAll(jobId, scope.tenantId(), scope.institutionId());
     }
 
     public IngestionRun retry(String jobId, String runId) {
-        var run = runRepository.findById(jobId, runId)
+        var scope = tenantScope.current();
+        var run = runRepository.findById(jobId, runId, scope.tenantId(), scope.institutionId())
                 .orElseThrow(() -> new ResourceNotFoundException("未找到采集运行记录：" + runId));
         if (!RETRYABLE_TERMINAL_STATUSES.contains(run.status())) {
             throw new ConflictException("只有失败、阻塞或取消的运行记录才能重试");

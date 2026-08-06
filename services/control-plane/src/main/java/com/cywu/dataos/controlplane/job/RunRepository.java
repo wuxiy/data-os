@@ -68,6 +68,22 @@ public class RunRepository {
                 instant(resultSet.getTimestamp("finished_at"))), jobId);
     }
 
+    public List<IngestionRun> findAll(String jobId, String tenantId, String institutionId) {
+        return jdbc.query("""
+                SELECT r.id, r.job_id, r.status, r.executor, r.external_id, r.message,
+                       r.submitted_at, r.started_at, r.finished_at
+                FROM data_os.job_runs r
+                JOIN data_os.ingestion_jobs j ON j.id = r.job_id
+                JOIN data_os.sources s ON s.id = j.source_id
+                WHERE r.job_id = ? AND s.tenant_id = ? AND s.institution_id = ?
+                ORDER BY r.submitted_at DESC
+                """, (resultSet, rowNumber) -> new IngestionRun(
+                resultSet.getString("id"), resultSet.getString("job_id"), resultSet.getString("status"),
+                resultSet.getString("executor"), resultSet.getString("external_id"), resultSet.getString("message"),
+                resultSet.getTimestamp("submitted_at").toInstant(), instant(resultSet.getTimestamp("started_at")),
+                instant(resultSet.getTimestamp("finished_at"))), jobId, tenantId, institutionId);
+    }
+
     public List<IngestionRun> findSyncCandidates() {
         return jdbc.query("""
                 SELECT id, job_id, status, executor, external_id, message,
@@ -95,6 +111,21 @@ public class RunRepository {
                 resultSet.getString("executor"), resultSet.getString("external_id"), resultSet.getString("message"),
                 resultSet.getTimestamp("submitted_at").toInstant(), instant(resultSet.getTimestamp("started_at")),
                 instant(resultSet.getTimestamp("finished_at"))), runId, jobId).stream().findFirst();
+    }
+
+    public Optional<IngestionRun> findById(String jobId, String runId, String tenantId, String institutionId) {
+        return jdbc.query("""
+                SELECT r.id, r.job_id, r.status, r.executor, r.external_id, r.message,
+                       r.submitted_at, r.started_at, r.finished_at
+                FROM data_os.job_runs r
+                JOIN data_os.ingestion_jobs j ON j.id = r.job_id
+                JOIN data_os.sources s ON s.id = j.source_id
+                WHERE r.id = ? AND r.job_id = ? AND s.tenant_id = ? AND s.institution_id = ?
+                """, (resultSet, rowNumber) -> new IngestionRun(
+                resultSet.getString("id"), resultSet.getString("job_id"), resultSet.getString("status"),
+                resultSet.getString("executor"), resultSet.getString("external_id"), resultSet.getString("message"),
+                resultSet.getTimestamp("submitted_at").toInstant(), instant(resultSet.getTimestamp("started_at")),
+                instant(resultSet.getTimestamp("finished_at"))), runId, jobId, tenantId, institutionId).stream().findFirst();
     }
 
     public Optional<IngestionRun> findActive(String jobId) {

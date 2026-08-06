@@ -1,3 +1,5 @@
+-- Legacy reference for operators migrating pre-Flyway installations.
+-- Runtime startup uses db/migration/V1__baseline.sql; spring.sql.init.mode is never.
 CREATE SCHEMA IF NOT EXISTS data_os;
 
 CREATE TABLE IF NOT EXISTS data_os.sources (

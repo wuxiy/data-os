@@ -81,3 +81,9 @@
 - 触发：代码审查发现真实模式前端虽然隐藏 FakeSource，但历史演示任务仍可能通过旧入口启动；同时仅依赖前端环境变量会让生产配置存在绕过风险。
 - 规则：演示模板和 FakeSource 配置在控制面保存/启动路径必须按运行环境再次校验；`DATAOS_RUNTIME_ENV` 未显式标记开发时按 production 处理，环境值和执行器名称先 trim 再比较。
 - 检查：覆盖生产环境保存、历史任务启动、空格绕过和开发环境允许演示模板的单元测试；文档明确开发 Compose 必须显式设置 development。
+
+## 2026-08-06 OIDC 已存在时不引入第二套鉴权
+
+- 触发：发布级 Gate 0 讨论中确认开发环境已有 Keycloak/OIDC，用户询问是否还需要 Sa-Token。
+- 规则：当 OIDC 已作为统一身份源时，Spring Boot 控制面只实现 Resource Server JWT 校验、角色映射、租户声明和审计；不再叠加本地会话或 Sa-Token Token，避免双重登录、权限漂移和撤销链路分裂。
+- 检查：生产启动必须要求 OIDC issuer、audience 和受信租户声明；DISABLED 仅允许隔离开发/测试 profile，不能作为生产回退路径。

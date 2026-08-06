@@ -46,12 +46,16 @@ public class JobRepository {
         return job;
     }
 
-    public int updateStatus(String jobId, String status) {
+    public int updateStatus(String jobId, String tenantId, String institutionId, String status) {
         return jdbc.update("""
                 UPDATE data_os.ingestion_jobs
                 SET status = ?
-                WHERE id = ?
-                """, status, jobId);
+                WHERE id = ? AND EXISTS (
+                    SELECT 1 FROM data_os.sources s
+                    WHERE s.id = data_os.ingestion_jobs.source_id
+                      AND s.tenant_id = ? AND s.institution_id = ?
+                )
+                """, status, jobId, tenantId, institutionId);
     }
 
     public Optional<IngestionJob> findById(String id) {
@@ -71,6 +75,24 @@ public class JobRepository {
                 """, this::map, id).stream().findFirst();
     }
 
+    public Optional<IngestionJob> findById(String id, String tenantId, String institutionId) {
+        return jdbc.query("""
+                SELECT j.id, j.source_id, j.name, j.mode, j.executor, j.status, j.created_at,
+                       (SELECT r.status FROM data_os.job_runs r
+                        WHERE r.job_id = j.id ORDER BY r.submitted_at DESC LIMIT 1) AS latest_run_status,
+                       j.last_run_at,
+                       (SELECT c.template_key FROM data_os.ingestion_job_configs c
+                        WHERE c.job_id = j.id) AS template_key,
+                       (SELECT c.template_version FROM data_os.ingestion_job_configs c
+                        WHERE c.job_id = j.id) AS template_version,
+                       CASE WHEN EXISTS (SELECT 1 FROM data_os.ingestion_job_configs c
+                                         WHERE c.job_id = j.id) THEN TRUE ELSE FALSE END AS configured
+                FROM data_os.ingestion_jobs j
+                JOIN data_os.sources s ON s.id = j.source_id
+                WHERE j.id = ? AND s.tenant_id = ? AND s.institution_id = ?
+                """, this::map, id, tenantId, institutionId).stream().findFirst();
+    }
+
     public Optional<IngestionJob> findByIdForUpdate(String id) {
         return jdbc.query("""
                 SELECT j.id, j.source_id, j.name, j.mode, j.executor, j.status, j.created_at,
@@ -87,6 +109,25 @@ public class JobRepository {
                 WHERE j.id = ?
                 FOR UPDATE
                 """, this::map, id).stream().findFirst();
+    }
+
+    public Optional<IngestionJob> findByIdForUpdate(String id, String tenantId, String institutionId) {
+        return jdbc.query("""
+                SELECT j.id, j.source_id, j.name, j.mode, j.executor, j.status, j.created_at,
+                       (SELECT r.status FROM data_os.job_runs r
+                        WHERE r.job_id = j.id ORDER BY r.submitted_at DESC LIMIT 1) AS latest_run_status,
+                       j.last_run_at,
+                       (SELECT c.template_key FROM data_os.ingestion_job_configs c
+                        WHERE c.job_id = j.id) AS template_key,
+                       (SELECT c.template_version FROM data_os.ingestion_job_configs c
+                        WHERE c.job_id = j.id) AS template_version,
+                       CASE WHEN EXISTS (SELECT 1 FROM data_os.ingestion_job_configs c
+                                         WHERE c.job_id = j.id) THEN TRUE ELSE FALSE END AS configured
+                FROM data_os.ingestion_jobs j
+                JOIN data_os.sources s ON s.id = j.source_id
+                WHERE j.id = ? AND s.tenant_id = ? AND s.institution_id = ?
+                FOR UPDATE
+                """, this::map, id, tenantId, institutionId).stream().findFirst();
     }
 
     private IngestionJob map(java.sql.ResultSet resultSet, int rowNumber) throws java.sql.SQLException {

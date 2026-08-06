@@ -1,0 +1,94 @@
+.page {
+  display: grid;
+  min-height: 100vh;
+  padding: 32px;
+  place-items: center;
+  background: radial-gradient(circle at 20% 20%, rgba(46, 118, 105, 0.1), transparent 34%), var(--canvas);
+}
+
+.card {
+  width: min(440px, 100%);
+  padding: 42px 40px 36px;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: var(--shadow-raise);
+  text-align: center;
+}
+
+.brandMark {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  margin: 0 auto 22px;
+  color: #fff;
+  background: var(--jade-dark);
+  border-radius: 15px;
+  place-items: center;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: var(--jade);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+h1 {
+  margin: 0;
+  font-family: var(--font-title);
+  font-size: 28px;
+  font-weight: 600;
+}
+
+.description {
+  margin: 16px 0 24px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.error {
+  margin: 0 0 18px;
+  padding: 10px 12px;
+  color: var(--red);
+  background: var(--red-soft);
+  border-radius: var(--radius-control);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.loginButton {
+  display: inline-flex;
+  width: 100%;
+  min-height: 46px;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  color: #fff;
+  background: var(--jade-dark);
+  border: 0;
+  border-radius: var(--radius-control);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.loginButton:hover {
+  background: var(--jade);
+}
+
+.loginButton:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.hint {
+  margin: 18px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.6;
+}

@@ -46,6 +46,31 @@ class SourceCheckAdapterTest {
         assertTrue(new HttpSourceCheckAdapter().supports("FHIR"));
     }
 
+    @Test
+    void rejectsChunkedResponseWhenBodyExceedsConfiguredLimit() {
+        server.removeContext("/health");
+        server.createContext("/large", exchange -> {
+            var body = "0123456789".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            // A zero length tells the JDK server to use chunked transfer, so
+            // the adapter must enforce the limit while consuming the stream,
+            // not only trust Content-Length.
+            exchange.sendResponseHeaders(200, 0);
+            exchange.getResponseBody().write(body);
+            exchange.close();
+        });
+        var properties = new SourceNetworkProperties();
+        properties.setAllowHttp(true);
+        properties.setAllowPrivateNetworks(true);
+        properties.setMaxResponseBytes(4);
+        var adapter = new HttpSourceCheckAdapter(new SourceNetworkPolicy(properties));
+
+        var result = adapter.check(source("HTTP"),
+                Map.of("url", "http://127.0.0.1:" + server.getAddress().getPort() + "/large"));
+
+        assertEquals("UNHEALTHY", result.status());
+        assertTrue(result.message().contains("超过检查大小限制"));
+    }
+
     private Source source(String protocol) {
         return new Source("source-1", "default", "demo-hospital", "测试来源", "LIS", protocol,
                 "PENDING", Instant.now(), null, null);

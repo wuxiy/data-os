@@ -6,6 +6,7 @@ import java.util.UUID;
 
 import com.cywu.dataos.controlplane.api.ConflictException;
 import com.cywu.dataos.controlplane.api.ResourceNotFoundException;
+import com.cywu.dataos.controlplane.security.TenantScope;
 import com.cywu.dataos.controlplane.source.SourceService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,15 +17,19 @@ public class JobService {
     private final JobRepository repository;
     private final SourceService sourceService;
     private final JobConfigService configService;
+    private final TenantScope tenantScope;
 
-    public JobService(JobRepository repository, SourceService sourceService, JobConfigService configService) {
+    public JobService(JobRepository repository, SourceService sourceService, JobConfigService configService,
+                      TenantScope tenantScope) {
         this.repository = repository;
         this.sourceService = sourceService;
         this.configService = configService;
+        this.tenantScope = tenantScope;
     }
 
     public List<IngestionJob> list(String tenantId, String institutionId) {
-        return repository.findAll(defaultValue(tenantId, "default"), defaultValue(institutionId, "demo-hospital"));
+        var scope = tenantScope.resolve(tenantId, institutionId);
+        return repository.findAll(scope.tenantId(), scope.institutionId());
     }
 
     @Transactional
@@ -49,19 +54,22 @@ public class JobService {
                             ? "CUSTOM_JSON" : request.templateKey(),
                     request.templateVersion(), request.config()));
         }
-        return repository.findById(job.id()).orElse(job);
+        var scope = tenantScope.current();
+        return repository.findById(job.id(), scope.tenantId(), scope.institutionId()).orElse(job);
     }
 
     @Transactional
     public IngestionJob changeStatus(String jobId, UpdateJobStatusRequest request) {
-        var job = repository.findById(jobId)
+        var scope = tenantScope.current();
+        var job = repository.findById(jobId, scope.tenantId(), scope.institutionId())
                 .orElseThrow(() -> new ResourceNotFoundException("未找到采集作业：" + jobId));
         var target = JobLifecycle.normalize(request.status());
         if (JobLifecycle.ARCHIVED.equals(job.status()) && !JobLifecycle.ARCHIVED.equals(target)) {
             throw new ConflictException("已归档的采集任务不能恢复或修改状态");
         }
-        repository.updateStatus(jobId, target);
-        return repository.findById(jobId).orElseThrow(() -> new ResourceNotFoundException("未找到采集作业：" + jobId));
+        repository.updateStatus(jobId, scope.tenantId(), scope.institutionId(), target);
+        return repository.findById(jobId, scope.tenantId(), scope.institutionId())
+                .orElseThrow(() -> new ResourceNotFoundException("未找到采集作业：" + jobId));
     }
 
     private String defaultValue(String value, String fallback) {

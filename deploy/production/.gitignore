@@ -1,0 +1,6 @@
+.env
+portal-dist/
+*.pem
+*.key
+*.crt
+*.log

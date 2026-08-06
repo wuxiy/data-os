@@ -1,0 +1,145 @@
+name: data-os-production
+
+services:
+  postgres:
+    image: postgres:16.4-alpine
+    environment:
+      POSTGRES_DB: ${DATAOS_DB_NAME:-data_os}
+      POSTGRES_USER: ${DATAOS_DB_USERNAME:?DATAOS_DB_USERNAME must be set}
+      POSTGRES_PASSWORD: ${DATAOS_DB_PASSWORD:?DATAOS_DB_PASSWORD must be set}
+    volumes:
+      - data-os-postgres:/var/lib/postgresql/data
+    expose:
+      - "5432"
+    # PostgreSQL has no host port. Break-glass administration uses docker exec
+    # or a temporary, reviewed Compose override; the application reaches it
+    # only over the private Compose network.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+    networks:
+      - platform-net
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+
+  control-plane:
+    image: ${DATAOS_CONTROL_PLANE_IMAGE:-medical-platform/data-os-control-plane:0.1.0}
+    environment:
+      SERVER_PORT: 8080
+      DATAOS_DB_URL: ${DATAOS_DB_URL:?DATAOS_DB_URL must be set}
+      DATAOS_DB_USERNAME: ${DATAOS_DB_USERNAME:?DATAOS_DB_USERNAME must be set}
+      DATAOS_DB_PASSWORD: ${DATAOS_DB_PASSWORD:?DATAOS_DB_PASSWORD must be set}
+      DATAOS_DB_POOL_SIZE: ${DATAOS_DB_POOL_SIZE:-20}
+      DATAOS_FLYWAY_BASELINE_ON_MIGRATE: ${DATAOS_FLYWAY_BASELINE_ON_MIGRATE:-false}
+      DATAOS_FLYWAY_BASELINE_VERSION: ${DATAOS_FLYWAY_BASELINE_VERSION:-0}
+      DATAOS_RUNTIME_ENV: ${DATAOS_RUNTIME_ENV:-production}
+      DATAOS_SEED_DEMO: ${DATAOS_SEED_DEMO:-false}
+      DATAOS_AUTH_MODE: ${DATAOS_AUTH_MODE:-ENFORCED}
+      DATAOS_OIDC_ISSUER_URI: ${DATAOS_OIDC_ISSUER_URI:?DATAOS_OIDC_ISSUER_URI must be set}
+      DATAOS_OIDC_AUDIENCE: ${DATAOS_OIDC_AUDIENCE:-data-os}
+      DATAOS_OIDC_CLOCK_SKEW_SECONDS: ${DATAOS_OIDC_CLOCK_SKEW_SECONDS:-60}
+      DATAOS_DEFAULT_TENANT_ID: ${DATAOS_DEFAULT_TENANT_ID:-default}
+      DATAOS_DEFAULT_INSTITUTION_ID: ${DATAOS_DEFAULT_INSTITUTION_ID:-demo-hospital}
+      DATAOS_CREDENTIAL_ENCRYPTION_KEY: ${DATAOS_CREDENTIAL_ENCRYPTION_KEY:?DATAOS_CREDENTIAL_ENCRYPTION_KEY must be set}
+      DATAOS_SOURCE_ALLOW_HTTP: ${DATAOS_SOURCE_ALLOW_HTTP:-false}
+      DATAOS_SOURCE_ALLOW_PRIVATE_NETWORKS: ${DATAOS_SOURCE_ALLOW_PRIVATE_NETWORKS:-false}
+      DATAOS_SOURCE_ALLOW_TEST_PROTOCOLS: ${DATAOS_SOURCE_ALLOW_TEST_PROTOCOLS:-false}
+      DATAOS_SOURCE_MAX_RESPONSE_BYTES: ${DATAOS_SOURCE_MAX_RESPONSE_BYTES:-65536}
+      DATAOS_SOURCE_ALLOWED_HOSTS: ${DATAOS_SOURCE_ALLOWED_HOSTS:?DATAOS_SOURCE_ALLOWED_HOSTS must be set}
+      DATAOS_QUALITY_EXECUTOR: ${DATAOS_QUALITY_EXECUTOR:-HTTP}
+      DATAOS_QUALITY_EXECUTOR_BASE_URL: ${DATAOS_QUALITY_EXECUTOR_BASE_URL:?DATAOS_QUALITY_EXECUTOR_BASE_URL must be set}
+      DATAOS_QUALITY_DEMO_ENABLED: ${DATAOS_QUALITY_DEMO_ENABLED:-false}
+      DATAOS_QUALITY_POLL_INTERVAL_MS: ${DATAOS_QUALITY_POLL_INTERVAL_MS:-30000}
+      DATAOS_QUALITY_SLA_SCAN_INTERVAL_MS: ${DATAOS_QUALITY_SLA_SCAN_INTERVAL_MS:-60000}
+      DATAOS_QUALITY_SUBMIT_LEASE_MS: ${DATAOS_QUALITY_SUBMIT_LEASE_MS:-120000}
+      DATAOS_NOTIFICATION_WEBHOOK_URL: ${DATAOS_NOTIFICATION_WEBHOOK_URL:-}
+      DATAOS_NOTIFICATION_MAX_ATTEMPTS: ${DATAOS_NOTIFICATION_MAX_ATTEMPTS:-5}
+      DATAOS_NOTIFICATION_LEASE_MS: ${DATAOS_NOTIFICATION_LEASE_MS:-120000}
+      DATAOS_NOTIFICATION_DELIVERY_INTERVAL_MS: ${DATAOS_NOTIFICATION_DELIVERY_INTERVAL_MS:-30000}
+    expose:
+      - "8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/actuator/health/readiness | grep -q '\"status\":\"UP\"'"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 45s
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - platform-net
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    stop_grace_period: 30s
+
+  portal:
+    # The unprivileged image listens on 8080, so cap_drop: ALL is safe.
+    image: nginxinc/nginx-unprivileged:1.27.1-alpine
+    ports:
+      - "${DATAOS_PORTAL_PORT:-8080}:8080"
+    volumes:
+      - ./portal-dist:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      control-plane:
+        condition: service_healthy
+    networks:
+      - platform-net
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/cache/nginx
+      - /var/run
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=15d
+      - --web.enable-lifecycle
+    ports:
+      - "127.0.0.1:${DATAOS_PROMETHEUS_PORT:-19090}:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - data-os-prometheus:/prometheus
+    depends_on:
+      control-plane:
+        condition: service_healthy
+    networks:
+      - platform-net
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+volumes:
+  data-os-postgres:
+    name: data-os-production-postgres
+  data-os-prometheus:
+    name: data-os-production-prometheus
+
+networks:
+  platform-net:
+    name: data-os-production-net
+    driver: bridge

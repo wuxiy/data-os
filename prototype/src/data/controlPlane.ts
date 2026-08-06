@@ -1,3 +1,5 @@
+import { getAccessToken } from './oidc'
+
 export interface GovernanceApiMetric {
   key: string
   label: string
@@ -177,6 +179,18 @@ export interface IngestionRunListApiResponse {
 
 const API_BASE_URL = (import.meta.env.VITE_DATAOS_API_BASE_URL ?? '/api').replace(/\/$/, '')
 
+async function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
+  const headers = new Headers(init.headers)
+  if (!headers.has('Accept')) headers.set('Accept', 'application/json')
+  const token = getAccessToken()
+  if (token) headers.set('Authorization', `Bearer ${token}`)
+  const response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers })
+  if (response.status === 401 && typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('dataos:auth-required'))
+  }
+  return response
+}
+
 class ControlPlaneError extends Error {
   readonly status: number
 
@@ -199,10 +213,7 @@ async function responseError(response: Response, prefix: string): Promise<never>
 }
 
 export async function fetchGovernanceSummary(signal?: AbortSignal): Promise<GovernanceApiSummary> {
-  const response = await fetch(`${API_BASE_URL}/v1/governance/summary`, {
-    headers: { Accept: 'application/json' },
-    signal,
-  })
+  const response = await apiFetch('/v1/governance/summary', { signal })
   if (!response.ok) {
     throw new Error(`治理摘要请求失败：${response.status}`)
   }
@@ -233,7 +244,7 @@ export async function updateGovernanceIssueWorkflow(issueId: string, input: {
   status: string
   note: string
 }, signal?: AbortSignal): Promise<GovernanceIssueDetailApiResponse> {
-  const response = await fetch(`${API_BASE_URL}/v1/governance/issues/${encodeURIComponent(issueId)}/workflow`, {
+  const response = await apiFetch(`/v1/governance/issues/${encodeURIComponent(issueId)}/workflow`, {
     method: 'PUT',
     headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
@@ -244,7 +255,7 @@ export async function updateGovernanceIssueWorkflow(issueId: string, input: {
 }
 
 export async function requestGovernanceIssueRecheck(issueId: string, note?: string, signal?: AbortSignal): Promise<GovernanceIssueDetailApiResponse> {
-  const response = await fetch(`${API_BASE_URL}/v1/governance/issues/${encodeURIComponent(issueId)}/recheck`, {
+  const response = await apiFetch(`/v1/governance/issues/${encodeURIComponent(issueId)}/recheck`, {
     method: 'POST',
     headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
     body: JSON.stringify(note ? { note } : {}),
@@ -255,7 +266,7 @@ export async function requestGovernanceIssueRecheck(issueId: string, note?: stri
 }
 
 export async function syncGovernanceIssueRun(issueId: string, runId: string, signal?: AbortSignal): Promise<GovernanceIssueDetailApiResponse> {
-  const response = await fetch(`${API_BASE_URL}/v1/governance/issues/${encodeURIComponent(issueId)}/runs/${encodeURIComponent(runId)}/sync`, {
+  const response = await apiFetch(`/v1/governance/issues/${encodeURIComponent(issueId)}/runs/${encodeURIComponent(runId)}/sync`, {
     method: 'POST',
     headers: { Accept: 'application/json' },
     signal,
@@ -268,7 +279,7 @@ export async function remindGovernanceIssueOwner(issueId: string, signal?: Abort
   const idempotencyKey = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
     ? crypto.randomUUID()
     : `reminder-${Date.now()}-${Math.random().toString(36).slice(2)}`
-  const response = await fetch(`${API_BASE_URL}/v1/governance/issues/${encodeURIComponent(issueId)}/notifications/remind`, {
+  const response = await apiFetch(`/v1/governance/issues/${encodeURIComponent(issueId)}/notifications/remind`, {
     method: 'POST',
     headers: { Accept: 'application/json', 'Idempotency-Key': idempotencyKey },
     signal,
@@ -278,10 +289,7 @@ export async function remindGovernanceIssueOwner(issueId: string, signal?: Abort
 }
 
 async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: { Accept: 'application/json' },
-    signal,
-  })
+  const response = await apiFetch(path, { signal })
   if (!response.ok) await responseError(response, '控制面请求失败')
   return response.json() as Promise<T>
 }
@@ -299,7 +307,7 @@ export async function createSource(input: {
   systemType: string
   protocol: string
 }, signal?: AbortSignal): Promise<SourceApiItem> {
-  const response = await fetch(`${API_BASE_URL}/v1/sources`, {
+  const response = await apiFetch('/v1/sources', {
     method: 'POST',
     headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
@@ -310,7 +318,7 @@ export async function createSource(input: {
 }
 
 export async function checkSource(sourceId: string, config: JobConfig, signal?: AbortSignal): Promise<SourceApiItem> {
-  const response = await fetch(`${API_BASE_URL}/v1/sources/${sourceId}/check`, {
+  const response = await apiFetch(`/v1/sources/${sourceId}/check`, {
     method: 'POST',
     headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
     body: JSON.stringify({ config }),
@@ -321,7 +329,7 @@ export async function checkSource(sourceId: string, config: JobConfig, signal?: 
 }
 
 export async function createIngestionJob(input: CreateIngestionJobInput, signal?: AbortSignal): Promise<IngestionJobApiItem> {
-  const response = await fetch(`${API_BASE_URL}/v1/jobs`, {
+  const response = await apiFetch('/v1/jobs', {
     method: 'POST',
     headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
@@ -332,7 +340,7 @@ export async function createIngestionJob(input: CreateIngestionJobInput, signal?
 }
 
 export async function updateIngestionJobStatus(jobId: string, status: string, signal?: AbortSignal): Promise<IngestionJobApiItem> {
-  const response = await fetch(`${API_BASE_URL}/v1/jobs/${jobId}/status`, {
+  const response = await apiFetch(`/v1/jobs/${jobId}/status`, {
     method: 'PUT',
     headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
     body: JSON.stringify({ status }),
@@ -351,7 +359,7 @@ export async function saveJobConfig(jobId: string, input: {
   templateVersion: number
   config: JobConfig
 }, signal?: AbortSignal): Promise<IngestionJobConfigApiItem> {
-  const response = await fetch(`${API_BASE_URL}/v1/jobs/${jobId}/config`, {
+  const response = await apiFetch(`/v1/jobs/${jobId}/config`, {
     method: 'PUT',
     headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
@@ -368,7 +376,7 @@ export async function startIngestionRun(jobId: string, options: {
 } = {}): Promise<IngestionRunApiItem> {
   const headers: Record<string, string> = { Accept: 'application/json', 'Content-Type': 'application/json' }
   if (options.idempotencyKey) headers['Idempotency-Key'] = options.idempotencyKey
-  const response = await fetch(`${API_BASE_URL}/v1/jobs/${jobId}/runs`, {
+  const response = await apiFetch(`/v1/jobs/${jobId}/runs`, {
     method: 'POST',
     headers,
     body: JSON.stringify({ config: options.config ?? {} }),
@@ -383,7 +391,7 @@ export async function fetchIngestionRuns(jobId: string, signal?: AbortSignal): P
 }
 
 export async function syncIngestionRun(jobId: string, runId: string, signal?: AbortSignal): Promise<IngestionRunApiItem> {
-  const response = await fetch(`${API_BASE_URL}/v1/jobs/${jobId}/runs/${runId}/sync`, {
+  const response = await apiFetch(`/v1/jobs/${jobId}/runs/${runId}/sync`, {
     method: 'POST',
     headers: { Accept: 'application/json' },
     signal,
@@ -393,7 +401,7 @@ export async function syncIngestionRun(jobId: string, runId: string, signal?: Ab
 }
 
 export async function retryIngestionRun(jobId: string, runId: string, signal?: AbortSignal): Promise<IngestionRunApiItem> {
-  const response = await fetch(`${API_BASE_URL}/v1/jobs/${jobId}/runs/${runId}/retry`, {
+  const response = await apiFetch(`/v1/jobs/${jobId}/runs/${runId}/retry`, {
     method: 'POST',
     headers: { Accept: 'application/json' },
     signal,

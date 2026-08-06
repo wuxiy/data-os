@@ -10,8 +10,11 @@ import com.cywu.dataos.controlplane.api.ResourceNotFoundException;
 import com.cywu.dataos.controlplane.executor.AdapterConfigurationException;
 import com.cywu.dataos.controlplane.executor.AdapterUnavailableException;
 import com.cywu.dataos.controlplane.executor.ExecutorAdapter;
+import com.cywu.dataos.controlplane.security.TenantScope;
+import com.cywu.dataos.controlplane.security.AuthProperties;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -19,6 +22,7 @@ public class RunStatusSyncService {
 
     private final RunRepository runRepository;
     private final List<ExecutorAdapter> adapters;
+    private final TenantScope tenantScope;
     private final Set<String> inFlight = ConcurrentHashMap.newKeySet();
 
     @Value("${data-os.runs.sync-interval-ms:30000}")
@@ -27,9 +31,15 @@ public class RunStatusSyncService {
     @Value("${data-os.runs.sync-initial-delay-ms:10000}")
     private long syncInitialDelayMs;
 
-    public RunStatusSyncService(RunRepository runRepository, List<ExecutorAdapter> adapters) {
+    @Autowired
+    public RunStatusSyncService(RunRepository runRepository, List<ExecutorAdapter> adapters, TenantScope tenantScope) {
         this.runRepository = runRepository;
         this.adapters = adapters;
+        this.tenantScope = tenantScope;
+    }
+
+    public RunStatusSyncService(RunRepository runRepository, List<ExecutorAdapter> adapters) {
+        this(runRepository, adapters, new TenantScope(new AuthProperties()));
     }
 
     @PostConstruct
@@ -54,13 +64,14 @@ public class RunStatusSyncService {
     }
 
     public IngestionRun sync(String jobId, String runId) {
-        var run = runRepository.findById(jobId, runId)
+        var scope = tenantScope.current();
+        var run = runRepository.findById(jobId, runId, scope.tenantId(), scope.institutionId())
                 .orElseThrow(() -> new ResourceNotFoundException("未找到采集运行记录：" + runId));
         if (!isSyncable(run)) {
             return run;
         }
         syncOne(run);
-        return runRepository.findById(jobId, runId).orElse(run);
+        return runRepository.findById(jobId, runId, scope.tenantId(), scope.institutionId()).orElse(run);
     }
 
     private void syncOne(IngestionRun run) {

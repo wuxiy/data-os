@@ -13,6 +13,7 @@ import {
   Waypoints,
   Workflow,
   X,
+  LogOut,
   type LucideIcon,
 } from 'lucide-react'
 import type { ReactNode } from 'react'
@@ -46,9 +47,11 @@ interface AppShellProps {
   children: ReactNode
   onNavigate: (route: RouteKey) => void
   onUnavailable: (label: string) => void
+  authDisplayName?: string
+  onLogout?: () => void
 }
 
-export function AppShell({ route, children, onNavigate, onUnavailable }: AppShellProps) {
+export function AppShell({ route, children, onNavigate, onUnavailable, authDisplayName, onLogout }: AppShellProps) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const governanceActive = ['governance', 'standards', 'mapping', 'quality'].includes(route)
 
@@ -107,10 +110,19 @@ export function AppShell({ route, children, onNavigate, onUnavailable }: AppShel
             )
           })}
         </nav>
-        <button className={styles.settings} onClick={() => onUnavailable('系统设置')} title="系统设置">
-          <Settings size={19} strokeWidth={1.5} />
-          <span>系统设置</span>
-        </button>
+        <div className={styles.sidebarBottom}>
+          {authDisplayName && onLogout ? <div className={styles.authPanel}>
+            <span className={styles.authName} title={authDisplayName}>{authDisplayName}</span>
+            <button className={styles.logoutButton} onClick={onLogout} title="退出登录">
+              <LogOut size={16} strokeWidth={1.7} />
+              <span>退出登录</span>
+            </button>
+          </div> : null}
+          <button className={styles.settings} onClick={() => onUnavailable('系统设置')} title="系统设置">
+            <Settings size={19} strokeWidth={1.5} />
+            <span>系统设置</span>
+          </button>
+        </div>
       </aside>
       <main id="main-content" className={styles.main} tabIndex={-1}>
         <RuntimeStatusBanner />

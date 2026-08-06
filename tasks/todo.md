@@ -105,7 +105,7 @@
 
 本地验证：`mvn -B -Dmaven.repo.local=/private/tmp/dataos-m2 test` 通过，4 个契约测试全绿；`npm run build` 通过（1606 modules）。Compose 通过 `docker compose config --no-interpolate` 校验，Nginx 提供 `/api/` 反向代理和 `/healthz`。
 
-开发环境：`172.16.65.59:/root/data-os-dev-20260803`。新增服务为 `data-os-dev-control-plane-1` 与 `data-os-dev-portal-1`，门户实际端口 `18081`；控制面健康为 `UP`，PostgreSQL 中 `data_os` 已创建 `sources`、`ingestion_jobs`、`job_runs`、`governance_metrics`、`governance_issues` 五张表，验收时分别写入 2 个来源、2 个任务和 1 条阻塞运行记录。现有 data-ops 容器、Doris、Keycloak 和 `platform-net` 未被修改。
+开发环境：隔离开发机的 `/root/data-os-dev-20260803`。新增服务为 `data-os-dev-control-plane-1` 与 `data-os-dev-portal-1`，门户实际端口 `18081`；控制面健康为 `UP`，PostgreSQL 中 `data_os` 已创建 `sources`、`ingestion_jobs`、`job_runs`、`governance_metrics`、`governance_issues` 五张表，验收时分别写入 2 个来源、2 个任务和 1 条阻塞运行记录。现有 data-ops 容器、Doris、Keycloak 和 `platform-net` 未被修改。
 
 验收命令与结果：
 
@@ -330,3 +330,54 @@ SLA worker 扫描到期问题并写入 `sla_overdue_at`、`SLA_OVERDUE` 事件�
 - `/healthz` 与 readiness 均为 `UP`；`/api/v1/system/status` 明确返回开发 `DEMO` 模式、SeaTunnel 已配置、通知 Webhook 未配置告警；SeaTunnel 2.3.13 `/overview` 正常且容器未重建。
 - 真实浏览器验收通过：首页演示边界可见；治理驾驶舱显示 PostgreSQL 指标与 3 条问题；数据资产可进入技术视图；智能问数可进入专业工作区；数据接入的采集配置 JSON 默认展开并可编辑。未提交表单或修改远程业务数据。
 - 当前开发环境的 `FakeSource → Console（演示）` 和 DEMO 质量执行器是显式验收配置；交付生产仍必须使用真实采集配置/规则执行器，并由后端生产策略拒绝 FakeSource、演示种子和 DEMO 执行器。
+
+## 2026-08-06 第八迭代：发布级产品全面审查
+
+### 目标
+
+全面审查当前产品成熟度，区分真实能力、演示能力和规划能力，形成生产发布阻断项、试点前必补功能、后续增强项及分阶段实施计划。
+
+### 执行计划
+
+- [x] 冻结发布口径、审查维度和 P0/P1/P2 分级标准
+- [x] 盘点门户、控制面、数据模型、组件接入和部署运维现状
+- [x] 执行测试、配置、依赖、运行环境和浏览器验证
+- [x] 形成成熟度评分、问题证据、缺失功能和路线图
+- [x] 完成交叉校验并归档正式审查报告
+
+### 结果复盘
+
+- 正式报告已归档至 `docs/release-readiness-audit-20260806.md`，区分演示 / 单院受限试点 / 单院生产 / 区域生产四种口径；当前生产成熟度工程估算为 34/100，不是合规认证结论。
+- 当前可以作为 `0.2 Pilot Preview` 用于演示和受控联调，但不能标记为 1.0。P0 集中在身份与 RBAC、可信租户隔离、SSRF 与凭据服务、生产部署、版本化迁移与灾备、核心产品真实服务和真实端到端数据链。
+- OpenMetadata、Superset、DB-GPT 等远程容器只算可复用基础设施，因 data-os 尚无身份、租户、审计和产品适配器接入，未计为已交付功能。
+- 建议停止继续扩展静态页面，优先完成“身份/租户 → 凭据 → 前置机/真实数据源 → SeaTunnel → 目标库 → 真实质量 → OpenMetadata → 问题闭环 → 通知 → 监控证据”这一条可售最小闭环。
+- 本次验证包括 42 项 Maven 测试、前端生产构建、mock audit、交互 smoke、npm 官方源 audit、远程环境只读检查和本地生产构建真实浏览器检查；`git diff --check` 通过。
+
+## 2026-08-06 Gate 0：OIDC 安全收口与生产基础
+
+### 目标
+
+在已有 Keycloak/OIDC 的前提下，不引入 Sa-Token 第二套会话体系，完成 control-plane 的生产身份、租户、凭据、SSRF、迁移、部署、CI 和监控基线。
+
+### 执行计划
+
+- [x] 以 Spring Security Resource Server 接入 OIDC JWT，校验 issuer、audience、过期时间和 clock skew
+- [x] 增加角色映射、租户/机构可信上下文、跨租户拒绝、401/403 Problem JSON 和审计事件
+- [x] 增加 AES-GCM 凭据引用服务，API 不回显 secret，采集 JDBC 检查只接受 credentialRef
+- [x] 增加默认拒绝的 HTTP/JDBC SSRF 策略、元数据/私网阻断、allowlist、重定向禁止和响应体上限
+- [x] 引入 Flyway V1 基线迁移，关闭 `schema.sql` 自动初始化，并提供开发库 baseline 开关
+- [x] 提供非 root 控制面、非特权 Nginx、独立 PostgreSQL、Prometheus 的生产 Compose 模板
+- [x] 增加 Java 测试、前端构建、Compose/Prometheus 校验、Gitleaks 和镜像 SBOM CI
+- [x] 完成全量回归、代码审查、配置静态校验和 Gate 0 复盘
+
+### 结果复盘
+
+生产默认保持 fail-closed：`DATAOS_AUTH_MODE=ENFORCED`、OIDC issuer/audience 必填、生产 issuer 必须 HTTPS；`DISABLED` 只在显式 development/test 配置使用。JWT 角色支持 `roles`、`groups`、Keycloak `realm_access` 和 `resource_access`，租户范围来自 `tenant_id`/`institution_id`，请求参数只能收窄不能替换。治理提醒入口也统一经过可信租户解析，跨租户请求返回 403；全局通知投递仅允许 platform-admin。
+
+凭据以 AES-GCM 密文保存，密钥由 `DATAOS_CREDENTIAL_ENCRYPTION_KEY` 注入；凭据摘要和日志不含明文。来源检查默认只允许 HTTPS、白名单主机并阻断本机、私网、链路本地和云元数据地址；HTTP 重定向关闭，Content-Length 与 chunked body 均受 `maxResponseBytes` 限制。
+
+验证结果：Maven 全量 `56` 项通过（failures/errors/skipped 均为 0），包含 OIDC MockMvc 实际 401/403、JWT claim 校验、跨租户、resource_access client 隔离、SSRF、chunked 响应上限和凭据不回显测试；前端已接入 OIDC PKCE 登录和 Bearer 注入，`npm run build`、`npm run qa:mock`、交互 smoke、`git diff --check` 和生产 Compose config 通过。CI 另外包含 npm audit、dependency review、Trivy 高危镜像扫描、生产 mock 边界和不可变 tag 检查。Prometheus promtool 与 Docker build 已写入 CI，但本机 OrbStack daemon 未启动，未能执行本地镜像构建/容器启动；CI 会在 Linux runner 上执行该门禁。
+
+### 遗留边界
+
+Gate 0 尚未覆盖 OIDC 多租户授权列表、CIDR allowlist/DNS rebinding 彻底消除、密钥轮换/Vault、PostgreSQL 备份恢复演练、SeaTunnel/质量执行器真实生产端到端链路和区域多副本数据库租约。这些列入 Gate 1/生产发布前清单，当前版本不能宣称完成医疗合规认证或区域生产 HA。

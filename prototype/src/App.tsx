@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
+import { OidcLoginGate } from './components/auth/OidcLoginGate'
 import { ResponsibilityDrawer } from './components/governance/ResponsibilityChain'
 import { AppShell } from './components/layout/AppShell'
 import { Toast } from './components/ui/Primitives'
+import { clearOidcSession, initializeOidc, logoutOidc, oidcIsConfigured, type AuthSnapshot } from './data/oidc'
 import { routePaths } from './data/mock'
 import { DataStandardsPage } from './pages/DataStandardsPage'
 import { DataIngestionPage } from './pages/DataIngestionPage'
@@ -25,6 +27,29 @@ export function App() {
   const [route, setRoute] = useState<RouteKey>(() => routeFromPath(window.location.pathname))
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [notice, setNotice] = useState('')
+  const [auth, setAuth] = useState<AuthSnapshot>(() => oidcIsConfigured() ? { status: 'loading' } : { status: 'disabled' })
+
+  useEffect(() => {
+    let active = true
+    void initializeOidc().then(snapshot => {
+      if (active) setAuth(snapshot)
+    })
+    const handleUnauthorized = () => {
+      clearOidcSession()
+      setAuth({ status: 'unauthenticated' })
+    }
+    const handleOidcError = (event: Event) => {
+      const detail = (event as CustomEvent<string>).detail
+      setAuth({ status: 'error', error: detail || 'OIDC 登录失败' })
+    }
+    window.addEventListener('dataos:auth-required', handleUnauthorized)
+    window.addEventListener('dataos:oidc-error', handleOidcError)
+    return () => {
+      active = false
+      window.removeEventListener('dataos:auth-required', handleUnauthorized)
+      window.removeEventListener('dataos:oidc-error', handleOidcError)
+    }
+  }, [])
 
   useEffect(() => {
     function handlePopState() {
@@ -40,6 +65,10 @@ export function App() {
     const timer = window.setTimeout(() => setNotice(''), 3200)
     return () => window.clearTimeout(timer)
   }, [notice])
+
+  if (auth.status !== 'disabled' && auth.status !== 'authenticated') {
+    return <OidcLoginGate snapshot={auth} />
+  }
 
   function navigate(nextRoute: RouteKey) {
     if (nextRoute === route) return
@@ -93,7 +122,8 @@ export function App() {
   }
 
   return (
-    <AppShell route={route} onNavigate={navigate} onUnavailable={showUnavailable}>
+    <AppShell route={route} onNavigate={navigate} onUnavailable={showUnavailable}
+      authDisplayName={auth.displayName} onLogout={oidcIsConfigured() ? logoutOidc : undefined}>
       {page}
       <ResponsibilityDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} onAction={setNotice} />
       {notice ? <Toast message={notice} onClose={() => setNotice('')} /> : null}

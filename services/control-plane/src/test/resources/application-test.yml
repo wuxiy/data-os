@@ -5,11 +5,22 @@ spring:
     password:
   sql:
     init:
-      mode: always
+      mode: never
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
 
 data-os:
   runtime:
     environment: test
+  auth:
+    mode: DISABLED
+    default-tenant-id: default
+    default-institution-id: demo-hospital
+  source-network:
+    allow-http: true
+    allow-private-networks: true
+    allow-test-protocols: true
   seed-demo: false
   quality:
     executor: DEMO

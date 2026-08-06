@@ -36,3 +36,77 @@
 - 默认真实模式：`/` 显示管理驾驶舱待接入边界，`/assets` 显示资产目录待接入边界，`/governance` 不出现静态问题/责任链/趋势样例。
 - `VITE_DATAOS_DEMO_MODE=true` 构建：`/assets` 显示“演示模式”和脱敏资产样例，`/governance` 保留演示责任链结构。
 - 两种模式本地浏览器控制台均无应用 error/warn；Browser SDK 的 Statsig 网络超时为工具自身遥测噪声，不属于应用日志。
+# 2026-08-06 发布级产品审查工作笔记
+
+## 审查口径
+
+- 目标分层：演示版、项目试点版、生产发布版。
+- 维度：产品完整性、真实数据闭环、架构与性能、可靠性与运维、安全与医疗合规、测试与质量、UI/交付体验。
+- 严格区分：源码已实现、开发环境已运行、外部组件仅规划、静态演示数据。
+- 问题分级：P0 阻断生产发布；P1 试点前必须补齐；P2 后续增强。
+
+## 初始事实
+
+- 已知真实能力：SeaTunnel 任务提交/状态同步、来源登记与检查、治理问题持久化、复检批次和结果回写、SLA 逾期、通知队列、开发运行状态诊断。
+- 已知显式演示能力：管理驾驶舱、标准/MPI/资产/分析/问数部分页面、FakeSource、DEMO 质量执行器、开发种子数据。
+- 已知外部边界：通知 Webhook 未配置；真实 HIS/EMR/LIS 连接、前置机 Agent、生产质量运行器与院内凭据尚未验收。
+
+## 代码与功能盘点
+
+### 已真实落地
+
+- 控制面有 22 个 HTTP 入口，覆盖来源登记/检查、任务配置/生命周期、SeaTunnel 提交与状态同步、治理摘要、问题工作流、复检批次、SLA 扫描和通知队列。
+- 采集配置禁止明文 `password/secret/token` 键，生产环境阻断 FakeSource/DEMO；运行使用幂等键和数据库状态条件更新。
+- 质量复检提交、状态轮询、自动关闭/退回、样本证据、通知租约和幂等已有持久化与测试。
+
+### 仅原型或未接入
+
+- 管理驾驶舱、数据标准、标准映射、MPI、资产/技术视图、分析、智能问数共 8 个页面在生产构建中只显示“待接入真实服务”。
+- 数据服务、运营中心、交付中心、系统设置没有路由；治理的血缘与影响、问题闭环、数据合同页签仍走 unavailable 提示。
+- OpenMetadata、Superset、DB-GPT、HAPI FHIR MDM、Doris、DolphinScheduler、对象存储、Edge/前置机 Agent 在 data-os 源码和部署包中均没有产品 Adapter/服务实现。
+- 机构/主题域/时间筛选器只弹提示，不改变 API 查询或页面结果。
+
+## P0 级技术风险证据
+
+- `pom.xml` 没有 Spring Security/OAuth2 依赖，所有业务 API、SLA 扫描和通知投递入口均无认证授权；远程匿名 GET 已直接读到治理摘要和责任信息。
+- 租户与机构来自可篡改的 query/body，默认回落 `default/demo-hospital`；按 ID 查询、状态变更、来源检查和任务运行没有统一租户上下文，区域部署无法证明隔离。
+- 来源检查允许请求方提交任意 HTTP/FHIR URL 或 JDBC URL，缺少目的地址 allowlist、内网/云元数据阻断和权限保护，形成 SSRF/任意网络探测面。
+- 远程门户只提供 HTTP，响应未见 CSP/HSTS/X-Content-Type-Options/Frame-Options 等安全头。
+- 数据库复用 Keycloak 数据库及账号，仅以 `data_os` schema 隔离；不符合组件故障域和最小权限生产要求。
+- Docker 容器用户为空（默认 root）、根文件系统可写、没有 memory/CPU 限额；镜像使用可变 tag 而非 digest。
+
+## 运维与发布缺口
+
+- 仓库只有开发 Compose；没有生产 Compose/K3s/Helm、HA、副本、PDB、网络策略、TLS、资源配额和 Secret 管理制品。
+- `schema.sql + spring.sql.init=always` 代替版本化迁移；没有 Flyway/Liquibase、迁移历史、回滚和生产升级门禁。
+- 没有 `platformctl`、安装预检、备份/恢复、升级/回滚、诊断包、离线镜像包、组件 BOM/SBOM/许可证清单。
+- 没有 CI 工作流；没有 SAST、依赖扫描、镜像扫描、secret scan、SBOM、签名和发布门禁。环境也未安装 gitleaks/trivy/syft/grype/hadolint。
+- 没有结构化日志、业务审计表/拦截器、trace/correlation ID、Prometheus 业务指标、Grafana 告警规则、通知死信运营页。
+
+## 测试证据
+
+- 后端 Maven：42 项通过，0 failure/error/skip。
+- 前端：生产构建通过；mock audit 通过（8 个静态页面受控）；交互契约 smoke 通过。
+- npm 官方 registry audit：120 个依赖，0 个已知漏洞。
+- 缺失：前端单元/组件测试、自动化浏览器 E2E、PostgreSQL Testcontainers、真实 SeaTunnel/质量运行器持续集成、性能/容量/长稳/故障注入/安全测试、迁移和备份恢复测试。
+
+## 远程开发环境
+
+- data-os 三容器已运行：portal/control-plane 约 19 小时，SeaTunnel 约 3 天且健康；运行模式为 DEMO，Webhook 未配置。
+- 匿名治理摘要返回 6 个指标和 3 个问题，验证了认证缺失。
+- OpenMetadata、Superset、DB-GPT、Keycloak 等容器虽存在，但不是 data-os Compose 服务，源码也无 Adapter；不能计入产品完成度。
+
+## 审查收口
+
+- 正式报告：`docs/release-readiness-audit-20260806.md`。
+- 当前定位：演示 / PoC 基本可用，可命名为 `0.2 Pilot Preview`；单院生产成熟度工程估算 34/100，区域生产约 20/100。
+- 发布优先级：先完成身份租户、凭据与网络安全、生产部署与迁移灾备，再完成真实采集/质量/资产端到端链；之后再扩展标准、MPI/MDM、数据服务、Superset 和 DB-GPT。
+- 工期估算：4–6 人团队单院生产版约 14–21 周；范围受限的可售试点在 Gate 0 后约 6–8 周；区域能力额外约 10–16 周。
+
+## 2026-08-06 Gate 0 实施收口
+
+- 上述 P0 安全缺口已进入本轮实现：生产默认 OIDC 强制认证，JWT issuer/audience/时间校验、角色映射、可信租户上下文、跨租户 403、审计事件和统一 401/403 响应已落地。
+- 凭据改为 AES-GCM 密文引用；来源检查改为默认拒绝的 HTTPS/allowlist 策略，并阻断私网、链路本地、元数据地址、重定向和超限响应体。
+- 数据库启动改为 Flyway V1；生产 Compose、非 root 控制面、非特权门户、Prometheus 和 CI（测试、构建、Compose/Prometheus 校验、Gitleaks、镜像 SBOM）已补齐。
+- 本轮并未把真实 HIS/EMR/LIS、前置机 Agent、OpenMetadata/Superset/DB-GPT 适配器或区域 HA 误标为已交付；这些仍按原审查结论进入 Gate 1/生产发布前路线。
+- 复核后补齐：`resource_access` 只读取配置的 `DATAOS_OIDC_AUDIENCE` client 角色；门户使用 Authorization Code + PKCE 完成 OIDC 登录并为同源 API 注入 Bearer token；生产模板增加一次性旧库 Flyway baseline 步骤；CI 增加 npm audit、dependency review、Trivy 高危镜像扫描和 portal/mock 门禁。

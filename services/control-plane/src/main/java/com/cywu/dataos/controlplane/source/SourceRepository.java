@@ -25,12 +25,12 @@ public class SourceRepository {
                 """, this::map, tenantId, institutionId);
     }
 
-    public Optional<Source> findById(String id) {
+    public Optional<Source> findById(String id, String tenantId, String institutionId) {
         return jdbc.query("""
                 SELECT id, tenant_id, institution_id, name, system_type, protocol, status, created_at,
                        last_checked_at, last_check_message
-                FROM data_os.sources WHERE id = ?
-                """, this::map, id).stream().findFirst();
+                FROM data_os.sources WHERE id = ? AND tenant_id = ? AND institution_id = ?
+                """, this::map, id, tenantId, institutionId).stream().findFirst();
     }
 
     public Source save(Source source) {
@@ -45,12 +45,13 @@ public class SourceRepository {
         return source;
     }
 
-    public int updateCheck(String sourceId, String status, String message, java.time.Instant checkedAt) {
+    public int updateCheck(String sourceId, String tenantId, String institutionId, String status, String message,
+                           java.time.Instant checkedAt) {
         return jdbc.update("""
                 UPDATE data_os.sources
                 SET status = ?, last_checked_at = ?, last_check_message = ?
-                WHERE id = ?
-                """, status, Timestamp.from(checkedAt), message, sourceId);
+                WHERE id = ? AND tenant_id = ? AND institution_id = ?
+                """, status, Timestamp.from(checkedAt), message, sourceId, tenantId, institutionId);
     }
 
     public boolean exists(String id) {

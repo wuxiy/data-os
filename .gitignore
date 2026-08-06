@@ -2,6 +2,8 @@
 prototype/node_modules/
 prototype/dist/
 prototype/*.tsbuildinfo
+prototype/.env*
+!prototype/.env.production.example
 prototype/qa/*-browser.png
 prototype/concepts/governance-dashboard-v1.png
 services/**/target/
