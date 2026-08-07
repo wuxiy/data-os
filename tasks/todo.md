@@ -381,3 +381,31 @@ SLA worker 扫描到期问题并写入 `sla_overdue_at`、`SLA_OVERDUE` 事件�
 ### 遗留边界
 
 Gate 0 尚未覆盖 OIDC 多租户授权列表、CIDR allowlist/DNS rebinding 彻底消除、密钥轮换/Vault、PostgreSQL 备份恢复演练、SeaTunnel/质量执行器真实生产端到端链路和区域多副本数据库租约。这些列入 Gate 1/生产发布前清单，当前版本不能宣称完成医疗合规认证或区域生产 HA。
+
+## 2026-08-07 Gate 1：DolphinScheduler 调度器落地与开发环境验证
+
+### 目标
+
+确认已批准的 DolphinScheduler 调度决策形成可交付的控制面适配器、单院轻量部署 overlay 和生产配置边界，并连接开发环境完成可重复的只读验证。
+
+### 执行计划
+
+- [x] 盘点现有执行器端口、运行状态回写和开发/生产 Compose 入口
+- [x] 实现 DolphinScheduler 已发布工作流绑定适配器、认证回退、状态归一和外部运行编号
+- [x] 将 data-os 持久化运行编号透传到 `startParams.dataos_run_id`，并明确提交响应丢失时不自动重试
+- [x] 增加开发单院 JDBC Registry overlay、生产外置 PostgreSQL overlay、TLS 参数和幂等迁移脚本
+- [x] 接入 CI 的 Compose overlay 校验；完成控制面制品重打包和 JAR 内容核验
+- [x] 完成后端、前端、mock、Compose、远程 HTTP 只读验证并记录证据
+- [x] 完成代码差异审查、已知边界归档和提交准备
+
+### 结果复盘
+
+已新增 `OrchestratorAdapter` 与 `DolphinSchedulerExecutorAdapter`。Gate 1 采用“预发布工作流绑定”而非每次动态创建 DAG：控制面调用当前 DolphinScheduler `/projects/{projectCode}/executors/start-workflow-instance`，把 `projectCode/workflowDefinitionCode` 和非敏感 `startParams` 作为任务配置，使用运行环境 token 或专用账号 `sessionId`，将返回实例编码为 `ds|project|workflow|instance`，再通过 `/workflow-instances/{id}`（旧版兼容 `/process-instances/{id}`）归一状态。
+
+开发环境通过 `deploy/dev/dolphinscheduler/docker-compose.yml` 提供 API、Master、Worker、Alert、独立 PostgreSQL 和 JDBC Registry；生产环境通过 `deploy/production/dolphinscheduler-compose.yml` 接入外置调度数据库，并支持 `DOLPHINSCHEDULER_DB_SSLMODE`。Registry SQL 使用 `CREATE IF NOT EXISTS`，不会在容器重启时删除调度器元数据。CI 现在同时校验基础 Compose 和两个 DS overlay。
+
+本地验证：控制面 `clean package` 通过，61 项测试全绿，最终 JAR 已包含新适配器；门户 build、mock audit、交互 smoke 和官方 npm audit 均通过；开发/生产 Compose `config --quiet` 均通过；`git diff --check` 通过。控制面 Docker 构建已触发，但 OrbStack 拉取基础镜像时 Docker Hub 认证请求超时，已记录为环境网络问题，CI 仍有镜像构建、Trivy 和 SBOM 门禁。完整证据归档于 `docs/validation/gate1-dolphinscheduler-20260807.md`。
+
+远程开发机只读检查确认 `18081/healthz` 返回 `UP`、门户 `8443` 返回 `200`；现有远程实例仍是 DEMO/演示种子配置，`18083/19083/12345` 未监听 DolphinScheduler。SSH 端口可达但当前凭据被拒绝，未执行远程写入、部署或数据库变更，待可用密钥/凭据后补做真实工作流验收。
+
+剩余 P1：DolphinScheduler 公开 API 无法按 `startParams.dataos_run_id` 做可靠唯一查询，提交响应超时只能安全地进入 `BLOCKED_DEPENDENCY` 并人工对账，当前不宣称 exactly-once；后续需建设跨系统对账表/适配器扩展。

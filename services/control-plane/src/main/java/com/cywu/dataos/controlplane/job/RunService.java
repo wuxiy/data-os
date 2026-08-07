@@ -78,7 +78,7 @@ public class RunService {
         }
 
         try {
-            var submission = adapter.submit(claim.job(), claim.config());
+            var submission = adapter.submit(claim.job(), claim.config(), claim.run().id());
             if (submission == null || submission.externalId() == null || submission.externalId().isBlank()) {
                 return complete(claim, "SUBMIT_FAILED", null,
                         "中心采集执行器未返回外部运行编号", null, Instant.now());

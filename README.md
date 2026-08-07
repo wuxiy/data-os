@@ -1,6 +1,6 @@
 # data-os（医数中枢）
 
-医疗数据采集、治理、运营的统一门户。底层以 SeaTunnel、Doris、OpenMetadata、HAPI FHIR 等开源组件作为可替换执行器，甲方用户只面对统一的中文业务门户，不接触组件原生控制台。
+医疗数据采集、治理、运营的统一门户。底层以 SeaTunnel、DolphinScheduler、Doris、OpenMetadata、HAPI FHIR 等开源组件作为可替换执行器，甲方用户只面对统一的中文业务门户，不接触组件原生控制台。
 
 ## 文档地图
 
@@ -22,6 +22,7 @@
 - 数据接入页已具备交付所需的桌面闭环：登记数据源、检查来源可用性、新建采集任务、编辑/保存配置、启用/暂停/归档任务、幂等启动、失败重试、运行详情抽屉和 5 秒状态刷新；数据质量闭环页支持真实问题队列、责任链详情、处理说明和复检操作。控制面不可用时，数据接入与质量闭环均展示明确不可用空态，不把演示状态当作真实业务事实。
 - mock 数据已改为显式演示边界：`VITE_DATAOS_DEMO_MODE=true` 才展示标准、MPI、资产、分析和问数的脱敏原型数据；真实模式不再静默渲染样例。门户顶部读取 `/api/v1/system/status`，展示控制面、质量执行器、SeaTunnel 和通知通道配置告警。
 - 已部署到隔离开发机的独立 `/root/data-os-dev-20260803` 目录：门户 `18081`、控制面容器和 `data_os` schema 已通过 API 验收；SeaTunnel 2.3.13 已用 Apache 官方二进制包构建为本地镜像，REST 端口 `18082`，控制面已配置内部地址并完成真实提交验收。
+- DolphinScheduler 已接入控制面执行器契约：生产任务使用已发布工作流绑定，状态由 DolphinScheduler 实例归一回写；单院紧凑 JDBC Registry Compose overlay 位于 `deploy/dev/dolphinscheduler/`，SeaTunnel 直连仍保留为开发兼容路径。
 
 ## 运行原型
 

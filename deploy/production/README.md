@@ -50,6 +50,42 @@ docker compose --env-file .env ps
 
 首次打开门户时会跳转到 OIDC 登录页；IdP 必须允许门户的完整 HTTPS redirect URI，且客户端启用 PKCE 公共客户端模式。门户只把 access token 放在当前浏览器 session storage，退出登录或关闭浏览器后清理；API 仍会在控制面校验 issuer、audience、过期时间和租户声明。若甲方统一入口已提供 SSO 反向代理，仍需让代理透传 `Authorization`，不能将匿名请求直接转发到控制面。
 
+## 启用 DolphinScheduler 编排器（Gate 1）
+
+生产调度器是独立的 Compose overlay，不与 data-os/Keycloak 共用数据库账号。甲方平台需要先 provision 一个专用 PostgreSQL 数据库（建议数据库名 `dolphinscheduler`）和最小权限账号；overlay 会先执行 DolphinScheduler 主 schema 与幂等 JDBC Registry 表迁移，再启动 API、Master、Worker、Alert。单院节点默认不启用 ZooKeeper；区域高可用应改用独立调度集群和外部注册中心方案评审。
+
+在 `.env` 中增加以下仅部署机可读的变量：
+
+```dotenv
+DOLPHINSCHEDULER_TAG=3.4.1
+DOLPHINSCHEDULER_DB_HOST=院内 PostgreSQL 主机
+DOLPHINSCHEDULER_DB_PORT=5432
+DOLPHINSCHEDULER_DB_NAME=dolphinscheduler
+DOLPHINSCHEDULER_DB_USERNAME=dolphinscheduler_runtime
+DOLPHINSCHEDULER_DB_PASSWORD=仅保存在部署机秘密文件
+DOLPHINSCHEDULER_DB_SSLMODE=disable  # 托管库按证书策略改为 require/verify-full
+DOLPHINSCHEDULER_API_PORT=19083
+DOLPHINSCHEDULER_TZ=Asia/Shanghai
+DOLPHINSCHEDULER_BASE_URL=http://dolphinscheduler-api:12345/dolphinscheduler
+DATAOS_DOLPHINSCHEDULER_TOKEN=专用服务账号 token
+# 没有 token 时才使用以下登录回退，不要使用默认管理员账号。
+DATAOS_DOLPHINSCHEDULER_USERNAME=
+DATAOS_DOLPHINSCHEDULER_PASSWORD=
+```
+
+先校验并启动 data-os，再按 overlay 启动调度器：
+
+```bash
+docker compose --env-file .env config --quiet
+docker compose --env-file .env -f docker-compose.yml -f dolphinscheduler-compose.yml up -d
+docker compose --env-file .env -f docker-compose.yml -f dolphinscheduler-compose.yml ps
+curl -fsS http://127.0.0.1:19083/dolphinscheduler/actuator/health
+```
+
+API 诊断端口只绑定 `127.0.0.1`，不通过门户或公网暴露。首次部署仍需由调度管理员在内网完成一次性服务账号、项目和已发布工作流绑定；data-os 任务配置只保存 `projectCode`、`workflowDefinitionCode`、版本审计信息和非敏感启动参数，调度器密码/token 不进入任务 JSON。
+
+控制面把 data-os 运行编号写入 `startParams.dataos_run_id`，但当前 DolphinScheduler 公开 API 无法按该启动参数可靠对账。因而提交响应超时会进入 `BLOCKED_DEPENDENCY`，不会自动重试；运维人员需先在调度器中核对实例，再人工处理，避免重复采集。跨系统幂等对账列为下一阶段 Gate 1 P1，不把当前方案宣称为 exactly-once。
+
 ## 必须检查的生产配置
 
 - `DATAOS_RUNTIME_ENV=production`、`DATAOS_SEED_DEMO=false`。

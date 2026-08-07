@@ -1,0 +1,145 @@
+name: data-os-production
+
+# Production scheduler overlay. It intentionally has no database container:
+# provide a dedicated PostgreSQL database/role through the hospital platform
+# and keep the DS database separate from data-os and Keycloak.
+
+services:
+  dolphinscheduler-registry-schema:
+    image: postgres:16-alpine
+    environment:
+      PGHOST: ${DOLPHINSCHEDULER_DB_HOST:?DOLPHINSCHEDULER_DB_HOST must be set}
+      PGPORT: ${DOLPHINSCHEDULER_DB_PORT:-5432}
+      PGDATABASE: ${DOLPHINSCHEDULER_DB_NAME:?DOLPHINSCHEDULER_DB_NAME must be set}
+      PGUSER: ${DOLPHINSCHEDULER_DB_USERNAME:?DOLPHINSCHEDULER_DB_USERNAME must be set}
+      PGPASSWORD: ${DOLPHINSCHEDULER_DB_PASSWORD:?DOLPHINSCHEDULER_DB_PASSWORD must be set}
+      PGSSLMODE: ${DOLPHINSCHEDULER_DB_SSLMODE:-disable}
+    volumes:
+      - ./dolphinscheduler/postgresql-registry-init.sql:/opt/data-os/postgresql-registry-init.sql:ro
+    command:
+      - sh
+      - -c
+      - |-
+        until pg_isready -h "$${PGHOST}" -p "$${PGPORT}" -U "$${PGUSER}" -d "$${PGDATABASE}"; do sleep 2; done
+        psql -v ON_ERROR_STOP=1 -f /opt/data-os/postgresql-registry-init.sql
+    networks: [platform-net]
+    restart: "no"
+
+  dolphinscheduler-schema-initializer:
+    image: ${DOLPHINSCHEDULER_HUB:-apache}/dolphinscheduler-tools:${DOLPHINSCHEDULER_TAG:-3.4.1}
+    depends_on:
+      dolphinscheduler-registry-schema:
+        condition: service_completed_successfully
+    environment: &dolphinscheduler-common-env
+      DOCKER: "true"
+      DATABASE: postgresql
+      TZ: ${DOLPHINSCHEDULER_TZ:-Asia/Shanghai}
+      SPRING_JACKSON_TIME_ZONE: UTC
+      SPRING_DATASOURCE_URL: jdbc:postgresql://${DOLPHINSCHEDULER_DB_HOST:?DOLPHINSCHEDULER_DB_HOST must be set}:${DOLPHINSCHEDULER_DB_PORT:-5432}/${DOLPHINSCHEDULER_DB_NAME:?DOLPHINSCHEDULER_DB_NAME must be set}?sslmode=${DOLPHINSCHEDULER_DB_SSLMODE:-disable}
+      SPRING_DATASOURCE_USERNAME: ${DOLPHINSCHEDULER_DB_USERNAME:?DOLPHINSCHEDULER_DB_USERNAME must be set}
+      SPRING_DATASOURCE_PASSWORD: ${DOLPHINSCHEDULER_DB_PASSWORD:?DOLPHINSCHEDULER_DB_PASSWORD must be set}
+      REGISTRY_TYPE: jdbc
+      REGISTRY_HEARTBEAT_REFRESH_INTERVAL: 3s
+      REGISTRY_SESSION_TIMEOUT: 60s
+      REGISTRY_HIKARI_CONFIG_DRIVER_CLASS_NAME: org.postgresql.Driver
+      REGISTRY_HIKARI_CONFIG_JDBC_URL: jdbc:postgresql://${DOLPHINSCHEDULER_DB_HOST:?DOLPHINSCHEDULER_DB_HOST must be set}:${DOLPHINSCHEDULER_DB_PORT:-5432}/${DOLPHINSCHEDULER_DB_NAME:?DOLPHINSCHEDULER_DB_NAME must be set}?sslmode=${DOLPHINSCHEDULER_DB_SSLMODE:-disable}
+      REGISTRY_HIKARI_CONFIG_USERNAME: ${DOLPHINSCHEDULER_DB_USERNAME:?DOLPHINSCHEDULER_DB_USERNAME must be set}
+      REGISTRY_HIKARI_CONFIG_PASSWORD: ${DOLPHINSCHEDULER_DB_PASSWORD:?DOLPHINSCHEDULER_DB_PASSWORD must be set}
+    command: [tools/bin/upgrade-schema.sh]
+    volumes:
+      - dolphinscheduler-logs:/opt/dolphinscheduler/logs
+      - dolphinscheduler-shared-local:/opt/soft
+      - dolphinscheduler-resource-local:/dolphinscheduler
+    networks: [platform-net]
+    restart: "no"
+
+  dolphinscheduler-api:
+    image: ${DOLPHINSCHEDULER_HUB:-apache}/dolphinscheduler-api:${DOLPHINSCHEDULER_TAG:-3.4.1}
+    ports:
+      - "127.0.0.1:${DOLPHINSCHEDULER_API_PORT:-19083}:12345"
+    environment: *dolphinscheduler-common-env
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:12345/dolphinscheduler/actuator/health"]
+      interval: 20s
+      timeout: 5s
+      start_period: 45s
+      retries: 12
+    depends_on:
+      dolphinscheduler-schema-initializer:
+        condition: service_completed_successfully
+    volumes:
+      - dolphinscheduler-logs:/opt/dolphinscheduler/logs
+      - dolphinscheduler-shared-local:/opt/soft
+      - dolphinscheduler-resource-local:/dolphinscheduler
+    networks: [platform-net]
+    restart: unless-stopped
+
+  dolphinscheduler-alert:
+    image: ${DOLPHINSCHEDULER_HUB:-apache}/dolphinscheduler-alert-server:${DOLPHINSCHEDULER_TAG:-3.4.1}
+    environment: *dolphinscheduler-common-env
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:50053/actuator/health"]
+      interval: 20s
+      timeout: 5s
+      start_period: 45s
+      retries: 12
+    depends_on:
+      dolphinscheduler-schema-initializer:
+        condition: service_completed_successfully
+    volumes:
+      - dolphinscheduler-logs:/opt/dolphinscheduler/logs
+    networks: [platform-net]
+    restart: unless-stopped
+
+  dolphinscheduler-master:
+    image: ${DOLPHINSCHEDULER_HUB:-apache}/dolphinscheduler-master:${DOLPHINSCHEDULER_TAG:-3.4.1}
+    environment: *dolphinscheduler-common-env
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:5679/actuator/health"]
+      interval: 20s
+      timeout: 5s
+      start_period: 45s
+      retries: 12
+    depends_on:
+      dolphinscheduler-schema-initializer:
+        condition: service_completed_successfully
+    volumes:
+      - dolphinscheduler-logs:/opt/dolphinscheduler/logs
+      - dolphinscheduler-shared-local:/opt/soft
+    networks: [platform-net]
+    restart: unless-stopped
+
+  dolphinscheduler-worker:
+    image: ${DOLPHINSCHEDULER_HUB:-apache}/dolphinscheduler-worker:${DOLPHINSCHEDULER_TAG:-3.4.1}
+    environment: *dolphinscheduler-common-env
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:1235/actuator/health"]
+      interval: 20s
+      timeout: 5s
+      start_period: 45s
+      retries: 12
+    depends_on:
+      dolphinscheduler-schema-initializer:
+        condition: service_completed_successfully
+    volumes:
+      - dolphinscheduler-worker-data:/tmp/dolphinscheduler
+      - dolphinscheduler-logs:/opt/dolphinscheduler/logs
+      - dolphinscheduler-shared-local:/opt/soft
+      - dolphinscheduler-resource-local:/dolphinscheduler
+    networks: [platform-net]
+    restart: unless-stopped
+
+volumes:
+  dolphinscheduler-worker-data:
+    name: data-os-production-dolphinscheduler-worker-data
+  dolphinscheduler-logs:
+    name: data-os-production-dolphinscheduler-logs
+  dolphinscheduler-shared-local:
+    name: data-os-production-dolphinscheduler-shared-local
+  dolphinscheduler-resource-local:
+    name: data-os-production-dolphinscheduler-resource-local
+
+networks:
+  platform-net:
+    external: true
+    name: data-os-production-net

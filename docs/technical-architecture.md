@@ -242,6 +242,10 @@ AssistantAdapter: ask / cancel / getEvidence / feedback
 - SeaTunnelAdapter 将版本化接入配置渲染为 JSON/HOCON，通过 REST API V2 提交、停止、查询作业和检查点；生产不依赖页面模拟操作。
 - 当前首条垂直切片已落地 SeaTunnel 提交与运行查询：控制面通过 `/job-info/{jobId}` 将 `SUBMITTED/RUNNING/FINISHED/FAILED/CANCELED` 归一为平台运行状态，并保留外部开始/结束时间。
 - DolphinScheduler 是 DAG、计划、补数和运行历史的权威来源；data-os 保存业务投影和外部工作流映射。
+- `DolphinSchedulerExecutorAdapter` 已接入控制面执行器端口。Gate 1 采用已发布工作流绑定：任务配置的 `dolphinscheduler.projectCode` 与 `workflowDefinitionCode` 只引用经过审核的工作流，控制面通过 `/projects/{projectCode}/executors/start-workflow-instance` 启动实例，再通过 `/workflow-instances/{id}` 查询状态；`process-instances` 仅作为旧版兼容路径。外部编号采用 `ds|project|workflow|instance`，并把 data-os 运行 ID 放入 `startParams.dataos_run_id`。公开实例列表 API 不能按该启动参数做可靠唯一查询，因此提交响应超时时控制面进入 `BLOCKED_DEPENDENCY` 而不自动重试；必须先人工对账，exactly-once 对账列为 Gate 1 P1。
+- DolphinScheduler 访问凭据只来自运行环境的专用 token，或由专用服务账号登录后缓存的 `sessionId`；任务 JSON 不得携带密码、Token 或 Secret。DolphinScheduler 原生 UI 只用于技术人员诊断，甲方日常使用 data-os 门户。
+- 单院开发/交付基线使用 `deploy/dev/dolphinscheduler/docker-compose.yml`：API、Master、Worker、Alert、独立 PostgreSQL 和幂等 JDBC Registry 迁移，默认不启用 ZooKeeper；API 仅作为内网控制面依赖，生产不映射公网。区域部署再扩 API/Master 和 Worker group，不能把单院 JDBC Registry 方案直接当作区域高可用方案。
+- 当前 SeaTunnel Zeta REST 直连仍保留为开发兼容执行器；DolphinScheduler 内置 `SEATUNNEL` 节点是 Worker 本地 CLI 包装器，不会自动调用已有 SeaTunnel REST。若要纳入 DS 工作流，首期使用受控 HTTP/Shell 节点或后续专用任务插件，禁止误把两种执行语义混用。
 - 标准流程为 `L0 证据确认 → L1 装载 → dbt build → 质量结果 → OpenMetadata 摄取 → 数据产品发布`。
 - Portal 发布任务时先落库和 Outbox，再由 Worker 发布到执行器；发布失败不改变上一个生效版本。
 - 状态同步采用控制面后台增量轮询，同时提供 `POST /api/v1/jobs/{jobId}/runs/{runId}/sync` 供门户人工刷新；本轮使用 PostgreSQL 运行表直接回写，连续依赖失败保留可重试状态，配置型状态查询失败转为 `FAILED`，`UNKNOWN` 只允许人工重试，后续接入 Outbox/死信表时不改变适配器契约。任务生命周期状态与最近一次运行状态分离，后者以 `job_runs` 为准。

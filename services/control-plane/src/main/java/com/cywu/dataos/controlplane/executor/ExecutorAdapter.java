@@ -10,5 +10,14 @@ public interface ExecutorAdapter {
 
     AdapterSubmission submit(IngestionJob job, Map<String, Object> config);
 
+    /**
+     * Submit with the durable data-os run id available to orchestrator
+     * adapters. Existing adapters remain source-compatible; orchestrators can
+     * place this value in their start parameters for duplicate detection.
+     */
+    default AdapterSubmission submit(IngestionJob job, Map<String, Object> config, String dataOsRunId) {
+        return submit(job, config);
+    }
+
     AdapterRunStatus status(String externalId);
 }

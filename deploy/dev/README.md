@@ -1,6 +1,6 @@
 # data-os 开发环境部署
 
-这套覆盖只新增 data-os 控制面、桌面门户和可选的 SeaTunnel 单节点执行器，不修改 data-ops 的 Compose 文件。开发环境仍可复用 `medical-platform-keycloak-db-1`，通过 `data_os` schema 隔离表；生产部署必须使用独立业务数据库，不能复用 Keycloak 数据库。
+这套覆盖只新增 data-os 控制面、桌面门户和可选的 SeaTunnel 单节点执行器；DolphinScheduler 通过独立 overlay 启用，不修改 data-ops 的 Compose 文件。开发环境仍可复用 `medical-platform-keycloak-db-1`，通过 `data_os` schema 隔离表；生产部署必须使用独立业务数据库，不能复用 Keycloak 数据库。
 
 ## 组件
 
@@ -9,6 +9,7 @@
 | `control-plane` | Java 21 / Spring Boot API，初始化 PostgreSQL schema | 仅平台网络 `8080` |
 | `portal` | React/Vite 静态门户与 API 反向代理 | `18081` |
 | `seatunnel-master` | SeaTunnel 单节点开发执行器，可选 profile | `18082`、`15801` |
+| `dolphinscheduler-*` | DolphinScheduler 单院紧凑编排器（API/Master/Worker/Alert/JDBC Registry），可选 profile | API `18083` |
 
 ## 启动
 
@@ -29,6 +30,16 @@ DATAOS_SEED_DEMO=true
 DATAOS_RUN_SYNC_INTERVAL_MS=30000
 DATAOS_RUN_SYNC_INITIAL_DELAY_MS=10000
 DATAOS_SEATUNNEL_TIME_ZONE=UTC
+# 可选：启用 DolphinScheduler 后，控制面通过 token 或专用服务账号调用其内网 API。
+DOLPHINSCHEDULER_BASE_URL=http://dolphinscheduler-api:12345/dolphinscheduler
+# 内网明文默认 disable；托管 PostgreSQL 按院方证书策略改为 require/verify-full。
+DOLPHINSCHEDULER_DB_SSLMODE=disable
+DATAOS_DOLPHINSCHEDULER_TOKEN=
+DATAOS_DOLPHINSCHEDULER_USERNAME=
+DATAOS_DOLPHINSCHEDULER_PASSWORD=
+DATAOS_DOLPHINSCHEDULER_TIME_ZONE=Asia/Shanghai
+# DolphinScheduler 的独立数据库口令（不要与 Keycloak/data-os 口令混用）。
+DOLPHINSCHEDULER_DB_PASSWORD=仅保存在开发机 .env
 # 开发环境默认使用确定性的 DEMO 质量执行器；生产改为 HTTP/DBT 并配置执行器地址。
 DATAOS_QUALITY_EXECUTOR=DEMO
 DATAOS_QUALITY_EXECUTOR_BASE_URL=
@@ -56,6 +67,50 @@ GET /api/v1/system/status
 ```bash
 docker compose -f docker-compose.yml up -d control-plane portal
 ```
+
+## 启用 DolphinScheduler 编排
+
+Gate 1 使用“已发布工作流绑定”模式：工作流定义、任务节点和版本在 DolphinScheduler 内维护；data-os 只负责提交一次工作流、保存本地运行记录并轮询实例状态。这样不会在每次业务运行时重复创建 DAG，也不会把 DolphinScheduler 原生 UI 暴露给甲方日常门户。
+
+DolphinScheduler 使用独立 PostgreSQL 数据卷和 JDBC Registry，单院节点不启用 ZooKeeper。注册表迁移脚本是幂等的，不会在容器重启时删除工作流元数据。首次启动前，在本目录 `.env` 设置 `DOLPHINSCHEDULER_DB_PASSWORD`，然后执行：
+
+```bash
+docker compose \
+  -f docker-compose.yml \
+  -f dolphinscheduler/docker-compose.yml \
+  --profile scheduler up -d
+```
+
+健康检查与 API 地址：
+
+```bash
+curl -fsS http://127.0.0.1:18083/dolphinscheduler/actuator/health
+# API 仅供内网控制面调用；18083 是开发机诊断端口，生产不要映射公网。
+```
+
+建议在 DolphinScheduler 中创建专用服务账号并生成 token，写入 `.env` 的 `DATAOS_DOLPHINSCHEDULER_TOKEN`；未配置 token 时才使用 `DATAOS_DOLPHINSCHEDULER_USERNAME/PASSWORD` 登录并缓存 `sessionId`。不要使用默认管理员口令，不要把 token 或密码写入任务配置、日志或 Git。
+
+采集任务的 `executor` 设为 `DOLPHINSCHEDULER`，保存一个已发布工作流绑定。配置边界如下（`workflowDefinitionVersion` 仅作为审计元数据，启动接口使用已发布版本）：
+
+```json
+{
+  "dolphinscheduler": {
+    "projectCode": 10001,
+    "workflowDefinitionCode": 10002,
+    "workflowDefinitionVersion": 1,
+    "workerGroup": "default",
+    "tenantCode": "default",
+    "startParams": {
+      "source_id": "lis-readonly",
+      "data_domain": "检验"
+    }
+  }
+}
+```
+
+控制面提交后会把持久化运行编号追加为 `dataos_run_id`，外部编号以 `ds|项目编号|工作流编号|实例编号` 形式保存；DolphinScheduler 的 `SUCCESS/FAILURE/STOP` 等状态会归一为 data-os 的 `SUCCEEDED/FAILED/CANCELED`。当前阶段不动态发布工作流定义，也不依赖 DolphinScheduler 内置 SeaTunnel 节点去调用现有 SeaTunnel REST；需要复用既有 SeaTunnel Zeta REST 时，应在已发布工作流中使用经过审核的 HTTP/Shell 节点或后续专用任务插件。
+
+提交请求和控制面运行记录都带有 `dataos_run_id`，但 DolphinScheduler 3.4.x 的公开工作流实例查询接口不能按该启动参数做可靠的服务端唯一查询。因此，控制面不会在提交响应超时后自动重试，避免将“已提交但响应丢失”误判为失败而重复执行；此类运行保持 `BLOCKED_DEPENDENCY`，需先在 DolphinScheduler 侧核对实例，再人工处理。下一阶段再通过对账表/适配器扩展补齐跨系统幂等，不把当前能力宣称为 exactly-once。
 
 SeaTunnel 使用 Apache 2.3.13 二进制包构建本地开发镜像。Dockerfile 会在构建阶段下载并校验固定 SHA512，干净检出即可复现：
 
@@ -155,6 +210,7 @@ curl -fsS http://127.0.0.1:18081/healthz
 curl -fsS http://127.0.0.1:18081/api/v1/governance/summary
 curl -fsS http://127.0.0.1:18081/api/v1/sources
 curl -fsS http://127.0.0.1:18082/overview
+curl -fsS http://127.0.0.1:18083/dolphinscheduler/actuator/health
 # 查询某条运行记录（需先从 POST /api/v1/jobs/{jobId}/runs 获取 runId）
 curl -fsS -X POST http://127.0.0.1:18081/api/v1/jobs/{jobId}/runs/{runId}/sync
 # 用已保存任务配置启动，并用同一 key 重试验证幂等
@@ -200,8 +256,12 @@ GET  {QUALITY_RULE_EXECUTOR_BASE_URL}/api/v1/quality/runs/{externalId}
 只停止新增服务即可，不会影响 data-ops：
 
 ```bash
-docker compose -f docker-compose.yml --profile executor down
-docker compose -f docker-compose.yml down
+docker compose -f docker-compose.yml --profile executor stop seatunnel-master
+docker compose -f docker-compose.yml -f dolphinscheduler/docker-compose.yml --profile scheduler stop \
+  dolphinscheduler-api dolphinscheduler-alert dolphinscheduler-master dolphinscheduler-worker \
+  dolphinscheduler-schema-initializer dolphinscheduler-registry-schema dolphinscheduler-postgresql
 ```
+
+如需连同 data-os 门户/控制面一起停机，再单独执行 `docker compose -f docker-compose.yml down`；这不是回滚调度器的必需步骤。
 
 这不会删除 PostgreSQL 数据卷，也不会删除 `data_os` schema。若要回滚数据变更，需按发布记录执行对应 SQL，禁止在开发机上直接删除共享数据库。

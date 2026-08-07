@@ -126,6 +126,22 @@ jobs:
       - name: Validate Compose file
         run: docker compose --env-file deploy/production/.env.example -f deploy/production/docker-compose.yml config --quiet
 
+      - name: Validate DolphinScheduler overlays
+        env:
+          DATAOS_DB_PASSWORD: ci-data-os-password
+          DOLPHINSCHEDULER_DB_PASSWORD: ci-dolphinscheduler-password
+        run: |
+          docker compose \
+            --env-file deploy/production/.env.example \
+            -f deploy/production/docker-compose.yml \
+            -f deploy/production/dolphinscheduler-compose.yml \
+            config --quiet
+          docker compose \
+            -f deploy/dev/docker-compose.yml \
+            -f deploy/dev/dolphinscheduler/docker-compose.yml \
+            --profile scheduler \
+            config --quiet
+
       - name: Validate Prometheus config
         run: |
           docker run --rm \

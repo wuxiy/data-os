@@ -49,6 +49,14 @@ data-os:
   seatunnel:
     base-url: ${SEATUNNEL_BASE_URL:}
     time-zone: ${DATAOS_SEATUNNEL_TIME_ZONE:UTC}
+  dolphinscheduler:
+    # Prefer a dedicated service-account token. Username/password is a
+    # compatibility fallback for DS installations that only expose /login.
+    base-url: ${DOLPHINSCHEDULER_BASE_URL:}
+    token: ${DATAOS_DOLPHINSCHEDULER_TOKEN:}
+    username: ${DATAOS_DOLPHINSCHEDULER_USERNAME:}
+    password: ${DATAOS_DOLPHINSCHEDULER_PASSWORD:}
+    time-zone: ${DATAOS_DOLPHINSCHEDULER_TIME_ZONE:Asia/Shanghai}
   quality:
     executor: ${DATAOS_QUALITY_EXECUTOR:HTTP}
     base-url: ${DATAOS_QUALITY_EXECUTOR_BASE_URL:}
