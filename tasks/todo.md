@@ -409,3 +409,20 @@ Gate 0 尚未覆盖 OIDC 多租户授权列表、CIDR allowlist/DNS rebinding �
 远程开发机只读检查确认 `18081/healthz` 返回 `UP`、门户 `8443` 返回 `200`；现有远程实例仍是 DEMO/演示种子配置，`18083/19083/12345` 未监听 DolphinScheduler。SSH 端口可达但当前凭据被拒绝，未执行远程写入、部署或数据库变更，待可用密钥/凭据后补做真实工作流验收。
 
 剩余 P1：DolphinScheduler 公开 API 无法按 `startParams.dataos_run_id` 做可靠唯一查询，提交响应超时只能安全地进入 `BLOCKED_DEPENDENCY` 并人工对账，当前不宣称 exactly-once；后续需建设跨系统对账表/适配器扩展。
+
+## 2026-08-08 远程开发机部署 Gate 1 调度器
+
+### 执行计划
+
+- [x] 使用 SSH 公钥登录并盘点远程容器、网络、Compose 和回滚点
+- [x] 备份远程开发部署目录的配置与当前控制面制品
+- [x] 构建并切换新版非 root 控制面镜像，部署 DolphinScheduler 3.4.1 JDBC Registry overlay
+- [x] 完成 Schema、API、Master、Worker、Alert、控制面和 Portal 健康检查
+- [x] 创建开发专用 DolphinScheduler 服务账号/token，验证 token 权限边界
+- [ ] 创建并发布最小工作流，完成 data-os 任务提交与实例状态回写（需要调度管理员确认项目/工作流绑定）
+
+### 结果复盘
+
+远程 SSH 公钥认证成功。部署前回滚快照为 `/root/data-os-dev-20260803/rollback-pre-dolphinscheduler-20260808-000348`；没有删除既有数据卷。调度器独立 PostgreSQL、幂等 Registry SQL 和官方主 Schema 均完成，四个运行服务均 healthy，控制面镜像使用 `user=dataos`，Portal 重新解析控制面后恢复 200。首次并发拉取 Docker Hub 镜像受远程加速器异常影响，改为逐镜像从可达镜像仓库导入，没有改守护进程配置或重启 Docker。
+
+服务 token 已写入远程 `.env`（600 权限，未回显）；调度器 token 认证 API 返回 `code=0`。新调度数据库暂时没有项目/工作流，故当前验收结论是“运行时与认证链路可用”，不是“真实工作流端到端已完成”。完整证据见 `docs/validation/gate1-remote-deploy-20260808.md`。

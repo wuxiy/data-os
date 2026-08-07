@@ -2,7 +2,7 @@ name: data-os-dev
 
 services:
   control-plane:
-    image: medical-platform/data-os-control-plane:0.1.0-dev
+    image: ${DATAOS_CONTROL_PLANE_IMAGE:-medical-platform/data-os-control-plane:0.1.0-dev}
     environment:
       SERVER_PORT: 8080
       DATAOS_DB_URL: jdbc:postgresql://keycloak-db:5432/keycloak
