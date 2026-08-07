@@ -18,6 +18,8 @@
 - DolphinScheduler API、Master、Worker、Alert 使用 JDBC Registry，不启用 ZooKeeper；API 映射到开发机 `18083`。
 - 首次拉取 Docker Hub 镜像时发现远程 Docker 镜像加速器返回 `Host doesn't match` 并触发层清理超时。已停止异常并逐个从可达的 `docker.1ms.run` 拉取后按官方镜像名重标记；未修改 `/etc/docker/daemon.json`，未重启 Docker，也未影响既有服务。
 - 使用一次性管理员会话创建 `dataos_scheduler` 服务账号（DolphinScheduler 用户 id 2），生成有效期至 2099-12-31 的开发 token；token 只写入远程 `.env`（权限 600），没有写入任务配置、日志、Git 或本记录。控制面改用 token，用户名/密码回退项保持为空。
+- 复检发现 DolphinScheduler 3.4.1 官方运行时镜像不包含任务插件依赖；新增 `dolphinscheduler-task-plugin-installer`，从 Maven Central 下载 `dolphinscheduler-task-shell-3.4.1.jar` 并以固定 SHA-256 `d9e5d5d7f2e9c83d4958b267d5c2a668fa9d8fdb6064a7f73bd11f2cd79dca6a` 校验，再以只读卷挂载给 API、Master、Worker。三类服务日志均确认 `Success register task plugin: SHELL`。
+- 为单院开发节点补充 `WORKER_TENANT_CONFIG_DEFAULT_TENANT_ENABLED=true`，让 `tenantCode=default` 使用 Worker bootstrap 用户执行；生产 overlay 默认关闭，要求配置真实命名租户。
 
 ## 远程验收结果
 
@@ -32,16 +34,18 @@
 | 控制面容器内访问 DS | 通过 `http://dolphinscheduler-api:12345/.../actuator/health` 返回 `UP` |
 | Portal `/healthz` | HTTP 200，`{"status":"UP"}` |
 | Portal `/api/v1/system/status` | HTTP 200；既有开发 DEMO/演示种子/DEMO 质量执行器状态保持不变 |
-| 服务 token 认证 | 携带 token 请求 `/projects/created-and-authed` 返回 HTTP 200、DolphinScheduler `code=0`，当前项目数为 0 |
+| 服务 token 认证 | 携带 token 请求 `/projects/created-and-authed` 返回 HTTP 200、DolphinScheduler `code=0` |
+| SHELL 插件加载 | API、Master、Worker 均输出 `Success register task plugin: SHELL`；插件文件 SHA-256 与部署清单一致 |
+| 最小工作流创建/发布 | 项目 `dataos_gate1_e2e_20260808`（code `180931789157120`），工作流 `dataos_gate1_shell_20260808`（code `180932865356288`），创建与发布均返回 `code=0` |
+| data-os 真实提交与回写 | 运行 `ds|180931789157120|180932865356288|3` 回写 `SUCCEEDED`；DolphinScheduler 实例/任务均为 `SUCCESS`，Shell 日志输出 `DATAOS_GATE1_WORKFLOW_OK` |
+| 相同幂等键重复提交 | 两次请求返回同一 data-os run `e2a1af9c-c57a-462b-99a8-19f11b6aff7d` 和同一外部实例 `...|4`，未新增第二个实例；最终状态 `SUCCEEDED` |
 
 控制面重建后曾出现 Nginx 缓存旧控制面容器 IP 导致 502；重启 Portal 重新解析 `control-plane` 服务名后，健康检查和系统状态恢复 200。该操作只重启无状态 Portal 容器。
 
 ## 当前边界与后续动作
 
-本次部署完成了调度器运行时、数据库 Schema、服务账号/token 和控制面网络连接，但新建的 DolphinScheduler 数据库尚无项目和已发布工作流，因此没有伪造“真实采集工作流提交/状态回写”结论。要完成完整端到端验收，还需由调度管理员：
+本次已完成隔离项目/工作流的创建、发布、data-os 任务提交、DolphinScheduler 执行、状态轮询回写和相同幂等键重放验证。过程中保留了两条插件缺失/租户配置缺失导致的失败运行（外部实例 `...|1`、`...|2`）作为故障证据；成功运行使用 `...|3`、`...|4`。该验证证明调度器适配链路可用，不等同于真实 LIS/EMR 生产采集链路已验收。
 
-1. 创建项目并发布最小可运行工作流；
-2. 在 data-os 任务中保存经审核的 `projectCode`、`workflowDefinitionCode` 绑定；
-3. 用该任务执行一次提交、轮询和 `ds|project|workflow|instance` 状态回写。
+后续交付前仍需由实施人员把项目/工作流绑定替换为院方审核过的真实工作流，并按生产环境关闭 `default` 租户回退、配置命名租户和短周期凭据。
 
-开发环境仍显示 `notificationConfigured=false`、质量执行器为 DEMO，这是既有开发配置，不是本次调度器故障。2099 长有效期 token 仅用于当前开发机快速验收，生产必须改为短周期专用 token、密钥文件/Secret 管理和轮换策略，并禁用或轮换默认管理员口令。
+开发环境仍显示 `notificationConfigured=false`、质量执行器为 DEMO，这是既有开发配置，不是本次调度器故障。2099 长有效期 token 仅用于当前开发机快速验收，生产必须改为短周期专用 token、密钥文件/Secret 管理和轮换策略，并禁用或轮换默认管理员口令。生产还必须显式安装并校验与 DolphinScheduler 版本匹配的任务插件，不能只以 API health 作为可运行验收标准。

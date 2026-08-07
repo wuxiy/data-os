@@ -419,10 +419,25 @@ Gate 0 尚未覆盖 OIDC 多租户授权列表、CIDR allowlist/DNS rebinding �
 - [x] 构建并切换新版非 root 控制面镜像，部署 DolphinScheduler 3.4.1 JDBC Registry overlay
 - [x] 完成 Schema、API、Master、Worker、Alert、控制面和 Portal 健康检查
 - [x] 创建开发专用 DolphinScheduler 服务账号/token，验证 token 权限边界
-- [ ] 创建并发布最小工作流，完成 data-os 任务提交与实例状态回写（需要调度管理员确认项目/工作流绑定）
+- [x] 创建并发布最小工作流，完成 data-os 任务提交、实例状态回写和相同幂等键重放
 
 ### 结果复盘
 
 远程 SSH 公钥认证成功。部署前回滚快照为 `/root/data-os-dev-20260803/rollback-pre-dolphinscheduler-20260808-000348`；没有删除既有数据卷。调度器独立 PostgreSQL、幂等 Registry SQL 和官方主 Schema 均完成，四个运行服务均 healthy，控制面镜像使用 `user=dataos`，Portal 重新解析控制面后恢复 200。首次并发拉取 Docker Hub 镜像受远程加速器异常影响，改为逐镜像从可达镜像仓库导入，没有改守护进程配置或重启 Docker。
 
-服务 token 已写入远程 `.env`（600 权限，未回显）；调度器 token 认证 API 返回 `code=0`。新调度数据库暂时没有项目/工作流，故当前验收结论是“运行时与认证链路可用”，不是“真实工作流端到端已完成”。完整证据见 `docs/validation/gate1-remote-deploy-20260808.md`。
+服务 token 已写入远程 `.env`（600 权限，未回显）；调度器 token 认证 API 返回 `code=0`。复检补齐 3.4.1 SHELL 任务插件，并将插件卷挂载到 API、Master、Worker；同时为开发单节点启用 default tenant bootstrap。隔离项目 `dataos_gate1_e2e_20260808` 与已发布工作流 `dataos_gate1_shell_20260808` 已通过 data-os 真实提交、DolphinScheduler 执行、Shell 日志和状态回写验收；相同幂等键重复提交返回同一 run/externalId，未创建重复实例。两条早期失败运行保留为插件缺失和租户配置缺失的故障证据。完整证据见 `docs/validation/gate1-remote-deploy-20260808.md`。
+
+## 2026-08-08 Gate 1 调度器真实工作流复检
+
+### 执行计划
+
+- [x] 复现并定位 SHELL 工作流创建失败：确认官方 3.4.1 镜像缺少任务插件
+- [x] 在开发/生产 overlay 增加固定 SHA-256 的任务插件安装器，并挂载给 API、Master、Worker
+- [x] 补齐开发单节点 default tenant bootstrap 配置，完成服务重建与健康检查
+- [x] 创建、发布隔离 DolphinScheduler 项目/工作流并通过 data-os 适配器触发
+- [x] 核对 DolphinScheduler 实例、任务节点、Shell 日志与 data-os `SUCCEEDED` 回写
+- [x] 用相同 Idempotency-Key 重复提交，确认只产生一个外部实例
+
+### 结果复盘
+
+第一次工作流触发到达 Master 后因 Master 未挂载 SHELL 插件失败；第二次已加载插件但因 `default` 租户开关关闭失败。补齐 Master 插件卷和 `WORKER_TENANT_CONFIG_DEFAULT_TENANT_ENABLED=true` 后，第三次运行 `ds|180931789157120|180932865356288|3` 成功，Shell 日志输出 `DATAOS_GATE1_WORKFLOW_OK`；随后相同幂等键验证返回同一 run `e2a1af9c-c57a-462b-99a8-19f11b6aff7d` 和外部实例 `...|4`，最终均回写 `SUCCEEDED`。生产仍需关闭 default tenant 回退、配置命名租户，并把插件 URL/SHA 固定到院方镜像仓库或离线制品库。

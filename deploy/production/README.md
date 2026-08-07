@@ -68,12 +68,16 @@ DOLPHINSCHEDULER_API_PORT=19083
 DOLPHINSCHEDULER_TZ=Asia/Shanghai
 DOLPHINSCHEDULER_BASE_URL=http://dolphinscheduler-api:12345/dolphinscheduler
 DATAOS_DOLPHINSCHEDULER_TOKEN=专用服务账号 token
+DOLPHINSCHEDULER_DEFAULT_TENANT_ENABLED=false  # 生产优先使用已创建的命名租户
+# 3.4.x 镜像不内置任务插件；离线环境同时替换 URL 与 SHA-256。
+DOLPHINSCHEDULER_TASK_PLUGIN_URL=https://repo.maven.apache.org/maven2/org/apache/dolphinscheduler/dolphinscheduler-task-shell/3.4.1/dolphinscheduler-task-shell-3.4.1.jar
+DOLPHINSCHEDULER_TASK_PLUGIN_SHA256=d9e5d5d7f2e9c83d4958b267d5c2a668fa9d8fdb6064a7f73bd11f2cd79dca6a
 # 没有 token 时才使用以下登录回退，不要使用默认管理员账号。
 DATAOS_DOLPHINSCHEDULER_USERNAME=
 DATAOS_DOLPHINSCHEDULER_PASSWORD=
 ```
 
-先校验并启动 data-os，再按 overlay 启动调度器：
+先校验并启动 data-os，再按 overlay 启动调度器。overlay 会先执行插件下载校验和数据库迁移，成功后才启动 API、Master、Worker、Alert：
 
 ```bash
 docker compose --env-file .env config --quiet

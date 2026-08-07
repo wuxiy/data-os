@@ -47,6 +47,30 @@ services:
     networks: [platform-net]
     restart: "no"
 
+  dolphinscheduler-task-plugin-installer:
+    image: postgres:16-alpine
+    profiles: [scheduler]
+    environment:
+      DOLPHINSCHEDULER_TASK_PLUGIN_URL: ${DOLPHINSCHEDULER_TASK_PLUGIN_URL:-https://repo.maven.apache.org/maven2/org/apache/dolphinscheduler/dolphinscheduler-task-shell/3.4.1/dolphinscheduler-task-shell-3.4.1.jar}
+      DOLPHINSCHEDULER_TASK_PLUGIN_SHA256: ${DOLPHINSCHEDULER_TASK_PLUGIN_SHA256:-d9e5d5d7f2e9c83d4958b267d5c2a668fa9d8fdb6064a7f73bd11f2cd79dca6a}
+    volumes:
+      - dolphinscheduler-task-plugins:/opt/data-os/task-plugins
+    command:
+      - sh
+      - -ec
+      - |
+        target=/opt/data-os/task-plugins/dolphinscheduler-task-shell-3.4.1.jar
+        if [ -s "$${target}" ] && echo "$${DOLPHINSCHEDULER_TASK_PLUGIN_SHA256}  $${target}" | sha256sum -c - >/dev/null 2>&1; then
+          exit 0
+        fi
+        tmp="$${target}.tmp"
+        rm -f "$${tmp}"
+        wget -q -O "$${tmp}" "$${DOLPHINSCHEDULER_TASK_PLUGIN_URL}"
+        echo "$${DOLPHINSCHEDULER_TASK_PLUGIN_SHA256}  $${tmp}" | sha256sum -c -
+        mv "$${tmp}" "$${target}"
+    networks: [platform-net]
+    restart: "no"
+
   dolphinscheduler-schema-initializer:
     image: ${DOLPHINSCHEDULER_HUB:-apache}/dolphinscheduler-tools:${DOLPHINSCHEDULER_TAG:-3.4.1}
     profiles: [scheduler]
@@ -70,6 +94,9 @@ services:
       REGISTRY_HIKARI_CONFIG_JDBC_URL: jdbc:postgresql://dolphinscheduler-postgresql:5432/${DOLPHINSCHEDULER_DB_NAME:-dolphinscheduler}?sslmode=${DOLPHINSCHEDULER_DB_SSLMODE:-disable}
       REGISTRY_HIKARI_CONFIG_USERNAME: ${DOLPHINSCHEDULER_DB_USERNAME:-dolphinscheduler}
       REGISTRY_HIKARI_CONFIG_PASSWORD: ${DOLPHINSCHEDULER_DB_PASSWORD:?请在 .env 中提供 DOLPHINSCHEDULER_DB_PASSWORD}
+      # The compact dev node uses the worker bootstrap user for the default
+      # tenant. Production should provision a real tenant instead.
+      WORKER_TENANT_CONFIG_DEFAULT_TENANT_ENABLED: ${DOLPHINSCHEDULER_DEFAULT_TENANT_ENABLED:-true}
     command: [tools/bin/upgrade-schema.sh]
     volumes:
       - dolphinscheduler-logs:/opt/dolphinscheduler/logs
@@ -93,10 +120,13 @@ services:
     depends_on:
       dolphinscheduler-schema-initializer:
         condition: service_completed_successfully
+      dolphinscheduler-task-plugin-installer:
+        condition: service_completed_successfully
     volumes:
       - dolphinscheduler-logs:/opt/dolphinscheduler/logs
       - dolphinscheduler-shared-local:/opt/soft
       - dolphinscheduler-resource-local:/dolphinscheduler
+      - dolphinscheduler-task-plugins:/opt/dolphinscheduler/plugins/task-plugins:ro
     networks: [platform-net]
     restart: unless-stopped
 
@@ -131,9 +161,12 @@ services:
     depends_on:
       dolphinscheduler-schema-initializer:
         condition: service_completed_successfully
+      dolphinscheduler-task-plugin-installer:
+        condition: service_completed_successfully
     volumes:
       - dolphinscheduler-logs:/opt/dolphinscheduler/logs
       - dolphinscheduler-shared-local:/opt/soft
+      - dolphinscheduler-task-plugins:/opt/dolphinscheduler/plugins/task-plugins:ro
     networks: [platform-net]
     restart: unless-stopped
 
@@ -150,11 +183,14 @@ services:
     depends_on:
       dolphinscheduler-schema-initializer:
         condition: service_completed_successfully
+      dolphinscheduler-task-plugin-installer:
+        condition: service_completed_successfully
     volumes:
       - dolphinscheduler-worker-data:/tmp/dolphinscheduler
       - dolphinscheduler-logs:/opt/dolphinscheduler/logs
       - dolphinscheduler-shared-local:/opt/soft
       - dolphinscheduler-resource-local:/dolphinscheduler
+      - dolphinscheduler-task-plugins:/opt/dolphinscheduler/plugins/task-plugins:ro
     networks: [platform-net]
     restart: unless-stopped
 
@@ -169,6 +205,8 @@ volumes:
     name: data-os-dev-dolphinscheduler-shared-local
   dolphinscheduler-resource-local:
     name: data-os-dev-dolphinscheduler-resource-local
+  dolphinscheduler-task-plugins:
+    name: data-os-dev-dolphinscheduler-task-plugins
 
 networks:
   platform-net:
