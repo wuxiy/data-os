@@ -404,7 +404,7 @@ Gate 0 尚未覆盖 OIDC 多租户授权列表、CIDR allowlist/DNS rebinding �
 
 开发环境通过 `deploy/dev/dolphinscheduler/docker-compose.yml` 提供 API、Master、Worker、Alert、独立 PostgreSQL 和 JDBC Registry；生产环境通过 `deploy/production/dolphinscheduler-compose.yml` 接入外置调度数据库，并支持 `DOLPHINSCHEDULER_DB_SSLMODE`。Registry SQL 使用 `CREATE IF NOT EXISTS`，不会在容器重启时删除调度器元数据。CI 现在同时校验基础 Compose 和两个 DS overlay。
 
-本地验证：控制面 `clean package` 通过，61 项测试全绿，最终 JAR 已包含新适配器；门户 build、mock audit、交互 smoke 和官方 npm audit 均通过；开发/生产 Compose `config --quiet` 均通过；`git diff --check` 通过。控制面 Docker 构建已触发，但 OrbStack 拉取基础镜像时 Docker Hub 认证请求超时，已记录为环境网络问题，CI 仍有镜像构建、Trivy 和 SBOM 门禁。完整证据归档于 `docs/validation/gate1-dolphinscheduler-20260807.md`。
+本地验证：控制面 `clean package` 通过，62 项测试全绿，最终 JAR 已包含新适配器；门户 build、mock audit、交互 smoke 和官方 npm audit 均通过；开发/生产 Compose `config --quiet` 均通过；`git diff --check` 通过。控制面 Docker 构建已触发，但 OrbStack 拉取基础镜像时 Docker Hub 认证请求超时，已记录为环境网络问题，CI 仍有镜像构建、Trivy 和 SBOM 门禁。完整证据归档于 `docs/validation/gate1-dolphinscheduler-20260807.md`。
 
 远程开发机只读检查确认 `18081/healthz` 返回 `UP`、门户 `8443` 返回 `200`；现有远程实例仍是 DEMO/演示种子配置，`18083/19083/12345` 未监听 DolphinScheduler。SSH 端口可达但当前凭据被拒绝，未执行远程写入、部署或数据库变更，待可用密钥/凭据后补做真实工作流验收。
 

@@ -8,7 +8,7 @@
 
 | 检查项 | 结果 |
 | --- | --- |
-| 控制面 Maven `clean package` | 通过，61 tests，failures/errors/skipped 均为 0 |
+| 控制面 Maven `clean package` | 通过，62 tests，failures/errors/skipped 均为 0 |
 | 最终 JAR 内容 | 已包含 `DolphinSchedulerExecutorAdapter`、`OrchestratorAdapter` |
 | 开发 Compose + DS overlay | `docker compose config --quiet` 通过 |
 | 生产 Compose + DS overlay | `docker compose config --quiet` 通过 |
