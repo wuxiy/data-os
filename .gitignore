@@ -1,4 +1,5 @@
 .DS_Store
+.idea/
 prototype/node_modules/
 prototype/dist/
 prototype/*.tsbuildinfo
