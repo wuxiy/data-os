@@ -1,6 +1,7 @@
 package com.cywu.dataos.controlplane.workflow;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import com.cywu.dataos.controlplane.api.InvalidRequestException;
@@ -62,6 +63,13 @@ public final class ClinicalWorkflowCatalog {
         requireText(sink, "fenodes", "临床工作流 sink.fenodes 不能为空");
         requireText(sink, "database", "临床工作流 sink.database 不能为空");
         requireText(sink, "table", "临床工作流 sink.table 不能为空");
+        requireText(sink, "sink.label-prefix", "临床工作流 sink.label-prefix 不能为空");
+        requireBoolean(sink, "sink.enable-2pc", "临床工作流 sink.enable-2pc 必须明确配置");
+        requireText(sink, "schema_save_mode", "临床工作流 schema_save_mode 不能为空");
+        requireText(sink, "data_save_mode", "临床工作流 data_save_mode 不能为空");
+        if (!(sink.get("doris.config") instanceof Map<?, ?> dorisConfig) || dorisConfig.isEmpty()) {
+            throw new InvalidRequestException("临床工作流 doris.config 必须配置");
+        }
     }
 
     private java.util.Optional<ClinicalWorkflowTemplate> find(String key) {
@@ -78,13 +86,21 @@ public final class ClinicalWorkflowCatalog {
                 "driver", "<replace-with-jdbc-driver>",
                 "query", "SELECT * FROM <replace-with-source-table> WHERE update_time >= '${last_success_time}'",
                 "credentialRef", "<replace-with-source-credential-id>");
-        var sink = Map.<String, Object>of(
-                "plugin_name", "Doris",
-                "fenodes", "<replace-with-doris-fe-host>:8030",
-                "database", database,
-                "table", table,
-                "save_mode", "UPSERT",
-                "credentialRef", "<replace-with-target-credential-id>");
+        var sink = Map.<String, Object>ofEntries(
+                Map.entry("plugin_name", "Doris"),
+                Map.entry("fenodes", "<replace-with-doris-fe-host>:8030"),
+                Map.entry("database", database),
+                Map.entry("table", table),
+                // SeaTunnel 2.3.x requires a stream-load label prefix and
+                // doris.config map. The target table's UNIQUE KEY model, not
+                // an invented save_mode property, provides the UPSERT
+                // semantics for reruns.
+                Map.entry("sink.label-prefix", "dataos_" + key.toLowerCase(Locale.ROOT)),
+                Map.entry("sink.enable-2pc", false),
+                Map.entry("schema_save_mode", "CREATE_SCHEMA_WHEN_NOT_EXIST"),
+                Map.entry("data_save_mode", "APPEND_DATA"),
+                Map.entry("doris.config", Map.of("format", "json", "read_json_by_line", "true")),
+                Map.entry("credentialRef", "<replace-with-target-credential-id>"));
         return new ClinicalWorkflowTemplate(key, VERSION, displayName, systemType, "JDBC", "SEATUNNEL",
                 "BATCH", description, List.of(credentialRole, "doris-ods-writer"),
                 Map.of("env", Map.of("job.mode", "BATCH", "parallelism", 1),
@@ -119,6 +135,10 @@ public final class ClinicalWorkflowCatalog {
     private void requireText(Map<String, Object> plugin, String key, String message) {
         var value = String.valueOf(plugin.getOrDefault(key, "")).trim();
         if (value.isBlank() || isPlaceholder(value)) throw new InvalidRequestException(message);
+    }
+
+    private void requireBoolean(Map<String, Object> plugin, String key, String message) {
+        if (!(plugin.get(key) instanceof Boolean)) throw new InvalidRequestException(message);
     }
 
     private boolean isPlaceholder(String value) {

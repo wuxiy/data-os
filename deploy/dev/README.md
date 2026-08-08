@@ -129,17 +129,22 @@ curl -fsS http://127.0.0.1:18083/dolphinscheduler/actuator/health
 
 提交请求和控制面运行记录都带有 `dataos_run_id`，但 DolphinScheduler 3.4.x 的公开工作流实例查询接口不能按该启动参数做可靠的服务端唯一查询。因此，控制面不会在提交响应超时后自动重试，避免将“已提交但响应丢失”误判为失败而重复执行；此类运行保持 `BLOCKED_DEPENDENCY`，需先在 DolphinScheduler 侧核对实例，再人工处理。下一阶段再通过对账表/适配器扩展补齐跨系统幂等，不把当前能力宣称为 exactly-once。
 
-SeaTunnel 使用 Apache 2.3.13 二进制包构建本地开发镜像。Dockerfile 会在构建阶段下载并校验固定 SHA512，干净检出即可复现：
+SeaTunnel 使用仓库根目录 `deploy/seatunnel/` 的固定制品清单构建本地开发镜像。
+镜像只包含 JDBC 和 Doris 连接器，不安装 Shell 插件。受控构建机可在线按清单
+下载，院方/隔离环境则把官方 tar、连接器 JAR 和驱动放入缓存后设置
+`SEATUNNEL_OFFLINE_BUILD=true`，构建阶段不会下载 SeaTunnel/连接器；基础镜像和
+系统包仍需预先导入受控构建机或由其内部镜像提供：
 
 ```bash
-docker build \
-  --build-arg SEATUNNEL_VERSION=2.3.13 \
-  --build-arg SEATUNNEL_SHA512=499fc1926a7a6f771b1e4034b6d6a43af028984741ec7745a9f50505a267d7d6b35b164a56be957cb1b0b56afc34e68b917289025244cd86c49d48583cc617e7 \
-  -t "${SEATUNNEL_IMAGE:-medical-platform/data-os-seatunnel:2.3.13-dev}" \
-  seatunnel
+export SEATUNNEL_DRIVER_PROFILE=postgresql
+export SEATUNNEL_DRIVER_DIR=/path/to/controlled-jars
+export SEATUNNEL_CONNECTOR_DIR=/path/to/connector-cache
+export SEATUNNEL_IMAGE_TAG=medical-platform/data-os-seatunnel:2.3.13-dataos.2
+deploy/seatunnel/scripts/build-image.sh
 ```
 
-运行时镜像默认是 `medical-platform/data-os-seatunnel:2.3.13-dev`；若已有合规镜像，可通过 `SEATUNNEL_IMAGE` 覆盖。使用已构建镜像时不需要 `--build`：
+运行时镜像默认是 `medical-platform/data-os-seatunnel:2.3.13-dataos.2`；若已有合规
+镜像，可通过 `SEATUNNEL_IMAGE` 覆盖。使用已构建镜像时不需要 `--build`：
 
 ```bash
 printf '\nSEATUNNEL_BASE_URL=http://seatunnel-master:8080\n' >> .env

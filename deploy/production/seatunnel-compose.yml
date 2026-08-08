@@ -1,0 +1,50 @@
+name: data-os-production
+
+# Local single-hospital SeaTunnel executor. The image is imported from the
+# signed offline bundle and should be pinned by digest in production.
+services:
+  control-plane:
+    environment:
+      SEATUNNEL_BASE_URL: ${SEATUNNEL_BASE_URL:-http://seatunnel-master:8080}
+    depends_on:
+      seatunnel-master:
+        condition: service_healthy
+
+  seatunnel-master:
+    image: ${SEATUNNEL_IMAGE:?SEATUNNEL_IMAGE must be set to an imported amd64 image}
+    environment:
+      ST_DOCKER_MEMBER_COUNT: "1"
+      JAVA_OPTS: ${SEATUNNEL_JAVA_OPTS:--Xms2g -Xmx2g}
+    expose:
+      - "8080"
+      - "5801"
+    volumes:
+      - ./seatunnel/seatunnel.yaml:/opt/seatunnel/config/seatunnel.yaml:ro
+      - data-os-production-seatunnel-logs:/opt/seatunnel/logs
+      - data-os-production-seatunnel-checkpoints:/opt/seatunnel/checkpoints
+      - data-os-production-seatunnel-work:/opt/seatunnel/work
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/overview >/dev/null"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+    networks:
+      - platform-net
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    stop_grace_period: 45s
+
+volumes:
+  data-os-production-seatunnel-logs:
+    name: data-os-production-seatunnel-logs
+  data-os-production-seatunnel-checkpoints:
+    name: data-os-production-seatunnel-checkpoints
+  data-os-production-seatunnel-work:
+    name: data-os-production-seatunnel-work

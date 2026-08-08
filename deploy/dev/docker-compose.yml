@@ -74,7 +74,7 @@ services:
     restart: unless-stopped
 
   seatunnel-master:
-    image: ${SEATUNNEL_IMAGE:-medical-platform/data-os-seatunnel:2.3.13-dev}
+    image: ${SEATUNNEL_IMAGE:-medical-platform/data-os-seatunnel:2.3.13-dataos.2}
     profiles:
       - executor
     environment:

@@ -10,6 +10,7 @@
 - 一个公开 OIDC 客户端（推荐 Authorization Code + PKCE），允许门户域名作为 redirect URI，并将 `data-os` 配置为 token audience。门户会在浏览器中完成登录并为同源 API 注入 Bearer token，不依赖匿名反向代理会话。
 - 已构建并推送的控制面镜像，以及和该版本匹配的门户静态包。
 - 一个由 `openssl rand -base64 32` 生成的凭据加密密钥。密钥属于部署机秘密，不能提交 Git，也不能在日志中打印。
+- SeaTunnel 执行器离线包（正式环境必须包含 `SHA256SUMS.sig`），或甲方已经验收的院内 SeaTunnel 集群地址。
 
 ## 构建制品
 
@@ -29,6 +30,69 @@ cp -a prototype/dist/. deploy/production/portal-dist/
 ```
 
 生产构建不设置 `VITE_DATAOS_DEMO_MODE=true`。未接入的页面必须呈现真实空态或不可用状态，不能把 demo 数据当作业务事实。
+
+## 导入 SeaTunnel 离线执行器
+
+院方环境默认按无互联网交付设计。SeaTunnel 连接器和数据库驱动在受控发布机
+构建进镜像，生产部署期间不执行插件安装脚本、不从 Maven 或其他公网下载，也
+不恢复历史 DolphinScheduler Shell 插件。离线包格式、驱动许可证边界和单节点
+恢复语义见 [`docs/seatunnel-offline-release.md`](../../docs/seatunnel-offline-release.md)。
+
+把正式包和受控公钥拷贝到部署机后，先验签和导入：
+
+```bash
+bundle=/opt/release/data-os-seatunnel-2.3.13-linux-amd64
+deploy/seatunnel/scripts/verify-offline-bundle.sh \
+  --bundle "$bundle" --public-key /etc/data-os/release.pub
+deploy/seatunnel/scripts/load-offline-bundle.sh \
+  --bundle "$bundle" --public-key /etc/data-os/release.pub
+```
+
+验证和导入阶段不会启动或重启生产服务。需要院内 OCI 仓库时，可把已验签包中的
+镜像归档导入仓库并使用返回的不可变 digest；不要在仓库中重新构建或在线补装
+连接器。开发合成验证才允许 `--allow-unsigned`，不能把未签名包带入生产。
+若激活脚本使用院内仓库的 digest 引用，需同时设置
+`DATAOS_ACTIVATION_IMAGE=<院内仓库>/<项目>/data-os-seatunnel@sha256:<digest>`；脚本会
+把该引用写入 `.env`，并校验其镜像 ID 与离线包清单一致。
+
+## 选择 SeaTunnel 运行模式
+
+### 本地单院 executor
+
+单院没有可复用的 SeaTunnel 集群时，复制包中的 overlay 和配置到本目录，设置
+`.env` 中的 `SEATUNNEL_IMAGE`（推荐使用院内仓库 digest）以及
+`SEATUNNEL_BASE_URL=http://seatunnel-master:8080`，在变更窗口显式激活：
+
+```bash
+DATAOS_ACTIVATE_CONFIRM=YES \
+  deploy/seatunnel/scripts/activate.sh \
+  --bundle "$bundle" \
+  --compose-root "$PWD" \
+  --env-file "$PWD/.env"
+```
+
+overlay 会把执行器接入 `platform-net`，持久化日志、checkpoint 和 work 目录，
+并以非 root、只读根文件系统运行。它是批处理单节点基线；目标表可用 UNIQUE KEY
+和批次策略实现幂等，但控制面当前尚未持久化或注入水位，也不提供自动故障转移、
+CDC 或区域高可用。
+
+激活脚本默认要求正式包签名。`DATAOS_ALLOW_UNSIGNED=true` 只允许在环境文件明确
+设置 `DATAOS_RUNTIME_ENV=development` 的隔离开发环境使用，生产环境会直接拒绝。
+
+### 使用院内既有 SeaTunnel 集群
+
+不启动本地 executor，只在 `.env` 设置院内 API 地址，然后校验外部 overlay：
+
+```bash
+SEATUNNEL_BASE_URL=http://seatunnel-api.example.invalid:8080
+docker compose --env-file .env \
+  -f docker-compose.yml -f seatunnel-external-compose.yml config --quiet
+docker compose --env-file .env \
+  -f docker-compose.yml -f seatunnel-external-compose.yml up -d control-plane
+```
+
+外部集群的连接器、驱动、租户和网络策略由院方 SeaTunnel 运维团队负责；data-os
+只保存经过凭据服务解析的连接引用，不在任务 JSON 中写入数据库密码。
 
 ## 首次部署
 

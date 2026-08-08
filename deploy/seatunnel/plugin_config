@@ -1,0 +1,5 @@
+# Only the connectors required by the first clinical batch slice.
+# Do not add Shell or a catch-all plugin to the production image.
+--connectors-v2--
+connector-jdbc
+connector-doris

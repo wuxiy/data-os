@@ -40,7 +40,11 @@ SeaTunnel 文件。合同是版本化的配置边界，不表示目标医院的�
     "fenodes": "<doris-fe-host>:8030",
     "database": "ods_lis",
     "table": "lab_result",
-    "save_mode": "UPSERT",
+    "sink.label-prefix": "dataos_lis_jdbc_to_doris",
+    "sink.enable-2pc": false,
+    "schema_save_mode": "CREATE_SCHEMA_WHEN_NOT_EXIST",
+    "data_save_mode": "APPEND_DATA",
+    "doris.config": {"format": "json", "read_json_by_line": "true"},
     "credentialRef": "<doris-writer-credential-id>"
   }]
 }
@@ -48,6 +52,14 @@ SeaTunnel 文件。合同是版本化的配置边界，不表示目标医院的�
 
 `<source-credential-id>` 和 `<doris-writer-credential-id>` 只是文档占位符，不能直接保存。
 控制面会拒绝仍带 `<replace-with-...>` 或空引用的临床模板。
+
+查询中的 `${last_success_time}` 当前也是合同占位符；本版本没有水位存储、注入和
+失败批次自动重跑服务，必须在该能力交付并验收后再启用定时增量任务。
+
+`connector-doris` 的 2.3.x 合同要求 `sink.label-prefix` 和 `doris.config`；批量重跑
+的幂等/UPSERT 由目标 Doris ODS 表的 UNIQUE KEY/主键设计和平台批次策略共同保证，
+不是通过一个并不存在的通用 `save_mode=UPSERT` 参数保证。目标表建模、迟到数据和
+重复批次策略必须在院方验收时固化。
 
 ## 启用前置条件
 

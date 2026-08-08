@@ -106,3 +106,26 @@
 - 规则：先交付版本化连接器合同、凭据引用解析和配置阻断；只有拿到真实端点、账号、目标表和样本后，才创建并运行业务任务。健康检查、模板列表和单元测试不能被描述为真实临床数据已接入。
 - 规则：调度器历史 Shell 工作流必须归档，生产和开发都不依赖 default tenant 回退；DolphinScheduler 服务账号、工作流绑定和 data-os OIDC tenant/institution 必须使用命名范围。
 - 检查：验收报告同时列出已验证的合同/运行时边界、远端命名租户与回退开关，以及等待甲方补齐的端点/凭据/样本清单。
+
+## 2026-08-08 院方环境默认按离线制品交付
+
+- 触发：用户明确院方生产环境通常位于隔离内网，无法从互联网直接推送或拉取镜像，大概率只能在外网构建后通过受控介质拷贝部署。
+- 规则：镜像仓库推送不得作为生产交付的必需前提；发布主路径必须生成可独立验真的离线镜像包、SHA-256、SBOM、许可证清单、版本清单和导入脚本。院方内网仓库只作为离线导入后的可选分发层。
+- 检查：在完全无互联网、无外部 Registry 的环境中执行校验、`docker load`、Compose 启动和回滚演练；文档不得要求部署机在线下载连接器、基础镜像或扫描工具。
+
+## 2026-08-08 SeaTunnel 离线镜像验证必须以官方 tar 实际布局为准
+
+- 触发：首次构建时把 `plugin-mapping.properties` 误判为 `config/plugin-mapping.properties`，官方 2.3.13 tar 实际路径是 `connectors/plugin-mapping.properties`；SHA-512 校验通过后构建在布局检查处失败。
+- 规则：任何发布包解压后的目录断言必须来自目标版本 tar 的实际清单，并在构建机执行一次离线构建；不能只依据旧 Dockerfile 或文档猜路径。
+- 检查：构建脚本/ Dockerfile 失败时先保留精确错误，修正路径后重新跑完整 `OFFLINE_BUILD=true` 构建、连接器/驱动存在性和 `/overview` 健康检查。
+
+## 2026-08-08 Doris 连接器的隐式 JDBC 依赖必须纳入默认 profile
+
+- 触发：JDBC→Doris 冒烟第一次提交时，Doris catalog 初始化报 `No suitable driver`
+  （连接 `jdbc:mysql://.../information_schema`），仅放入 PostgreSQL 驱动并不足以让
+  Doris sink 工作。
+- 规则：固定 Doris sink 的镜像 profile 必须同时包含 MySQL Connector/J；驱动清单要
+  记录其版本、SHA-256 和许可证边界，不能等到真实目标库才发现依赖缺失。
+- 检查：在目标 FE 不可达的环境仍应看到错误进入“Failed to connect”而不是“No suitable
+  driver”；随后用同一镜像完成 JDBC→Console 合成作业，确认 SeaTunnel 启动与 JDBC
+  source 没有被驱动修复破坏。

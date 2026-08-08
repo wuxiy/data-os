@@ -150,6 +150,41 @@ jobs:
           test -s deploy/dolphinscheduler/clinical-tenant-migration.sql
           test -s deploy/data-os/clinical-workflow-migration.sql
 
+      - name: Validate SeaTunnel offline release scripts
+        run: |
+          for script in deploy/seatunnel/scripts/*.sh; do
+            sh -n "$script"
+            test -x "$script"
+          done
+          test -s deploy/seatunnel/manifest.env
+          test -s deploy/seatunnel/driver-manifest.tsv
+          test -s deploy/seatunnel/plugin_config
+          ! grep -R -Ei 'shell[-_ ]?plugin|install-plugin.*shell|connector-shell' \
+            deploy/seatunnel/plugin_config deploy/seatunnel/Dockerfile \
+            deploy/production/seatunnel-compose.yml
+          grep -q 'DATAOS_ALLOW_MISSING_SBOM is forbidden' deploy/seatunnel/scripts/package-offline.sh
+          grep -q 'loaded image does not match release manifest' deploy/seatunnel/scripts/load-offline-bundle.sh
+          grep -q 'unsigned activation is allowed only' deploy/seatunnel/scripts/activate.sh
+          grep -q 'DATAOS_ACTIVATION_IMAGE' deploy/seatunnel/scripts/activate.sh
+
+      - name: Validate SeaTunnel production overlays
+        env:
+          DATAOS_DB_PASSWORD: ci-data-os-password
+          DOLPHINSCHEDULER_DB_PASSWORD: ci-dolphinscheduler-password
+        run: |
+          docker compose \
+            --env-file deploy/production/.env.example \
+            -f deploy/production/docker-compose.yml \
+            -f deploy/production/seatunnel-compose.yml \
+            config --quiet
+          docker compose \
+            --env-file deploy/production/.env.example \
+            -f deploy/production/docker-compose.yml \
+            -f deploy/production/seatunnel-external-compose.yml \
+            config --quiet
+          grep -q 'SEATUNNEL_IMAGE must be set' deploy/production/seatunnel-compose.yml
+          grep -q 'SEATUNNEL_BASE_URL must point' deploy/production/seatunnel-external-compose.yml
+
       - name: Validate Prometheus config
         run: |
           docker run --rm \

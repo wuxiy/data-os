@@ -1,0 +1,7 @@
+# Single-node Zeta baseline. State and logs are mounted by the production
+# overlay; regional HA uses an independently reviewed external cluster.
+seatunnel:
+  engine:
+    http:
+      enable-http: true
+      port: 8080

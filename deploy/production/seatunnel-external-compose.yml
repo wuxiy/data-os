@@ -1,0 +1,8 @@
+name: data-os-production
+
+# Use this overlay when the hospital already operates a SeaTunnel cluster.
+# No SeaTunnel container is started by data-os in this mode.
+services:
+  control-plane:
+    environment:
+      SEATUNNEL_BASE_URL: ${SEATUNNEL_BASE_URL:?SEATUNNEL_BASE_URL must point to the hospital SeaTunnel API}

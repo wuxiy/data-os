@@ -464,3 +464,38 @@ Gate 0 尚未覆盖 OIDC 多租户授权列表、CIDR allowlist/DNS rebinding �
 本轮已完成版本化临床模板、运行时凭据解析和命名租户 fail-closed 收口。开发机已部署并验证三套模板 API、控制面/门户/SeaTunnel/DolphinScheduler 健康状态；创建 `dataos-dev` 命名调度租户并绑定 `dataos_scheduler`，Worker default 回退关闭，历史 Gate1 Shell 工作流定义与 data-os 验收任务均已由幂等脚本归档。生产 Compose 已将命名租户、命名机构和关闭默认 scope 设为必填/默认 fail-closed，并移除 Shell 插件安装与挂载。
 
 验证通过：Java 21 Maven 全量测试、前端生产构建、mock audit、门户交互 smoke、开发/生产 Compose config 和 `git diff --check`；新增的命名租户迁移脚本已在开发 DolphinScheduler 数据库幂等执行。院内 LIS/EMR/手术系统真实主机、端口、只读账号、Doris 目标表和脱敏样本尚未提供，故本轮不宣称真实临床数据已接入；后续按 `docs/clinical-workflow-contracts.md` 的交接清单启用具体任务。开发控制面仍显式保留 `DATAOS_DEFAULT_SCOPE_ENABLED=true` 作为免登录联调回退，生产配置才是 fail-closed；两套调度器 Worker 均关闭 default tenant 回退。
+
+## 2026-08-08/09 SeaTunnel 离线执行器制品与单院生产 overlay
+
+### 目标
+
+面向院方隔离内网交付一个 `linux/amd64 + Docker Compose` 的 SeaTunnel 执行器离线包。包内固化 `connector-jdbc`、`connector-doris`，厂商 JDBC 驱动通过受控构建输入注入；不恢复 DolphinScheduler Shell 插件，并提供单院生产 overlay、验签、导入、激活、回滚和合成 JDBC→Doris 验收。
+
+### 执行计划
+
+- [x] 固化 SeaTunnel/connector/驱动 manifest、版本、SHA-256 和许可证边界
+- [x] 实现 `linux/amd64` 镜像构建、离线 `tar.gz` 包、SBOM、签名清单和未签名开发包标记
+- [x] 实现验签/校验/导入/激活/回滚脚本，默认两阶段操作且不自动重启生产服务
+- [x] 增加单院生产 SeaTunnel Compose overlay，支持内置节点和外部集群地址两种模式
+- [x] 增加 CI 脚本语法、插件存在性、Compose 和制品清单门禁；镜像构建/离线导入在受控开发机完成验证
+- [x] 在开发机从离线包导入镜像并运行合成 PostgreSQL→SeaTunnel→Console 任务；Doris 目标缺失时明确阻断
+- [x] 更新部署文档、离线交付手册、命名租户配置和任务复盘，完成全量测试、代码审查、提交推送
+
+### 交付边界
+
+正式生产包必须由受控发布机使用组织签名私钥生成；仓库不保存生产私钥，缺少签名密钥或经许可的厂商驱动时发布命令 fail-closed。首版单节点仅承诺批量任务整批可重跑，不宣称自动故障转移、CDC 或区域级 HA。
+
+### 阶段结果
+
+- 远程开发机已运行 `medical-platform/data-os-seatunnel:2.3.13-dataos.2`，`/overview` healthy，JDBC/Doris/PG/MySQL 驱动存在且无 Shell 插件；控制面已切换到 `0.1.0-clinical-20260808-r2`，三套临床模板 API 返回有效 Doris 参数。
+- 新镜像执行合成 PostgreSQL→Console 作业 `1138464766050959361`，状态 `FINISHED`，源/汇均为 2 行；Doris 冒烟已完成配置解析并进入 MySQL catalog 连接阶段，因开发环境没有 Doris FE 而阻断，未伪造 PG→Doris 结果。
+- 已生成并验证未签名开发离线包：镜像归档、SHA-256、许可证、Compose 配置和导入/激活/回滚脚本齐全；正式包没有 Cosign 私钥或 SBOM 工具会阻断，未签名包默认拒绝。
+- 开发机没有可达 Doris FE/BE、真实 LIS/EMR/手术端点及账号；PostgreSQL→Doris、UPSERT 重跑、水位恢复和真实临床工作流仍按交接前置条件阻断，未作虚假结论。
+- 已清理远程临时合成 PostgreSQL 容器；生产未启动、未触碰生产数据卷。
+
+### 最终收口验证（2026-08-08/09）
+
+- Maven 全量测试 68 项通过；前端 `qa:mock`、门户交互 smoke 和生产构建通过。
+- 离线包按最新脚本重新生成，`verify-offline-bundle.sh` 和 `load-offline-bundle.sh` 在本机真实校验/导入通过；包为明确标记的未签名开发包，正式生产包仍要求 Cosign 私钥和 SBOM 工具。
+- 所有 SeaTunnel 脚本通过 `sh -n`/可执行检查，生产本地/外部 overlay 通过 `docker compose config --quiet`，Shell 插件静态和镜像内容检查均通过。
+- 代码审查提出的 SBOM 生产绕过、镜像 ID 绑定、路径穿越、无意恢复 Shell、激活备份权限和水位文档矛盾已收口；真实临床端点、Doris FE/BE 和生产签名材料仍是院方交接前置条件。
