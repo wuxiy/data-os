@@ -95,11 +95,11 @@ class DolphinSchedulerExecutorAdapterTest {
         });
         server.start();
         try {
-            var adapter = new DolphinSchedulerExecutorAdapter(
+            var adapter = DolphinSchedulerExecutorAdapter.forTesting(
                     RestClient.builder(),
                     new com.fasterxml.jackson.databind.ObjectMapper(),
                     "http://127.0.0.1:" + server.getAddress().getPort(),
-                    "", "svc-user", "svc-password", "UTC", true);
+                    "", "svc-user", "svc-password", "UTC", "dataos-dev", "development");
             var job = new IngestionJob("job-1", "source-1", "门诊批处理", "BATCH", "DOLPHINSCHEDULER",
                     "ACTIVE", null, null, null, null, null, false);
 
@@ -159,6 +159,23 @@ class DolphinSchedulerExecutorAdapterTest {
         assertThatThrownBy(() -> adapter.status("seatunnel-123"))
                 .isInstanceOf(AdapterConfigurationException.class)
                 .hasMessageContaining("格式不合法");
+    }
+
+    @Test
+    void rejectsTenantOverrideThatDiffersFromRuntimeBinding() {
+        var adapter = DolphinSchedulerExecutorAdapter.forTesting(
+                RestClient.builder(),
+                new com.fasterxml.jackson.databind.ObjectMapper(),
+                "http://127.0.0.1:1", "token", "", "", "UTC", "dataos-dev", "development");
+        var job = new IngestionJob("job-1", "source-1", "批处理", "BATCH", "DOLPHINSCHEDULER",
+                "ACTIVE", null, null, null, null, null, false);
+
+        assertThatThrownBy(() -> adapter.submit(job, Map.of("dolphinscheduler", Map.of(
+                "projectCode", 7,
+                "workflowDefinitionCode", 9,
+                "tenantCode", "another-hospital"))))
+                .isInstanceOf(AdapterConfigurationException.class)
+                .hasMessageContaining("必须与运行环境配置一致");
     }
 
     @Test

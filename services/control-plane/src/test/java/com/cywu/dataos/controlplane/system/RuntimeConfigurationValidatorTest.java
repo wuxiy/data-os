@@ -44,13 +44,16 @@ class RuntimeConfigurationValidatorTest {
         auth.setMode("enforced");
         auth.setIssuerUri("https://id.example.test/realms/data-os");
         auth.setAudience("data-os");
+        auth.setDefaultTenantId("hospital_a");
+        auth.setDefaultInstitutionId("hospital_a_main");
+        auth.setAllowDefaultScope(false);
         var credentials = new CredentialProperties();
         credentials.setEncryptionKey(java.util.Base64.getEncoder().encodeToString(new byte[32]));
         var network = new SourceNetworkProperties();
         network.setAllowedHosts(java.util.List.of("source.example.test"));
 
         var validator = new RuntimeConfigurationValidator("production", false, "HTTP", false,
-                auth, credentials, network);
+                "hospital_a_platform", auth, credentials, network);
 
         assertDoesNotThrow(validator::validate);
     }
@@ -61,6 +64,9 @@ class RuntimeConfigurationValidatorTest {
         auth.setMode("ENFORCED");
         auth.setIssuerUri("https://id.example.test/realms/data-os");
         auth.setAudience(" ");
+        auth.setDefaultTenantId("hospital_a");
+        auth.setDefaultInstitutionId("hospital_a_main");
+        auth.setAllowDefaultScope(false);
         var credentials = new CredentialProperties();
         credentials.setEncryptionKey(java.util.Base64.getEncoder().encodeToString(new byte[32]));
         var network = new SourceNetworkProperties();
@@ -68,7 +74,25 @@ class RuntimeConfigurationValidatorTest {
         network.setMaxResponseBytes(2);
 
         var validator = new RuntimeConfigurationValidator("production", false, "HTTP", false,
-                auth, credentials, network);
+                "hospital_a_platform", auth, credentials, network);
+
+        assertThrows(IllegalStateException.class, validator::validate);
+    }
+
+    @Test
+    void productionRejectsDefaultTenantFallback() {
+        var auth = new AuthProperties();
+        auth.setMode("ENFORCED");
+        auth.setIssuerUri("https://id.example.test/realms/data-os");
+        auth.setAudience("data-os");
+        auth.setAllowDefaultScope(false);
+        var credentials = new CredentialProperties();
+        credentials.setEncryptionKey(java.util.Base64.getEncoder().encodeToString(new byte[32]));
+        var network = new SourceNetworkProperties();
+        network.setAllowedHosts(java.util.List.of("source.example.test"));
+
+        var validator = new RuntimeConfigurationValidator("production", false, "HTTP", false,
+                "default", auth, credentials, network);
 
         assertThrows(IllegalStateException.class, validator::validate);
     }

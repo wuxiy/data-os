@@ -19,6 +19,9 @@
 DATAOS_DB_PASSWORD=复用 keycloak-db 的数据库密码
 DATAOS_RUNTIME_ENV=development
 DATAOS_AUTH_MODE=DISABLED
+DATAOS_DEFAULT_SCOPE_ENABLED=true
+DATAOS_DEFAULT_TENANT_ID=default
+DATAOS_DEFAULT_INSTITUTION_ID=demo-hospital
 # 开发环境显式放开本机/测试来源检查；生产必须全部关闭并配置来源白名单。
 DATAOS_SOURCE_ALLOW_HTTP=true
 DATAOS_SOURCE_ALLOW_PRIVATE_NETWORKS=true
@@ -38,13 +41,13 @@ DATAOS_DOLPHINSCHEDULER_TOKEN=
 DATAOS_DOLPHINSCHEDULER_USERNAME=
 DATAOS_DOLPHINSCHEDULER_PASSWORD=
 DATAOS_DOLPHINSCHEDULER_TIME_ZONE=Asia/Shanghai
+DATAOS_DOLPHINSCHEDULER_TENANT_CODE=dataos-dev
+DATAOS_DOLPHINSCHEDULER_SERVICE_USER=dataos_scheduler
+DATAOS_DOLPHINSCHEDULER_QUEUE_ID=1
 # DolphinScheduler 的独立数据库口令（不要与 Keycloak/data-os 口令混用）。
 DOLPHINSCHEDULER_DB_PASSWORD=仅保存在开发机 .env
-# 单院开发节点允许 default 租户使用 Worker bootstrap 用户；生产应改为 false 并配置命名租户。
-DOLPHINSCHEDULER_DEFAULT_TENANT_ENABLED=true
-# 3.4.x 镜像不内置任务插件；如需离线部署，可覆盖下载地址和固定 SHA-256。
-DOLPHINSCHEDULER_TASK_PLUGIN_URL=https://repo.maven.apache.org/maven2/org/apache/dolphinscheduler/dolphinscheduler-task-shell/3.4.1/dolphinscheduler-task-shell-3.4.1.jar
-DOLPHINSCHEDULER_TASK_PLUGIN_SHA256=d9e5d5d7f2e9c83d4958b267d5c2a668fa9d8fdb6064a7f73bd11f2cd79dca6a
+# 开发调度器也使用命名租户；生产同样必须关闭 default 回退并配置院方租户。
+DOLPHINSCHEDULER_DEFAULT_TENANT_ENABLED=false
 # 开发环境默认使用确定性的 DEMO 质量执行器；生产改为 HTTP/DBT 并配置执行器地址。
 DATAOS_QUALITY_EXECUTOR=DEMO
 DATAOS_QUALITY_EXECUTOR_BASE_URL=
@@ -77,13 +80,20 @@ docker compose -f docker-compose.yml up -d control-plane portal
 
 Gate 1 使用“已发布工作流绑定”模式：工作流定义、任务节点和版本在 DolphinScheduler 内维护；data-os 只负责提交一次工作流、保存本地运行记录并轮询实例状态。这样不会在每次业务运行时重复创建 DAG，也不会把 DolphinScheduler 原生 UI 暴露给甲方日常门户。
 
-DolphinScheduler 使用独立 PostgreSQL 数据卷和 JDBC Registry，单院节点不启用 ZooKeeper。注册表迁移脚本是幂等的，不会在容器重启时删除工作流元数据。3.4.x 官方镜像不再内置任务插件，overlay 会先由 `dolphinscheduler-task-plugin-installer` 下载并校验 Shell 插件，再挂载给 API、Master、Worker；离线环境必须同时覆盖插件 URL 和 SHA-256。首次启动前，在本目录 `.env` 设置 `DOLPHINSCHEDULER_DB_PASSWORD`，然后执行：
+DolphinScheduler 使用独立 PostgreSQL 数据卷和 JDBC Registry，单院节点不启用 ZooKeeper。注册表迁移脚本是幂等的，不会在容器重启时删除工作流元数据。当前 overlay 不安装或挂载历史 Shell 任务插件；临床采集由控制面通过 SeaTunnel 真实连接器执行，调度器只承接已审核的编排绑定。首次启动前，在本目录 `.env` 设置 `DOLPHINSCHEDULER_DB_PASSWORD`，并先创建 `DATAOS_DOLPHINSCHEDULER_TENANT_CODE` 对应的命名租户和 `dataos_scheduler` 服务账号，然后执行：
 
 ```bash
 docker compose \
   -f docker-compose.yml \
   -f dolphinscheduler/docker-compose.yml \
   --profile scheduler up -d
+```
+
+调度器 schema 完成后，用仓库内幂等脚本绑定服务账号、确保队列存在，并归档本仓库历史 Gate 1 Shell 工作流及 data-os 中对应的旧调度任务（不会删除定义）：
+
+```bash
+DATAOS_DOLPHINSCHEDULER_TENANT_CODE=dataos-dev \
+  ./dolphinscheduler/provision-named-tenant.sh
 ```
 
 健康检查与 API 地址：
@@ -93,7 +103,7 @@ curl -fsS http://127.0.0.1:18083/dolphinscheduler/actuator/health
 # API 仅供内网控制面调用；18083 是开发机诊断端口，生产不要映射公网。
 ```
 
-若只更新了任务插件或调度器服务，先确认插件安装器为 `Exited (0)`，再重建 API、Master、Worker；不要在插件卷尚未校验时直接启动执行节点。生产环境默认不启用 `default` 租户，需在绑定配置中使用院方创建的命名租户。
+若只更新了调度器服务，先确认 schema initializer 成功，再重建 API、Master、Worker。开发 Compose 允许控制面 `DATAOS_DEFAULT_SCOPE_ENABLED=true` 作为免登录联调回退，但 DolphinScheduler Worker 的 `WORKER_TENANT_CONFIG_DEFAULT_TENANT_ENABLED` 默认关闭；生产同时关闭控制面 default scope 和 Worker default tenant，所有绑定必须使用已创建的命名租户。
 
 建议在 DolphinScheduler 中创建专用服务账号并生成 token，写入 `.env` 的 `DATAOS_DOLPHINSCHEDULER_TOKEN`；未配置 token 时才使用 `DATAOS_DOLPHINSCHEDULER_USERNAME/PASSWORD` 登录并缓存 `sessionId`。不要使用默认管理员口令，不要把 token 或密码写入任务配置、日志或 Git。
 
@@ -106,7 +116,7 @@ curl -fsS http://127.0.0.1:18083/dolphinscheduler/actuator/health
     "workflowDefinitionCode": 10002,
     "workflowDefinitionVersion": 1,
     "workerGroup": "default",
-    "tenantCode": "default",
+    "tenantCode": "dataos-dev",
     "startParams": {
       "source_id": "lis-readonly",
       "data_domain": "检验"
@@ -115,7 +125,7 @@ curl -fsS http://127.0.0.1:18083/dolphinscheduler/actuator/health
 }
 ```
 
-控制面提交后会把持久化运行编号追加为 `dataos_run_id`，外部编号以 `ds|项目编号|工作流编号|实例编号` 形式保存；DolphinScheduler 的 `SUCCESS/FAILURE/STOP` 等状态会归一为 data-os 的 `SUCCEEDED/FAILED/CANCELED`。当前阶段不动态发布工作流定义，也不依赖 DolphinScheduler 内置 SeaTunnel 节点去调用现有 SeaTunnel REST；需要复用既有 SeaTunnel Zeta REST 时，应在已发布工作流中使用经过审核的 HTTP/Shell 节点或后续专用任务插件。
+控制面提交后会把持久化运行编号追加为 `dataos_run_id`，外部编号以 `ds|项目编号|工作流编号|实例编号` 形式保存；DolphinScheduler 的 `SUCCESS/FAILURE/STOP` 等状态会归一为 data-os 的 `SUCCEEDED/FAILED/CANCELED`。当前阶段不动态发布工作流定义，也不依赖 DolphinScheduler 内置 SeaTunnel 节点去调用现有 SeaTunnel REST；临床 LIS/EMR/手术系统任务使用控制面目录中的 SeaTunnel 真实连接器模板，DolphinScheduler 只承接经过审核的计划/补数编排绑定。
 
 提交请求和控制面运行记录都带有 `dataos_run_id`，但 DolphinScheduler 3.4.x 的公开工作流实例查询接口不能按该启动参数做可靠的服务端唯一查询。因此，控制面不会在提交响应超时后自动重试，避免将“已提交但响应丢失”误判为失败而重复执行；此类运行保持 `BLOCKED_DEPENDENCY`，需先在 DolphinScheduler 侧核对实例，再人工处理。下一阶段再通过对账表/适配器扩展补齐跨系统幂等，不把当前能力宣称为 exactly-once。
 

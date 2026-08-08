@@ -177,6 +177,19 @@ export interface IngestionRunListApiResponse {
   total: number
 }
 
+export interface WorkflowTemplateApiItem {
+  key: string
+  version: number
+  displayName: string
+  systemType: string
+  protocol: string
+  executor: string
+  mode: string
+  description: string
+  requiredCredentialRoles: string[]
+  sampleConfig: JobConfig
+}
+
 const API_BASE_URL = (import.meta.env.VITE_DATAOS_API_BASE_URL ?? '/api').replace(/\/$/, '')
 
 async function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
@@ -300,6 +313,10 @@ export async function fetchSources(signal?: AbortSignal): Promise<{ items: Sourc
 
 export async function fetchIngestionJobs(signal?: AbortSignal): Promise<{ items: IngestionJobApiItem[]; total: number }> {
   return getJson('/v1/jobs', signal)
+}
+
+export async function fetchWorkflowTemplates(signal?: AbortSignal): Promise<WorkflowTemplateApiItem[]> {
+  return getJson('/v1/workflow-templates', signal)
 }
 
 export async function createSource(input: {

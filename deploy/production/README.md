@@ -68,16 +68,21 @@ DOLPHINSCHEDULER_API_PORT=19083
 DOLPHINSCHEDULER_TZ=Asia/Shanghai
 DOLPHINSCHEDULER_BASE_URL=http://dolphinscheduler-api:12345/dolphinscheduler
 DATAOS_DOLPHINSCHEDULER_TOKEN=专用服务账号 token
-DOLPHINSCHEDULER_DEFAULT_TENANT_ENABLED=false  # 生产优先使用已创建的命名租户
-# 3.4.x 镜像不内置任务插件；离线环境同时替换 URL 与 SHA-256。
-DOLPHINSCHEDULER_TASK_PLUGIN_URL=https://repo.maven.apache.org/maven2/org/apache/dolphinscheduler/dolphinscheduler-task-shell/3.4.1/dolphinscheduler-task-shell-3.4.1.jar
-DOLPHINSCHEDULER_TASK_PLUGIN_SHA256=d9e5d5d7f2e9c83d4958b267d5c2a668fa9d8fdb6064a7f73bd11f2cd79dca6a
+DATAOS_DOLPHINSCHEDULER_TENANT_CODE=院方创建的命名调度租户编码
+DATAOS_DOLPHINSCHEDULER_SERVICE_USER=dataos_scheduler
+DATAOS_DOLPHINSCHEDULER_QUEUE_ID=1
 # 没有 token 时才使用以下登录回退，不要使用默认管理员账号。
 DATAOS_DOLPHINSCHEDULER_USERNAME=
 DATAOS_DOLPHINSCHEDULER_PASSWORD=
 ```
 
-先校验并启动 data-os，再按 overlay 启动调度器。overlay 会先执行插件下载校验和数据库迁移，成功后才启动 API、Master、Worker、Alert：
+`DATAOS_DEFAULT_SCOPE_ENABLED=false`、`DATAOS_DEFAULT_TENANT_ID`、
+`DATAOS_DEFAULT_INSTITUTION_ID` 和 `DATAOS_DOLPHINSCHEDULER_TENANT_CODE` 在生产是
+fail-closed 配置。DolphinScheduler 中必须先创建同名租户，并把 data-os 服务账号绑定到该租户；
+生产 overlay 将 Worker 的 `WORKER_TENANT_CONFIG_DEFAULT_TENANT_ENABLED` 硬编码为 `false`；
+default 租户只允许在隔离开发环境中作为历史数据迁移对象，不能作为 Worker 或 API 的隐式回退。
+
+先校验并启动 data-os，再按 overlay 启动调度器。overlay 会先执行数据库迁移，成功后才启动 API、Master、Worker、Alert；overlay 不安装历史 Shell 任务插件，临床连接器工作流由 SeaTunnel 执行器承接：
 
 ```bash
 docker compose --env-file .env config --quiet
@@ -85,6 +90,15 @@ docker compose --env-file .env -f docker-compose.yml -f dolphinscheduler-compose
 docker compose --env-file .env -f docker-compose.yml -f dolphinscheduler-compose.yml ps
 curl -fsS http://127.0.0.1:19083/dolphinscheduler/actuator/health
 ```
+
+调度器 schema 初始化完成、服务账号已创建后，在仓库根目录执行一次幂等租户迁移。脚本会校验命名租户和队列、把服务账号绑定到该租户，并将本仓库历史 `dataos_gate1_shell_*` 定义及 data-os 对应旧调度任务置为归档状态；不会删除调度器定义或其他业务工作流：
+
+```bash
+chmod +x deploy/production/provision-named-tenant.sh
+./deploy/production/provision-named-tenant.sh
+```
+
+脚本读取 `deploy/production/.env` 中的 DolphinScheduler 和 data-os PostgreSQL 连接信息，不输出密码或 token；因此需要同时设置 `DOLPHINSCHEDULER_DB_*` 与 `DATAOS_DB_HOST/PORT/NAME/USERNAME/PASSWORD`。若生产机器没有 `psql` 客户端，应使用同版本 PostgreSQL 客户端容器分别执行 `deploy/dolphinscheduler/clinical-tenant-migration.sql` 和 `deploy/data-os/clinical-workflow-migration.sql`，并在执行前确认两个数据库的备份与变更审批均已完成。
 
 API 诊断端口只绑定 `127.0.0.1`，不通过门户或公网暴露。首次部署仍需由调度管理员在内网完成一次性服务账号、项目和已发布工作流绑定；data-os 任务配置只保存 `projectCode`、`workflowDefinitionCode`、版本审计信息和非敏感启动参数，调度器密码/token 不进入任务 JSON。
 

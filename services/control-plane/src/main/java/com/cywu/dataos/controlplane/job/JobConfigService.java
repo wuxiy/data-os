@@ -8,6 +8,7 @@ import java.util.Optional;
 import com.cywu.dataos.controlplane.api.InvalidRequestException;
 import com.cywu.dataos.controlplane.api.ResourceNotFoundException;
 import com.cywu.dataos.controlplane.security.TenantScope;
+import com.cywu.dataos.controlplane.workflow.ClinicalWorkflowCatalog;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,13 +18,16 @@ public class JobConfigService {
     private final JobRepository jobRepository;
     private final JobConfigRepository configRepository;
     private final JobConfigurationPolicy configurationPolicy;
+    private final ClinicalWorkflowCatalog workflowCatalog;
     private final TenantScope tenantScope;
 
     public JobConfigService(JobRepository jobRepository, JobConfigRepository configRepository,
-                            JobConfigurationPolicy configurationPolicy, TenantScope tenantScope) {
+                            JobConfigurationPolicy configurationPolicy, ClinicalWorkflowCatalog workflowCatalog,
+                            TenantScope tenantScope) {
         this.jobRepository = jobRepository;
         this.configRepository = configRepository;
         this.configurationPolicy = configurationPolicy;
+        this.workflowCatalog = workflowCatalog;
         this.tenantScope = tenantScope;
     }
 
@@ -58,6 +62,7 @@ public class JobConfigService {
         if (containsSecretKey(config)) {
             throw new InvalidRequestException("任务配置不得保存明文密码或密钥，请改用凭据引用");
         }
+        workflowCatalog.validateConfig(request.templateKey(), request.templateVersion(), config);
     }
 
     private void requirePlugins(Map<String, Object> config, String key) {

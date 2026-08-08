@@ -21,7 +21,12 @@ public final class RuntimeConfigurationValidator {
     private final AuthProperties authProperties;
     private final CredentialProperties credentialProperties;
     private final SourceNetworkProperties sourceNetworkProperties;
+    private final String dolphinSchedulerTenantCode;
     private final boolean strictSecurity;
+
+    private enum CompatibilityMode {
+        DEMO_TEST
+    }
 
     @Autowired
     public RuntimeConfigurationValidator(
@@ -29,6 +34,7 @@ public final class RuntimeConfigurationValidator {
             @Value("${data-os.seed-demo:false}") boolean seedDemoEnabled,
             @Value("${data-os.quality.executor:HTTP}") String qualityExecutor,
             @Value("${data-os.quality.demo-enabled:false}") boolean demoQualityExecutorEnabled,
+            @Value("${data-os.dolphinscheduler.tenant-code:}") String dolphinSchedulerTenantCode,
             AuthProperties authProperties, CredentialProperties credentialProperties,
             SourceNetworkProperties sourceNetworkProperties) {
         this.environment = environment;
@@ -38,12 +44,27 @@ public final class RuntimeConfigurationValidator {
         this.authProperties = authProperties;
         this.credentialProperties = credentialProperties;
         this.sourceNetworkProperties = sourceNetworkProperties;
+        this.dolphinSchedulerTenantCode = dolphinSchedulerTenantCode == null ? "" : dolphinSchedulerTenantCode.trim();
         this.strictSecurity = true;
     }
 
     /** Compatibility constructor retained for focused unit tests. */
     public RuntimeConfigurationValidator(String environment, boolean seedDemoEnabled, String qualityExecutor,
+                                         boolean demoQualityExecutorEnabled, AuthProperties authProperties,
+                                         CredentialProperties credentialProperties,
+                                         SourceNetworkProperties sourceNetworkProperties) {
+        this(environment, seedDemoEnabled, qualityExecutor, demoQualityExecutorEnabled, "dataos-dev",
+                authProperties, credentialProperties, sourceNetworkProperties);
+    }
+
+    /** Minimal compatibility constructor retained for demo-only tests. */
+    public RuntimeConfigurationValidator(String environment, boolean seedDemoEnabled, String qualityExecutor,
                                          boolean demoQualityExecutorEnabled) {
+        this(environment, seedDemoEnabled, qualityExecutor, demoQualityExecutorEnabled, CompatibilityMode.DEMO_TEST);
+    }
+
+    private RuntimeConfigurationValidator(String environment, boolean seedDemoEnabled, String qualityExecutor,
+                                          boolean demoQualityExecutorEnabled, CompatibilityMode compatibilityMode) {
         this.environment = environment;
         this.seedDemoEnabled = seedDemoEnabled;
         this.qualityExecutor = qualityExecutor;
@@ -51,6 +72,7 @@ public final class RuntimeConfigurationValidator {
         this.authProperties = new AuthProperties();
         this.credentialProperties = new CredentialProperties();
         this.sourceNetworkProperties = new SourceNetworkProperties();
+        this.dolphinSchedulerTenantCode = "dataos-dev";
         this.strictSecurity = false;
     }
 
@@ -95,6 +117,20 @@ public final class RuntimeConfigurationValidator {
         if (credentialProperties.getEncryptionKey() == null || credentialProperties.getEncryptionKey().isBlank()) {
             throw new IllegalStateException("生产环境必须配置 DATAOS_CREDENTIAL_ENCRYPTION_KEY");
         }
+        if (authProperties.isAllowDefaultScope()) {
+            throw new IllegalStateException("生产环境必须关闭 DATAOS_DEFAULT_SCOPE_ENABLED，禁止默认租户回退");
+        }
+        if (isDefaultValue(authProperties.getDefaultTenantId(), "default")
+                || authProperties.getDefaultTenantId() == null || authProperties.getDefaultTenantId().isBlank()) {
+            throw new IllegalStateException("生产环境必须配置命名 DATAOS_DEFAULT_TENANT_ID");
+        }
+        if (isDefaultValue(authProperties.getDefaultInstitutionId(), "demo-hospital")
+                || authProperties.getDefaultInstitutionId() == null || authProperties.getDefaultInstitutionId().isBlank()) {
+            throw new IllegalStateException("生产环境必须配置命名 DATAOS_DEFAULT_INSTITUTION_ID");
+        }
+        if (dolphinSchedulerTenantCode.isBlank() || "default".equalsIgnoreCase(dolphinSchedulerTenantCode)) {
+            throw new IllegalStateException("生产环境必须配置命名 DATAOS_DOLPHINSCHEDULER_TENANT_CODE");
+        }
         var allowedHosts = sourceNetworkProperties.getAllowedHosts().stream()
                 .filter(item -> item != null && !item.isBlank()).toList();
         if (sourceNetworkProperties.isAllowHttp() || sourceNetworkProperties.isAllowPrivateNetworks()
@@ -105,5 +141,9 @@ public final class RuntimeConfigurationValidator {
 
     private String normalize(String value) {
         return value == null ? "" : value.trim();
+    }
+
+    private boolean isDefaultValue(String value, String defaultValue) {
+        return value != null && defaultValue.equalsIgnoreCase(value.trim());
     }
 }

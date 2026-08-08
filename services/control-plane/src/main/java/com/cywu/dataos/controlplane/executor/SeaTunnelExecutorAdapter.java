@@ -8,10 +8,14 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.HashMap;
+import java.util.Collection;
 import java.util.Locale;
 import java.util.Map;
 
 import com.cywu.dataos.controlplane.job.IngestionJob;
+import com.cywu.dataos.controlplane.credential.CredentialResolver;
+import com.cywu.dataos.controlplane.security.AuthProperties;
+import com.cywu.dataos.controlplane.security.TenantScope;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
@@ -31,16 +35,29 @@ public class SeaTunnelExecutorAdapter implements ExecutorAdapter {
     private final RestClient restClient;
     private final String baseUrl;
     private final ZoneId seatunnelZone;
+    private final CredentialResolver credentialResolver;
+    private final TenantScope tenantScope;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public SeaTunnelExecutorAdapter(RestClient.Builder builder,
                                     @Value("${data-os.seatunnel.base-url:}") String baseUrl,
-                                    @Value("${data-os.seatunnel.time-zone:UTC}") String timeZone) {
+                                    @Value("${data-os.seatunnel.time-zone:UTC}") String timeZone,
+                                    CredentialResolver credentialResolver, TenantScope tenantScope) {
         var client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3)).build();
         var requestFactory = new JdkClientHttpRequestFactory(client);
         requestFactory.setReadTimeout(Duration.ofSeconds(10));
         this.restClient = builder.requestFactory(requestFactory).build();
         this.baseUrl = normalizeBaseUrl(baseUrl);
         this.seatunnelZone = ZoneId.of(timeZone);
+        this.credentialResolver = credentialResolver;
+        this.tenantScope = tenantScope;
+    }
+
+    /** Convenience constructor retained for adapter-level tests. */
+    SeaTunnelExecutorAdapter(RestClient.Builder builder, String baseUrl, String timeZone) {
+        this(builder, baseUrl, timeZone,
+                (reference, tenantId, institutionId) -> Map.of(),
+                new TenantScope(new AuthProperties()));
     }
 
     @Override
@@ -57,7 +74,8 @@ public class SeaTunnelExecutorAdapter implements ExecutorAdapter {
             throw new AdapterConfigurationException("未提供中心采集作业配置");
         }
 
-        var config = new HashMap<>(requestConfig);
+        var scope = tenantScope.current();
+        var config = resolveCredentials(requestConfig, scope);
         var env = new HashMap<String, Object>();
         if (config.get("env") instanceof Map<?, ?> existingEnv) {
             existingEnv.forEach((key, value) -> env.put(String.valueOf(key), value));
@@ -163,6 +181,53 @@ public class SeaTunnelExecutorAdapter implements ExecutorAdapter {
     private String normalizeBaseUrl(String value) {
         if (value == null) return "";
         return value.trim().replaceAll("/+$", "");
+    }
+
+    /**
+     * Expand credentialRef only in memory immediately before submission. The
+     * persisted job JSON contains references, never password/token values;
+     * the resolved map is also never logged or returned to the caller.
+     */
+    private Map<String, Object> resolveCredentials(Map<String, Object> requestConfig,
+                                                   TenantScope.Scope scope) {
+        Object resolved = resolveNode(requestConfig, scope);
+        if (!(resolved instanceof Map<?, ?> map)) {
+            throw new AdapterConfigurationException("中心采集作业配置必须是对象");
+        }
+        var result = new HashMap<String, Object>();
+        map.forEach((key, value) -> result.put(String.valueOf(key), value));
+        return result;
+    }
+
+    private Object resolveNode(Object value, TenantScope.Scope scope) {
+        if (value instanceof Map<?, ?> map) {
+            var result = new HashMap<String, Object>();
+            Object reference = map.get("credentialRef");
+            if (reference != null && !String.valueOf(reference).isBlank()) {
+                try {
+                    var secret = credentialResolver.resolve(String.valueOf(reference), scope.tenantId(),
+                            scope.institutionId());
+                    secret.forEach((key, item) -> result.put(String.valueOf(key), resolveNode(item, scope)));
+                    // SeaTunnel's JDBC source uses user while Doris uses
+                    // username; accepting either credential shape keeps the
+                    // credential service provider-neutral.
+                    if (secret.containsKey("username")) {
+                        result.putIfAbsent("user", resolveNode(secret.get("username"), scope));
+                    }
+                } catch (RuntimeException exception) {
+                    throw new AdapterConfigurationException("中心采集作业 credentialRef 无法解析");
+                }
+            }
+            map.forEach((key, item) -> {
+                var name = String.valueOf(key);
+                if (!"credentialRef".equals(name)) result.put(name, resolveNode(item, scope));
+            });
+            return result;
+        }
+        if (value instanceof Collection<?> collection) {
+            return collection.stream().map(item -> resolveNode(item, scope)).toList();
+        }
+        return value;
     }
 
     static String toSeaTunnelMode(String mode) {

@@ -26,6 +26,9 @@ public class TenantScope {
     public Scope resolve(String requestedTenant, String requestedInstitution) {
         var authentication = SecurityContextHolder.getContext().getAuthentication();
         if (properties.isDisabled() || authentication == null || !authentication.isAuthenticated()) {
+            if (!properties.isAllowDefaultScope()) {
+                throw new AccessDeniedException("当前运行环境禁止默认租户回退");
+            }
             return new Scope(properties.getDefaultTenantId(), properties.getDefaultInstitutionId(),
                     "local-development", List.of("platform-admin"));
         }

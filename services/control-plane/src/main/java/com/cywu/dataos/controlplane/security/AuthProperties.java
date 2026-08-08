@@ -18,6 +18,7 @@ public class AuthProperties {
     private long clockSkewSeconds = 60;
     private String defaultTenantId = "default";
     private String defaultInstitutionId = "demo-hospital";
+    private boolean allowDefaultScope = true;
 
     public String getMode() {
         return mode;
@@ -65,6 +66,14 @@ public class AuthProperties {
 
     public void setDefaultInstitutionId(String defaultInstitutionId) {
         this.defaultInstitutionId = defaultInstitutionId;
+    }
+
+    public boolean isAllowDefaultScope() {
+        return allowDefaultScope;
+    }
+
+    public void setAllowDefaultScope(boolean allowDefaultScope) {
+        this.allowDefaultScope = allowDefaultScope;
     }
 
     public boolean isEnforced() {

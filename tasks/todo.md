@@ -429,6 +429,8 @@ Gate 0 尚未覆盖 OIDC 多租户授权列表、CIDR allowlist/DNS rebinding �
 
 ## 2026-08-08 Gate 1 调度器真实工作流复检
 
+> 历史验收记录：本节记录的是已归档的 Shell 烟囱验证过程，不代表当前发布路径仍安装或启用 Shell 任务插件；当前临床路径以紧随其后的“临床真实连接器工作流与命名租户收口”章节为准。
+
 ### 执行计划
 
 - [x] 复现并定位 SHELL 工作流创建失败：确认官方 3.4.1 镜像缺少任务插件
@@ -441,3 +443,24 @@ Gate 0 尚未覆盖 OIDC 多租户授权列表、CIDR allowlist/DNS rebinding �
 ### 结果复盘
 
 第一次工作流触发到达 Master 后因 Master 未挂载 SHELL 插件失败；第二次已加载插件但因 `default` 租户开关关闭失败。补齐 Master 插件卷和 `WORKER_TENANT_CONFIG_DEFAULT_TENANT_ENABLED=true` 后，第三次运行 `ds|180931789157120|180932865356288|3` 成功，Shell 日志输出 `DATAOS_GATE1_WORKFLOW_OK`；随后相同幂等键验证返回同一 run `e2a1af9c-c57a-462b-99a8-19f11b6aff7d` 和外部实例 `...|4`，最终均回写 `SUCCEEDED`。生产仍需关闭 default tenant 回退、配置命名租户，并把插件 URL/SHA 固定到院方镜像仓库或离线制品库。
+
+## 2026-08-08/09 临床真实连接器工作流与命名租户收口
+
+### 目标
+
+将 Gate 1 的隔离 Shell 烟囱路径替换为可交付的 LIS、EMR、手术系统 JDBC/HTTP 连接器模板；生产运行时禁止 default 租户及控制面默认租户回退，所有 DolphinScheduler 触发必须使用院方命名租户。
+
+### 执行计划
+
+- [x] 盘点连接器、凭据解析、租户默认值和开发机现状，确认没有可合法使用的院内真实账号/端点
+- [x] 增加临床工作流模板目录与 API，定义 LIS、EMR、手术系统的版本化真实连接器契约
+- [x] 在 SeaTunnel 提交前解析 credentialRef，禁止把凭据明文持久化或回显，并补齐模板校验
+- [x] 移除 DolphinScheduler 适配器的 default tenant 隐式回退，增加生产命名租户必填校验与配置示例
+- [x] 在开发机创建命名调度租户、停用 default Worker 回退、归档 Shell 验收任务并做配置/健康验证
+- [x] 更新部署文档、真实端点交接清单、验证证据和教训记录，运行全量测试、静态检查和代码审查
+
+### 结果复盘
+
+本轮已完成版本化临床模板、运行时凭据解析和命名租户 fail-closed 收口。开发机已部署并验证三套模板 API、控制面/门户/SeaTunnel/DolphinScheduler 健康状态；创建 `dataos-dev` 命名调度租户并绑定 `dataos_scheduler`，Worker default 回退关闭，历史 Gate1 Shell 工作流定义与 data-os 验收任务均已由幂等脚本归档。生产 Compose 已将命名租户、命名机构和关闭默认 scope 设为必填/默认 fail-closed，并移除 Shell 插件安装与挂载。
+
+验证通过：Java 21 Maven 全量测试、前端生产构建、mock audit、门户交互 smoke、开发/生产 Compose config 和 `git diff --check`；新增的命名租户迁移脚本已在开发 DolphinScheduler 数据库幂等执行。院内 LIS/EMR/手术系统真实主机、端口、只读账号、Doris 目标表和脱敏样本尚未提供，故本轮不宣称真实临床数据已接入；后续按 `docs/clinical-workflow-contracts.md` 的交接清单启用具体任务。开发控制面仍显式保留 `DATAOS_DEFAULT_SCOPE_ENABLED=true` 作为免登录联调回退，生产配置才是 fail-closed；两套调度器 Worker 均关闭 default tenant 回退。

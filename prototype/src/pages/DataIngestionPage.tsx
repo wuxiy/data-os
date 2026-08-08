@@ -31,6 +31,7 @@ import {
   fetchIngestionRuns,
   fetchJobConfig,
   fetchSources,
+  fetchWorkflowTemplates,
   saveJobConfig,
   startIngestionRun,
   syncIngestionRun,
@@ -40,6 +41,7 @@ import {
   type IngestionRunApiItem,
   type JobConfig,
   type SourceApiItem,
+  type WorkflowTemplateApiItem,
 } from '../data/controlPlane'
 import { frontendDemoMode } from '../data/runtime'
 import type { RouteKey } from '../types'
@@ -79,11 +81,18 @@ function cloneConfig(config: JobConfig): JobConfig {
   return JSON.parse(JSON.stringify(config)) as JobConfig
 }
 
-function configForTemplate(templateKey: string, mode: string): JobConfig {
+function configForTemplate(templateKey: string, mode: string, templates: WorkflowTemplateApiItem[] = []): JobConfig {
   if (templateKey === DEFAULT_TEMPLATE_KEY) {
     const config = cloneConfig(DEFAULT_FAKE_CONFIG)
     const env = config.env as Record<string, unknown>
     env['job.mode'] = mode
+    return config
+  }
+  const template = templates.find((item) => item.key === templateKey)
+  if (template) {
+    const config = cloneConfig(template.sampleConfig)
+    const env = config.env as Record<string, unknown> | undefined
+    if (env) env['job.mode'] = mode
     return config
   }
   return {}
@@ -104,6 +113,7 @@ function newJobForm(sourceId = ''): JobFormState {
 export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props) {
   const [sources, setSources] = useState<SourceApiItem[]>([])
   const [jobs, setJobs] = useState<IngestionJobApiItem[]>([])
+  const [workflowTemplates, setWorkflowTemplates] = useState<WorkflowTemplateApiItem[]>([])
   const [latestRuns, setLatestRuns] = useState<Record<string, IngestionRunApiItem>>({})
   const [state, setState] = useState<'loading' | 'live' | 'unavailable'>('loading')
   const [runningJob, setRunningJob] = useState<string | null>(null)
@@ -170,6 +180,17 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
       controller.abort()
     }
   }, [])
+
+  useEffect(() => {
+    if (state !== 'live') return
+    const controller = new AbortController()
+    fetchWorkflowTemplates(controller.signal)
+      .then(setWorkflowTemplates)
+      .catch(() => {
+        if (!controller.signal.aborted) setWorkflowTemplates([])
+      })
+    return () => controller.abort()
+  }, [state])
 
   useEffect(() => {
     if (!detailsJob || state !== 'live') return
@@ -287,6 +308,24 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
     setSourceCheckText(JSON.stringify(sourceCheckDefaults(source.protocol), null, 2))
   }
 
+  function selectJobTemplate(templateKey: string) {
+    const selected = workflowTemplates.find((item) => item.key === templateKey)
+    setJobForm((current) => ({
+      ...current,
+      templateKey,
+      templateVersion: selected?.version ?? DEFAULT_TEMPLATE_VERSION,
+      configText: JSON.stringify(configForTemplate(templateKey, current.mode, workflowTemplates), null, 2),
+    }))
+  }
+
+  function selectConfigTemplate(templateKey: string) {
+    if (!configuringJob) return
+    const selected = workflowTemplates.find((item) => item.key === templateKey)
+    setConfigTemplateKey(templateKey)
+    setConfigTemplateVersion(selected?.version ?? DEFAULT_TEMPLATE_VERSION)
+    setConfigText(JSON.stringify(configForTemplate(templateKey, configuringJob.mode, workflowTemplates), null, 2))
+  }
+
   async function submitSourceCheck() {
     if (!checkingSource || state !== 'live') return
     let config: JobConfig
@@ -383,7 +422,7 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
     setConfigError(null)
     setConfigTemplateKey(job.templateKey ?? (frontendDemoMode ? DEFAULT_TEMPLATE_KEY : LIVE_TEMPLATE_KEY))
     setConfigTemplateVersion(job.templateVersion ?? DEFAULT_TEMPLATE_VERSION)
-    setConfigText(JSON.stringify(configForTemplate(job.templateKey ?? (frontendDemoMode ? DEFAULT_TEMPLATE_KEY : LIVE_TEMPLATE_KEY), job.mode), null, 2))
+    setConfigText(JSON.stringify(configForTemplate(job.templateKey ?? (frontendDemoMode ? DEFAULT_TEMPLATE_KEY : LIVE_TEMPLATE_KEY), job.mode, workflowTemplates), null, 2))
     try {
       const saved = await fetchJobConfig(job.id)
       setConfigTemplateKey(saved.templateKey)
@@ -495,10 +534,10 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
           {jobFormOpen ? <form className={styles.jobForm} onSubmit={(event) => void submitJob(event)}>
             <div className={styles.formField}><label htmlFor="job-source">数据源</label><select id="job-source" required value={jobForm.sourceId} onChange={(event) => setJobForm((current) => ({ ...current, sourceId: event.target.value }))}>{sources.map((source) => <option value={source.id} key={source.id}>{source.name} · {source.systemType}</option>)}</select></div>
             <div className={styles.formField}><label htmlFor="job-name">任务名称</label><input id="job-name" required value={jobForm.name} onChange={(event) => setJobForm((current) => ({ ...current, name: event.target.value }))} placeholder="例如：LIS 检验结果批量同步" /></div>
-            <div className={styles.formField}><label htmlFor="job-mode">运行模式</label><select id="job-mode" value={jobForm.mode} onChange={(event) => setJobForm((current) => ({ ...current, mode: event.target.value, configText: JSON.stringify(configForTemplate(current.templateKey, event.target.value), null, 2) }))}><option value="BATCH">批量同步</option><option value="CDC">增量变更</option></select></div>
-            <div className={styles.formField}><label htmlFor="job-template">配置模板</label><select id="job-template" value={jobForm.templateKey} onChange={(event) => setJobForm((current) => ({ ...current, templateKey: event.target.value, configText: JSON.stringify(configForTemplate(event.target.value, current.mode), null, 2) }))}>{frontendDemoMode ? <option value={DEFAULT_TEMPLATE_KEY}>FakeSource → Console（演示）</option> : null}<option value={LIVE_TEMPLATE_KEY}>自定义 JSON</option></select></div>
+            <div className={styles.formField}><label htmlFor="job-mode">运行模式</label><select id="job-mode" value={jobForm.mode} onChange={(event) => setJobForm((current) => ({ ...current, mode: event.target.value, configText: JSON.stringify(configForTemplate(current.templateKey, event.target.value, workflowTemplates), null, 2) }))}><option value="BATCH">批量同步</option><option value="CDC">增量变更</option></select></div>
+            <div className={styles.formField}><label htmlFor="job-template">配置模板</label><select id="job-template" value={jobForm.templateKey} onChange={(event) => selectJobTemplate(event.target.value)}>{frontendDemoMode ? <option value={DEFAULT_TEMPLATE_KEY}>FakeSource → Console（演示）</option> : null}{workflowTemplates.map((template) => <option value={template.key} key={template.key}>{template.displayName} · {template.systemType}</option>)}<option value={LIVE_TEMPLATE_KEY}>自定义 JSON</option></select></div>
             <div className={`${styles.formField} ${styles.formFieldWide}`}><details className={styles.configDetails} open><summary>采集配置 JSON <span>默认展开 · 可编辑</span></summary><label htmlFor="job-config">配置内容</label><textarea id="job-config" className={styles.codeInput} value={jobForm.configText} onChange={(event) => setJobForm((current) => ({ ...current, configText: event.target.value }))} spellCheck={false} /></details></div>
-            <div className={styles.formActions}><span>{frontendDemoMode ? '仅保存结构配置；密码、密钥请使用后续凭据引用，不写入任务 JSON。' : '真实模式请填写院内连接器 JSON；密码、密钥请使用后续凭据引用，不写入任务 JSON。'}</span><button className={styles.primaryButton} type="submit" disabled={creatingJob}>{creatingJob ? '创建中…' : '创建并保存配置'}</button></div>
+            <div className={styles.formActions}><span>{frontendDemoMode ? '仅保存结构配置；密码、密钥请使用后续凭据引用，不写入任务 JSON。' : workflowTemplates.length > 0 ? '临床模板来自控制面目录；请替换端点和 credentialRef 后再保存，密码、密钥不会写入任务 JSON。' : '真实模式请填写院内连接器 JSON；密码、密钥请使用凭据引用，不写入任务 JSON。'}</span><button className={styles.primaryButton} type="submit" disabled={creatingJob}>{creatingJob ? '创建中…' : '创建并保存配置'}</button></div>
           </form> : null}
           <div className={styles.tableScroll}><table className={styles.table}><thead><tr><th>任务</th><th>来源</th><th>模式</th><th>执行通道</th><th>最近运行</th><th>操作</th></tr></thead><tbody>{visibleJobs.map((job) => {
             const run = latestRuns[job.id]
@@ -534,7 +573,7 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
           <div className={styles.drawerHeader}><div><span className={styles.drawerEyebrow}>任务配置 · {configuringJob.id.slice(0, 8)}</span><h2>{configuringJob.name}</h2></div><button className={styles.iconButton} aria-label="关闭" onClick={() => setConfiguringJob(null)}><X size={17} /></button></div>
           <div className={styles.drawerBody}>
             <div className={styles.drawerNotice}><Settings2 size={16} /><span>保存的是可审计的结构配置。连接密码、Token、Secret 等敏感值必须通过凭据引用接入，本版不会落库。</span></div>
-            <div className={styles.drawerFields}><div className={styles.formField}><label htmlFor="config-template">模板标识</label><select id="config-template" value={configTemplateKey} onChange={(event) => setConfigTemplateKey(event.target.value)}>{frontendDemoMode || configTemplateKey === DEFAULT_TEMPLATE_KEY ? <option value={DEFAULT_TEMPLATE_KEY} disabled={!frontendDemoMode}>FakeSource → Console（仅演示）</option> : null}<option value={LIVE_TEMPLATE_KEY}>自定义 JSON</option></select></div><div className={styles.formField}><label htmlFor="config-version">模板版本</label><input id="config-version" type="number" min={1} value={configTemplateVersion} onChange={(event) => setConfigTemplateVersion(Math.max(1, Number(event.target.value) || 1))} /></div></div>
+            <div className={styles.drawerFields}><div className={styles.formField}><label htmlFor="config-template">模板标识</label><select id="config-template" value={configTemplateKey} onChange={(event) => selectConfigTemplate(event.target.value)}>{frontendDemoMode || configTemplateKey === DEFAULT_TEMPLATE_KEY ? <option value={DEFAULT_TEMPLATE_KEY} disabled={!frontendDemoMode}>FakeSource → Console（仅演示）</option> : null}{workflowTemplates.map((template) => <option value={template.key} key={template.key}>{template.displayName} · {template.systemType}</option>)}<option value={LIVE_TEMPLATE_KEY}>自定义 JSON</option></select></div><div className={styles.formField}><label htmlFor="config-version">模板版本</label><input id="config-version" type="number" min={1} value={configTemplateVersion} onChange={(event) => setConfigTemplateVersion(Math.max(1, Number(event.target.value) || 1))} /></div></div>
             <div className={styles.formField}><details className={styles.configDetails} open><summary>配置 JSON <span>默认展开 · 可编辑</span></summary><label htmlFor="config-editor">配置内容</label><textarea id="config-editor" className={`${styles.codeInput} ${styles.codeInputLarge}`} value={configText} onChange={(event) => setConfigText(event.target.value)} spellCheck={false} disabled={configLoading} /></details></div>
             {configLoading ? <p className={styles.drawerHint}>正在读取已保存配置…</p> : null}
             {configError ? <p className={styles.formError} role="alert">{configError}</p> : null}

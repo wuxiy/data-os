@@ -37,6 +37,7 @@ data-os:
     clock-skew-seconds: ${DATAOS_OIDC_CLOCK_SKEW_SECONDS:60}
     default-tenant-id: ${DATAOS_DEFAULT_TENANT_ID:default}
     default-institution-id: ${DATAOS_DEFAULT_INSTITUTION_ID:demo-hospital}
+    allow-default-scope: ${DATAOS_DEFAULT_SCOPE_ENABLED:true}
   credentials:
     encryption-key: ${DATAOS_CREDENTIAL_ENCRYPTION_KEY:}
   source-network:
@@ -57,6 +58,7 @@ data-os:
     username: ${DATAOS_DOLPHINSCHEDULER_USERNAME:}
     password: ${DATAOS_DOLPHINSCHEDULER_PASSWORD:}
     time-zone: ${DATAOS_DOLPHINSCHEDULER_TIME_ZONE:Asia/Shanghai}
+    tenant-code: ${DATAOS_DOLPHINSCHEDULER_TENANT_CODE:}
   quality:
     executor: ${DATAOS_QUALITY_EXECUTOR:HTTP}
     base-url: ${DATAOS_QUALITY_EXECUTOR_BASE_URL:}

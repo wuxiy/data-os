@@ -204,7 +204,9 @@ flowchart LR
 - 运行请求体为空时，适配器读取任务已保存配置；请求显式带配置时只用于本次运行，不覆盖任务版本。
 - `Idempotency-Key` 在同一任务内最多 128 个字符；控制面保存规范化运行配置的 SHA-256 指纹，相同 key 且指纹一致时返回已存在运行记录，指纹不一致返回 `409 CONFLICT`，避免浏览器重试造成重复提交或静默忽略新配置。
 
-首期模板采用 `FAKE_TO_CONSOLE`（用于验收）和 `CUSTOM_JSON` 两类入口。院内 JDBC/HTTP/SFTP/HL7 连接器在拿到脱敏样本和凭据引用后，以新增模板版本接入，不修改运行 API。
+首期真实模板目录由控制面 `/api/v1/workflow-templates` 暴露，包含 `LIS_JDBC_TO_DORIS`、`EMR_JDBC_TO_DORIS`、`SURGERY_JDBC_TO_DORIS` 三个 v1 合同；每个合同固定 `Jdbc → Doris` 连接器形状、增量字段和必需的 source/target `credentialRef`。门户读取目录并把无密钥样例配置带入编辑器，端点、查询和凭据引用由院方按机构范围填写后才能保存。`FAKE_TO_CONSOLE` 仅保留在显式 Demo 构建中，`CUSTOM_JSON` 用于尚未登记模板的受控扩展。
+
+真实模板保存的是连接器合同，不代表院内端点已经存在。启用前必须完成数据源登记、只读账号/凭据创建、脱敏样本验收和目标 Doris 表建表；缺少任一前置条件时控制面应阻断保存或运行，不能用 Shell/FakeSource 代替业务验收。
 
 ### 4.7 任务生命周期与来源检查契约
 
@@ -245,7 +247,7 @@ AssistantAdapter: ask / cancel / getEvidence / feedback
 - `DolphinSchedulerExecutorAdapter` 已接入控制面执行器端口。Gate 1 采用已发布工作流绑定：任务配置的 `dolphinscheduler.projectCode` 与 `workflowDefinitionCode` 只引用经过审核的工作流，控制面通过 `/projects/{projectCode}/executors/start-workflow-instance` 启动实例，再通过 `/workflow-instances/{id}` 查询状态；`process-instances` 仅作为旧版兼容路径。外部编号采用 `ds|project|workflow|instance`，并把 data-os 运行 ID 放入 `startParams.dataos_run_id`。公开实例列表 API 不能按该启动参数做可靠唯一查询，因此提交响应超时时控制面进入 `BLOCKED_DEPENDENCY` 而不自动重试；必须先人工对账，exactly-once 对账列为 Gate 1 P1。
 - DolphinScheduler 访问凭据只来自运行环境的专用 token，或由专用服务账号登录后缓存的 `sessionId`；任务 JSON 不得携带密码、Token 或 Secret。DolphinScheduler 原生 UI 只用于技术人员诊断，甲方日常使用 data-os 门户。
 - 单院开发/交付基线使用 `deploy/dev/dolphinscheduler/docker-compose.yml`：API、Master、Worker、Alert、独立 PostgreSQL 和幂等 JDBC Registry 迁移，默认不启用 ZooKeeper；API 仅作为内网控制面依赖，生产不映射公网。区域部署再扩 API/Master 和 Worker group，不能把单院 JDBC Registry 方案直接当作区域高可用方案。
-- 当前 SeaTunnel Zeta REST 直连仍保留为开发兼容执行器；DolphinScheduler 内置 `SEATUNNEL` 节点是 Worker 本地 CLI 包装器，不会自动调用已有 SeaTunnel REST。若要纳入 DS 工作流，首期使用受控 HTTP/Shell 节点或后续专用任务插件，禁止误把两种执行语义混用。
+- 当前 SeaTunnel Zeta REST 直连是临床连接器的实际执行器：控制面在提交瞬间按当前租户/机构解析 `credentialRef`，只把内存中的用户名/密码注入 SeaTunnel 请求，数据库、接口和日志永不保存明文。DolphinScheduler 仍负责计划、补数和运行历史，但本轮不再安装或挂载历史 Shell 插件，也不把隔离 Shell 任务作为临床链路；若后续需要 DS 统一编排，应交付审核后的 SeaTunnel 专用任务插件或受控 HTTP 节点，并复用同一模板合同。
 - 标准流程为 `L0 证据确认 → L1 装载 → dbt build → 质量结果 → OpenMetadata 摄取 → 数据产品发布`。
 - Portal 发布任务时先落库和 Outbox，再由 Worker 发布到执行器；发布失败不改变上一个生效版本。
 - 状态同步采用控制面后台增量轮询，同时提供 `POST /api/v1/jobs/{jobId}/runs/{runId}/sync` 供门户人工刷新；本轮使用 PostgreSQL 运行表直接回写，连续依赖失败保留可重试状态，配置型状态查询失败转为 `FAILED`，`UNKNOWN` 只允许人工重试，后续接入 Outbox/死信表时不改变适配器契约。任务生命周期状态与最近一次运行状态分离，后者以 `job_runs` 为准。

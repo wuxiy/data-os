@@ -56,7 +56,12 @@ public class DolphinSchedulerExecutorAdapter implements OrchestratorAdapter {
     private final String username;
     private final String password;
     private final ZoneId schedulerZone;
+    private final String configuredTenantCode;
+    private final boolean production;
     private final AtomicReference<String> sessionId = new AtomicReference<>();
+
+    private record RuntimeContext(String tenantCode, String environment) {
+    }
 
     @Autowired
     public DolphinSchedulerExecutorAdapter(
@@ -66,11 +71,14 @@ public class DolphinSchedulerExecutorAdapter implements OrchestratorAdapter {
             @Value("${data-os.dolphinscheduler.token:}") String token,
             @Value("${data-os.dolphinscheduler.username:}") String username,
             @Value("${data-os.dolphinscheduler.password:}") String password,
-            @Value("${data-os.dolphinscheduler.time-zone:Asia/Shanghai}") String timeZone) {
-        this(builder, objectMapper, baseUrl, token, username, password, timeZone, true);
+            @Value("${data-os.dolphinscheduler.time-zone:Asia/Shanghai}") String timeZone,
+            @Value("${data-os.dolphinscheduler.tenant-code:}") String tenantCode,
+            @Value("${data-os.runtime.environment:production}") String environment) {
+        this(builder, objectMapper, baseUrl, token, username, password, timeZone,
+                new RuntimeContext(tenantCode, environment));
     }
 
-    DolphinSchedulerExecutorAdapter(
+    private DolphinSchedulerExecutorAdapter(
             RestClient.Builder builder,
             ObjectMapper objectMapper,
             String baseUrl,
@@ -78,7 +86,7 @@ public class DolphinSchedulerExecutorAdapter implements OrchestratorAdapter {
             String username,
             String password,
             String timeZone,
-            boolean ignored) {
+            RuntimeContext runtimeContext) {
         var client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3)).build();
         var requestFactory = new JdkClientHttpRequestFactory(client);
         requestFactory.setReadTimeout(Duration.ofSeconds(10));
@@ -94,11 +102,29 @@ public class DolphinSchedulerExecutorAdapter implements OrchestratorAdapter {
         } catch (RuntimeException exception) {
             throw new IllegalArgumentException("DolphinScheduler 时区配置不合法", exception);
         }
+        this.configuredTenantCode = normalize(runtimeContext.tenantCode());
+        this.production = "production".equalsIgnoreCase(normalize(runtimeContext.environment()));
     }
 
     /** Convenience constructor for adapter-level tests and local tools. */
     DolphinSchedulerExecutorAdapter(RestClient.Builder builder, String baseUrl, String token, String timeZone) {
-        this(builder, new ObjectMapper(), baseUrl, token, "", "", timeZone, true);
+        this(builder, new ObjectMapper(), baseUrl, token, "", "", timeZone,
+                new RuntimeContext("dataos-dev", "development"));
+    }
+
+    static DolphinSchedulerExecutorAdapter forTesting(
+            RestClient.Builder builder,
+            ObjectMapper objectMapper,
+            String baseUrl,
+            String token,
+            String username,
+            String password,
+            String timeZone,
+            String tenantCode,
+            String environment) {
+        return new DolphinSchedulerExecutorAdapter(
+                builder, objectMapper, baseUrl, token, username, password, timeZone,
+                new RuntimeContext(tenantCode, environment));
     }
 
     @Override
@@ -130,7 +156,17 @@ public class DolphinSchedulerExecutorAdapter implements OrchestratorAdapter {
         query.add("taskDependType", value(binding, "taskDependType", "TASK_POST"));
         query.add("execType", value(binding, "execType", "START_PROCESS"));
         query.add("workerGroup", value(binding, "workerGroup", "default"));
-        query.add("tenantCode", value(binding, "tenantCode", "default"));
+        var tenantCode = value(binding, "tenantCode", configuredTenantCode);
+        if (tenantCode.isBlank()) {
+            throw new AdapterConfigurationException("DolphinScheduler 必须配置命名 tenantCode");
+        }
+        if (!configuredTenantCode.isBlank() && !configuredTenantCode.equals(tenantCode)) {
+            throw new AdapterConfigurationException("DolphinScheduler tenantCode 必须与运行环境配置一致");
+        }
+        if (production && "default".equalsIgnoreCase(tenantCode)) {
+            throw new AdapterConfigurationException("生产环境禁止使用 DolphinScheduler default tenant");
+        }
+        query.add("tenantCode", tenantCode);
         query.add("environmentCode", value(binding, "environmentCode", "-1"));
         query.add("dryRun", value(binding, "dryRun", "0"));
         if (binding.containsKey("startNodeList")) {
