@@ -1,0 +1,76 @@
+from __future__ import annotations
+
+from dataclasses import asdict
+from typing import Any
+
+from fastapi import APIRouter, Depends, Header, HTTPException, Response, status
+from pydantic import BaseModel, Field
+
+from runner import QualityRunManager
+from security import Principal, check_scope, principal
+
+
+class RunRequest(BaseModel):
+    issueId: str = Field(min_length=1, max_length=128)
+    tenantId: str = Field(min_length=1, max_length=128)
+    institutionId: str = Field(min_length=1, max_length=128)
+    title: str = Field(default="", max_length=300)
+    ruleId: str = Field(min_length=1, max_length=200)
+    datasetId: str = Field(default="", max_length=300)
+    executionBatchId: str = Field(min_length=1, max_length=128)
+
+
+def router(manager: QualityRunManager) -> APIRouter:
+    api = APIRouter(prefix="/api/v1/quality")
+
+    @api.post("/runs", status_code=status.HTTP_202_ACCEPTED)
+    async def submit(body: RunRequest, response: Response, current: Principal = Depends(principal),
+                     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key")) -> dict[str, Any]:
+        check_scope(current, "quality:submit")
+        if current.tenant_id != "*" and (
+                body.tenantId != current.tenant_id or body.institutionId != current.institution_id):
+            raise HTTPException(status_code=403, detail="tenant scope mismatch")
+        key = (idempotency_key or body.executionBatchId).strip()
+        if not key or len(key) > 200:
+            raise HTTPException(status_code=400, detail="Idempotency-Key is required")
+        try:
+            run = await manager.submit({
+                "issue_id": body.issueId, "tenant_id": body.tenantId, "institution_id": body.institutionId,
+                "rule_id": body.ruleId, "execution_batch_id": body.executionBatchId,
+                "idempotency_key": key,
+            })
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        response.headers["Idempotency-Key"] = key
+        return {"runId": run.run_id, "externalId": run.run_id, "status": run.status,
+                "executionBatchId": run.execution_batch_id, "message": run.message}
+
+    @api.get("/runs/{run_id}")
+    async def get(run_id: str, current: Principal = Depends(principal)) -> dict[str, Any]:
+        check_scope(current, "quality:read")
+        try:
+            run = await manager.get(run_id)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="quality run not found") from exc
+        if current.tenant_id != "*" and (run.tenant_id != current.tenant_id or run.institution_id != current.institution_id):
+            raise HTTPException(status_code=404, detail="quality run not found")
+        return {"runId": run.run_id, "externalId": run.run_id, "status": run.status,
+                "passed": run.passed, "executionBatchId": run.execution_batch_id,
+                "message": run.message, "sampleEvidence": run.sample_evidence,
+                "artifactUri": run.artifact_uri, "startedAt": run.started_at,
+                "finishedAt": run.finished_at}
+
+    @api.post("/runs/{run_id}/cancel")
+    async def cancel(run_id: str, current: Principal = Depends(principal)) -> dict[str, Any]:
+        check_scope(current, "quality:cancel")
+        try:
+            run = await manager.get(run_id)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="quality run not found") from exc
+        if current.tenant_id != "*" and (run.tenant_id != current.tenant_id or run.institution_id != current.institution_id):
+            raise HTTPException(status_code=404, detail="quality run not found")
+        await manager.cancel(run_id)
+        run = await manager.get(run_id)
+        return {"runId": run.run_id, "status": run.status, "message": run.message}
+
+    return api

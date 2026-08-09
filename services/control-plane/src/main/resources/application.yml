@@ -51,10 +51,9 @@ data-os:
     base-url: ${SEATUNNEL_BASE_URL:}
     time-zone: ${DATAOS_SEATUNNEL_TIME_ZONE:UTC}
   dolphinscheduler:
-    # Prefer a dedicated service-account token. Username/password is a
-    # compatibility fallback for DS installations that only expose /login.
     base-url: ${DOLPHINSCHEDULER_BASE_URL:}
     token: ${DATAOS_DOLPHINSCHEDULER_TOKEN:}
+    token-file: ${DATAOS_DOLPHINSCHEDULER_TOKEN_FILE:}
     username: ${DATAOS_DOLPHINSCHEDULER_USERNAME:}
     password: ${DATAOS_DOLPHINSCHEDULER_PASSWORD:}
     time-zone: ${DATAOS_DOLPHINSCHEDULER_TIME_ZONE:Asia/Shanghai}
@@ -63,6 +62,12 @@ data-os:
     executor: ${DATAOS_QUALITY_EXECUTOR:HTTP}
     base-url: ${DATAOS_QUALITY_EXECUTOR_BASE_URL:}
     demo-enabled: ${DATAOS_QUALITY_DEMO_ENABLED:false}
+    oidc:
+      token-uri: ${DATAOS_QUALITY_OIDC_TOKEN_URI:}
+      client-id: ${DATAOS_QUALITY_OIDC_CLIENT_ID:}
+      client-secret: ${DATAOS_QUALITY_OIDC_CLIENT_SECRET:}
+      audience: ${DATAOS_QUALITY_OIDC_AUDIENCE:dataos-quality-runner}
+      scopes: ${DATAOS_QUALITY_OIDC_SCOPES:quality:submit quality:read}
     demo-delay-ms: ${DATAOS_QUALITY_DEMO_DELAY_MS:500}
     poll-interval-ms: ${DATAOS_QUALITY_POLL_INTERVAL_MS:30000}
     poll-initial-delay-ms: ${DATAOS_QUALITY_POLL_INITIAL_DELAY_MS:10000}
@@ -71,6 +76,11 @@ data-os:
     submit-lease-ms: ${DATAOS_QUALITY_SUBMIT_LEASE_MS:120000}
   notification:
     webhook-url: ${DATAOS_NOTIFICATION_WEBHOOK_URL:}
+    webhook-secret: ${DATAOS_NOTIFICATION_WEBHOOK_SECRET:}
+    webhook-secret-file: ${DATAOS_NOTIFICATION_WEBHOOK_SECRET_FILE:}
+    allow-http: ${DATAOS_NOTIFICATION_ALLOW_HTTP:false}
+    allow-private-networks: ${DATAOS_NOTIFICATION_ALLOW_PRIVATE_NETWORKS:false}
+    allowed-hosts: ${DATAOS_NOTIFICATION_ALLOWED_HOSTS:}
     max-attempts: ${DATAOS_NOTIFICATION_MAX_ATTEMPTS:5}
     lease-ms: ${DATAOS_NOTIFICATION_LEASE_MS:120000}
     delivery-interval-ms: ${DATAOS_NOTIFICATION_DELIVERY_INTERVAL_MS:30000}

@@ -110,3 +110,34 @@
 - 数据库启动改为 Flyway V1；生产 Compose、非 root 控制面、非特权门户、Prometheus 和 CI（测试、构建、Compose/Prometheus 校验、Gitleaks、镜像 SBOM）已补齐。
 - 本轮并未把真实 HIS/EMR/LIS、前置机 Agent、OpenMetadata/Superset/DB-GPT 适配器或区域 HA 误标为已交付；这些仍按原审查结论进入 Gate 1/生产发布前路线。
 - 复核后补齐：`resource_access` 只读取配置的 `DATAOS_OIDC_AUDIENCE` client 角色；门户使用 Authorization Code + PKCE 完成 OIDC 登录并为同源 API 注入 Bearer token；生产模板增加一次性旧库 Flyway baseline 步骤；CI 增加 npm audit、dependency review、Trivy 高危镜像扫描和 portal/mock 门禁。
+
+# 2026-08-09 真实质量与凭据轮换实施笔记
+
+## 实施前已确认事实（后续结果见下方）
+
+- 远程 `172.16.65.59` 当前运行 control-plane、SeaTunnel、DolphinScheduler 和 portal；当前 control-plane 状态仍为 `DEMO`，通知端点未配置。
+- 远程 `172.16.65.59` 可达 `172.16.66.8:8030/9030`；远程没有本地 Doris 容器，因此开发验收复用 data-ops Doris。
+- DolphinScheduler 当前 token 为长期有效期，现有 Java 适配器在启动时读取固定字符串，未实现热加载、双 token 交叠或轮换。
+- 现有控制面已有质量批次、状态轮询、证据回写、SLA、通知租约和幂等模型，但没有可部署的真实 dbt runner；Webhook 没有 HMAC/回执协议。
+
+## 目标实现接缝
+
+- 控制面质量适配器保持 HTTP 契约，新增 runner 的 OIDC Client Credentials headers 和受控 ruleId payload。
+- 控制面通知适配器保持 `NotificationChannel`，替换为 HMAC signed webhook，并保留重试/幂等/租约。
+- DolphinScheduler 适配器改为 Secret 文件 provider，可热加载 current/previous；生产删除用户名/密码登录回退。
+- 新增 `services/quality-runner` Python 服务及 `deploy/dev/quality-runner` 配置；新增长期 Secret 卷和 token rotator 独立卷，控制面只读。
+- data-ops dbt 资产只选择性迁入 data-os，运行时不访问 data-ops Git 或在线包源。
+
+## 2026-08-09 实施与远程验收结果
+
+- 远程回滚快照：`/root/data-os-dev-20260809-rollback-quality`；新增制品暂存：`/root/data-os-quality-20260809`。没有删除既有数据卷或恢复 DolphinScheduler Shell 插件。
+- 质量 Runtime 镜像已部署并健康运行，实际复用 Doris `172.16.66.8:9030` 的 `dataos_quality_acceptance` 合成库；通过规则和失败规则均完成 dbt 执行，失败回写一条脱敏证据，制品地址存在，审计库验收后无失败表残留。
+- 控制面复检闭环已实测：`HTTP` 提交返回外部批次，后台轮询拿到 `SUCCEEDED/passed=true`，治理问题自动 `CLOSED`；失败规则直连实测为 `FAILED/passed=false`。中途发现 JDK h2c 与 Uvicorn 不兼容，固定质量执行器 HTTP/1.1 后重新构建并通过闭环复测。
+- DolphinScheduler 轮换器通过真实 `/access-tokens` API 创建短 TTL Token，当前 token 可鉴权访问列表接口；控制面读取 Secret 文件 `0600`，不再使用用户名/密码登录回退。日志与记录均未输出 Token 值。
+- HMAC 通知经开发接收器真实验收：`/notifications/deliver` 返回 `sent=1`，回执数量增长，幂等键不重复；生产仍需替换为院方 HTTPS 消息网关与 SecretProvider。
+- 本地 `mvn -B -Dmaven.repo.local=/private/tmp/dataos-m2 test` 共 71 项通过；Python `compileall`、Compose 配置、差异空白检查通过。真实 LIS/EMR/手术端点、院方 OIDC/RustFS/消息网关凭据仍是生产交接前置条件。
+
+## 交付边界
+
+- 本轮只能在远程开发环境验证合成数据和真实协议；没有院方统一消息网关、临床 LIS/EMR/手术端点或生产凭据时，不声称真实临床/生产验收完成。
+- 不恢复 DolphinScheduler Shell 插件，不把 dbt 任务塞入 Worker。

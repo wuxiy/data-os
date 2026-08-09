@@ -61,6 +61,7 @@ CREATE TABLE IF NOT EXISTS data_os.governance_issues (
     rule_id VARCHAR(200) NOT NULL,
     owner_department VARCHAR(200) NOT NULL,
     owner_name VARCHAR(200) NOT NULL,
+    owner_id VARCHAR(200) NOT NULL DEFAULT '',
     ticket_id VARCHAR(128) NOT NULL,
     impact VARCHAR(500) NOT NULL,
     due_at TIMESTAMP NULL,
@@ -77,6 +78,7 @@ ALTER TABLE data_os.governance_issues ADD COLUMN IF NOT EXISTS updated_at TIMEST
 ALTER TABLE data_os.governance_issues ADD COLUMN IF NOT EXISTS last_action_at TIMESTAMP NULL;
 ALTER TABLE data_os.governance_issues ADD COLUMN IF NOT EXISTS last_action VARCHAR(64) NULL;
 ALTER TABLE data_os.governance_issues ADD COLUMN IF NOT EXISTS sla_overdue_at TIMESTAMP NULL;
+ALTER TABLE data_os.governance_issues ADD COLUMN IF NOT EXISTS owner_id VARCHAR(200) NOT NULL DEFAULT '';
 
 CREATE TABLE IF NOT EXISTS data_os.governance_issue_events (
     id VARCHAR(36) PRIMARY KEY,
@@ -123,8 +125,11 @@ CREATE TABLE IF NOT EXISTS data_os.governance_notifications (
     id VARCHAR(36) PRIMARY KEY,
     issue_id VARCHAR(64) NOT NULL,
     event_id VARCHAR(36) NULL,
+    tenant_id VARCHAR(128) NOT NULL DEFAULT 'default',
+    institution_id VARCHAR(128) NOT NULL DEFAULT 'demo-hospital',
     channel VARCHAR(64) NOT NULL,
     recipient VARCHAR(200) NOT NULL,
+    recipient_id VARCHAR(200) NOT NULL DEFAULT '',
     subject VARCHAR(300) NOT NULL,
     body TEXT NOT NULL,
     status VARCHAR(32) NOT NULL,
@@ -161,6 +166,9 @@ ALTER TABLE data_os.sources ADD COLUMN IF NOT EXISTS last_checked_at TIMESTAMP N
 ALTER TABLE data_os.sources ADD COLUMN IF NOT EXISTS last_check_message VARCHAR(500) NULL;
 ALTER TABLE data_os.governance_notifications ADD COLUMN IF NOT EXISTS locked_until TIMESTAMP NULL;
 ALTER TABLE data_os.governance_notifications ADD COLUMN IF NOT EXISTS locked_by VARCHAR(128) NULL;
+ALTER TABLE data_os.governance_notifications ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(128) DEFAULT 'default';
+ALTER TABLE data_os.governance_notifications ADD COLUMN IF NOT EXISTS institution_id VARCHAR(128) DEFAULT 'demo-hospital';
+ALTER TABLE data_os.governance_notifications ADD COLUMN IF NOT EXISTS recipient_id VARCHAR(200) DEFAULT '';
 ALTER TABLE data_os.quality_rule_runs ADD COLUMN IF NOT EXISTS submit_lease_until TIMESTAMP NULL;
 ALTER TABLE data_os.quality_rule_runs ADD COLUMN IF NOT EXISTS submit_lease_by VARCHAR(128) NULL;
 

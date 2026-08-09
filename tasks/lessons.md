@@ -129,3 +129,9 @@
 - 检查：在目标 FE 不可达的环境仍应看到错误进入“Failed to connect”而不是“No suitable
   driver”；随后用同一镜像完成 JDBC→Console 合成作业，确认 SeaTunnel 启动与 JDBC
   source 没有被驱动修复破坏。
+
+## 2026-08-09 明文 Python HTTP Runtime 必须显式固定 HTTP/1.1
+
+- 触发：控制面调用质量 Runtime 时，JDK `HttpClient` 默认尝试 h2c 升级；Uvicorn/h11 明文端口记录 `Invalid HTTP request`，控制面把请求误判为 HTTP 400/422，质量复检进入 `SUBMIT_FAILED`。
+- 规则：凡是通过 `http://` 调用 Uvicorn/轻量 Python 服务，JDK 客户端必须显式设置 `HttpClient.Version.HTTP_1_1`；不能只依赖默认协商，也不能把一次直连 `curl` 成功当成 Java 客户端成功。
+- 检查：部署后同时查看 Runtime access log 的 `POST /api/v1/quality/runs`、控制面执行批次的 `externalId/status` 和 h2c 警告；最终要验证 `HTTP → dbt → 回写 → 自动关闭`，再记录通知回执和审计表清理。

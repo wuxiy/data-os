@@ -19,8 +19,8 @@ import org.springframework.stereotype.Repository;
 public class GovernanceRepository {
 
     private static final String ISSUE_SELECT = """
-            SELECT id, title, severity, status, dataset_id, rule_id, owner_department,
-                   owner_name, ticket_id, impact, due_at, object_label, processing_note,
+            SELECT id, tenant_id, institution_id, title, severity, status, dataset_id, rule_id, owner_department,
+                   owner_id, owner_name, ticket_id, impact, due_at, object_label, processing_note,
                    updated_at, last_action_at, last_action, sla_overdue_at
             FROM data_os.governance_issues
             """;
@@ -323,7 +323,8 @@ public class GovernanceRepository {
     }
 
     public GovernanceNotification enqueueNotification(String issueId, String eventId, String channel,
-                                                       String recipient, String subject, String body,
+                                                       String tenantId, String institutionId, String recipient,
+                                                       String recipientId, String subject, String body,
                                                        String idempotencyKey, Instant now) {
         var existing = findNotificationByKey(idempotencyKey);
         if (existing.isPresent()) return existing.get();
@@ -331,10 +332,10 @@ public class GovernanceRepository {
         try {
             jdbc.update("""
                     INSERT INTO data_os.governance_notifications
-                        (id, issue_id, event_id, channel, recipient, subject, body, status,
+                        (id, issue_id, event_id, tenant_id, institution_id, channel, recipient, recipient_id, subject, body, status,
                          idempotency_key, attempt_count, next_attempt_at, created_at, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, 'PENDING', ?, 0, ?, ?, ?)
-                    """, id, issueId, eventId, channel, recipient, subject, body,
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?, 0, ?, ?, ?)
+                    """, id, issueId, eventId, tenantId, institutionId, channel, recipient, recipientId, subject, body,
                     idempotencyKey, timestamp(now), timestamp(now), timestamp(now));
         } catch (org.springframework.dao.DuplicateKeyException duplicate) {
             return findNotificationByKey(idempotencyKey).orElseThrow(() -> duplicate);
@@ -418,12 +419,15 @@ public class GovernanceRepository {
         var objectLabel = resultSet.getString("object_label");
         return new GovernanceIssue(
                 resultSet.getString("id"),
+                resultSet.getString("tenant_id"),
+                resultSet.getString("institution_id"),
                 resultSet.getString("title"),
                 resultSet.getString("severity"),
                 resultSet.getString("status"),
                 datasetId,
                 resultSet.getString("rule_id"),
                 resultSet.getString("owner_department"),
+                resultSet.getString("owner_id"),
                 resultSet.getString("owner_name"),
                 resultSet.getString("ticket_id"),
                 resultSet.getString("impact"),
@@ -454,7 +458,9 @@ public class GovernanceRepository {
             throws java.sql.SQLException {
         return new GovernanceNotification(
                 resultSet.getString("id"), resultSet.getString("issue_id"), resultSet.getString("event_id"),
-                resultSet.getString("channel"), resultSet.getString("recipient"), resultSet.getString("subject"),
+                resultSet.getString("tenant_id"), resultSet.getString("institution_id"),
+                resultSet.getString("channel"), resultSet.getString("recipient"), resultSet.getString("recipient_id"),
+                resultSet.getString("subject"),
                 resultSet.getString("body"), resultSet.getString("status"), resultSet.getString("idempotency_key"),
                 resultSet.getInt("attempt_count"), resultSet.getString("last_error"),
                 instant(resultSet.getTimestamp("next_attempt_at")), instant(resultSet.getTimestamp("locked_until")),
@@ -464,7 +470,7 @@ public class GovernanceRepository {
 
     private String notificationSelect() {
         return """
-                SELECT id, issue_id, event_id, channel, recipient, subject, body, status,
+                SELECT id, issue_id, event_id, tenant_id, institution_id, channel, recipient, recipient_id, subject, body, status,
                        idempotency_key, attempt_count, last_error, next_attempt_at, locked_until, locked_by, sent_at,
                        created_at, updated_at
                 FROM data_os.governance_notifications

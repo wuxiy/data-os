@@ -13,6 +13,7 @@ import java.util.Map;
 
 import com.cywu.dataos.controlplane.executor.AdapterConfigurationException;
 import com.cywu.dataos.controlplane.executor.AdapterUnavailableException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
@@ -31,14 +32,36 @@ public class HttpQualityRuleExecutor implements QualityRuleExecutor {
 
     private final RestClient restClient;
     private final String baseUrl;
+    private final OidcClientCredentialsTokenProvider tokenProvider;
 
+    @Autowired
     public HttpQualityRuleExecutor(RestClient.Builder builder,
-                                   @Value("${data-os.quality.base-url:}") String baseUrl) {
-        var client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3)).build();
+                                   @Value("${data-os.quality.base-url:}") String baseUrl,
+                                   @Value("${data-os.quality.oidc.token-uri:}") String tokenUri,
+                                   @Value("${data-os.quality.oidc.client-id:}") String clientId,
+                                   @Value("${data-os.quality.oidc.client-secret:}") String clientSecret,
+                                   @Value("${data-os.quality.oidc.audience:dataos-quality-runner}") String audience,
+                                   @Value("${data-os.quality.oidc.scopes:quality:submit quality:read}") String scopes) {
+        this(builder, baseUrl, new OidcClientCredentialsTokenProvider(builder, tokenUri, clientId, clientSecret,
+                audience, scopes));
+    }
+
+    HttpQualityRuleExecutor(RestClient.Builder builder, String baseUrl) {
+        this(builder, baseUrl, new OidcClientCredentialsTokenProvider(builder, "", "", "", "", ""));
+    }
+
+    private HttpQualityRuleExecutor(RestClient.Builder builder, String baseUrl,
+                                   OidcClientCredentialsTokenProvider tokenProvider) {
+        // The Python runner exposes a clear-text HTTP/1.1 endpoint.  JDK's
+        // default client version may attempt an h2c upgrade, which Uvicorn's
+        // h11 server rejects as an invalid request (reported as HTTP 400).
+        var client = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1)
+                .connectTimeout(Duration.ofSeconds(3)).build();
         var requestFactory = new JdkClientHttpRequestFactory(client);
         requestFactory.setReadTimeout(Duration.ofSeconds(15));
         this.restClient = builder.requestFactory(requestFactory).build();
         this.baseUrl = normalizeBaseUrl(baseUrl);
+        this.tokenProvider = tokenProvider;
     }
 
     @Override
@@ -53,6 +76,7 @@ public class HttpQualityRuleExecutor implements QualityRuleExecutor {
         try {
             var response = restClient.post()
                     .uri(baseUrl + "/api/v1/quality/runs")
+                    .headers(headers -> addAuthorization(headers))
                     .contentType(MediaType.APPLICATION_JSON)
                     .header("Idempotency-Key", request.executionBatchId())
                     .body(Map.of(
@@ -93,6 +117,7 @@ public class HttpQualityRuleExecutor implements QualityRuleExecutor {
         try {
             var response = restClient.get()
                     .uri(baseUrl + "/api/v1/quality/runs/{externalId}", externalId)
+                    .headers(headers -> addAuthorization(headers))
                     .retrieve()
                     .body(Map.class);
             var status = normalizeStatus(first(response, "status", "state"));
@@ -121,6 +146,11 @@ public class HttpQualityRuleExecutor implements QualityRuleExecutor {
 
     private void requireConfigured() {
         if (baseUrl.isBlank()) throw new AdapterUnavailableException("质量规则执行器未配置");
+    }
+
+    private void addAuthorization(org.springframework.http.HttpHeaders headers) {
+        var token = tokenProvider.current();
+        if (!token.isBlank()) headers.setBearerAuth(token);
     }
 
     private String normalizeBaseUrl(String value) {

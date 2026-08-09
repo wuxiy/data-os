@@ -9,7 +9,11 @@
 - 一个 OIDC issuer（Keycloak/其他兼容 IdP），并在 token 中提供 `tenant_id`、`institution_id` 和角色 claim；角色由 API 的 `ROLE_` 映射规则校验。
 - 一个公开 OIDC 客户端（推荐 Authorization Code + PKCE），允许门户域名作为 redirect URI，并将 `data-os` 配置为 token audience。门户会在浏览器中完成登录并为同源 API 注入 Bearer token，不依赖匿名反向代理会话。
 - 已构建并推送的控制面镜像，以及和该版本匹配的门户静态包。
+- 已构建并导入院内镜像仓库的 `data-os-quality-runner` 与 Token 轮换器镜像；质量运行时只接受登记规则，禁止任意 Shell/SQL。
+- 可访问复用的 Doris FE（默认 `172.16.66.8:9030`）和院方 RustFS/S3 端点；Doris 使用只读质量账号，RustFS 只保存脱敏汇总证据。
+- 质量 Runtime 的 Doris 账号分为三类：`DORIS_USER` 只读业务质量库，`DORIS_DBT_USER` 只读业务库并仅写入 `DORIS_AUDIT_DATABASE`，`DORIS_CLEANUP_USER` 只负责删除已登记的 dbt 失败表；三者不能共用。
 - 一个由 `openssl rand -base64 32` 生成的凭据加密密钥。密钥属于部署机秘密，不能提交 Git，也不能在日志中打印。
+- 一个权限为 `0600` 的责任人通知签名文件（例如 `/etc/data-os/notification-webhook.json`），内容为 `{"current":"<rotatable-secret>"}`；Compose 以只读方式挂载，生产不应把签名密钥写入 Git 或普通 `.env`。
 - SeaTunnel 执行器离线包（正式环境必须包含 `SHA256SUMS.sig`），或甲方已经验收的院内 SeaTunnel 集群地址。
 
 ## 构建制品
@@ -101,6 +105,9 @@ cd deploy/production
 cp .env.example .env
 # 编辑 .env：数据库口令、OIDC issuer/audience、加密密钥、质量执行器和来源白名单。
 chmod 600 .env
+# 先准备通知签名文件，并让 DATAOS_NOTIFICATION_WEBHOOK_SECRET_HOST_FILE 指向它。
+install -d -m 700 /etc/data-os
+install -m 600 /path/from/secret-manager/notification-webhook.json /etc/data-os/notification-webhook.json
 
 docker compose --env-file .env config --quiet
 docker compose --env-file .env up -d postgres
@@ -131,13 +138,16 @@ DOLPHINSCHEDULER_DB_SSLMODE=disable  # 托管库按证书策略改为 require/ve
 DOLPHINSCHEDULER_API_PORT=19083
 DOLPHINSCHEDULER_TZ=Asia/Shanghai
 DOLPHINSCHEDULER_BASE_URL=http://dolphinscheduler-api:12345/dolphinscheduler
-DATAOS_DOLPHINSCHEDULER_TOKEN=专用服务账号 token
+DATAOS_DOLPHINSCHEDULER_TOKEN_FILE=/run/secrets/dolphinscheduler-token.json
 DATAOS_DOLPHINSCHEDULER_TENANT_CODE=院方创建的命名调度租户编码
 DATAOS_DOLPHINSCHEDULER_SERVICE_USER=dataos_scheduler
 DATAOS_DOLPHINSCHEDULER_QUEUE_ID=1
-# 没有 token 时才使用以下登录回退，不要使用默认管理员账号。
 DATAOS_DOLPHINSCHEDULER_USERNAME=
 DATAOS_DOLPHINSCHEDULER_PASSWORD=
+DOLPHINSCHEDULER_TOKEN_USER_ID=调度服务账号的数值 user id
+DOLPHINSCHEDULER_TOKEN_TTL_DAYS=7
+DOLPHINSCHEDULER_TOKEN_ROTATE_HOURS=24
+DOLPHINSCHEDULER_TOKEN_OVERLAP_MINUTES=30
 ```
 
 `DATAOS_DEFAULT_SCOPE_ENABLED=false`、`DATAOS_DEFAULT_TENANT_ID`、
@@ -154,6 +164,18 @@ docker compose --env-file .env -f docker-compose.yml -f dolphinscheduler-compose
 docker compose --env-file .env -f docker-compose.yml -f dolphinscheduler-compose.yml ps
 curl -fsS http://127.0.0.1:19083/dolphinscheduler/actuator/health
 ```
+
+调度器首次启用前，将一次性 bootstrap token 写入命名卷
+`data-os-production-scheduler-token-secrets` 的
+`/run/secrets/dolphinscheduler-token.json`（权限 `0600`），再启动 `scheduler-token-rotator`：
+
+```bash
+docker compose --env-file .env -f docker-compose.yml --profile scheduler up -d scheduler-token-rotator
+```
+
+轮换器每 24 小时生成 7 天 Token，并保留前一个 Token 30 分钟；控制面每次请求热读
+`current/previous`，401 时只在重叠窗口重试 previous。生产不再支持用户名/密码登录回退，
+也不把 Token 写入任务配置、日志或 Git。
 
 调度器 schema 初始化完成、服务账号已创建后，在仓库根目录执行一次幂等租户迁移。脚本会校验命名租户和队列、把服务账号绑定到该租户，并将本仓库历史 `dataos_gate1_shell_*` 定义及 data-os 对应旧调度任务置为归档状态；不会删除调度器定义或其他业务工作流：
 
@@ -174,7 +196,21 @@ API 诊断端口只绑定 `127.0.0.1`，不通过门户或公网暴露。首次�
 - `DATAOS_AUTH_MODE=ENFORCED`，OIDC issuer 必须是可信 HTTPS 地址；生产不启用本地匿名模式。
 - `DATAOS_CREDENTIAL_ENCRYPTION_KEY` 必须是 32 字节 Base64 密钥，并由独立的秘密管理流程分发。
 - `DATAOS_SOURCE_ALLOW_HTTP=false`、`DATAOS_SOURCE_ALLOW_PRIVATE_NETWORKS=false`、`DATAOS_SOURCE_ALLOW_TEST_PROTOCOLS=false`；仅在完成网络评审后增加 `DATAOS_SOURCE_ALLOWED_HOSTS`。
-- `DATAOS_QUALITY_EXECUTOR` 使用 `HTTP`/`DBT`，`DATAOS_QUALITY_DEMO_ENABLED=false`，并配置真实执行器地址。
+- `DATAOS_QUALITY_EXECUTOR=HTTP`、`DATAOS_QUALITY_DEMO_ENABLED=false`，并将
+  `DATAOS_QUALITY_EXECUTOR_BASE_URL` 指向本 Compose 的 `http://quality-runner:8080`；
+  质量运行时使用独立容器执行登记的 dbt test，结果、执行批次和最多 20 条脱敏证据回写
+  `data_os.quality_runner_runs`，汇总 JSON 写入 RustFS/S3。质量查询账号仅授予验收库
+  `SELECT`，清理账号仅授予同库失败表的受控 `DROP`；控制面通过 OIDC client
+  credentials 获取 5 分钟短 token，仅授予 `quality:submit/read`。
+- 控制面的 `DATAOS_QUALITY_OIDC_TOKEN_URI/CLIENT_ID/CLIENT_SECRET` 必须指向院方 IdP
+  为 `dataos-quality-runner` 签发的 client-credentials 客户端；三项缺失时生产 Compose
+  不允许启动，client secret 不得写入门户或任务 JSON。
+- 首次验收前，在 Doris 8030/9030 执行 [`init-quality-doris.sql`](../scripts/init-quality-doris.sql)
+  和 [`seed-quality-doris.sql`](../scripts/seed-quality-doris.sql)，再从门户发起复检；
+  null、重复主键和非法状态样本应分别得到失败、证据与执行批次。
+- 责任人通知必须配置 `DATAOS_NOTIFICATION_WEBHOOK_URL`、签名密钥（推荐
+  `DATAOS_NOTIFICATION_WEBHOOK_SECRET_FILE`）和 `DATAOS_NOTIFICATION_ALLOWED_HOSTS`；
+  通道以 `timestamp.nonce.payload` 的 HMAC-SHA256 签名发送，生产缺任一项会阻止启动。
 - 容器网络不直接公开 PostgreSQL；生产反向代理或负载均衡器负责 TLS、证书轮换和访问控制。
 - 发布前编辑 `deploy/production/nginx.conf` 中 CSP 的 `https://id.example.invalid`，替换成实际 OIDC issuer host；该配置故意不允许门户向任意跨域地址发起 discovery/token 请求。
 

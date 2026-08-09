@@ -29,20 +29,31 @@ services:
       SEATUNNEL_BASE_URL: ${SEATUNNEL_BASE_URL:-}
       DOLPHINSCHEDULER_BASE_URL: ${DOLPHINSCHEDULER_BASE_URL:-http://dolphinscheduler-api:12345/dolphinscheduler}
       DATAOS_DOLPHINSCHEDULER_TOKEN: ${DATAOS_DOLPHINSCHEDULER_TOKEN:-}
+      DATAOS_DOLPHINSCHEDULER_TOKEN_FILE: ${DATAOS_DOLPHINSCHEDULER_TOKEN_FILE:-/run/secrets/dolphinscheduler-token.json}
       DATAOS_DOLPHINSCHEDULER_USERNAME: ${DATAOS_DOLPHINSCHEDULER_USERNAME:-}
       DATAOS_DOLPHINSCHEDULER_PASSWORD: ${DATAOS_DOLPHINSCHEDULER_PASSWORD:-}
       DATAOS_DOLPHINSCHEDULER_TIME_ZONE: ${DATAOS_DOLPHINSCHEDULER_TIME_ZONE:-Asia/Shanghai}
       DATAOS_DOLPHINSCHEDULER_TENANT_CODE: ${DATAOS_DOLPHINSCHEDULER_TENANT_CODE:-dataos-dev}
-      DATAOS_QUALITY_EXECUTOR: ${DATAOS_QUALITY_EXECUTOR:-DEMO}
-      DATAOS_QUALITY_EXECUTOR_BASE_URL: ${DATAOS_QUALITY_EXECUTOR_BASE_URL:-}
-      DATAOS_QUALITY_DEMO_ENABLED: ${DATAOS_QUALITY_DEMO_ENABLED:-true}
+      DATAOS_QUALITY_EXECUTOR: ${DATAOS_QUALITY_EXECUTOR:-HTTP}
+      DATAOS_QUALITY_EXECUTOR_BASE_URL: ${DATAOS_QUALITY_EXECUTOR_BASE_URL:-http://quality-runner:8080}
+      DATAOS_QUALITY_DEMO_ENABLED: ${DATAOS_QUALITY_DEMO_ENABLED:-false}
+      DATAOS_QUALITY_OIDC_TOKEN_URI: ${DATAOS_QUALITY_OIDC_TOKEN_URI:-}
+      DATAOS_QUALITY_OIDC_CLIENT_ID: ${DATAOS_QUALITY_OIDC_CLIENT_ID:-}
+      DATAOS_QUALITY_OIDC_CLIENT_SECRET: ${DATAOS_QUALITY_OIDC_CLIENT_SECRET:-}
+      DATAOS_QUALITY_OIDC_AUDIENCE: ${DATAOS_QUALITY_OIDC_AUDIENCE:-dataos-quality-runner}
+      DATAOS_QUALITY_OIDC_SCOPES: ${DATAOS_QUALITY_OIDC_SCOPES:-quality:submit quality:read}
       DATAOS_QUALITY_SUBMIT_LEASE_MS: ${DATAOS_QUALITY_SUBMIT_LEASE_MS:-120000}
       DATAOS_QUALITY_DEMO_DELAY_MS: ${DATAOS_QUALITY_DEMO_DELAY_MS:-1500}
       DATAOS_QUALITY_POLL_INTERVAL_MS: ${DATAOS_QUALITY_POLL_INTERVAL_MS:-30000}
       DATAOS_QUALITY_POLL_INITIAL_DELAY_MS: ${DATAOS_QUALITY_POLL_INITIAL_DELAY_MS:-10000}
       DATAOS_QUALITY_SLA_SCAN_INTERVAL_MS: ${DATAOS_QUALITY_SLA_SCAN_INTERVAL_MS:-60000}
       DATAOS_QUALITY_SLA_SCAN_INITIAL_DELAY_MS: ${DATAOS_QUALITY_SLA_SCAN_INITIAL_DELAY_MS:-15000}
-      DATAOS_NOTIFICATION_WEBHOOK_URL: ${DATAOS_NOTIFICATION_WEBHOOK_URL:-}
+      DATAOS_NOTIFICATION_WEBHOOK_URL: ${DATAOS_NOTIFICATION_WEBHOOK_URL:-http://notification-receiver:8080/notify}
+      DATAOS_NOTIFICATION_WEBHOOK_SECRET: ${DATAOS_NOTIFICATION_WEBHOOK_SECRET:-dev-only-notification-secret-change-me}
+      DATAOS_NOTIFICATION_WEBHOOK_SECRET_FILE: ${DATAOS_NOTIFICATION_WEBHOOK_SECRET_FILE:-}
+      DATAOS_NOTIFICATION_ALLOW_HTTP: ${DATAOS_NOTIFICATION_ALLOW_HTTP:-true}
+      DATAOS_NOTIFICATION_ALLOW_PRIVATE_NETWORKS: ${DATAOS_NOTIFICATION_ALLOW_PRIVATE_NETWORKS:-true}
+      DATAOS_NOTIFICATION_ALLOWED_HOSTS: ${DATAOS_NOTIFICATION_ALLOWED_HOSTS:-notification-receiver}
       DATAOS_NOTIFICATION_MAX_ATTEMPTS: ${DATAOS_NOTIFICATION_MAX_ATTEMPTS:-5}
       DATAOS_NOTIFICATION_LEASE_MS: ${DATAOS_NOTIFICATION_LEASE_MS:-120000}
       DATAOS_NOTIFICATION_DELIVERY_INTERVAL_MS: ${DATAOS_NOTIFICATION_DELIVERY_INTERVAL_MS:-30000}
@@ -55,6 +66,65 @@ services:
       timeout: 4s
       start_period: 15s
       retries: 12
+    networks:
+      - platform-net
+    volumes:
+      - scheduler-token-secrets:/run/secrets:ro
+    restart: unless-stopped
+
+  quality-runner:
+    build:
+      context: ../..
+      dockerfile: services/quality-runner/Dockerfile
+    image: ${DATAOS_QUALITY_RUNNER_IMAGE:-medical-platform/data-os-quality-runner:0.1.0-dev}
+    environment:
+      QUALITY_RUNNER_ENV: ${QUALITY_RUNNER_ENV:-development}
+      QUALITY_RUNNER_AUTH_MODE: ${QUALITY_RUNNER_AUTH_MODE:-DISABLED}
+      QUALITY_RUNNER_OIDC_ISSUER: ${QUALITY_RUNNER_OIDC_ISSUER:-}
+      QUALITY_RUNNER_OIDC_AUDIENCE: ${QUALITY_RUNNER_OIDC_AUDIENCE:-dataos-quality-runner}
+      QUALITY_RUNNER_OIDC_REQUIRED_SCOPES: ${QUALITY_RUNNER_OIDC_REQUIRED_SCOPES:-quality:submit quality:read}
+      # The runner shares the dev data_os schema. Override this with the
+      # actual keycloak-db password in the host .env; the default is only a
+      # syntactically valid placeholder so `docker compose config` can run.
+      QUALITY_RUNNER_DB_URL: ${QUALITY_RUNNER_DB_URL:-postgresql+psycopg://${DATAOS_DB_USERNAME:-keycloak}:${DATAOS_DB_PASSWORD}@keycloak-db:5432/keycloak}
+      QUALITY_RUNNER_PROJECT_DIR: /opt/dataos/quality/dbt
+      QUALITY_RUNNER_PROFILES_DIR: /opt/dataos/quality/dbt
+      QUALITY_RUNNER_DBT_TARGET: ${QUALITY_RUNNER_DBT_TARGET:-quality}
+      QUALITY_RUNNER_MAX_CONCURRENCY: ${QUALITY_RUNNER_MAX_CONCURRENCY:-2}
+      QUALITY_RUNNER_MAX_CONCURRENCY_PER_TENANT: ${QUALITY_RUNNER_MAX_CONCURRENCY_PER_TENANT:-1}
+      QUALITY_RUNNER_TIMEOUT_SECONDS: ${QUALITY_RUNNER_TIMEOUT_SECONDS:-900}
+      QUALITY_RUNNER_EVIDENCE_LIMIT: ${QUALITY_RUNNER_EVIDENCE_LIMIT:-20}
+      DORIS_FE_HOST: ${DORIS_FE_HOST:-172.16.66.8}
+      DORIS_FE_PORT: ${DORIS_FE_PORT:-9030}
+      DORIS_DATABASE: ${DORIS_DATABASE:-dataos_quality_acceptance}
+      DORIS_AUDIT_DATABASE: ${DORIS_AUDIT_DATABASE:-dataos_quality_audit}
+      DORIS_USER: ${DORIS_USER:-}
+      DORIS_PASSWORD: ${DORIS_PASSWORD:-}
+      DORIS_DBT_USER: ${DORIS_DBT_USER:-}
+      DORIS_DBT_PASSWORD: ${DORIS_DBT_PASSWORD:-}
+      DORIS_CLEANUP_USER: ${DORIS_CLEANUP_USER:-}
+      DORIS_CLEANUP_PASSWORD: ${DORIS_CLEANUP_PASSWORD:-}
+      QUALITY_RUNNER_S3_ENDPOINT: ${QUALITY_RUNNER_S3_ENDPOINT:-}
+      QUALITY_RUNNER_S3_BUCKET: ${QUALITY_RUNNER_S3_BUCKET:-dataos-quality-artifacts}
+      QUALITY_RUNNER_S3_ACCESS_KEY: ${QUALITY_RUNNER_S3_ACCESS_KEY:-}
+      QUALITY_RUNNER_S3_SECRET_KEY: ${QUALITY_RUNNER_S3_SECRET_KEY:-}
+    expose:
+      - "8080"
+    volumes:
+      - quality-runner-artifacts:/var/lib/dataos-quality/artifacts
+    networks:
+      - platform-net
+    restart: unless-stopped
+
+  notification-receiver:
+    build:
+      context: ../..
+      dockerfile: deploy/dev/notification-receiver/Dockerfile
+    image: ${DATAOS_NOTIFICATION_RECEIVER_IMAGE:-medical-platform/data-os-notification-receiver:0.1.0-dev}
+    environment:
+      DATAOS_NOTIFICATION_RECEIVER_SECRET: ${DATAOS_NOTIFICATION_WEBHOOK_SECRET:-dev-only-notification-secret-change-me}
+    expose:
+      - "8080"
     networks:
       - platform-net
     restart: unless-stopped
@@ -94,7 +164,57 @@ services:
       - platform-net
     restart: unless-stopped
 
+  scheduler-token-rotator:
+    profiles:
+      - scheduler
+    build:
+      context: ../..
+      dockerfile: deploy/dev/scheduler-token-rotator/Dockerfile
+    image: ${DATAOS_SCHEDULER_TOKEN_ROTATOR_IMAGE:-medical-platform/data-os-scheduler-token-rotator:0.1.0-dev}
+    environment:
+      DOLPHINSCHEDULER_BASE_URL: ${DOLPHINSCHEDULER_BASE_URL:-http://dolphinscheduler-api:12345/dolphinscheduler}
+      DOLPHINSCHEDULER_TOKEN_FILE: /run/secrets/dolphinscheduler-token.json
+      DOLPHINSCHEDULER_TOKEN_USER_ID: ${DOLPHINSCHEDULER_TOKEN_USER_ID:-0}
+      DOLPHINSCHEDULER_TOKEN_TTL_DAYS: ${DOLPHINSCHEDULER_TOKEN_TTL_DAYS:-7}
+      DOLPHINSCHEDULER_TOKEN_ROTATE_HOURS: ${DOLPHINSCHEDULER_TOKEN_ROTATE_HOURS:-24}
+      DOLPHINSCHEDULER_TOKEN_OVERLAP_MINUTES: ${DOLPHINSCHEDULER_TOKEN_OVERLAP_MINUTES:-30}
+    volumes:
+      - scheduler-token-secrets:/run/secrets
+    depends_on:
+      scheduler-token-permissions:
+        condition: service_completed_successfully
+    networks:
+      - platform-net
+    restart: unless-stopped
+
+  # The rotator is intentionally non-root.  This one-shot helper only fixes
+  # ownership on a newly-created named volume before the rotator starts; it
+  # does not receive the token value and has no network access.
+  scheduler-token-permissions:
+    profiles:
+      - scheduler
+    image: ${DATAOS_SCHEDULER_TOKEN_ROTATOR_IMAGE:-medical-platform/data-os-scheduler-token-rotator:0.1.0-dev}
+    user: "0:0"
+    entrypoint: ["python", "-c"]
+    command:
+      - >-
+        import os;
+        from pathlib import Path;
+        p=Path('/run/secrets'); p.mkdir(parents=True, exist_ok=True);
+        f=p/'dolphinscheduler-token.json';
+        f.exists() and (os.chown(f,100,101), os.chmod(f,0o600));
+        os.chown(p,100,101); os.chmod(p,0o700)
+    volumes:
+      - scheduler-token-secrets:/run/secrets
+    restart: "no"
+
 networks:
   platform-net:
     external: true
     name: medical-platform_platform-net
+
+volumes:
+  quality-runner-artifacts:
+    name: data-os-dev-quality-runner-artifacts
+  scheduler-token-secrets:
+    name: data-os-dev-scheduler-token-secrets

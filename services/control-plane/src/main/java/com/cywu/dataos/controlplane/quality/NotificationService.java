@@ -44,7 +44,8 @@ public class NotificationService {
 
     private GovernanceNotification enqueue(GovernanceIssue issue, GovernanceIssueEvent event,
                                            String subject, String body, String idempotencyKey) {
-        return repository.enqueueNotification(issue.id(), event.id(), "WEBHOOK", issue.ownerName(),
+        return repository.enqueueNotification(issue.id(), event.id(), "WEBHOOK", issue.tenantId(), issue.institutionId(),
+                issue.ownerName(), issue.ownerId(),
                 subject, body, idempotencyKey, Instant.now());
     }
 

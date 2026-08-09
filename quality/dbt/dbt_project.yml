@@ -1,0 +1,20 @@
+name: dataos_quality
+version: "0.1.0"
+config-version: 2
+profile: dataos_quality
+
+model-paths: ["models"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+clean-targets: ["target", "dbt_packages"]
+
+models:
+  dataos_quality:
+    # Keep the dbt account read-only on the business database. Test SQL
+    # inlines this model; only store-failures tables use the audit database.
+    +materialized: ephemeral
+
+tests:
+  dataos_quality:
+    +severity: error
+    +schema: "{{ env_var('DORIS_AUDIT_DATABASE', 'dataos_quality_audit') }}"

@@ -499,3 +499,42 @@ Gate 0 尚未覆盖 OIDC 多租户授权列表、CIDR allowlist/DNS rebinding �
 - 离线包按最新脚本重新生成，`verify-offline-bundle.sh` 和 `load-offline-bundle.sh` 在本机真实校验/导入通过；包为明确标记的未签名开发包，正式生产包仍要求 Cosign 私钥和 SBOM 工具。
 - 所有 SeaTunnel 脚本通过 `sh -n`/可执行检查，生产本地/外部 overlay 通过 `docker compose config --quiet`，Shell 插件静态和镜像内容检查均通过。
 - 代码审查提出的 SBOM 生产绕过、镜像 ID 绑定、路径穿越、无意恢复 Shell、激活备份权限和水位文档矛盾已收口；真实临床端点、Doris FE/BE 和生产签名材料仍是院方交接前置条件。
+
+## 2026-08-09 调度器短周期凭据、真实质量执行器与通知通道核验
+
+### 实施前基线（已由下方结果更新）
+
+- 开发 DolphinScheduler 的 `dataos_scheduler` 当前存在两个有效期到 2099-12-31 的 Token；控制面已配置 Token，但适配器只在 Spring 启动时读取固定字符串，不支持热加载、双 Token 交叠或自动轮换。
+- 开发控制面实时状态仍为 `DEMO`：`DATAOS_QUALITY_EXECUTOR=DEMO`、`DATAOS_QUALITY_DEMO_ENABLED=true`，通知 Webhook 未配置。
+- 控制面已有质量提交/轮询/样本证据回写、租约恢复、幂等和通知退避队列；但仓库没有可部署的真实 dbt/质量 runner，通知侧只有未鉴权通用 Webhook，尚未形成真实院内投递验收。
+
+### Grill 决策清单
+
+- [x] 确认调度器 Token TTL、轮换频率、双 Token 交叠窗口和失效回滚语义：TTL 7 天、每 24 小时轮换、新旧 Token 重叠 30 分钟；新 Token 通过鉴权/健康 smoke 后撤销旧 Token，连续失败 48 小时告警、距过期 6 小时升级为阻断级告警
+- [x] 确认院内密钥来源与无 Vault 环境的离线轮换路径：默认以当前 Token 自续签下一枚 Token，使用原子文件保存 current/previous/expiry/version，控制面热加载且交叠期可回退；Secret 卷控制面只读、轮换器可写，管理员恢复凭据仅作院方离线 break-glass，Vault/密码机通过 SecretProvider 后接
+- [x] 确认首个真实质量执行器采用独立轻量 dbt Runtime：单容器、无新增 Redis/Celery/Kafka/独立数据库，复用 PostgreSQL 与 RustFS；镜像固化 dbt-core、dbt-doris 和已审核项目版本，仅开放注册规则执行契约。DolphinScheduler 负责定时编排，控制面可直接发起人工复检，SeaTunnel 只负责采集，不把 dbt 嵌入 DolphinScheduler Worker
+- [x] 确认人工复检执行边界：只允许 `ruleId` 映射到镜像内已审核 selector，并执行只读的 `dbt test --select`；禁止任意 SQL、任意 CLI 参数、运行时项目上传和 `dbt build`。需要重建后复检时，由 DolphinScheduler 编排“模型构建 → 质量检查”工作流
+- [x] 确认首个真实通知通道采用院内统一消息平台的 HMAC-SHA256 签名 Webhook：时间戳、随机数、消息体摘要和幂等键参与签名，密钥由 SecretProvider 提供并可轮换；收件人使用 tenantId/departmentId/ownerId 稳定标识，消息仅包含问题编号、类型、资产、严重度、SLA、状态和平台链接，禁止患者标识、样本数据、SQL、连接信息与凭据出站；目标地址纳入 HTTPS/内网允许列表和 SSRF 防护，企业微信/SMTP 作为后续适配器
+- [x] 确认开发质量验收复用 `172.16.66.8:8030/9030` 的现有 Doris，不新增 Doris 集群；新建 `dataos_quality_acceptance` 隔离数据库和最小权限服务账号，仅使用无患者信息的合成数据，不改动 data-ops 原有库表
+- [x] 确认通知通道在暂无院方统一消息网关端点时的开发验收方式：仅在 `deploy/dev` 部署轻量 HMAC 合规接收器，真实验证签名、时间窗口、nonce 防重放、幂等、回执和脱敏；生产 Compose 不包含该接收器，未配置院方端点与轮换密钥时 fail-closed
+- [x] 确认 dbt Runtime 任务模型：HTTP 异步提交并返回 runId；使用现有 PostgreSQL 保存任务、租约与幂等键，不新增队列中间件；默认全局并发 2、单租户并发 1；只读项目和独立临时目录，以参数数组启动固定 dbt 命令并禁止 Shell；默认 15 分钟超时、支持取消进程树，过期租约可按幂等键安全恢复；Doris 凭据仅由 SecretProvider 注入
+- [x] 确认失败样本采用“业务数据只读、质量审计区受控写入”：dbt 账号只读业务库，仅可写 `dataos_quality_audit`；每条注册规则声明证据字段与脱敏策略，每次最多提取 20 条；脱敏证据在 PostgreSQL 保留 180 天，Doris 原始失败表提取后立即删除且异常遗留 1 小时清理，脱敏 dbt 制品在 RustFS 保留 30 天；当前 dbt-doris/Doris 若无法通过 `store_failures` 兼容验证则阻断发布
+- [x] 确认 dbt 工程归属 data-os：从 data-ops 选择性迁入可复用宏、测试与医疗模型，不使用运行时 Git clone/fetch 或 Git Submodule；项目、规则注册表和依赖锁随 Runtime 镜像固化并版本绑定，API 只接受 ruleId；规则编辑经草稿/审批和 CI 构建新镜像发布，旧镜像保留回滚
+- [x] 确认 dbt Runtime 实现栈：Python 3.12 slim、FastAPI/Uvicorn、psycopg 3、SQLAlchemy 2 和幂等启动 DDL（不另起 Alembic 服务）；单 Uvicorn 进程配受控内部 Worker，不引入 Celery/Redis/Gunicorn/JVM；dbt-core/dbt-doris 精确版本与哈希在 Doris 实测后锁定，容器非 root、只读根文件系统并提供健康检查和 Prometheus 指标
+- [x] 确认控制面到 dbt Runtime 使用现有 OIDC Client Credentials：生产使用独立 `dataos-quality-runner` audience 和 `quality:submit/read/cancel` 最小 scope，Access Token 有效期 5 分钟；Runtime 本地校验 JWT，无法获取新 Token 时新任务 fail-closed、运行中任务不中断；开发验收显式使用 `DISABLED` 仅验证网络/协议闭环，不作为生产配置
+- [x] 确认 DolphinScheduler Token 轮换器使用独立轻量容器：只可访问 Token API 和写 Secret 卷，控制面只读；不连接业务数据库/Doris，不挂载管理员 break-glass 凭据；每 5 分钟巡检、每 24 小时轮换，鉴权/健康 smoke 后原子切换并在 30 分钟后撤销旧 Token，暴露轮换指标；与 dbt Runtime 分镜像保持权限隔离
+- [x] 确认开发验收与生产彻底关闭 DolphinScheduler 用户名/密码登录回退：请求按原子 Secret 文件热加载 current Token，401 时重新加载并仅在交叠期使用 previous 重试一次；双 Token 均失败则 fail-closed 并高优告警，管理员账号仅作离线 break-glass，恢复过程写审计事件
+- [x] 确认生产成功标准和故障演练范围：生产必须使用 `QUALITY_RUNNER_AUTH_MODE=ENFORCED`、RustFS/S3、三类 Doris 最小权限账号、命名租户和院方通知端点；开发阶段完成合成数据闭环、Token 鉴权、通知回执和审计清理，真实临床端点交由院方交接验收
+- [x] 形成实施规格并完成实现、部署和远程验证
+
+### 实施结果
+
+- 独立 `services/quality-runner` 已固化 `dbt-core==1.10.22`、`dbt-doris==1.0.0` 和镜像内规则目录；Doris model 使用 ephemeral，失败表写入 `DORIS_AUDIT_DATABASE`，证据读取后由 cleanup 账号按 selector 精确清理。
+- 远程复用 `172.16.66.8:9030` 完成通过/失败两条质量运行：通过回写 `SUCCEEDED/passed=true` 并触发自动关闭；失败回写 `FAILED/passed=false`、一条脱敏样本证据、执行批次和 RustFS/本地制品地址；验收后审计库无遗留失败表。
+- DolphinScheduler rotator 已按 `POST /access-tokens` 真实 API 创建短周期 Token，控制面热读 `current/previous` Secret 文件并禁用用户名/密码回退；远程 smoke 返回 API `200`，Secret 文件权限 `0600`。
+- HMAC 通知通过开发接收器真实回执，控制面 `/notifications/deliver` 返回 `sent=1`；同一幂等键不会重复回执，通知载荷不含样本/SQL/凭据。
+- 修复控制面 JDK HTTP Client 默认 h2c 与 Uvicorn 明文端口不兼容问题，固定 HTTP/1.1 后完成控制面 `HTTP → dbt → 状态轮询 → 自动关闭 → 通知` 闭环；本地 Maven 71 项全通过。
+
+### 交付边界
+
+当前远程验收使用无患者信息的合成 Doris 数据，开发 Runner 为 `DISABLED` 认证模式、控制面仍保留免登录开发 scope。真实 LIS/EMR/手术端点、院方 OIDC 客户端、RustFS 生产地址、消息网关和生产密钥必须在生产 `.env` 注入后另行验收，不应写成已完成临床接入。

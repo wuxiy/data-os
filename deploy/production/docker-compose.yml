@@ -53,6 +53,7 @@ services:
       DATAOS_SOURCE_ALLOWED_HOSTS: ${DATAOS_SOURCE_ALLOWED_HOSTS:?DATAOS_SOURCE_ALLOWED_HOSTS must be set}
       DOLPHINSCHEDULER_BASE_URL: ${DOLPHINSCHEDULER_BASE_URL:-http://dolphinscheduler-api:12345/dolphinscheduler}
       DATAOS_DOLPHINSCHEDULER_TOKEN: ${DATAOS_DOLPHINSCHEDULER_TOKEN:-}
+      DATAOS_DOLPHINSCHEDULER_TOKEN_FILE: ${DATAOS_DOLPHINSCHEDULER_TOKEN_FILE:-/run/secrets/dolphinscheduler-token.json}
       DATAOS_DOLPHINSCHEDULER_USERNAME: ${DATAOS_DOLPHINSCHEDULER_USERNAME:-}
       DATAOS_DOLPHINSCHEDULER_PASSWORD: ${DATAOS_DOLPHINSCHEDULER_PASSWORD:-}
       DATAOS_DOLPHINSCHEDULER_TIME_ZONE: ${DATAOS_DOLPHINSCHEDULER_TIME_ZONE:-Asia/Shanghai}
@@ -60,10 +61,20 @@ services:
       DATAOS_QUALITY_EXECUTOR: ${DATAOS_QUALITY_EXECUTOR:-HTTP}
       DATAOS_QUALITY_EXECUTOR_BASE_URL: ${DATAOS_QUALITY_EXECUTOR_BASE_URL:?DATAOS_QUALITY_EXECUTOR_BASE_URL must be set}
       DATAOS_QUALITY_DEMO_ENABLED: ${DATAOS_QUALITY_DEMO_ENABLED:-false}
+      DATAOS_QUALITY_OIDC_TOKEN_URI: ${DATAOS_QUALITY_OIDC_TOKEN_URI:?DATAOS_QUALITY_OIDC_TOKEN_URI must be set}
+      DATAOS_QUALITY_OIDC_CLIENT_ID: ${DATAOS_QUALITY_OIDC_CLIENT_ID:?DATAOS_QUALITY_OIDC_CLIENT_ID must be set}
+      DATAOS_QUALITY_OIDC_CLIENT_SECRET: ${DATAOS_QUALITY_OIDC_CLIENT_SECRET:?DATAOS_QUALITY_OIDC_CLIENT_SECRET must be set}
+      DATAOS_QUALITY_OIDC_AUDIENCE: ${DATAOS_QUALITY_OIDC_AUDIENCE:-dataos-quality-runner}
+      DATAOS_QUALITY_OIDC_SCOPES: ${DATAOS_QUALITY_OIDC_SCOPES:-quality:submit quality:read}
       DATAOS_QUALITY_POLL_INTERVAL_MS: ${DATAOS_QUALITY_POLL_INTERVAL_MS:-30000}
       DATAOS_QUALITY_SLA_SCAN_INTERVAL_MS: ${DATAOS_QUALITY_SLA_SCAN_INTERVAL_MS:-60000}
       DATAOS_QUALITY_SUBMIT_LEASE_MS: ${DATAOS_QUALITY_SUBMIT_LEASE_MS:-120000}
-      DATAOS_NOTIFICATION_WEBHOOK_URL: ${DATAOS_NOTIFICATION_WEBHOOK_URL:-}
+      DATAOS_NOTIFICATION_WEBHOOK_URL: ${DATAOS_NOTIFICATION_WEBHOOK_URL:?DATAOS_NOTIFICATION_WEBHOOK_URL must be set}
+      DATAOS_NOTIFICATION_WEBHOOK_SECRET: ${DATAOS_NOTIFICATION_WEBHOOK_SECRET:-}
+      DATAOS_NOTIFICATION_WEBHOOK_SECRET_FILE: ${DATAOS_NOTIFICATION_WEBHOOK_SECRET_FILE:-/run/notification-secrets/webhook.secret}
+      DATAOS_NOTIFICATION_ALLOW_HTTP: ${DATAOS_NOTIFICATION_ALLOW_HTTP:-false}
+      DATAOS_NOTIFICATION_ALLOW_PRIVATE_NETWORKS: ${DATAOS_NOTIFICATION_ALLOW_PRIVATE_NETWORKS:-false}
+      DATAOS_NOTIFICATION_ALLOWED_HOSTS: ${DATAOS_NOTIFICATION_ALLOWED_HOSTS:?DATAOS_NOTIFICATION_ALLOWED_HOSTS must be set}
       DATAOS_NOTIFICATION_MAX_ATTEMPTS: ${DATAOS_NOTIFICATION_MAX_ATTEMPTS:-5}
       DATAOS_NOTIFICATION_LEASE_MS: ${DATAOS_NOTIFICATION_LEASE_MS:-120000}
       DATAOS_NOTIFICATION_DELIVERY_INTERVAL_MS: ${DATAOS_NOTIFICATION_DELIVERY_INTERVAL_MS:-30000}
@@ -89,6 +100,105 @@ services:
     cap_drop:
       - ALL
     stop_grace_period: 30s
+    volumes:
+      - scheduler-token-secrets:/run/secrets:ro
+      # The host file contains a JSON object such as {"current":"..."}; it
+      # is mounted read-only and never copied into the image or application DB.
+      - ${DATAOS_NOTIFICATION_WEBHOOK_SECRET_HOST_FILE:?DATAOS_NOTIFICATION_WEBHOOK_SECRET_HOST_FILE must point to a protected host file}:/run/notification-secrets/webhook.secret:ro
+
+  quality-runner:
+    image: ${DATAOS_QUALITY_RUNNER_IMAGE:-medical-platform/data-os-quality-runner:0.1.0}
+    environment:
+      QUALITY_RUNNER_ENV: ${QUALITY_RUNNER_ENV:-production}
+      QUALITY_RUNNER_AUTH_MODE: ${QUALITY_RUNNER_AUTH_MODE:-ENFORCED}
+      QUALITY_RUNNER_OIDC_ISSUER: ${QUALITY_RUNNER_OIDC_ISSUER:?QUALITY_RUNNER_OIDC_ISSUER must be set}
+      QUALITY_RUNNER_OIDC_AUDIENCE: ${QUALITY_RUNNER_OIDC_AUDIENCE:-dataos-quality-runner}
+      QUALITY_RUNNER_OIDC_REQUIRED_SCOPES: ${QUALITY_RUNNER_OIDC_REQUIRED_SCOPES:-quality:submit quality:read}
+      QUALITY_RUNNER_DB_URL: ${QUALITY_RUNNER_DB_URL:?QUALITY_RUNNER_DB_URL must be set}
+      QUALITY_RUNNER_PROJECT_DIR: /opt/dataos/quality/dbt
+      QUALITY_RUNNER_PROFILES_DIR: /opt/dataos/quality/dbt
+      QUALITY_RUNNER_DBT_TARGET: ${QUALITY_RUNNER_DBT_TARGET:-quality}
+      QUALITY_RUNNER_MAX_CONCURRENCY: ${QUALITY_RUNNER_MAX_CONCURRENCY:-2}
+      QUALITY_RUNNER_MAX_CONCURRENCY_PER_TENANT: ${QUALITY_RUNNER_MAX_CONCURRENCY_PER_TENANT:-1}
+      QUALITY_RUNNER_TIMEOUT_SECONDS: ${QUALITY_RUNNER_TIMEOUT_SECONDS:-900}
+      QUALITY_RUNNER_EVIDENCE_LIMIT: ${QUALITY_RUNNER_EVIDENCE_LIMIT:-20}
+      QUALITY_RUNNER_ARTIFACT_DIR: /var/lib/dataos-quality/artifacts
+      QUALITY_RUNNER_ARTIFACT_RETENTION_DAYS: ${QUALITY_RUNNER_ARTIFACT_RETENTION_DAYS:-30}
+      DORIS_FE_HOST: ${DORIS_FE_HOST:?DORIS_FE_HOST must be set}
+      DORIS_FE_PORT: ${DORIS_FE_PORT:-9030}
+      DORIS_DATABASE: ${DORIS_DATABASE:-dataos_quality_acceptance}
+      DORIS_AUDIT_DATABASE: ${DORIS_AUDIT_DATABASE:-dataos_quality_audit}
+      DORIS_USER: ${DORIS_USER:?DORIS_USER must be set}
+      DORIS_PASSWORD: ${DORIS_PASSWORD:?DORIS_PASSWORD must be set}
+      DORIS_DBT_USER: ${DORIS_DBT_USER:?DORIS_DBT_USER must be set}
+      DORIS_DBT_PASSWORD: ${DORIS_DBT_PASSWORD:?DORIS_DBT_PASSWORD must be set}
+      DORIS_CLEANUP_USER: ${DORIS_CLEANUP_USER:?DORIS_CLEANUP_USER must be set}
+      DORIS_CLEANUP_PASSWORD: ${DORIS_CLEANUP_PASSWORD:?DORIS_CLEANUP_PASSWORD must be set}
+      QUALITY_RUNNER_S3_ENDPOINT: ${QUALITY_RUNNER_S3_ENDPOINT:?QUALITY_RUNNER_S3_ENDPOINT must be set}
+      QUALITY_RUNNER_S3_BUCKET: ${QUALITY_RUNNER_S3_BUCKET:-dataos-quality-artifacts}
+      QUALITY_RUNNER_S3_REGION: ${QUALITY_RUNNER_S3_REGION:-us-east-1}
+      QUALITY_RUNNER_S3_ACCESS_KEY: ${QUALITY_RUNNER_S3_ACCESS_KEY:?QUALITY_RUNNER_S3_ACCESS_KEY must be set}
+      QUALITY_RUNNER_S3_SECRET_KEY: ${QUALITY_RUNNER_S3_SECRET_KEY:?QUALITY_RUNNER_S3_SECRET_KEY must be set}
+    expose:
+      - "8080"
+    volumes:
+      - quality-runner-artifacts:/var/lib/dataos-quality/artifacts
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - platform-net
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  scheduler-token-rotator:
+    profiles: [scheduler]
+    image: ${DATAOS_SCHEDULER_TOKEN_ROTATOR_IMAGE:-medical-platform/data-os-scheduler-token-rotator:0.1.0}
+    environment:
+      DOLPHINSCHEDULER_BASE_URL: ${DOLPHINSCHEDULER_BASE_URL:?DOLPHINSCHEDULER_BASE_URL must be set}
+      DOLPHINSCHEDULER_TOKEN_FILE: /run/secrets/dolphinscheduler-token.json
+      DOLPHINSCHEDULER_TOKEN_USER_ID: ${DOLPHINSCHEDULER_TOKEN_USER_ID:?DOLPHINSCHEDULER_TOKEN_USER_ID must be set}
+      DOLPHINSCHEDULER_TOKEN_TTL_DAYS: ${DOLPHINSCHEDULER_TOKEN_TTL_DAYS:-7}
+      DOLPHINSCHEDULER_TOKEN_ROTATE_HOURS: ${DOLPHINSCHEDULER_TOKEN_ROTATE_HOURS:-24}
+      DOLPHINSCHEDULER_TOKEN_OVERLAP_MINUTES: ${DOLPHINSCHEDULER_TOKEN_OVERLAP_MINUTES:-30}
+    volumes:
+      - scheduler-token-secrets:/run/secrets
+    depends_on:
+      scheduler-token-permissions:
+        condition: service_completed_successfully
+    networks:
+      - platform-net
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  scheduler-token-permissions:
+    profiles: [scheduler]
+    image: ${DATAOS_SCHEDULER_TOKEN_ROTATOR_IMAGE:-medical-platform/data-os-scheduler-token-rotator:0.1.0}
+    user: "0:0"
+    entrypoint: ["python", "-c"]
+    command:
+      - >-
+        import os;
+        from pathlib import Path;
+        p=Path('/run/secrets'); p.mkdir(parents=True, exist_ok=True);
+        f=p/'dolphinscheduler-token.json';
+        f.exists() and (os.chown(f,100,101), os.chmod(f,0o600));
+        os.chown(p,100,101); os.chmod(p,0o700)
+    volumes:
+      - scheduler-token-secrets:/run/secrets
+    restart: "no"
 
   portal:
     # The unprivileged image listens on 8080, so cap_drop: ALL is safe.
@@ -145,6 +255,10 @@ volumes:
     name: data-os-production-postgres
   data-os-prometheus:
     name: data-os-production-prometheus
+  quality-runner-artifacts:
+    name: data-os-production-quality-runner-artifacts
+  scheduler-token-secrets:
+    name: data-os-production-scheduler-token-secrets
 
 networks:
   platform-net:

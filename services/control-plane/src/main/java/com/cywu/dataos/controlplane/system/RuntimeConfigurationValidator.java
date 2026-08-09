@@ -22,6 +22,18 @@ public final class RuntimeConfigurationValidator {
     private final CredentialProperties credentialProperties;
     private final SourceNetworkProperties sourceNetworkProperties;
     private final String dolphinSchedulerTenantCode;
+    private final String dolphinSchedulerToken;
+    private final String dolphinSchedulerTokenFile;
+    private final String dolphinSchedulerUsername;
+    private final String dolphinSchedulerPassword;
+    private final String qualityBaseUrl;
+    private final String qualityOidcTokenUri;
+    private final String qualityOidcClientId;
+    private final String qualityOidcClientSecret;
+    private final String notificationWebhookUrl;
+    private final String notificationWebhookSecret;
+    private final String notificationWebhookSecretFile;
+    private final String notificationAllowedHosts;
     private final boolean strictSecurity;
 
     private enum CompatibilityMode {
@@ -35,6 +47,18 @@ public final class RuntimeConfigurationValidator {
             @Value("${data-os.quality.executor:HTTP}") String qualityExecutor,
             @Value("${data-os.quality.demo-enabled:false}") boolean demoQualityExecutorEnabled,
             @Value("${data-os.dolphinscheduler.tenant-code:}") String dolphinSchedulerTenantCode,
+            @Value("${data-os.dolphinscheduler.token:}") String dolphinSchedulerToken,
+            @Value("${data-os.dolphinscheduler.token-file:}") String dolphinSchedulerTokenFile,
+            @Value("${data-os.dolphinscheduler.username:}") String dolphinSchedulerUsername,
+            @Value("${data-os.dolphinscheduler.password:}") String dolphinSchedulerPassword,
+            @Value("${data-os.quality.base-url:}") String qualityBaseUrl,
+            @Value("${data-os.quality.oidc.token-uri:}") String qualityOidcTokenUri,
+            @Value("${data-os.quality.oidc.client-id:}") String qualityOidcClientId,
+            @Value("${data-os.quality.oidc.client-secret:}") String qualityOidcClientSecret,
+            @Value("${data-os.notification.webhook-url:}") String notificationWebhookUrl,
+            @Value("${data-os.notification.webhook-secret:}") String notificationWebhookSecret,
+            @Value("${data-os.notification.webhook-secret-file:}") String notificationWebhookSecretFile,
+            @Value("${data-os.notification.allowed-hosts:}") String notificationAllowedHosts,
             AuthProperties authProperties, CredentialProperties credentialProperties,
             SourceNetworkProperties sourceNetworkProperties) {
         this.environment = environment;
@@ -45,6 +69,18 @@ public final class RuntimeConfigurationValidator {
         this.credentialProperties = credentialProperties;
         this.sourceNetworkProperties = sourceNetworkProperties;
         this.dolphinSchedulerTenantCode = dolphinSchedulerTenantCode == null ? "" : dolphinSchedulerTenantCode.trim();
+        this.dolphinSchedulerToken = normalize(dolphinSchedulerToken);
+        this.dolphinSchedulerTokenFile = normalize(dolphinSchedulerTokenFile);
+        this.dolphinSchedulerUsername = normalize(dolphinSchedulerUsername);
+        this.dolphinSchedulerPassword = normalize(dolphinSchedulerPassword);
+        this.qualityBaseUrl = normalize(qualityBaseUrl);
+        this.qualityOidcTokenUri = normalize(qualityOidcTokenUri);
+        this.qualityOidcClientId = normalize(qualityOidcClientId);
+        this.qualityOidcClientSecret = normalize(qualityOidcClientSecret);
+        this.notificationWebhookUrl = normalize(notificationWebhookUrl);
+        this.notificationWebhookSecret = normalize(notificationWebhookSecret);
+        this.notificationWebhookSecretFile = normalize(notificationWebhookSecretFile);
+        this.notificationAllowedHosts = normalize(notificationAllowedHosts);
         this.strictSecurity = true;
     }
 
@@ -53,8 +89,55 @@ public final class RuntimeConfigurationValidator {
                                          boolean demoQualityExecutorEnabled, AuthProperties authProperties,
                                          CredentialProperties credentialProperties,
                                          SourceNetworkProperties sourceNetworkProperties) {
-        this(environment, seedDemoEnabled, qualityExecutor, demoQualityExecutorEnabled, "dataos-dev",
-                authProperties, credentialProperties, sourceNetworkProperties);
+        this.environment = environment;
+        this.seedDemoEnabled = seedDemoEnabled;
+        this.qualityExecutor = qualityExecutor;
+        this.demoQualityExecutorEnabled = demoQualityExecutorEnabled;
+        this.authProperties = authProperties;
+        this.credentialProperties = credentialProperties;
+        this.sourceNetworkProperties = sourceNetworkProperties;
+        this.dolphinSchedulerTenantCode = "dataos-dev";
+        this.dolphinSchedulerToken = "compatibility-token";
+        this.dolphinSchedulerTokenFile = "";
+        this.dolphinSchedulerUsername = "";
+        this.dolphinSchedulerPassword = "";
+        this.qualityBaseUrl = "https://quality.example.test";
+        this.qualityOidcTokenUri = "https://id.example.test/token";
+        this.qualityOidcClientId = "dataos-control-plane";
+        this.qualityOidcClientSecret = "compatibility-secret";
+        this.notificationWebhookUrl = "https://notify.example.test/data-os";
+        this.notificationWebhookSecret = "compatibility-webhook-secret";
+        this.notificationWebhookSecretFile = "";
+        this.notificationAllowedHosts = "notify.example.test";
+        this.strictSecurity = true;
+    }
+
+    /** Compatibility constructor preserving the historical explicit tenant argument in tests. */
+    public RuntimeConfigurationValidator(String environment, boolean seedDemoEnabled, String qualityExecutor,
+                                         boolean demoQualityExecutorEnabled, String tenantCode,
+                                         AuthProperties authProperties, CredentialProperties credentialProperties,
+                                         SourceNetworkProperties sourceNetworkProperties) {
+        this.environment = environment;
+        this.seedDemoEnabled = seedDemoEnabled;
+        this.qualityExecutor = qualityExecutor;
+        this.demoQualityExecutorEnabled = demoQualityExecutorEnabled;
+        this.authProperties = authProperties;
+        this.credentialProperties = credentialProperties;
+        this.sourceNetworkProperties = sourceNetworkProperties;
+        this.dolphinSchedulerTenantCode = normalize(tenantCode);
+        this.dolphinSchedulerToken = "compatibility-token";
+        this.dolphinSchedulerTokenFile = "";
+        this.dolphinSchedulerUsername = "";
+        this.dolphinSchedulerPassword = "";
+        this.qualityBaseUrl = "https://quality.example.test";
+        this.qualityOidcTokenUri = "https://id.example.test/token";
+        this.qualityOidcClientId = "dataos-control-plane";
+        this.qualityOidcClientSecret = "compatibility-secret";
+        this.notificationWebhookUrl = "https://notify.example.test/data-os";
+        this.notificationWebhookSecret = "compatibility-webhook-secret";
+        this.notificationWebhookSecretFile = "";
+        this.notificationAllowedHosts = "notify.example.test";
+        this.strictSecurity = true;
     }
 
     /** Minimal compatibility constructor retained for demo-only tests. */
@@ -73,6 +156,18 @@ public final class RuntimeConfigurationValidator {
         this.credentialProperties = new CredentialProperties();
         this.sourceNetworkProperties = new SourceNetworkProperties();
         this.dolphinSchedulerTenantCode = "dataos-dev";
+        this.dolphinSchedulerToken = "";
+        this.dolphinSchedulerTokenFile = "";
+        this.dolphinSchedulerUsername = "";
+        this.dolphinSchedulerPassword = "";
+        this.qualityBaseUrl = "";
+        this.qualityOidcTokenUri = "";
+        this.qualityOidcClientId = "";
+        this.qualityOidcClientSecret = "";
+        this.notificationWebhookUrl = "";
+        this.notificationWebhookSecret = "";
+        this.notificationWebhookSecretFile = "";
+        this.notificationAllowedHosts = "";
         this.strictSecurity = false;
     }
 
@@ -130,6 +225,31 @@ public final class RuntimeConfigurationValidator {
         }
         if (dolphinSchedulerTenantCode.isBlank() || "default".equalsIgnoreCase(dolphinSchedulerTenantCode)) {
             throw new IllegalStateException("生产环境必须配置命名 DATAOS_DOLPHINSCHEDULER_TENANT_CODE");
+        }
+        if (dolphinSchedulerToken.isBlank() && dolphinSchedulerTokenFile.isBlank()) {
+            throw new IllegalStateException("生产环境必须配置 DolphinScheduler Token 文件或 Secret");
+        }
+        if (!dolphinSchedulerUsername.isBlank() || !dolphinSchedulerPassword.isBlank()) {
+            throw new IllegalStateException("生产环境禁止配置 DolphinScheduler 用户名/密码回退");
+        }
+        if (!("HTTP".equalsIgnoreCase(normalize(qualityExecutor))
+                || "DBT".equalsIgnoreCase(normalize(qualityExecutor)))) {
+            throw new IllegalStateException("生产环境质量执行器只能是 HTTP 或 DBT");
+        }
+        if (qualityBaseUrl.isBlank()) {
+            throw new IllegalStateException("生产环境必须配置 DATAOS_QUALITY_EXECUTOR_BASE_URL");
+        }
+        if (qualityOidcTokenUri.isBlank() || qualityOidcClientId.isBlank() || qualityOidcClientSecret.isBlank()) {
+            throw new IllegalStateException("生产环境必须配置质量 Runtime 的 OIDC Client Credentials");
+        }
+        if (notificationWebhookUrl.isBlank()) {
+            throw new IllegalStateException("生产环境必须配置 DATAOS_NOTIFICATION_WEBHOOK_URL");
+        }
+        if (notificationWebhookSecret.isBlank() && notificationWebhookSecretFile.isBlank()) {
+            throw new IllegalStateException("生产环境必须配置责任人 Webhook 签名密钥或 Secret 文件");
+        }
+        if (notificationAllowedHosts.isBlank()) {
+            throw new IllegalStateException("生产环境必须配置 DATAOS_NOTIFICATION_ALLOWED_HOSTS");
         }
         var allowedHosts = sourceNetworkProperties.getAllowedHosts().stream()
                 .filter(item -> item != null && !item.isBlank()).toList();

@@ -70,48 +70,17 @@ class DolphinSchedulerExecutorAdapterTest {
     }
 
     @Test
-    void fallsBackToSessionLoginWhenTokenIsNotConfigured() throws IOException {
-        var loginSeen = new AtomicReference<Boolean>(false);
-        var cookieSeen = new AtomicReference<String>();
-        var server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
-        server.createContext("/login", exchange -> {
-            loginSeen.set(true);
-            var response = "{\"code\":0,\"msg\":\"success\"}".getBytes(StandardCharsets.UTF_8);
-            exchange.getResponseHeaders().add("Set-Cookie", "sessionId=session-1; Path=/; HttpOnly");
-            exchange.getResponseHeaders().set("Content-Type", "application/json");
-            exchange.sendResponseHeaders(200, response.length);
-            try (var output = exchange.getResponseBody()) {
-                output.write(response);
-            }
-        });
-        server.createContext("/projects/7/executors/start-workflow-instance", exchange -> {
-            cookieSeen.set(exchange.getRequestHeaders().getFirst("Cookie"));
-            var response = "{\"code\":0,\"data\":[321]}".getBytes(StandardCharsets.UTF_8);
-            exchange.getResponseHeaders().set("Content-Type", "application/json");
-            exchange.sendResponseHeaders(200, response.length);
-            try (var output = exchange.getResponseBody()) {
-                output.write(response);
-            }
-        });
-        server.start();
-        try {
-            var adapter = DolphinSchedulerExecutorAdapter.forTesting(
-                    RestClient.builder(),
-                    new com.fasterxml.jackson.databind.ObjectMapper(),
-                    "http://127.0.0.1:" + server.getAddress().getPort(),
-                    "", "svc-user", "svc-password", "UTC", "dataos-dev", "development");
-            var job = new IngestionJob("job-1", "source-1", "门诊批处理", "BATCH", "DOLPHINSCHEDULER",
-                    "ACTIVE", null, null, null, null, null, false);
+    void doesNotFallBackToUsernamePasswordWhenTokenIsMissing() {
+        var adapter = DolphinSchedulerExecutorAdapter.forTesting(
+                RestClient.builder(), new com.fasterxml.jackson.databind.ObjectMapper(),
+                "http://127.0.0.1:1", "", "svc-user", "svc-password", "UTC", "dataos-dev", "development");
+        var job = new IngestionJob("job-1", "source-1", "门诊批处理", "BATCH", "DOLPHINSCHEDULER",
+                "ACTIVE", null, null, null, null, null, false);
 
-            var submission = adapter.submit(job, Map.of("dolphinscheduler", Map.of(
-                    "projectCode", 7, "workflowDefinitionCode", 9)), "run-2");
-
-            assertThat(submission.externalId()).isEqualTo("ds|7|9|321");
-            assertThat(loginSeen).hasValue(true);
-            assertThat(cookieSeen).hasValue("sessionId=session-1");
-        } finally {
-            server.stop(0);
-        }
+        assertThatThrownBy(() -> adapter.submit(job, Map.of("dolphinscheduler", Map.of(
+                "projectCode", 7, "workflowDefinitionCode", 9)), "run-2"))
+                .isInstanceOf(AdapterUnavailableException.class)
+                .hasMessageContaining("未配置访问凭据");
     }
 
     @Test

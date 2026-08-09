@@ -13,7 +13,6 @@ import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicReference;
 
 import com.cywu.dataos.controlplane.job.IngestionJob;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -22,7 +21,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.util.LinkedMultiValueMap;
@@ -52,13 +50,10 @@ public class DolphinSchedulerExecutorAdapter implements OrchestratorAdapter {
     private final RestClient restClient;
     private final ObjectMapper objectMapper;
     private final String baseUrl;
-    private final String token;
-    private final String username;
-    private final String password;
+    private final SchedulerTokenProvider tokenProvider;
     private final ZoneId schedulerZone;
     private final String configuredTenantCode;
     private final boolean production;
-    private final AtomicReference<String> sessionId = new AtomicReference<>();
 
     private record RuntimeContext(String tenantCode, String environment) {
     }
@@ -69,12 +64,13 @@ public class DolphinSchedulerExecutorAdapter implements OrchestratorAdapter {
             ObjectMapper objectMapper,
             @Value("${data-os.dolphinscheduler.base-url:}") String baseUrl,
             @Value("${data-os.dolphinscheduler.token:}") String token,
+            @Value("${data-os.dolphinscheduler.token-file:}") String tokenFile,
             @Value("${data-os.dolphinscheduler.username:}") String username,
             @Value("${data-os.dolphinscheduler.password:}") String password,
             @Value("${data-os.dolphinscheduler.time-zone:Asia/Shanghai}") String timeZone,
             @Value("${data-os.dolphinscheduler.tenant-code:}") String tenantCode,
             @Value("${data-os.runtime.environment:production}") String environment) {
-        this(builder, objectMapper, baseUrl, token, username, password, timeZone,
+        this(builder, objectMapper, baseUrl, token, tokenFile, username, password, timeZone,
                 new RuntimeContext(tenantCode, environment));
     }
 
@@ -83,19 +79,22 @@ public class DolphinSchedulerExecutorAdapter implements OrchestratorAdapter {
             ObjectMapper objectMapper,
             String baseUrl,
             String token,
+            String tokenFile,
             String username,
             String password,
             String timeZone,
             RuntimeContext runtimeContext) {
-        var client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3)).build();
+        // DolphinScheduler's internal API is normally plain HTTP.  Pin the
+        // client to HTTP/1.1 so a JDK h2c upgrade cannot be rejected by its
+        // embedded HTTP server in the same way as the quality Runtime.
+        var client = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1)
+                .connectTimeout(Duration.ofSeconds(3)).build();
         var requestFactory = new JdkClientHttpRequestFactory(client);
         requestFactory.setReadTimeout(Duration.ofSeconds(10));
         this.restClient = builder.requestFactory(requestFactory).build();
         this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper");
         this.baseUrl = normalizeBaseUrl(baseUrl);
-        this.token = normalize(token);
-        this.username = normalize(username);
-        this.password = password == null ? "" : password.trim();
+        this.tokenProvider = new SchedulerTokenProvider(objectMapper, token, tokenFile);
         try {
             this.schedulerZone = ZoneId.of(normalize(timeZone).isBlank()
                     ? "Asia/Shanghai" : normalize(timeZone));
@@ -108,7 +107,7 @@ public class DolphinSchedulerExecutorAdapter implements OrchestratorAdapter {
 
     /** Convenience constructor for adapter-level tests and local tools. */
     DolphinSchedulerExecutorAdapter(RestClient.Builder builder, String baseUrl, String token, String timeZone) {
-        this(builder, new ObjectMapper(), baseUrl, token, "", "", timeZone,
+        this(builder, new ObjectMapper(), baseUrl, token, "", "", "", timeZone,
                 new RuntimeContext("dataos-dev", "development"));
     }
 
@@ -123,7 +122,7 @@ public class DolphinSchedulerExecutorAdapter implements OrchestratorAdapter {
             String tenantCode,
             String environment) {
         return new DolphinSchedulerExecutorAdapter(
-                builder, objectMapper, baseUrl, token, username, password, timeZone,
+                builder, objectMapper, baseUrl, token, "", username, password, timeZone,
                 new RuntimeContext(tenantCode, environment));
     }
 
@@ -280,20 +279,21 @@ public class DolphinSchedulerExecutorAdapter implements OrchestratorAdapter {
     @SuppressWarnings("unchecked")
     private Map<String, Object> postWithAuth(URI uri, Object body) {
         try {
-            return post(uri, body);
+            return post(uri, body, tokenProvider.snapshot().current());
         } catch (HttpClientErrorException exception) {
-            if (exception.getStatusCode().value() != 401 || username.isBlank() || password.isBlank()) {
+            if (exception.getStatusCode().value() != 401) {
                 throw exception;
             }
-            sessionId.set(null);
-            login();
-            return post(uri, body);
+            var previous = tokenProvider.snapshot().previous();
+            if (previous.isBlank()) throw new AdapterUnavailableException("DolphinScheduler Token 已失效");
+            return post(uri, body, previous);
         }
     }
 
     @SuppressWarnings("unchecked")
-    private Map<String, Object> post(URI uri, Object body) {
-        var request = restClient.post().uri(uri).headers(this::applyAuth).contentType(MediaType.APPLICATION_JSON);
+    private Map<String, Object> post(URI uri, Object body, String tokenOverride) {
+        var request = restClient.post().uri(uri).headers(headers -> applyAuth(headers, tokenOverride))
+                .contentType(MediaType.APPLICATION_JSON);
         return body == null ? request.retrieve().body(Map.class) : request.body(body).retrieve().body(Map.class);
     }
 
@@ -311,66 +311,24 @@ public class DolphinSchedulerExecutorAdapter implements OrchestratorAdapter {
     @SuppressWarnings("unchecked")
     private Map<String, Object> get(URI uri) {
         try {
-            return restClient.get().uri(uri).headers(this::applyAuth).retrieve().body(Map.class);
+            return restClient.get().uri(uri).headers(headers -> applyAuth(headers, tokenProvider.snapshot().current()))
+                    .retrieve().body(Map.class);
         } catch (HttpClientErrorException exception) {
-            if (exception.getStatusCode().value() != 401 || username.isBlank() || password.isBlank()) {
+            if (exception.getStatusCode().value() != 401) {
                 throw exception;
             }
-            sessionId.set(null);
-            login();
-            return restClient.get().uri(uri).headers(this::applyAuth).retrieve().body(Map.class);
+            var previous = tokenProvider.snapshot().previous();
+            if (previous.isBlank()) throw new AdapterUnavailableException("DolphinScheduler Token 已失效");
+            return restClient.get().uri(uri).headers(headers -> applyAuth(headers, previous))
+                    .retrieve().body(Map.class);
         }
     }
 
-    private void applyAuth(HttpHeaders headers) {
-        if (!token.isBlank()) {
-            headers.set("token", token);
-            return;
-        }
-        if (sessionId.get() == null) login();
-        var current = sessionId.get();
-        if (current == null || current.isBlank()) {
+    private void applyAuth(HttpHeaders headers, String token) {
+        if (token == null || token.isBlank()) {
             throw new AdapterUnavailableException("DolphinScheduler 未配置访问凭据");
         }
-        headers.set(HttpHeaders.COOKIE, "sessionId=" + current);
-    }
-
-    @SuppressWarnings("unchecked")
-    private synchronized void login() {
-        if (sessionId.get() != null) return;
-        if (username.isBlank() || password.isBlank()) {
-            throw new AdapterUnavailableException("DolphinScheduler 未配置访问凭据");
-        }
-        var form = new LinkedMultiValueMap<String, String>();
-        form.add("userName", username);
-        form.add("userPassword", password);
-        try {
-            ResponseEntity<Map> response = restClient.post()
-                    .uri(baseUrl + "/login")
-                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                    .body(form)
-                    .retrieve()
-                    .toEntity(Map.class);
-            var cookie = response.getHeaders().getFirst(HttpHeaders.SET_COOKIE);
-            var parsed = parseCookie(cookie);
-            if (parsed == null) {
-                throw new AdapterUnavailableException("DolphinScheduler 登录未返回会话");
-            }
-            sessionId.set(parsed);
-        } catch (HttpClientErrorException exception) {
-            throw new AdapterUnavailableException("DolphinScheduler 登录失败");
-        } catch (RestClientException exception) {
-            throw new AdapterUnavailableException("DolphinScheduler 登录暂时不可用");
-        }
-    }
-
-    private String parseCookie(String setCookie) {
-        if (setCookie == null) return null;
-        for (var part : setCookie.split(";")) {
-            var pair = part.trim().split("=", 2);
-            if (pair.length == 2 && "sessionId".equals(pair[0]) && !pair[1].isBlank()) return pair[1];
-        }
-        return null;
+        headers.set("token", token);
     }
 
     private URI workflowUri(long projectCode, String path, LinkedMultiValueMap<String, String> query) {

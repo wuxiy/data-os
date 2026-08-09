@@ -1,0 +1,11 @@
+dataos_quality:
+  target: quality
+  outputs:
+    quality:
+      type: doris
+      host: "{{ env_var('DORIS_FE_HOST') }}"
+      port: "{{ env_var('DORIS_FE_PORT', '9030') | int }}"
+      username: "{{ env_var('DORIS_DBT_USER') }}"
+      password: "{{ env_var('DORIS_DBT_PASSWORD') }}"
+      schema: "{{ env_var('DORIS_DATABASE', 'dataos_quality_acceptance') }}"
+      threads: 1

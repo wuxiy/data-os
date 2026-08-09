@@ -1,0 +1,55 @@
+rules:
+  - rule_id: quality.acceptance.not_null_patient_id
+    selector: quality_acceptance_not_null_patient_id
+    dataset_id: dataos_quality_acceptance.quality_sample
+    evidence:
+      kind: not_null
+      table: dataos_quality_acceptance.quality_sample
+      column: patient_id
+      columns: [record_id, patient_id, status]
+  - rule_id: quality.acceptance.unique_record_id
+    selector: quality_acceptance_unique_record_id
+    dataset_id: dataos_quality_acceptance.quality_sample
+    evidence:
+      kind: unique
+      table: dataos_quality_acceptance.quality_sample
+      column: record_id
+      columns: [record_id, patient_id, status]
+  - rule_id: quality.acceptance.status_values
+    selector: quality_acceptance_status_values
+    dataset_id: dataos_quality_acceptance.quality_sample
+    evidence:
+      kind: accepted_values
+      table: dataos_quality_acceptance.quality_sample
+      column: status
+      values: [VALID, CANCELLED]
+      columns: [record_id, patient_id, status]
+  # Compatibility bindings for the first hospital governance seed records.
+  # They intentionally point at the synthetic acceptance table until each
+  # institution supplies its LIS/EMR/surgery table contract; the rule IDs
+  # remain stable so an issue can be rechecked without a DEMO executor.
+  - rule_id: rule-timeliness-result-time
+    selector: quality_acceptance_timeliness_result_time
+    dataset_id: asset-lis-lab-result
+    evidence:
+      kind: not_null
+      table: dataos_quality_acceptance.quality_sample
+      column: updated_at
+      columns: [record_id, patient_id, updated_at]
+  - rule_id: rule-icd10-mapping
+    selector: quality_acceptance_icd10_mapping
+    dataset_id: asset-emr-diagnosis
+    evidence:
+      kind: accepted_values
+      table: dataos_quality_acceptance.quality_sample
+      column: status
+      values: [VALID, CANCELLED]
+      columns: [record_id, patient_id, status]
+  - rule_id: rule-surgery-required-fields
+    selector: quality_acceptance_surgery_required_fields
+    dataset_id: asset-surgery-record
+    evidence:
+      kind: not_null
+      table: dataos_quality_acceptance.quality_sample
+      column: patient_id
+      columns: [record_id, patient_id, status]

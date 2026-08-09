@@ -81,3 +81,60 @@ Gate 0 实现与验证完成。控制面全量 Maven 测试 56 项通过，前�
 ## Status
 
 **Complete** - 正式报告已归档至 `docs/release-readiness-audit-20260806.md`，证据路径、功能边界、验证结果和发布路线图已交叉校验。
+
+## 2026-08-09 真实质量执行器、Token 轮换与通知落地
+
+### Goal
+
+将质量复检从 DEMO 切换为可部署的独立 dbt Runtime，接入现有 Doris，加入 DolphinScheduler 短周期 Token 轮换、OIDC 服务间鉴权和 HMAC 通知通道；本地验证通过后部署开发环境，并保留院方真实端点/凭据注入边界。
+
+### Phases
+
+- [x] Phase 1: 盘点现有控制面质量/通知/调度器适配器、迁移和 Compose，冻结改动接缝
+- [x] Phase 2: 实现独立 dbt Runtime、规则注册、审计证据、OIDC 鉴权与容器制品
+- [x] Phase 3: 实现调度器 Token rotator、控制面热加载/无密码回退与配置迁移
+- [x] Phase 4: 实现 HMAC 通知通道与开发合规接收器，切换 DEMO 保护
+- [x] Phase 5: 本地单测/契约/构建/离线校验与安全门禁
+- [x] Phase 6: 远程留回滚点、导入部署、复用 Doris 隔离库并执行真实开发验收
+- [x] Phase 7: 代码审查、发布报告、任务复盘和提交
+
+### Decisions Made
+
+- dbt Runtime 独立容器，Python 3.12 + FastAPI/Uvicorn + psycopg 3 + SQLAlchemy 2，队列表使用幂等启动 DDL（不另起 Alembic 服务）；不把 dbt 放入 DolphinScheduler Worker，不新增 Redis/Celery/Kafka。
+- dbt 只执行镜像内注册的 `dbt test --select`；业务库只读，`dataos_quality_audit` 为唯一受控写入区；失败样本最多 20 条，脱敏证据 PostgreSQL 180 天，RustFS 制品 30 天。
+- 运行任务使用 PostgreSQL 租约队列，全局并发 2、单租户并发 1、15 分钟超时、重启可恢复，禁止任意 SQL/CLI/Shell/运行时项目上传。
+- 控制面到 Runtime 生产使用 Keycloak OIDC Client Credentials（5 分钟 Token、最小 scope），开发验收显式使用 DISABLED 仅验证网络/闭环协议；通知使用 HMAC-SHA256 Webhook，开发仅启用合规接收器。
+- DolphinScheduler Token 由独立最小权限 rotator 每 24 小时轮换，TTL 7 天，新旧交叠 30 分钟；控制面只读 Secret，生产和开发均无用户名/密码登录回退。
+- 开发复用 `172.16.66.8:8030/9030` Doris，新建 `dataos_quality_acceptance` 隔离库和最小权限服务账号，使用合成数据。
+
+### Verification checklist
+
+- [x] `DEMO` 质量执行器/通知和密码回退在生产配置 fail-closed
+- [x] dbt pass/fail、自动关闭/退回、执行批次、脱敏样本、幂等、并发限制、取消、超时、重启恢复
+- [x] Doris 业务库只读、质量审计写入和遗留失败表清理
+- [x] OIDC issuer/audience/scope/tenant 校验与 Token 过期行为（本地单测；开发部署显式 DISABLED）
+- [x] Token 创建、smoke、切换、旧 Token 撤销和 rotator 故障演练
+- [x] HMAC 签名、回执、nonce 防重放、重试、脱敏和接收器故障演练
+- [x] Maven/Python/前端测试，Docker/Compose/SBOM/secret scan，离线导入/回滚
+- [x] 远程部署回滚点、容器健康、Doris 隔离库、真实 API 和浏览器闭环
+
+### Errors Encountered
+
+- 当前开发机没有本地 Doris 容器，但远程 `172.16.66.8:8030/9030` 可达；改为复用现有集群并隔离数据库。
+- 当前控制面仍为 DEMO、通知 URL 未配置；先实现真实协议与开发合规接收器，生产院方端点仍为部署前置条件。
+
+### Results
+
+- 本地 `services/control-plane` Maven 全量测试 71 项通过；质量 Runtime 与轮换器、通知接收器 Python `compileall` 通过，Compose 配置和 `git diff --check` 通过。
+- 远程 `/root/data-os-quality-20260809` 保留制品与 `/root/data-os-dev-20260809-rollback-quality` 回滚点；control-plane、quality-runner、notification-receiver、scheduler-token-rotator 均健康。
+- 复用 Doris `172.16.66.8:9030` 的合成验收库完成 dbt 通过/失败两条闭环：通过结果自动关闭，失败结果回写脱敏样本证据和执行批次；`dataos_quality_audit` 验收后无遗留失败表。
+- DolphinScheduler Token 轮换器已创建短周期 Token，当前 Token 可通过 `/access-tokens` 鉴权，Secret 文件为 `0600`；控制面无用户名/密码回退。HMAC 通知经开发接收器签名验收并回执，重复投递保持幂等。
+- 控制面复检曾暴露 JDK h2c→Uvicorn 兼容问题，已固定质量 HTTP 客户端为 HTTP/1.1，并完成重建后的控制面 `HTTP → dbt → 回写 → 自动关闭` 闭环复测。
+
+### Boundary
+
+本轮只完成合成 Doris 和协议级开发验收；真实 LIS/EMR/手术端点、院方 OIDC 客户端、RustFS 生产端点、消息网关和脱敏样本仍需院方交接后在生产配置中注入，不能宣称真实临床数据已接入。
+
+### Status
+
+**Complete**：实现、远程部署、闭环验收、问题修复和复盘均完成；生产启用前仍需按 Boundary 清单替换开发凭据与端点。

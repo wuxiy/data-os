@@ -8,3 +8,5 @@ prototype/.env*
 prototype/qa/*-browser.png
 prototype/concepts/governance-dashboard-v1.png
 services/**/target/
+**/__pycache__/
+*.py[cod]

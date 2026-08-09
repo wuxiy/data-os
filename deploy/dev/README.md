@@ -38,6 +38,7 @@ DOLPHINSCHEDULER_BASE_URL=http://dolphinscheduler-api:12345/dolphinscheduler
 # 内网明文默认 disable；托管 PostgreSQL 按院方证书策略改为 require/verify-full。
 DOLPHINSCHEDULER_DB_SSLMODE=disable
 DATAOS_DOLPHINSCHEDULER_TOKEN=
+DATAOS_DOLPHINSCHEDULER_TOKEN_FILE=/run/secrets/dolphinscheduler-token.json
 DATAOS_DOLPHINSCHEDULER_USERNAME=
 DATAOS_DOLPHINSCHEDULER_PASSWORD=
 DATAOS_DOLPHINSCHEDULER_TIME_ZONE=Asia/Shanghai
@@ -48,14 +49,31 @@ DATAOS_DOLPHINSCHEDULER_QUEUE_ID=1
 DOLPHINSCHEDULER_DB_PASSWORD=仅保存在开发机 .env
 # 开发调度器也使用命名租户；生产同样必须关闭 default 回退并配置院方租户。
 DOLPHINSCHEDULER_DEFAULT_TENANT_ENABLED=false
-# 开发环境默认使用确定性的 DEMO 质量执行器；生产改为 HTTP/DBT 并配置执行器地址。
-DATAOS_QUALITY_EXECUTOR=DEMO
-DATAOS_QUALITY_EXECUTOR_BASE_URL=
-DATAOS_QUALITY_DEMO_ENABLED=true
+# 开发环境默认也使用真实的 HTTP 质量 Runtime（OIDC 在本地接收器中关闭），
+# 不再把 DEMO 结果作为质量闭环事实。质量 Runtime 会对登记规则执行 dbt test。
+DATAOS_QUALITY_EXECUTOR=HTTP
+DATAOS_QUALITY_EXECUTOR_BASE_URL=http://quality-runner:8080
+DATAOS_QUALITY_DEMO_ENABLED=false
+QUALITY_RUNNER_DB_URL=postgresql+psycopg://keycloak:<keycloak-db-password>@keycloak-db:5432/keycloak
+QUALITY_RUNNER_AUTH_MODE=DISABLED
+DORIS_FE_HOST=172.16.66.8
+DORIS_FE_PORT=9030
+DORIS_DATABASE=dataos_quality_acceptance
+DORIS_AUDIT_DATABASE=dataos_quality_audit
+DORIS_USER=dataos_quality_ro
+DORIS_PASSWORD=仅保存于开发机 .env
+# dbt 只读业务库、只写审计库；不要复用 DORIS_USER。
+DORIS_DBT_USER=dataos_quality_dbt
+DORIS_DBT_PASSWORD=仅保存于开发机 .env
+DORIS_CLEANUP_USER=dataos_quality_cleanup
+DORIS_CLEANUP_PASSWORD=仅保存于开发机 .env
 DATAOS_QUALITY_SUBMIT_LEASE_MS=120000
-DATAOS_QUALITY_DEMO_DELAY_MS=1500
-# 可选：责任人 Webhook；为空时通知会记录为 SKIPPED，不会伪造已送达。
-DATAOS_NOTIFICATION_WEBHOOK_URL=
+# 开发通知接收器验证 HMAC；不配置时会明确 SKIPPED，不会伪造已送达。
+DATAOS_NOTIFICATION_WEBHOOK_URL=http://notification-receiver:8080/notify
+DATAOS_NOTIFICATION_WEBHOOK_SECRET=dev-only-notification-secret-change-me
+DATAOS_NOTIFICATION_ALLOW_HTTP=true
+DATAOS_NOTIFICATION_ALLOW_PRIVATE_NETWORKS=true
+DATAOS_NOTIFICATION_ALLOWED_HOSTS=notification-receiver
 DATAOS_NOTIFICATION_MAX_ATTEMPTS=5
 DATAOS_NOTIFICATION_LEASE_MS=120000
 ```
@@ -73,8 +91,21 @@ GET /api/v1/system/status
 先启动门户和控制面：
 
 ```bash
-docker compose -f docker-compose.yml up -d control-plane portal
+docker compose -f docker-compose.yml up -d control-plane quality-runner notification-receiver portal
 ```
+
+质量 Runtime 首次启动会创建 `data_os.quality_rule_registry` 和
+`data_os.quality_runner_runs`。确认开发机可访问复用的 Doris 后，执行一次合成验收数据初始化：
+
+```bash
+# 仅在质量验收库中执行，不触碰院内业务库
+mysql -h 172.16.66.8 -P 9030 -u dataos_quality_admin -p < ../scripts/init-quality-doris.sql
+mysql -h 172.16.66.8 -P 9030 -u dataos_quality_admin -p < ../scripts/seed-quality-doris.sql
+curl -fsS http://127.0.0.1:18081/api/v1/system/status
+```
+
+真实质量闭环验收通过条件：提交复检后，控制面应得到 `runId`，Runtime 回写通过/失败、
+执行批次和最多 20 条脱敏样本证据；通知接收器 `/receipts` 能看到带 HMAC 的责任人投递。
 
 ## 启用 DolphinScheduler 编排
 
@@ -105,7 +136,11 @@ curl -fsS http://127.0.0.1:18083/dolphinscheduler/actuator/health
 
 若只更新了调度器服务，先确认 schema initializer 成功，再重建 API、Master、Worker。开发 Compose 允许控制面 `DATAOS_DEFAULT_SCOPE_ENABLED=true` 作为免登录联调回退，但 DolphinScheduler Worker 的 `WORKER_TENANT_CONFIG_DEFAULT_TENANT_ENABLED` 默认关闭；生产同时关闭控制面 default scope 和 Worker default tenant，所有绑定必须使用已创建的命名租户。
 
-建议在 DolphinScheduler 中创建专用服务账号并生成 token，写入 `.env` 的 `DATAOS_DOLPHINSCHEDULER_TOKEN`；未配置 token 时才使用 `DATAOS_DOLPHINSCHEDULER_USERNAME/PASSWORD` 登录并缓存 `sessionId`。不要使用默认管理员口令，不要把 token 或密码写入任务配置、日志或 Git。
+建议在 DolphinScheduler 中创建专用服务账号并生成 bootstrap token，写入命名卷
+`data-os-dev-scheduler-token-secrets` 的 `/run/secrets/dolphinscheduler-token.json`，再
+启用 `scheduler-token-rotator` profile。轮换器每 24 小时生成新 token，控制面在 30 分钟
+重叠窗口内热读 current/previous；不再支持用户名/密码登录回退，也不要把 token 写入任务
+配置、日志或 Git。
 
 采集任务的 `executor` 设为 `DOLPHINSCHEDULER`，保存一个已发布工作流绑定。配置边界如下（`workflowDefinitionVersion` 仅作为审计元数据，启动接口使用已发布版本）：
 

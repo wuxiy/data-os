@@ -1,0 +1,29 @@
+version: 2
+
+models:
+  - name: quality_sample
+    columns:
+      - name: patient_id
+        data_tests:
+          - not_null:
+              name: quality_acceptance_not_null_patient_id
+          - not_null:
+              name: quality_acceptance_surgery_required_fields
+      - name: record_id
+        data_tests:
+          - unique:
+              name: quality_acceptance_unique_record_id
+      - name: status
+        data_tests:
+          - accepted_values:
+              name: quality_acceptance_status_values
+              arguments:
+                values: ['VALID', 'CANCELLED']
+          - accepted_values:
+              name: quality_acceptance_icd10_mapping
+              arguments:
+                values: ['VALID', 'CANCELLED']
+      - name: updated_at
+        data_tests:
+          - not_null:
+              name: quality_acceptance_timeliness_result_time

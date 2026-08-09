@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=69,<76"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dataos-quality-runner"
+version = "0.1.0"
+description = "DataOS registered dbt quality execution runtime"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "fastapi==0.115.6",
+  "uvicorn[standard]==0.34.0",
+  "sqlalchemy==2.0.37",
+  "psycopg[binary]==3.2.4",
+  "pymysql==1.1.1",
+  "PyJWT[crypto]==2.10.1",
+  "httpx==0.28.1",
+  "prometheus-client==0.21.1",
+  "PyYAML==6.0.2",
+  "boto3==1.36.20",
+  "dbt-core==1.10.22",
+  "dbt-doris==1.0.0",
+]
+
+[project.optional-dependencies]
+test = ["pytest==8.3.4", "pytest-asyncio==0.25.3"]
+
+[tool.pytest.ini_options]
+pythonpath = ["app"]
+asyncio_mode = "auto"
+
+[tool.setuptools]
+packages = ["app"]

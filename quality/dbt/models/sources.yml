@@ -1,0 +1,7 @@
+version: 2
+
+sources:
+  - name: quality_acceptance
+    schema: "{{ env_var('DORIS_DATABASE', 'dataos_quality_acceptance') }}"
+    tables:
+      - name: quality_sample
