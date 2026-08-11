@@ -159,3 +159,9 @@
 - 触发：演示入口误写成 `http://<开发机>:18083/`，浏览器看到 404；实际 DolphinScheduler API 根路径没有首页，UI 挂在 `/dolphinscheduler/ui/`。
 - 规则：部署记录和演示入口必须区分 API、健康检查和 UI：API 使用 `/dolphinscheduler/actuator/health`，浏览器使用 `/dolphinscheduler/ui/`；不要为了掩盖上游 API 的预期 404 引入额外代理服务。
 - 检查：交付前执行根路径、上下文根路径和 UI 三路 smoke，断言 `/` 为预期 404、`/dolphinscheduler/` 为 302、`/dolphinscheduler/ui/` 为 200，并在文档中给出可点击的 UI 地址。
+
+## 2026-08-11 技术组件入口必须与业务门户分域
+
+- 触发：用户确认 RustFS、DolphinScheduler、SeaTunnel 需要集成到门户，但组件访问只给技术人员，不能暴露给甲方人员。
+- 规则：技术入口单独放在“平台运维”区域；前端根据 OIDC 技术角色隐藏菜单并阻断深链，控制面 API 还要用同一组角色做服务端授权，不能把菜单隐藏当成安全边界。
+- 检查：平台接口只返回健康状态、版本摘要和显式配置的浏览器入口，不返回内部探针地址、Token、Secret、连接串或业务数据；开发免登录只作为联调例外，生产必须启用 OIDC 强制模式。

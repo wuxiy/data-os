@@ -27,6 +27,7 @@ npm run preview
 - `/mpi/review`：主索引候选审核
 - `/assets`：数据资产、血缘影响和质量结果
 - `/assets/technical?asset=asset-outpatient-visit`：数据资产技术视图深链（新标签页打开）
+- `/operations`：技术人员专属的平台运维舱，聚合 SeaTunnel 运行态并提供 DolphinScheduler/RustFS 技术入口
 - `/analysis`：嵌入式分析看板与指标证据
 - `/assistant`：受控智能问数与查询证据
 - `/assistant/workspace?scenario=assistant-outpatient`：智能问数专业工作区深链（新标签页打开）

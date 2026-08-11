@@ -1,6 +1,7 @@
 export type AuthSnapshot = {
   status: 'disabled' | 'loading' | 'authenticated' | 'unauthenticated' | 'error'
   displayName?: string
+  roles?: string[]
   error?: string
 }
 
@@ -21,6 +22,7 @@ type StoredSession = {
   accessToken: string
   expiresAt: number
   displayName?: string
+  roles?: string[]
 }
 
 const issuer = String(import.meta.env.VITE_DATAOS_OIDC_ISSUER_URI ?? '').replace(/\/$/, '')
@@ -30,6 +32,7 @@ const sessionKey = 'dataos.oidc.session'
 const stateKey = 'dataos.oidc.state'
 const verifierKey = 'dataos.oidc.pkce-verifier'
 let metadataPromise: Promise<OidcMetadata> | undefined
+const technicalRoles = new Set(['data-engineer', 'platform-operator', 'platform-admin'])
 
 export function oidcIsConfigured(): boolean {
   return Boolean(issuer && clientId)
@@ -54,6 +57,14 @@ export function getOidcDisplayName(): string | undefined {
   return readSession()?.displayName
 }
 
+export function hasTechnicalAccess(snapshot: Pick<AuthSnapshot, 'status' | 'roles'>): boolean {
+  if (!oidcIsConfigured()) {
+    return String(import.meta.env.VITE_DATAOS_TECHNICAL_ACCESS ?? 'true').toLowerCase() !== 'false'
+  }
+  return snapshot.status === 'authenticated'
+    && (snapshot.roles ?? []).some(role => technicalRoles.has(role.toLowerCase()))
+}
+
 export async function initializeOidc(): Promise<AuthSnapshot> {
   if (!oidcIsConfigured()) return { status: 'disabled' }
   try {
@@ -66,7 +77,11 @@ export async function initializeOidc(): Promise<AuthSnapshot> {
     if (params.get('code')) await completeLogin(params)
     const session = readSession()
     if (!session || !getAccessToken()) return { status: 'unauthenticated' }
-    return { status: 'authenticated', displayName: session.displayName }
+    const roles = session.roles?.length ? session.roles : extractRoles(decodeJwtClaims(session.accessToken))
+    if (!session.roles?.length && roles.length) {
+      sessionStorage.setItem(sessionKey, JSON.stringify({ ...session, roles } satisfies StoredSession))
+    }
+    return { status: 'authenticated', displayName: session.displayName, roles }
   } catch (error) {
     clearOidcSession()
     replaceCallbackUrl()
@@ -122,11 +137,14 @@ async function completeLogin(params: URLSearchParams): Promise<void> {
   const token = await response.json() as TokenResponse
   if (!token.access_token) throw new Error('OIDC token 响应缺少 access_token')
   const idClaims = token.id_token ? decodeJwtClaims(token.id_token) : {}
+  const accessClaims = decodeJwtClaims(token.access_token)
   const displayName = String(idClaims.preferred_username ?? idClaims.name ?? idClaims.email ?? '').trim() || undefined
+  const roles = extractRoles({ ...accessClaims, ...idClaims })
   sessionStorage.setItem(sessionKey, JSON.stringify({
     accessToken: token.access_token,
     expiresAt: Date.now() + Math.max(60, token.expires_in ?? 300) * 1000,
     displayName,
+    roles,
   } satisfies StoredSession))
   sessionStorage.removeItem(stateKey)
   sessionStorage.removeItem(verifierKey)
@@ -190,4 +208,31 @@ function decodeJwtClaims(token: string): Record<string, unknown> {
   } catch {
     return {}
   }
+}
+
+function extractRoles(claims: Record<string, unknown>): string[] {
+  const roles = new Set<string>()
+  addRoleValues(roles, claims.roles)
+  addRoleValues(roles, claims.groups)
+  if (isRecord(claims.realm_access)) addRoleValues(roles, claims.realm_access.roles)
+  if (isRecord(claims.resource_access)) {
+    Object.values(claims.resource_access).forEach(value => {
+      if (isRecord(value)) addRoleValues(roles, value.roles)
+    })
+  }
+  return [...roles]
+}
+
+function addRoleValues(target: Set<string>, value: unknown): void {
+  if (Array.isArray(value)) {
+    value.forEach(item => addRoleValues(target, item))
+    return
+  }
+  if (typeof value !== 'string') return
+  value.split(/[\s,]+/).map(item => item.trim().toLowerCase().replace(/^role_/, ''))
+    .filter(Boolean).forEach(item => target.add(item))
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === 'object' && !Array.isArray(value))
 }

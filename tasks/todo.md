@@ -578,3 +578,29 @@ Gate 0 尚未覆盖 OIDC 多租户授权列表、CIDR allowlist/DNS rebinding �
 验收记录见 `docs/validation/rustfs-dev-deploy-20260811.md`。部署仅用于开发演示：不含真实临床端点、不开生产 TLS、不关闭开发 DEMO 种子；生产必须使用院方离线制品、独立密钥和命名租户配置。
 
 补充路由验收：DolphinScheduler `18083/` 根路径返回上游预期的 404，`/dolphinscheduler/` 返回 302，浏览器 UI `/dolphinscheduler/ui/` 和健康接口均返回 200；演示入口已改为 UI 路径。
+
+## 2026-08-11 技术域组件门户集成
+
+### 目标
+
+在 data-os 门户新增仅面向技术人员的“平台运维”工作区，聚合 SeaTunnel 运行态，并提供 DolphinScheduler、RustFS 的受控技术入口；业务/甲方人员不展示组件入口，后端在 OIDC 强制模式下同步拒绝非技术角色。
+
+### 执行计划
+
+- [x] 增加技术角色识别、专属路由和桌面门户导航，业务角色不渲染技术组件菜单
+- [x] 增加控制面平台组件健康聚合接口，禁止把 Token、Secret、内部连接信息返回门户
+- [x] 增加 SeaTunnel 运行态、DolphinScheduler/RustFS 技术入口和访问边界呈现
+- [x] 完成前端生产构建、后端测试、开发服务器 API/UI 验证
+- [x] 更新开发/生产配置说明、任务复盘与教训，提交并推送
+
+### 结果复盘
+
+门户已部署到开发机 `172.16.65.59`。`/operations` 深链返回 200，控制面平台接口真实探测到
+SeaTunnel `2.3.13`、DolphinScheduler `UP`、RustFS `ok`；DolphinScheduler UI 和 RustFS Console
+外链分别返回 200。生产 OIDC 强制模式新增 `data-engineer`、`platform-operator`、
+`platform-admin` 角色门禁，业务角色 API 返回 403；开发免登录菜单仅作为联调例外。
+
+验证通过：前端 `npm run build`、`npm run qa:mock`；Java Maven 全量测试 80 项通过；开发/生产
+Compose config 和 `git diff --check` 通过；远程控制面、门户、SeaTunnel、DolphinScheduler、RustFS
+容器均保持运行。浏览器插件在远程页面检查时发生连接超时，因此 UI 证据以门户深链 HTTP 200、
+发布 bundle 包含“平台运维舱”以及服务端真实 API 探针结果为准，未将浏览器插件超时误报为组件故障。

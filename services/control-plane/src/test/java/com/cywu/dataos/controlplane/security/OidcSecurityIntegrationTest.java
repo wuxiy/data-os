@@ -52,6 +52,18 @@ class OidcSecurityIntegrationTest {
                 .claim("roles", List.of("viewer"))
                 .build();
         when(jwtDecoder.decode("test-token")).thenReturn(token);
+        var technicalToken = Jwt.withTokenValue("tech-token")
+                .header("alg", "none")
+                .issuer("https://id.example.test/realms/data-os")
+                .subject("engineer-1")
+                .audience(List.of("data-os"))
+                .issuedAt(Instant.now().minusSeconds(5))
+                .expiresAt(Instant.now().plusSeconds(300))
+                .claim("tenant_id", "tenant-a")
+                .claim("institution_id", "hospital-a")
+                .claim("roles", List.of("data-engineer"))
+                .build();
+        when(jwtDecoder.decode("tech-token")).thenReturn(technicalToken);
     }
 
     @Test
@@ -69,5 +81,22 @@ class OidcSecurityIntegrationTest {
                 .andExpect(status().isForbidden())
                 .andExpect(content().contentTypeCompatibleWith("application/problem+json"))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("FORBIDDEN")));
+    }
+
+    @Test
+    void rejectsViewerFromTechnicalComponentWorkspaceWith403() throws Exception {
+        mockMvc.perform(get("/api/v1/platform-operations")
+                        .header("Authorization", "Bearer test-token"))
+                .andExpect(status().isForbidden())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("FORBIDDEN")));
+    }
+
+    @Test
+    void allowsTechnicalRoleToReadComponentWorkspaceWithoutReturningSecrets() throws Exception {
+        mockMvc.perform(get("/api/v1/platform-operations")
+                        .header("Authorization", "Bearer tech-token"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("technicalAccess")))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("token"))));
     }
 }

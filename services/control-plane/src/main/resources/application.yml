@@ -51,6 +51,13 @@ data-os:
   seatunnel:
     base-url: ${SEATUNNEL_BASE_URL:}
     time-zone: ${DATAOS_SEATUNNEL_TIME_ZONE:UTC}
+  platform:
+    # These URLs are for server-side probes and browser entrypoints only.
+    # Credentials and internal service addresses are never returned by the API.
+    seatunnel-ui-url: ${DATAOS_SEATUNNEL_UI_URL:}
+    dolphinscheduler-ui-url: ${DATAOS_DOLPHINSCHEDULER_UI_URL:}
+    rustfs-endpoint: ${DATAOS_RUSTFS_ENDPOINT:}
+    rustfs-console-url: ${DATAOS_RUSTFS_CONSOLE_URL:}
   dolphinscheduler:
     base-url: ${DOLPHINSCHEDULER_BASE_URL:}
     token: ${DATAOS_DOLPHINSCHEDULER_TOKEN:}

@@ -1,6 +1,6 @@
 # data-os 生产部署（Compose 基线）
 
-这套 Compose 是 Gate 0 的单机生产基线：控制面使用 OIDC/JWT，数据库由 Flyway 自动迁移，门户只暴露业务 API，Prometheus 从控制面 Actuator 拉取基础指标。它适合单院或区域平台的第一台生产节点；高可用、外置数据库、TLS 终止和密钥托管应由甲方现有平台或后续 Kubernetes/Helm 部署承接。
+这套 Compose 是 Gate 0 的单机生产基线：控制面使用 OIDC/JWT，数据库由 Flyway 自动迁移，门户默认只暴露业务 API；技术角色可在门户的“平台运维”区域查看组件运行态和受控入口，Prometheus 从控制面 Actuator 拉取基础指标。它适合单院或区域平台的第一台生产节点；高可用、外置数据库、TLS 终止和密钥托管应由甲方现有平台或后续 Kubernetes/Helm 部署承接。
 
 ## 运行前提
 
@@ -139,6 +139,10 @@ DOLPHINSCHEDULER_DB_SSLMODE=disable  # 托管库按证书策略改为 require/ve
 DOLPHINSCHEDULER_API_PORT=19083
 DOLPHINSCHEDULER_TZ=Asia/Shanghai
 DOLPHINSCHEDULER_BASE_URL=http://dolphinscheduler-api:12345/dolphinscheduler
+DATAOS_SEATUNNEL_UI_URL=
+DATAOS_DOLPHINSCHEDULER_UI_URL=https://platform-tools.example.invalid/dolphinscheduler/ui/
+DATAOS_RUSTFS_ENDPOINT=https://rustfs.example.invalid
+DATAOS_RUSTFS_CONSOLE_URL=https://platform-tools.example.invalid/rustfs/console/
 DATAOS_DOLPHINSCHEDULER_TOKEN_FILE=/run/secrets/dolphinscheduler-token.json
 DATAOS_DOLPHINSCHEDULER_TENANT_CODE=院方创建的命名调度租户编码
 DATAOS_DOLPHINSCHEDULER_SERVICE_USER=dataos_scheduler
@@ -156,6 +160,15 @@ DOLPHINSCHEDULER_TOKEN_OVERLAP_MINUTES=30
 fail-closed 配置。DolphinScheduler 中必须先创建同名租户，并把 data-os 服务账号绑定到该租户；
 生产 overlay 将 Worker 的 `WORKER_TENANT_CONFIG_DEFAULT_TENANT_ENABLED` 硬编码为 `false`；
 default 租户只允许在隔离开发环境中作为历史数据迁移对象，不能作为 Worker 或 API 的隐式回退。
+
+### 技术域门户入口
+
+具备 `data-engineer`、`platform-operator` 或 `platform-admin` 任一 OIDC 角色的人员，在门户左侧
+看到“平台运维”并进入 `/operations`。该页面由控制面服务端探测 SeaTunnel、DolphinScheduler 和
+RustFS，只返回健康状态、版本摘要和上述 `*_UI_URL` 外链；业务/甲方角色不会看到入口，控制面也会
+对 `GET /api/v1/platform-operations` 返回 403。DolphinScheduler UI 与 RustFS Console 仍由各自
+组件的账号和网络策略控制，门户不代理或复制其管理权限。开发 `DATAOS_AUTH_MODE=DISABLED` 的菜单
+显示只用于免登录联调，生产必须使用 OIDC 强制模式。
 
 先校验并启动 data-os，再按 overlay 启动调度器。overlay 会先执行数据库迁移，成功后才启动 API、Master、Worker、Alert；overlay 不安装历史 Shell 任务插件，临床连接器工作流由 SeaTunnel 执行器承接：
 

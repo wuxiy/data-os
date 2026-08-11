@@ -10,6 +10,7 @@ import {
   MessageSquareText,
   PackageCheck,
   Settings,
+  ServerCog,
   Waypoints,
   Workflow,
   X,
@@ -40,6 +41,7 @@ const navItems: NavItem[] = [
   { label: '智能问数', icon: MessageSquareText, route: 'assistant' },
   { label: '运营中心', icon: Workflow },
   { label: '交付中心', icon: PackageCheck },
+  { label: '平台运维', icon: ServerCog, route: 'operations' },
 ]
 
 interface AppShellProps {
@@ -49,9 +51,10 @@ interface AppShellProps {
   onUnavailable: (label: string) => void
   authDisplayName?: string
   onLogout?: () => void
+  technicalAccess?: boolean
 }
 
-export function AppShell({ route, children, onNavigate, onUnavailable, authDisplayName, onLogout }: AppShellProps) {
+export function AppShell({ route, children, onNavigate, onUnavailable, authDisplayName, onLogout, technicalAccess = false }: AppShellProps) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const governanceActive = ['governance', 'standards', 'mapping', 'quality'].includes(route)
 
@@ -87,7 +90,7 @@ export function AppShell({ route, children, onNavigate, onUnavailable, authDispl
           </button>
         </div>
         <nav className={styles.nav}>
-          {navItems.map((item) => {
+          {navItems.filter(item => item.route !== 'operations' || technicalAccess).map((item) => {
             const Icon = item.icon
             const isActive = item.governanceGroup
               ? governanceActive

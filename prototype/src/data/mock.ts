@@ -155,4 +155,5 @@ export const routePaths = {
   analytics: '/analysis',
   assistant: '/assistant',
   assistantWorkspace: '/assistant/workspace',
+  operations: '/operations',
 } as const

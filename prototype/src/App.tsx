@@ -3,7 +3,7 @@ import { OidcLoginGate } from './components/auth/OidcLoginGate'
 import { ResponsibilityDrawer } from './components/governance/ResponsibilityChain'
 import { AppShell } from './components/layout/AppShell'
 import { Toast } from './components/ui/Primitives'
-import { clearOidcSession, initializeOidc, logoutOidc, oidcIsConfigured, type AuthSnapshot } from './data/oidc'
+import { clearOidcSession, hasTechnicalAccess, initializeOidc, logoutOidc, oidcIsConfigured, type AuthSnapshot } from './data/oidc'
 import { routePaths } from './data/mock'
 import { DataStandardsPage } from './pages/DataStandardsPage'
 import { DataIngestionPage } from './pages/DataIngestionPage'
@@ -16,6 +16,7 @@ import { ManagementDashboardPage } from './pages/ManagementDashboardPage'
 import { MpiReviewPage } from './pages/MpiReviewPage'
 import { QualityIssuesPage } from './pages/QualityIssuesPage'
 import { StandardMappingPage } from './pages/StandardMappingPage'
+import { PlatformOperationsPage } from './pages/PlatformOperationsPage'
 import type { RouteKey } from './types'
 
 function routeFromPath(pathname: string): RouteKey {
@@ -82,6 +83,8 @@ export function App() {
     setNotice(`${label}尚未接入真实服务；当前可用的是数据接入、治理驾驶舱和质量闭环。演示模块需显式启用 VITE_DATAOS_DEMO_MODE`)
   }
 
+  const technicalAccess = hasTechnicalAccess(auth)
+
   let page
   switch (route) {
     case 'ingestion':
@@ -117,13 +120,17 @@ export function App() {
     case 'assistantWorkspace':
       page = <AssistantPage onNotice={setNotice} onNavigate={navigate} professional />
       break
+    case 'operations':
+      page = <PlatformOperationsPage canAccess={technicalAccess} />
+      break
     default:
       page = <ManagementDashboardPage onOpenChain={() => setDrawerOpen(true)} onUnavailable={showUnavailable} onNotice={setNotice} onNavigate={navigate} />
   }
 
   return (
     <AppShell route={route} onNavigate={navigate} onUnavailable={showUnavailable}
-      authDisplayName={auth.displayName} onLogout={oidcIsConfigured() ? logoutOidc : undefined}>
+      authDisplayName={auth.displayName} onLogout={oidcIsConfigured() ? logoutOidc : undefined}
+      technicalAccess={technicalAccess}>
       {page}
       <ResponsibilityDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} onAction={setNotice} />
       {notice ? <Toast message={notice} onClose={() => setNotice('')} /> : null}

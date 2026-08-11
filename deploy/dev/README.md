@@ -35,6 +35,11 @@ DATAOS_SEED_DEMO=true
 DATAOS_RUN_SYNC_INTERVAL_MS=30000
 DATAOS_RUN_SYNC_INITIAL_DELAY_MS=10000
 DATAOS_SEATUNNEL_TIME_ZONE=UTC
+# 技术域门户入口：只返回给具备技术角色的登录用户；浏览器地址按开发机实际端口填写。
+DATAOS_SEATUNNEL_UI_URL=
+DATAOS_DOLPHINSCHEDULER_UI_URL=http://<开发机>:18083/dolphinscheduler/ui/
+DATAOS_RUSTFS_ENDPOINT=http://rustfs:9000
+DATAOS_RUSTFS_CONSOLE_URL=http://<开发机>:19001/rustfs/console/
 # 可选：启用 DolphinScheduler 后，控制面通过 token 或专用服务账号调用其内网 API。
 DOLPHINSCHEDULER_BASE_URL=http://dolphinscheduler-api:12345/dolphinscheduler
 # 内网明文默认 disable；托管 PostgreSQL 按院方证书策略改为 require/verify-full。
@@ -98,6 +103,18 @@ QUALITY_RUNNER_S3_BUCKET=dataos-quality-artifacts
 ```text
 GET /api/v1/system/status
 ```
+
+## 门户内的技术组件入口
+
+登录门户的技术人员可以打开 `/operations`（左侧菜单为“平台运维”）。页面由控制面服务端探针聚合
+SeaTunnel、DolphinScheduler 和 RustFS 的健康状态；DolphinScheduler UI 与 RustFS Console 只以
+受控外部链接呈现，SeaTunnel 当前版本没有独立业务 UI，因此只显示 `/overview` 运行态。门户不会把
+内部探针地址、Token、Secret、患者数据或连接串返回给浏览器。
+
+生产 OIDC 角色至少按以下任一角色开放：`data-engineer`、`platform-operator`、`platform-admin`。
+控制面在 `DATAOS_AUTH_MODE=ENFORCED` 时对 `GET /api/v1/platform-operations` 做同等角色校验；
+只隐藏前端菜单不能替代后端拒绝。开发 Compose 的 `DISABLED` 仅用于免登录联调，前端默认显示该
+技术菜单，若需要模拟业务账号可在构建时设置 `VITE_DATAOS_TECHNICAL_ACCESS=false`。
 
 控制面默认按生产环境处理；开发 Compose 显式设置 `DATAOS_RUNTIME_ENV=development`。生产环境仍应显式设置 `DATAOS_RUNTIME_ENV=production`，且不得沿用 `DATAOS_SEED_DEMO=true` 或 `DATAOS_QUALITY_EXECUTOR=DEMO`；应切换为 `HTTP` 或 `DBT` 并配置 `DATAOS_QUALITY_EXECUTOR_BASE_URL`，`DATAOS_QUALITY_DEMO_ENABLED` 保持 `false`。控制面会在启动阶段阻断违反该约束的配置，历史 FakeSource 任务也不能在生产启动。
 

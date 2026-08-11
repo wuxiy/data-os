@@ -81,6 +81,8 @@ public class OidcSecurityConfiguration {
                         .requestMatchers("/actuator/health/**", "/actuator/prometheus", "/healthz", "/error").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/auth/me").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/v1/system/status").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/platform-operations/**")
+                        .hasAnyRole("platform-admin", "platform-operator", "data-engineer")
                         .requestMatchers(HttpMethod.POST, "/api/v1/governance/notifications/deliver")
                         .hasRole("platform-admin")
                         .requestMatchers(HttpMethod.GET, "/api/v1/credentials/**")

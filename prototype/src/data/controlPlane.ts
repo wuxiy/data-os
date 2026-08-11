@@ -112,6 +112,26 @@ export interface RuntimeStatusApiResponse {
   warnings: string[]
 }
 
+export type PlatformServiceStatus = 'UP' | 'DOWN' | 'NOT_CONFIGURED'
+
+export interface PlatformServiceApiItem {
+  key: 'seatunnel' | 'dolphinscheduler' | 'rustfs'
+  name: string
+  role: string
+  status: PlatformServiceStatus
+  description: string
+  checkedAt: string
+  detail: string
+  uiUrl: string | null
+  metrics: Record<string, string>
+}
+
+export interface PlatformOperationsApiResponse {
+  technicalAccess: boolean
+  checkedAt: string
+  services: PlatformServiceApiItem[]
+}
+
 export interface SourceApiItem {
   id: string
   tenantId: string
@@ -204,7 +224,7 @@ async function apiFetch(path: string, init: RequestInit = {}): Promise<Response>
   return response
 }
 
-class ControlPlaneError extends Error {
+export class ControlPlaneError extends Error {
   readonly status: number
 
   constructor(message: string, status: number) {
@@ -235,6 +255,10 @@ export async function fetchGovernanceSummary(signal?: AbortSignal): Promise<Gove
 
 export async function fetchRuntimeStatus(signal?: AbortSignal): Promise<RuntimeStatusApiResponse> {
   return getJson('/v1/system/status', signal)
+}
+
+export async function fetchPlatformOperations(signal?: AbortSignal): Promise<PlatformOperationsApiResponse> {
+  return getJson('/v1/platform-operations', signal)
 }
 
 export async function fetchGovernanceIssues(options: {
