@@ -11,7 +11,7 @@
 | `rustfs` | RustFS 单节点 S3 兼容对象存储，保存质量汇总制品 | `19000`（S3）、`19001`（Console） |
 | `rustfs-init` | 幂等创建质量制品桶的一次性初始化任务 | 无 |
 | `seatunnel-master` | SeaTunnel 单节点开发执行器，可选 profile | `18082`、`15801` |
-| `dolphinscheduler-*` | DolphinScheduler 单院紧凑编排器（API/Master/Worker/Alert/JDBC Registry），可选 profile | API `18083` |
+| `dolphinscheduler-*` | DolphinScheduler 单院紧凑编排器（API/Master/Worker/Alert/JDBC Registry），可选 profile | API `18083`；UI `/dolphinscheduler/ui/` |
 
 ## 启动
 
@@ -153,6 +153,14 @@ DATAOS_DOLPHINSCHEDULER_TENANT_CODE=dataos-dev \
 curl -fsS http://127.0.0.1:18083/dolphinscheduler/actuator/health
 # API 仅供内网控制面调用；18083 是开发机诊断端口，生产不要映射公网。
 ```
+
+浏览器演示请打开：
+
+```text
+http://<开发机>:18083/dolphinscheduler/ui/
+```
+
+`18083` 根路径是 DolphinScheduler API 端口，不提供首页，直接访问 `/` 返回 404 属于上游路由行为；`/dolphinscheduler/` 会 302 跳转到 UI。
 
 若只更新了调度器服务，先确认 schema initializer 成功，再重建 API、Master、Worker。开发 Compose 允许控制面 `DATAOS_DEFAULT_SCOPE_ENABLED=true` 作为免登录联调回退，但 DolphinScheduler Worker 的 `WORKER_TENANT_CONFIG_DEFAULT_TENANT_ENABLED` 默认关闭；生产同时关闭控制面 default scope 和 Worker default tenant，所有绑定必须使用已创建的命名租户。
 

@@ -153,3 +153,9 @@
 - 触发：质量运行器将租户哈希与 dbt selector 拼接为失败表名时超过 Doris 64 字符限制，任务虽能启动却无法落表/回写制品。
 - 规则：设计 dbt 失败表命名时先按目标库标识符上限预算租户命名空间和 selector 长度；当前内置规则保留 18 位哈希（72 位熵），为最长 selector 留出空间，并在远程合成规则上真实执行验证。
 - 检查：至少覆盖最长已注册 selector 的 Doris `dbt test --store-failures`，同时确认失败表清理逻辑使用相同命名空间，不能只做 Python 单元测试。
+
+## 2026-08-11 DolphinScheduler API 端口不能当作根路径门户
+
+- 触发：演示入口误写成 `http://<开发机>:18083/`，浏览器看到 404；实际 DolphinScheduler API 根路径没有首页，UI 挂在 `/dolphinscheduler/ui/`。
+- 规则：部署记录和演示入口必须区分 API、健康检查和 UI：API 使用 `/dolphinscheduler/actuator/health`，浏览器使用 `/dolphinscheduler/ui/`；不要为了掩盖上游 API 的预期 404 引入额外代理服务。
+- 检查：交付前执行根路径、上下文根路径和 UI 三路 smoke，断言 `/` 为预期 404、`/dolphinscheduler/` 为 302、`/dolphinscheduler/ui/` 为 200，并在文档中给出可点击的 UI 地址。

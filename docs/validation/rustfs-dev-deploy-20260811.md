@@ -41,7 +41,8 @@
 - RustFS S3：`http://172.16.65.59:19000`
 - RustFS Console：`http://172.16.65.59:19001/rustfs/console/`
 - SeaTunnel：`http://172.16.65.59:18082/`
-- DolphinScheduler API：`http://172.16.65.59:18083/`
+- DolphinScheduler UI：`http://172.16.65.59:18083/dolphinscheduler/ui/`
+- DolphinScheduler API 健康检查：`http://172.16.65.59:18083/dolphinscheduler/actuator/health`
 
 RustFS 镜像、命令和健康端点遵循[官方 Docker 部署说明](https://docs.rustfs.com/en/installation/container/docker)；开发环境仍是单节点、HTTP、无 TLS，不得直接作为生产部署配置。生产环境应使用院方离线制品/镜像仓库、独立密钥、TLS 终止、命名租户和真实通知端点。
 

@@ -576,3 +576,5 @@ Gate 0 尚未覆盖 OIDC 多租户授权列表、CIDR allowlist/DNS rebinding �
 开发服务器已完成 RustFS 单节点部署，S3 API `19000`、Console `19001` 和 `dataos-quality-artifacts` 桶均可用。质量运行器以复用依赖层的 `0.1.0-four-gates-72bfc20-r2` 镜像运行，合成规则复检 `demo-rustfs-1786429411` 最终 `SUCCEEDED/passed=true`，摘要对象成功写入 RustFS。首条复检暴露 Doris 目标表名超过 64 字符，已将租户哈希命名空间从 24 位收敛到 18 位后重建并复验。
 
 验收记录见 `docs/validation/rustfs-dev-deploy-20260811.md`。部署仅用于开发演示：不含真实临床端点、不开生产 TLS、不关闭开发 DEMO 种子；生产必须使用院方离线制品、独立密钥和命名租户配置。
+
+补充路由验收：DolphinScheduler `18083/` 根路径返回上游预期的 404，`/dolphinscheduler/` 返回 302，浏览器 UI `/dolphinscheduler/ui/` 和健康接口均返回 200；演示入口已改为 UI 路径。
