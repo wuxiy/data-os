@@ -111,7 +111,7 @@ docker compose -f docker-compose.yml up -d rustfs control-plane quality-runner n
 
 RustFS 官方单节点镜像使用 `/data` 持久化目录；Compose 会等待其健康检查，并由
 `rustfs-init` 幂等创建 `dataos-quality-artifacts` 桶。开发机可通过
-`http://<开发机>:19000/health` 检查 S3 服务，通过 `http://<开发机>:19001/` 打开
+`http://<开发机>:19000/health` 检查 S3 服务，通过 `http://<开发机>:19001/rustfs/console/` 打开
 管理 Console。演示环境使用唯一的 `.env` 凭据，不能把默认 `rustfsadmin` 暴露到网络。
 
 质量 Runtime 首次启动会创建 `data_os.quality_rule_registry` 和

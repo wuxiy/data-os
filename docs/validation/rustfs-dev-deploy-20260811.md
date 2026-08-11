@@ -25,7 +25,7 @@
 | 检查项 | 结果 |
 | --- | --- |
 | RustFS 容器 | `healthy`，`/health` 返回 `{"status":"ok","ready":true}` |
-| RustFS Console | `19001` 可达；HEAD 请求返回 501 是 RustFS Console 不支持 HEAD，浏览器 GET 正常 |
+| RustFS Console | `http://172.16.65.59:19001/rustfs/console/` HTTP 200；当前 beta 镜像根路径是 S3 路由，直接访问 `/` 返回 `AccessDenied` 属于预期行为 |
 | `rustfs-init` | `Exited (0)`，日志为 `RustFS bucket ready: dataos-quality-artifacts` |
 | S3 桶访问 | 质量运行器容器内 `list_buckets` 返回 `dataos-quality-artifacts` |
 | 质量运行器 | `healthy`，`/readyz` 返回 `{"status":"UP"}` |
@@ -39,7 +39,7 @@
 
 - 门户：`http://172.16.65.59:18081/`
 - RustFS S3：`http://172.16.65.59:19000`
-- RustFS Console：`http://172.16.65.59:19001/`
+- RustFS Console：`http://172.16.65.59:19001/rustfs/console/`
 - SeaTunnel：`http://172.16.65.59:18082/`
 - DolphinScheduler API：`http://172.16.65.59:18083/`
 
