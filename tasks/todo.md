@@ -560,3 +560,19 @@ Gate 0 尚未覆盖 OIDC 多租户授权列表、CIDR allowlist/DNS rebinding �
 ### 交付边界
 
 本轮实现了可交付的运行时合同和闭环，但没有虚构真实临床接入：真实 LIS/EMR/手术主机、只读账号、Doris ODS/UNIQUE KEY 表、院方 OIDC、RustFS 和通知网关仍是上线前置条件。开发回放源不可部署到生产，也不替代院方联调。
+
+## 2026-08-11 RustFS 开发演示部署
+
+### 执行计划
+
+- [x] 盘点开发服务器现有容器、网络、卷和磁盘空间，创建可恢复的部署前快照
+- [x] 构建/导入 RustFS 固定 digest 镜像，补齐 SSE-S3 主密钥、持久化卷和健康检查
+- [x] 部署 `rustfs-init` 幂等创建质量制品桶，切换质量运行器和控制面版本，复用既有 SeaTunnel/DolphinScheduler
+- [x] 通过真实合成质量复检验证 dbt 执行、状态回写和 RustFS S3 制品落桶；修复 Doris 64 字符表名边界
+- [x] 验证门户、控制面、质量运行器、RustFS、SeaTunnel 与 DolphinScheduler 健康状态并记录演示入口
+
+### 结果复盘
+
+开发服务器已完成 RustFS 单节点部署，S3 API `19000`、Console `19001` 和 `dataos-quality-artifacts` 桶均可用。质量运行器以复用依赖层的 `0.1.0-four-gates-72bfc20-r2` 镜像运行，合成规则复检 `demo-rustfs-1786429411` 最终 `SUCCEEDED/passed=true`，摘要对象成功写入 RustFS。首条复检暴露 Doris 目标表名超过 64 字符，已将租户哈希命名空间从 24 位收敛到 18 位后重建并复验。
+
+验收记录见 `docs/validation/rustfs-dev-deploy-20260811.md`。部署仅用于开发演示：不含真实临床端点、不开生产 TLS、不关闭开发 DEMO 种子；生产必须使用院方离线制品、独立密钥和命名租户配置。

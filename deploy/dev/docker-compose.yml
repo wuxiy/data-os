@@ -73,6 +73,81 @@ services:
       - scheduler-token-secrets:/run/secrets:ro
     restart: unless-stopped
 
+  rustfs:
+    # Development S3-compatible object storage for quality artifacts. Override
+    # DATAOS_RUSTFS_IMAGE with an immutable digest in controlled environments.
+    image: ${DATAOS_RUSTFS_IMAGE:-rustfs/rustfs:latest}
+    command: ["/data"]
+    environment:
+      RUSTFS_ACCESS_KEY: ${DATAOS_RUSTFS_ACCESS_KEY:?请在远程 .env 中提供 DATAOS_RUSTFS_ACCESS_KEY}
+      RUSTFS_SECRET_KEY: ${DATAOS_RUSTFS_SECRET_KEY:?请在远程 .env 中提供 DATAOS_RUSTFS_SECRET_KEY}
+      RUSTFS_ADDRESS: ":9000"
+      RUSTFS_CONSOLE_ADDRESS: ":9001"
+      RUSTFS_CONSOLE_ENABLE: "true"
+      RUSTFS_OBS_LOGGER_LEVEL: ${DATAOS_RUSTFS_LOG_LEVEL:-error}
+      RUSTFS_SSE_S3_MASTER_KEY: ${DATAOS_RUSTFS_SSE_S3_MASTER_KEY:?请在远程 .env 中提供 DATAOS_RUSTFS_SSE_S3_MASTER_KEY（Base64 编码的 32 字节密钥）}
+    ports:
+      - "${DATAOS_RUSTFS_PORT:-19000}:9000"
+      - "${DATAOS_RUSTFS_CONSOLE_PORT:-19001}:9001"
+    volumes:
+      - rustfs-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:9000/health >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      start_period: 20s
+      retries: 12
+    networks:
+      - platform-net
+    restart: unless-stopped
+
+  rustfs-init:
+    # Reuse the quality-runner Python image for a one-shot, idempotent bucket
+    # bootstrap. No MinIO client or additional runtime is introduced.
+    image: ${DATAOS_QUALITY_RUNNER_IMAGE:-medical-platform/data-os-quality-runner:0.1.0-dev}
+    environment:
+      DATAOS_RUSTFS_ENDPOINT: http://rustfs:9000
+      DATAOS_RUSTFS_BUCKET: ${DATAOS_RUSTFS_BUCKET:-dataos-quality-artifacts}
+      DATAOS_RUSTFS_ACCESS_KEY: ${DATAOS_RUSTFS_ACCESS_KEY:?请在远程 .env 中提供 DATAOS_RUSTFS_ACCESS_KEY}
+      DATAOS_RUSTFS_SECRET_KEY: ${DATAOS_RUSTFS_SECRET_KEY:?请在远程 .env 中提供 DATAOS_RUSTFS_SECRET_KEY}
+    entrypoint: ["python", "-c"]
+    command:
+      - |
+        import os
+        import time
+        import boto3
+
+        endpoint = os.environ["DATAOS_RUSTFS_ENDPOINT"]
+        bucket = os.environ["DATAOS_RUSTFS_BUCKET"]
+        client = boto3.client(
+            "s3",
+            endpoint_url=endpoint,
+            region_name="us-east-1",
+            aws_access_key_id=os.environ["DATAOS_RUSTFS_ACCESS_KEY"],
+            aws_secret_access_key=os.environ["DATAOS_RUSTFS_SECRET_KEY"],
+        )
+        last = None
+        for _ in range(30):
+            try:
+                client.list_buckets()
+                break
+            except Exception as exc:
+                last = exc
+                time.sleep(2)
+        else:
+            raise last
+        try:
+            client.head_bucket(Bucket=bucket)
+        except Exception:
+            client.create_bucket(Bucket=bucket)
+        print("RustFS bucket ready:", bucket)
+    depends_on:
+      rustfs:
+        condition: service_healthy
+    networks:
+      - platform-net
+    restart: "no"
+
   quality-runner:
     build:
       context: ../..
@@ -105,16 +180,19 @@ services:
       DORIS_DBT_PASSWORD: ${DORIS_DBT_PASSWORD:-}
       DORIS_CLEANUP_USER: ${DORIS_CLEANUP_USER:-}
       DORIS_CLEANUP_PASSWORD: ${DORIS_CLEANUP_PASSWORD:-}
-      QUALITY_RUNNER_S3_ENDPOINT: ${QUALITY_RUNNER_S3_ENDPOINT:-}
-      QUALITY_RUNNER_S3_BUCKET: ${QUALITY_RUNNER_S3_BUCKET:-dataos-quality-artifacts}
-      QUALITY_RUNNER_S3_ACCESS_KEY: ${QUALITY_RUNNER_S3_ACCESS_KEY:-}
-      QUALITY_RUNNER_S3_SECRET_KEY: ${QUALITY_RUNNER_S3_SECRET_KEY:-}
+      QUALITY_RUNNER_S3_ENDPOINT: ${QUALITY_RUNNER_S3_ENDPOINT:-http://rustfs:9000}
+      QUALITY_RUNNER_S3_BUCKET: ${QUALITY_RUNNER_S3_BUCKET:-${DATAOS_RUSTFS_BUCKET:-dataos-quality-artifacts}}
+      QUALITY_RUNNER_S3_ACCESS_KEY: ${DATAOS_RUSTFS_ACCESS_KEY:-}
+      QUALITY_RUNNER_S3_SECRET_KEY: ${DATAOS_RUSTFS_SECRET_KEY:-}
     expose:
       - "8080"
     volumes:
       - quality-runner-artifacts:/var/lib/dataos-quality/artifacts
     networks:
       - platform-net
+    depends_on:
+      rustfs-init:
+        condition: service_completed_successfully
     restart: unless-stopped
 
   notification-receiver:
@@ -135,8 +213,8 @@ services:
     ports:
       - "${DATAOS_PORTAL_PORT:-18081}:80"
     volumes:
-      - ./portal-dist:/usr/share/nginx/html:ro
-      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./portal-dist:/usr/share/nginx/html:ro,Z
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro,Z
     networks:
       - platform-net
     depends_on:
@@ -219,3 +297,5 @@ volumes:
     name: data-os-dev-quality-runner-artifacts
   scheduler-token-secrets:
     name: data-os-dev-scheduler-token-secrets
+  rustfs-data:
+    name: data-os-dev-rustfs-data

@@ -141,3 +141,15 @@
 - 触发：发布级审查发现生产质量问题只有演示初始化来源，采集水位停留在文档，私网 allowlist 与开发凭据回退边界混淆，且质量运行器的失败证据清理与租约恢复没有完整门禁。
 - 规则：生产质量事实必须通过受保护的 finding ingress，以来源系统、finding key 和执行批次幂等落库；采集水位必须写入运行记录，仅在 sink 成功后推进；`allowPrivateNetworks` 不等于 local mode，院内私网端点仍必须使用 credentialRef；中间态必须可恢复，UNKNOWN 只允许人工同步；没有真实端点不得宣称临床已接入。
 - 检查：每轮交付至少运行 Java 全量测试、quality-runner pytest（包含 pytest-asyncio）、回放源真实 HTTP smoke、生产/开发 Compose config 和 `git diff --check`，并在复盘中列出真实院端点、账号、目标表和样本的未完成交接项。
+
+## 2026-08-11 RustFS 开发部署必须验证 SSE-S3 写入与 SELinux 挂载
+
+- 触发：RustFS 健康检查和桶初始化均成功，但质量运行器首次写入摘要时被 RustFS 拒绝，原因是 SSE-S3 未配置 32 字节 Base64 主密钥；同时新门户静态目录在启用 SELinux 的开发服务器上因 bind mount 标签不匹配返回 403。
+- 规则：对象存储验收不能只检查 `/health` 和 `list_buckets`，必须实际 `PutObject`/读取一条脱敏制品；Compose 必须显式注入 SSE-S3 主密钥且只保存在 `0600` 的远程 Secret 文件。Linux/SELinux 开发机的只读静态 bind mount 使用 `:Z` 并在容器内检查入口文件。
+- 检查：部署后运行一条真实合成质量规则，确认 `SUCCEEDED`、`artifactUri=s3://...` 和桶内对象存在；执行门户 `/`、`/healthz`、JS bundle 的 HTTP 200 检查，并记录回滚快照和无密钥验收证据。
+
+## 2026-08-11 Doris 失败表名称必须纳入租户命名空间长度预算
+
+- 触发：质量运行器将租户哈希与 dbt selector 拼接为失败表名时超过 Doris 64 字符限制，任务虽能启动却无法落表/回写制品。
+- 规则：设计 dbt 失败表命名时先按目标库标识符上限预算租户命名空间和 selector 长度；当前内置规则保留 18 位哈希（72 位熵），为最长 selector 留出空间，并在远程合成规则上真实执行验证。
+- 检查：至少覆盖最长已注册 selector 的 Doris `dbt test --store-failures`，同时确认失败表清理逻辑使用相同命名空间，不能只做 Python 单元测试。

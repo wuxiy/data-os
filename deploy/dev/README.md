@@ -8,6 +8,8 @@
 | --- | --- | --- |
 | `control-plane` | Java 21 / Spring Boot API，初始化 PostgreSQL schema | 仅平台网络 `8080` |
 | `portal` | React/Vite 静态门户与 API 反向代理 | `18081` |
+| `rustfs` | RustFS 单节点 S3 兼容对象存储，保存质量汇总制品 | `19000`（S3）、`19001`（Console） |
+| `rustfs-init` | 幂等创建质量制品桶的一次性初始化任务 | 无 |
 | `seatunnel-master` | SeaTunnel 单节点开发执行器，可选 profile | `18082`、`15801` |
 | `dolphinscheduler-*` | DolphinScheduler 单院紧凑编排器（API/Master/Worker/Alert/JDBC Registry），可选 profile | API `18083` |
 
@@ -77,6 +79,18 @@ DATAOS_NOTIFICATION_ALLOW_PRIVATE_NETWORKS=true
 DATAOS_NOTIFICATION_ALLOWED_HOSTS=notification-receiver
 DATAOS_NOTIFICATION_MAX_ATTEMPTS=5
 DATAOS_NOTIFICATION_LEASE_MS=120000
+# RustFS/S3：质量运行器只写脱敏汇总 JSON，不写原始 SQL 或 PHI。
+DATAOS_RUSTFS_IMAGE=rustfs/rustfs:latest
+DATAOS_RUSTFS_ACCESS_KEY=仅保存于开发机 .env
+DATAOS_RUSTFS_SECRET_KEY=仅保存于开发机 .env
+DATAOS_RUSTFS_SSE_S3_MASTER_KEY=仅保存于开发机 .env（Base64 编码的 32 字节值）
+DATAOS_RUSTFS_BUCKET=dataos-quality-artifacts
+DATAOS_RUSTFS_PORT=19000
+DATAOS_RUSTFS_CONSOLE_PORT=19001
+# 质量运行器从 Compose 内部访问 RustFS；不需要把该地址暴露给门户。
+QUALITY_RUNNER_S3_ENDPOINT=http://rustfs:9000
+QUALITY_RUNNER_S3_BUCKET=dataos-quality-artifacts
+# Compose 会把 DATAOS_RUSTFS_ACCESS_KEY/SECRET_KEY 注入质量运行器，不需重复填写。
 ```
 
 开发门户静态包若要展示受控原型页，构建时显式设置 `VITE_DATAOS_DEMO_MODE=true`；未设置时为真实模式，标准、MPI、资产、分析和问数页面不会渲染静态样例。控制面运行状态可通过以下接口检查：
@@ -89,11 +103,16 @@ GET /api/v1/system/status
 
 当前 Compose 的 `DATAOS_AUTH_MODE=DISABLED` 仅用于隔离开发门户免登录联调；生产必须改为 `ENFORCED`，并提供 OIDC issuer、audience 以及 Token 中的 `tenant_id`、`institution_id` 和角色声明。Flyway 在现有开发库上通过 `DATAOS_FLYWAY_BASELINE_ON_MIGRATE=true` 接管历史 `schema.sql` 表；生产新库保持默认 `false`，只执行版本化迁移。
 
-先启动门户和控制面：
+先启动门户、控制面和 RustFS：
 
 ```bash
-docker compose -f docker-compose.yml up -d control-plane quality-runner notification-receiver portal
+docker compose -f docker-compose.yml up -d rustfs control-plane quality-runner notification-receiver portal
 ```
+
+RustFS 官方单节点镜像使用 `/data` 持久化目录；Compose 会等待其健康检查，并由
+`rustfs-init` 幂等创建 `dataos-quality-artifacts` 桶。开发机可通过
+`http://<开发机>:19000/health` 检查 S3 服务，通过 `http://<开发机>:19001/` 打开
+管理 Console。演示环境使用唯一的 `.env` 凭据，不能把默认 `rustfsadmin` 暴露到网络。
 
 质量 Runtime 首次启动会创建 `data_os.quality_rule_registry` 和
 `data_os.quality_runner_runs`。确认开发机可访问复用的 Doris 后，执行一次合成验收数据初始化：

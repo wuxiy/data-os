@@ -24,7 +24,11 @@ _SECRET = re.compile(r"(?i)(password|secret|token|authorization)=?[^\s,;]+")
 
 def tenant_namespace(tenant_id: str, institution_id: str) -> str:
     canonical = f"{tenant_id.strip()}|{institution_id.strip()}".encode("utf-8")
-    return "t_" + hashlib.sha256(canonical).hexdigest()[:24]
+    # Doris limits table names to 64 characters. Registered dbt failure
+    # tables use ``<namespace>__<selector>``; keeping 18 hash characters
+    # leaves room for the longest bundled selector while retaining an
+    # 72-bit tenant/institution namespace.
+    return "t_" + hashlib.sha256(canonical).hexdigest()[:18]
 
 
 def _safe_message(value: str) -> str:
