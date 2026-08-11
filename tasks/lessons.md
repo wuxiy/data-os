@@ -135,3 +135,9 @@
 - 触发：控制面调用质量 Runtime 时，JDK `HttpClient` 默认尝试 h2c 升级；Uvicorn/h11 明文端口记录 `Invalid HTTP request`，控制面把请求误判为 HTTP 400/422，质量复检进入 `SUBMIT_FAILED`。
 - 规则：凡是通过 `http://` 调用 Uvicorn/轻量 Python 服务，JDK 客户端必须显式设置 `HttpClient.Version.HTTP_1_1`；不能只依赖默认协商，也不能把一次直连 `curl` 成功当成 Java 客户端成功。
 - 检查：部署后同时查看 Runtime access log 的 `POST /api/v1/quality/runs`、控制面执行批次的 `externalId/status` 和 h2c 警告；最终要验证 `HTTP → dbt → 回写 → 自动关闭`，再记录通知回执和审计表清理。
+
+## 2026-08-11 四项可交付路线必须形成真实闭环
+
+- 触发：发布级审查发现生产质量问题只有演示初始化来源，采集水位停留在文档，私网 allowlist 与开发凭据回退边界混淆，且质量运行器的失败证据清理与租约恢复没有完整门禁。
+- 规则：生产质量事实必须通过受保护的 finding ingress，以来源系统、finding key 和执行批次幂等落库；采集水位必须写入运行记录，仅在 sink 成功后推进；`allowPrivateNetworks` 不等于 local mode，院内私网端点仍必须使用 credentialRef；中间态必须可恢复，UNKNOWN 只允许人工同步；没有真实端点不得宣称临床已接入。
+- 检查：每轮交付至少运行 Java 全量测试、quality-runner pytest（包含 pytest-asyncio）、回放源真实 HTTP smoke、生产/开发 Compose config 和 `git diff --check`，并在复盘中列出真实院端点、账号、目标表和样本的未完成交接项。

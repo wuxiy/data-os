@@ -32,12 +32,53 @@ Content-Type: application/json
 Runtime 使用 Postgres `FOR UPDATE SKIP LOCKED` 抢占队列：全局并发默认 2、单租户默认 1，
 单次 dbt 最长 15 分钟；进程重启后超过心跳阈值的 RUNNING 任务回到 QUEUED。
 
+## 质量问题来源与治理闭环
+
+生产不依赖 `DemoDataInitializer` 产生治理问题。经过审批的 DolphinScheduler/dbt 或院方质量
+适配器在终态后调用控制面：
+
+```http
+POST /api/v1/governance/quality-findings
+Authorization: Bearer <quality workflow token>
+Content-Type: application/json
+
+{
+  "findingKey": "lis:result-timeliness",
+  "sourceSystem": "dbt-quality",
+  "tenantId": "hospital_a",
+  "institutionId": "hospital_a_main",
+  "title": "检验结果及时率下降",
+  "severity": "HIGH",
+  "datasetId": "asset-lis-lab-result",
+  "ruleId": "rule-timeliness-result-time",
+  "ownerDepartment": "检验科",
+  "ownerId": "lab-data-admin",
+  "ownerName": "检验科数据管理员",
+  "ticketId": "TICKET-QUALITY-001",
+  "impact": "检验主题 / 38 张表",
+  "objectLabel": "检验结果",
+  "executionBatchId": "quality-batch-001",
+  "passed": false,
+  "sampleEvidence": [{"record_id": "hmac-sha256:...", "status": "INVALID"}],
+  "message": "发现不符合规则的记录"
+}
+```
+
+`findingKey` 在 tenant/institution 内稳定，`executionBatchId` 标识一次执行；重复批次幂等，
+失败结果创建或重新打开治理问题，成功结果关闭同一来源问题，并写入质量执行批次、事件和
+责任人通知。`sampleEvidence` 必须已经由 Runtime 按规则列白名单脱敏，禁止上传患者姓名、
+身份证号、原始 SQL、连接信息或凭据。生产调用需要 OIDC 的 `data-governance`/质量工作流
+最小角色，不能通过任意 SQL 直接写治理表。
+
 ## Doris 与证据
 
 业务库不由 Runtime 访问。Doris 质量查询账号只读验收/质量库；失败时仅执行固定的
-`not_null`、`unique`、`accepted_values` 证据查询，最多 20 行，字段名命中患者/身份等
-敏感模式时返回 SHA-256 前缀。dbt `--store-failures` 产物在证据读取后由单独清理账号
-按精确注册 selector 删除，禁止通配表删除。汇总 JSON 不包含 SQL、连接串或原始 PHI。
+`not_null`、`unique`、`accepted_values` 证据查询，最多 20 行；每条规则必须声明列级
+allowlist 和 `IDENTIFIER/CATEGORY/SAFE/REDACTED` 分类。标识列使用由运行器主密钥按
+tenant/institution 派生的专用 HMAC，
+未登记列默认 `[REDACTED]`，不依赖字段名猜测 PHI。dbt `--store-failures` 产物在证据读取后
+由单独清理账号按 tenant namespace + 注册 selector 删除，禁止通配表删除；超时、取消和 Runtime 重启也会
+在 finally/启动清理残留。汇总 JSON 不包含 SQL、连接串或原始 PHI，RustFS/S3 制品默认保留 30 天。
 部署时用 `DORIS_AUDIT_DATABASE` 指定隔离审计库；`DORIS_DBT_USER` 只允许读取业务库并
 写入该审计库，`DORIS_CLEANUP_USER` 只允许删除已登记的失败表，不能把三类账号合并。
 
@@ -54,3 +95,5 @@ client secret，不向前端暴露。`DISABLED` 仅可用于开发接收器，�
 样本/真实表映射和测试。镜像构建时固定 `dbt-core` 与 `dbt-doris` 版本；运行时不联网拉取
 Git 项目或包。首版 `rule-timeliness-result-time` 等兼容绑定只指向合成
 `dataos_quality_acceptance.quality_sample`，真实 LIS/EMR/手术表接入前必须完成规则映射评审。
+完成真实表映射后，应由调度工作流在质量检查终态调用上述 finding 接口；没有这一步，质量
+执行结果不会自动出现在治理驾驶舱。

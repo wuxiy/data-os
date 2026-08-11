@@ -46,7 +46,7 @@ class WebhookNotificationChannelTest {
             assertThat(signatureRef).hasValueSatisfying(value -> assertThat(value).startsWith("v1="));
             var canonical = timestampRef.get() + "." + nonceRef.get() + "." + bodyRef.get();
             var mac = Mac.getInstance("HmacSHA256");
-            mac.init(new SecretKeySpec("test-webhook-secret".getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+            mac.init(new SecretKeySpec("test-webhook-secret-0123456789012345".getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
             var expected = Base64.getUrlEncoder().withoutPadding().encodeToString(
                     mac.doFinal(canonical.getBytes(StandardCharsets.UTF_8)));
             assertThat(signatureRef.get()).isEqualTo("v1=" + expected);

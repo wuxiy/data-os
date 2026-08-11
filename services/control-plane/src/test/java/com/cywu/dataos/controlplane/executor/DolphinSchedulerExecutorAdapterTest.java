@@ -54,7 +54,7 @@ class DolphinSchedulerExecutorAdapterTest {
             var submission = adapter.submit(job, Map.of("dolphinscheduler", Map.of(
                     "projectCode", 7,
                     "workflowDefinitionCode", 9,
-                    "startParams", Map.of("data_domain", "检验"))), "run-1");
+                    "startParams", Map.of("data_domain", "检验", "dataos_run_id", "stale-run"))), "run-1");
 
             assertThat(submission.externalId()).isEqualTo("ds|7|9|123");
             assertThat(requestToken).hasValue("runtime-token");
@@ -63,6 +63,7 @@ class DolphinSchedulerExecutorAdapterTest {
                 assertThat(path).contains("failureStrategy=CONTINUE");
                 assertThat(path).contains("startParams=");
                 assertThat(path).contains("dataos_run_id");
+                assertThat(path).contains("run-1").doesNotContain("stale-run");
             });
         } finally {
             server.stop(0);

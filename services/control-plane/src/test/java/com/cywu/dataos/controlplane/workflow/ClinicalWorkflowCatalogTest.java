@@ -17,7 +17,8 @@ class ClinicalWorkflowCatalogTest {
     void exposesTheThreeClinicalContracts() {
         var keys = catalog.list().stream().map(ClinicalWorkflowTemplate::key).toList();
         org.assertj.core.api.Assertions.assertThat(keys)
-                .containsExactlyInAnyOrder("LIS_JDBC_TO_DORIS", "EMR_JDBC_TO_DORIS", "SURGERY_JDBC_TO_DORIS");
+                .containsExactlyInAnyOrder("LIS_JDBC_TO_DORIS", "LIS_HTTP_TO_DORIS",
+                        "EMR_JDBC_TO_DORIS", "SURGERY_JDBC_TO_DORIS");
     }
 
     @Test
@@ -63,5 +64,20 @@ class ClinicalWorkflowCatalogTest {
                                 "url", "jdbc:<replace-with-host>", "driver", "org.postgresql.Driver", "query", "select 1")),
                         "sink", List.of(Map.of("plugin_name", "Doris", "credentialRef", "target-1",
                                 "fenodes", "doris-fe.example:8030", "database", "ods_lis", "table", "lab_result")))));
+    }
+
+    @Test
+    void acceptsTheConfiguredLisHttpContract() {
+        var valid = Map.<String, Object>of(
+                "env", Map.of("job.mode", "BATCH"),
+                "source", List.of(Map.of("plugin_name", "Http", "credentialRef", "source-1",
+                        "url", "https://lis.example/api/results", "method", "GET", "format", "JSON")),
+                "sink", List.of(Map.of("plugin_name", "Doris", "credentialRef", "target-1",
+                        "fenodes", "doris-fe.example:8030", "database", "ods_lis", "table", "lab_result",
+                        "sink.label-prefix", "dataos_lis_http_to_doris", "sink.enable-2pc", false,
+                        "schema_save_mode", "CREATE_SCHEMA_WHEN_NOT_EXIST", "data_save_mode", "APPEND_DATA",
+                        "doris.config", Map.of("format", "json", "read_json_by_line", "true"))));
+
+        assertDoesNotThrow(() -> catalog.validateConfig(ClinicalWorkflowCatalog.LIS_HTTP_TO_DORIS, 1, valid));
     }
 }

@@ -9,12 +9,17 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.ResponseStatus;
 
 import jakarta.validation.Valid;
 import com.cywu.dataos.controlplane.quality.GovernanceNotificationDeliveryResult;
 import com.cywu.dataos.controlplane.quality.GovernanceSlaScanResult;
 import com.cywu.dataos.controlplane.quality.NotificationService;
 import com.cywu.dataos.controlplane.quality.QualityWorkflowService;
+import com.cywu.dataos.controlplane.quality.QualityFindingRequest;
+import com.cywu.dataos.controlplane.quality.QualityFindingResult;
+import com.cywu.dataos.controlplane.quality.QualityFindingService;
 import com.cywu.dataos.controlplane.security.TenantScope;
 
 @RestController
@@ -24,13 +29,16 @@ public class GovernanceController {
     private final GovernanceService service;
     private final QualityWorkflowService qualityWorkflow;
     private final NotificationService notifications;
+    private final QualityFindingService qualityFindings;
     private final TenantScope tenantScope;
 
     public GovernanceController(GovernanceService service, QualityWorkflowService qualityWorkflow,
-                                NotificationService notifications, TenantScope tenantScope) {
+                                NotificationService notifications, QualityFindingService qualityFindings,
+                                TenantScope tenantScope) {
         this.service = service;
         this.qualityWorkflow = qualityWorkflow;
         this.notifications = notifications;
+        this.qualityFindings = qualityFindings;
         this.tenantScope = tenantScope;
     }
 
@@ -56,6 +64,17 @@ public class GovernanceController {
             @RequestParam(required = false) String tenantId,
             @RequestParam(required = false) String institutionId) {
         return service.detail(issueId, tenantId, institutionId);
+    }
+
+    /**
+     * Receives a terminal result from a registered quality workflow. The
+     * workflow owns execution; the control plane owns issue lifecycle,
+     * evidence linkage and responsibility notifications.
+     */
+    @PostMapping("/quality-findings")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public QualityFindingResult ingestQualityFinding(@Valid @RequestBody QualityFindingRequest request) {
+        return qualityFindings.ingest(request);
     }
 
     @PutMapping("/issues/{issueId}/workflow")

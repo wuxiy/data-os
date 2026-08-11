@@ -66,10 +66,12 @@ class SeaTunnelExecutorAdapterTest {
     @Test
     void submitsNormalizedModeAndEndpointWithoutDoubleSlash() throws IOException {
         var requestBody = new AtomicReference<String>();
+        var runHeader = new AtomicReference<String>();
         var requests = new AtomicInteger();
         var server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/submit-job", exchange -> {
             requests.incrementAndGet();
+            runHeader.set(exchange.getRequestHeaders().getFirst("X-Data-OS-Run-Id"));
             requestBody.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
             var response = "{\"jobId\":\"seatunnel-123\"}".getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().set("Content-Type", "application/json");
@@ -86,7 +88,7 @@ class SeaTunnelExecutorAdapterTest {
                     "ACTIVE", null, null, null, null, null, false);
 
             var submission = adapter.submit(job, Map.of("source", Map.of("plugin_name", "FakeSource"),
-                    "env", Map.of("job.mode", "CDC")));
+                    "env", Map.of("job.mode", "CDC")), "run-stable-1");
 
             assertThat(submission.externalId()).isEqualTo("seatunnel-123");
             assertThat(requests).hasValue(1);
@@ -94,6 +96,7 @@ class SeaTunnelExecutorAdapterTest {
                 assertThat(body).contains("\"job.mode\":\"STREAMING\"");
                 assertThat(body).contains("\"job.name\":\"门诊 CDC\"");
             });
+            assertThat(runHeader).hasValue("run-stable-1");
         } finally {
             server.stop(0);
         }

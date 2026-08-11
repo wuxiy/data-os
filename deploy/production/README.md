@@ -76,8 +76,9 @@ DATAOS_ACTIVATE_CONFIRM=YES \
 ```
 
 overlay 会把执行器接入 `platform-net`，持久化日志、checkpoint 和 work 目录，
-并以非 root、只读根文件系统运行。它是批处理单节点基线；目标表可用 UNIQUE KEY
-和批次策略实现幂等，但控制面当前尚未持久化或注入水位，也不提供自动故障转移、
+并以非 root、只读根文件系统运行。它是批处理单节点基线；控制面会为每个作业持久化成功水位，
+在提交前注入 `${last_success_time}` 并写入稳定 `dataos_run_id`；目标表用 UNIQUE KEY
+和批次策略实现幂等，但不提供自动故障转移、
 CDC 或区域高可用。
 
 激活脚本默认要求正式包签名。`DATAOS_ALLOW_UNSIGNED=true` 只允许在环境文件明确
@@ -117,7 +118,7 @@ docker compose --env-file .env ps
 
 `control-plane` 健康检查通过后，Flyway 会在 `data_os` schema 上执行版本化迁移；应用不会再执行旧的 `schema.sql` 初始化。若使用外部 PostgreSQL，请把 `.env` 中的 `DATAOS_DB_URL` 改成外部地址，并删除/停用 `postgres` 服务，避免误用本地卷。
 
-浏览器入口默认为 `http://<host>:8080/`（容器内 nginx 非 root 监听 `8080`），健康检查为 `GET /healthz`。PostgreSQL 不映射宿主机端口；需要临时管理时使用经过审批的 Compose override 或容器内 `psql`。Prometheus 仅绑定到宿主机回环地址 `127.0.0.1:19090`，通过 SSH 隧道或甲方监控网络访问；不要把它直接暴露到公网。
+浏览器入口由甲方 HTTPS 入口转发到 `http://<host>:8080/`（容器内 nginx 非 root 监听 `8080`），健康检查为 `GET /healthz`。生产启动前必须将 `DATAOS_EXTERNAL_HTTPS_TERMINATED=true`，否则控制面会拒绝启动；该变量只表示受控 LB/Ingress 已完成 TLS 终止，不会把明文端口伪装成 HTTPS。PostgreSQL 不映射宿主机端口；需要临时管理时使用经过审批的 Compose override 或容器内 `psql`。Prometheus 仅绑定到宿主机回环地址 `127.0.0.1:19090`，通过 SSH 隧道或甲方监控网络访问；不要把它直接暴露到公网。
 
 首次打开门户时会跳转到 OIDC 登录页；IdP 必须允许门户的完整 HTTPS redirect URI，且客户端启用 PKCE 公共客户端模式。门户只把 access token 放在当前浏览器 session storage，退出登录或关闭浏览器后清理；API 仍会在控制面校验 issuer、audience、过期时间和租户声明。若甲方统一入口已提供 SSO 反向代理，仍需让代理透传 `Authorization`，不能将匿名请求直接转发到控制面。
 
@@ -195,7 +196,7 @@ API 诊断端口只绑定 `127.0.0.1`，不通过门户或公网暴露。首次�
 - `DATAOS_RUNTIME_ENV=production`、`DATAOS_SEED_DEMO=false`。
 - `DATAOS_AUTH_MODE=ENFORCED`，OIDC issuer 必须是可信 HTTPS 地址；生产不启用本地匿名模式。
 - `DATAOS_CREDENTIAL_ENCRYPTION_KEY` 必须是 32 字节 Base64 密钥，并由独立的秘密管理流程分发。
-- `DATAOS_SOURCE_ALLOW_HTTP=false`、`DATAOS_SOURCE_ALLOW_PRIVATE_NETWORKS=false`、`DATAOS_SOURCE_ALLOW_TEST_PROTOCOLS=false`；仅在完成网络评审后增加 `DATAOS_SOURCE_ALLOWED_HOSTS`。
+- `DATAOS_SOURCE_ALLOW_HTTP=false`、`DATAOS_SOURCE_ALLOW_TEST_PROTOCOLS=false`，并配置 `DATAOS_SOURCE_ALLOWED_HOSTS`。院内 LIS/EMR/手术系统位于受控内网时，可在完成网络评审后将 `DATAOS_SOURCE_ALLOW_PRIVATE_NETWORKS=true`；每个主机、IP 或 CIDR 仍必须显式出现在白名单中，环回、链路本地和云元数据地址始终拒绝。
 - `DATAOS_QUALITY_EXECUTOR=HTTP`、`DATAOS_QUALITY_DEMO_ENABLED=false`，并将
   `DATAOS_QUALITY_EXECUTOR_BASE_URL` 指向本 Compose 的 `http://quality-runner:8080`；
   质量运行时使用独立容器执行登记的 dbt test，结果、执行批次和最多 20 条脱敏证据回写

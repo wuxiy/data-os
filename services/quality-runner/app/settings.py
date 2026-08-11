@@ -55,8 +55,12 @@ class Settings:
     artifact_s3_access_key: str = field(default_factory=lambda: _env("QUALITY_RUNNER_S3_ACCESS_KEY"))
     artifact_s3_secret_key: str = field(default_factory=lambda: os.getenv("QUALITY_RUNNER_S3_SECRET_KEY", ""))
     artifact_retention_days: int = field(default_factory=lambda: _int_env("QUALITY_RUNNER_ARTIFACT_RETENTION_DAYS", 30))
+    evidence_hash_key: str = field(default_factory=lambda: os.getenv("QUALITY_RUNNER_EVIDENCE_HASH_KEY", ""))
 
     def validate(self) -> None:
+        environment = self.environment.strip().lower()
+        if environment not in {"development", "test", "production"}:
+            raise ValueError("QUALITY_RUNNER_ENV must be development, test or production")
         if self.max_concurrency < 1 or self.max_concurrency > 32:
             raise ValueError("QUALITY_RUNNER_MAX_CONCURRENCY must be between 1 and 32")
         if self.max_concurrency_per_tenant < 1 or self.max_concurrency_per_tenant > self.max_concurrency:
@@ -65,20 +69,26 @@ class Settings:
             raise ValueError("QUALITY_RUNNER_TIMEOUT_SECONDS must be between 30 and 86400")
         if self.evidence_limit < 1 or self.evidence_limit > 20:
             raise ValueError("QUALITY_RUNNER_EVIDENCE_LIMIT must be between 1 and 20")
+        if self.artifact_retention_days < 1 or self.artifact_retention_days > 3650:
+            raise ValueError("QUALITY_RUNNER_ARTIFACT_RETENTION_DAYS must be between 1 and 3650")
         if self.auth_mode == "ENFORCED" and (not self.oidc_issuer or not self.oidc_audience):
             raise ValueError("OIDC issuer and audience are required when auth is enforced")
         if not self.db_url or "://" not in self.db_url:
             raise ValueError("QUALITY_RUNNER_DB_URL must be a SQLAlchemy URL")
         if not self.project_dir or not self.profiles_dir:
             raise ValueError("dbt project and profiles directories are required")
-        if self.environment.lower() == "production" and self.auth_mode != "ENFORCED":
+        if environment == "production" and self.auth_mode != "ENFORCED":
             raise ValueError("production quality runner requires OIDC authentication")
-        if self.environment.lower() == "production" and (
+        if environment == "production" and not self.oidc_issuer.lower().startswith("https://"):
+            raise ValueError("production quality runner OIDC issuer must use HTTPS")
+        if environment == "production" and len(self.evidence_hash_key.encode("utf-8")) < 16:
+            raise ValueError("production quality runner requires a dedicated evidence HMAC key")
+        if environment == "production" and (
                 not self.doris_host or not self.doris_user or not self.doris_password
                 or not self.doris_dbt_user or not self.doris_dbt_password
                 or not self.doris_cleanup_user or not self.doris_cleanup_password):
             raise ValueError("production quality runner requires Doris query, dbt audit and cleanup credentials")
-        if self.environment.lower() == "production" and (
+        if environment == "production" and (
                 not self.artifact_s3_endpoint or not self.artifact_s3_bucket
                 or not self.artifact_s3_access_key or not self.artifact_s3_secret_key):
             raise ValueError("production quality runner requires RustFS/S3 artifact storage")

@@ -5,6 +5,7 @@ import java.util.Map;
 
 import com.cywu.dataos.controlplane.api.ConflictException;
 import com.cywu.dataos.controlplane.api.InvalidRequestException;
+import com.cywu.dataos.controlplane.system.RuntimeEnvironment;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -31,7 +32,7 @@ public final class JobConfigurationPolicy {
     }
 
     private boolean isProduction() {
-        return "production".equalsIgnoreCase(environment);
+        return RuntimeEnvironment.isProduction(environment);
     }
 
     private boolean isDemoTemplate(String templateKey) {

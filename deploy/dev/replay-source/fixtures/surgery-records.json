@@ -1,0 +1,7 @@
+{
+  "schemaVersion": "surgery-record.v1",
+  "batchId": "replay-surgery-20260811-001",
+  "data": [
+    {"record_id": "OR-0001", "patient_id": "PATIENT-HASH-0002", "procedure_code": "OR-TEST", "status": "VALID", "update_time": "2026-08-11T08:15:00Z"}
+  ]
+}

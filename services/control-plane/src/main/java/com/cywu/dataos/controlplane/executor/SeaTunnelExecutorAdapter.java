@@ -16,6 +16,7 @@ import com.cywu.dataos.controlplane.job.IngestionJob;
 import com.cywu.dataos.controlplane.credential.CredentialResolver;
 import com.cywu.dataos.controlplane.security.AuthProperties;
 import com.cywu.dataos.controlplane.security.TenantScope;
+import com.cywu.dataos.controlplane.source.SourceNetworkPolicy;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
@@ -37,12 +38,14 @@ public class SeaTunnelExecutorAdapter implements ExecutorAdapter {
     private final ZoneId seatunnelZone;
     private final CredentialResolver credentialResolver;
     private final TenantScope tenantScope;
+    private final SourceNetworkPolicy sourceNetworkPolicy;
 
     @org.springframework.beans.factory.annotation.Autowired
     public SeaTunnelExecutorAdapter(RestClient.Builder builder,
                                     @Value("${data-os.seatunnel.base-url:}") String baseUrl,
                                     @Value("${data-os.seatunnel.time-zone:UTC}") String timeZone,
-                                    CredentialResolver credentialResolver, TenantScope tenantScope) {
+                                    CredentialResolver credentialResolver, TenantScope tenantScope,
+                                    SourceNetworkPolicy sourceNetworkPolicy) {
         var client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3)).build();
         var requestFactory = new JdkClientHttpRequestFactory(client);
         requestFactory.setReadTimeout(Duration.ofSeconds(10));
@@ -51,6 +54,14 @@ public class SeaTunnelExecutorAdapter implements ExecutorAdapter {
         this.seatunnelZone = ZoneId.of(timeZone);
         this.credentialResolver = credentialResolver;
         this.tenantScope = tenantScope;
+        this.sourceNetworkPolicy = sourceNetworkPolicy;
+    }
+
+    /** Compatibility constructor retained for adapter-level tests. */
+    SeaTunnelExecutorAdapter(RestClient.Builder builder, String baseUrl, String timeZone,
+                              CredentialResolver credentialResolver, TenantScope tenantScope) {
+        this(builder, baseUrl, timeZone, credentialResolver, tenantScope,
+                SourceNetworkPolicy.developmentDefaults());
     }
 
     /** Convenience constructor retained for adapter-level tests. */
@@ -67,6 +78,11 @@ public class SeaTunnelExecutorAdapter implements ExecutorAdapter {
 
     @Override
     public AdapterSubmission submit(IngestionJob job, Map<String, Object> requestConfig) {
+        return submit(job, requestConfig, null);
+    }
+
+    @Override
+    public AdapterSubmission submit(IngestionJob job, Map<String, Object> requestConfig, String dataOsRunId) {
         if (baseUrl.isBlank()) {
             throw new AdapterUnavailableException("中心采集执行器未配置");
         }
@@ -83,10 +99,14 @@ public class SeaTunnelExecutorAdapter implements ExecutorAdapter {
         env.putIfAbsent("job.name", job.name());
         var requestedMode = env.get("job.mode");
         env.put("job.mode", toSeaTunnelMode(requestedMode == null ? job.mode() : String.valueOf(requestedMode)));
+        if (dataOsRunId != null && !dataOsRunId.isBlank()) {
+            env.put("dataos_run_id", dataOsRunId);
+        }
         config.put("env", env);
+        validateExecutionConfig(config);
 
         try {
-            var response = submitWithRetry(config);
+            var response = submitWithRetry(config, dataOsRunId);
             var externalId = response == null || response.get("jobId") == null
                     ? null : String.valueOf(response.get("jobId"));
             return new AdapterSubmission(externalId, "中心采集执行器已接受提交");
@@ -140,15 +160,16 @@ public class SeaTunnelExecutorAdapter implements ExecutorAdapter {
     }
 
     @SuppressWarnings("unchecked")
-    private Map<String, Object> submitWithRetry(Map<String, Object> config) {
+    private Map<String, Object> submitWithRetry(Map<String, Object> config, String dataOsRunId) {
         for (var attempt = 1; attempt <= MAX_SUBMIT_ATTEMPTS; attempt++) {
             try {
-                return restClient.post()
+                var request = restClient.post()
                         .uri(baseUrl + "/submit-job")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .body(config)
-                        .retrieve()
-                        .body(Map.class);
+                        .contentType(MediaType.APPLICATION_JSON);
+                if (dataOsRunId != null && !dataOsRunId.isBlank()) {
+                    request = request.header("X-Data-OS-Run-Id", dataOsRunId);
+                }
+                return request.body(config).retrieve().body(Map.class);
             } catch (HttpClientErrorException | HttpServerErrorException exception) {
                 if (!isRetryable(exception) || attempt == MAX_SUBMIT_ATTEMPTS) {
                     throw exception;
@@ -162,6 +183,34 @@ public class SeaTunnelExecutorAdapter implements ExecutorAdapter {
             }
         }
         throw new AdapterUnavailableException("中心采集执行器请求失败");
+    }
+
+    @SuppressWarnings("unchecked")
+    private void validateExecutionConfig(Map<String, Object> config) {
+        validatePluginEndpoints(config.get("source"));
+        validatePluginEndpoints(config.get("sink"));
+    }
+
+    private void validatePluginEndpoints(Object plugins) {
+        if (!(plugins instanceof Collection<?> collection)) return;
+        for (var item : collection) {
+            if (!(item instanceof Map<?, ?> plugin)) continue;
+            var name = String.valueOf(plugin.get("plugin_name") == null ? "" : plugin.get("plugin_name"))
+                    .toLowerCase(Locale.ROOT);
+            var url = plugin.get("url");
+            if (url != null && !String.valueOf(url).isBlank()) {
+                if (name.contains("jdbc")) sourceNetworkPolicy.validateJdbcUrl(String.valueOf(url));
+                else if (name.contains("http") || name.contains("rest")) {
+                    sourceNetworkPolicy.validateHttpUrl(String.valueOf(url));
+                }
+            }
+            var fenodes = plugin.get("fenodes");
+            if (fenodes != null) {
+                for (var node : String.valueOf(fenodes).split(",")) {
+                    if (!node.isBlank()) sourceNetworkPolicy.validateHostPort(node);
+                }
+            }
+        }
     }
 
     private boolean isRetryable(org.springframework.web.client.HttpStatusCodeException exception) {

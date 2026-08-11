@@ -40,7 +40,7 @@ jobs:
         run: docker build --tag data-os-control-plane:ci services/control-plane
 
       - name: Scan control-plane image for high and critical CVEs
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: data-os-control-plane:ci
           format: table
@@ -79,6 +79,52 @@ jobs:
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  quality-runner:
+    name: quality runner tests and image supply-chain checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Test quality runner contract
+        run: |
+          python -m pip install --disable-pip-version-check \
+            pytest==8.3.4 pytest-asyncio==0.25.3 PyYAML==6.0.2 SQLAlchemy==2.0.37 PyMySQL==1.1.1 boto3==1.36.20
+          PYTHONPATH=services/quality-runner/app python -m pytest -q services/quality-runner/tests
+          python -m compileall -q services/quality-runner/app
+
+      - name: Build quality runner image
+        run: docker build --file services/quality-runner/Dockerfile --tag data-os-quality-runner:ci .
+
+      - name: Scan quality runner image for high and critical CVEs
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: data-os-quality-runner:ci
+          format: table
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: CRITICAL,HIGH
+
+      - name: Generate quality runner SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: data-os-quality-runner:ci
+          format: cyclonedx-json
+          output-file: sbom-quality-runner.cdx.json
+
+      - name: Upload quality runner SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-quality-runner
+          path: sbom-quality-runner.cdx.json
 
   frontend:
     name: portal typecheck and build
@@ -122,6 +168,38 @@ jobs:
 
       - name: Check whitespace errors
         run: git diff --check
+
+      - name: Run clinical replay source contract smoke
+        run: |
+          python - <<'PY'
+          import json
+          import subprocess
+          import time
+          import urllib.request
+
+          process = subprocess.Popen([
+              "python", "deploy/dev/replay-source/server.py", "--port", "18084"
+          ])
+          try:
+              url = "http://127.0.0.1:18084/api/lab/results?since=2026-08-11T08:05:00Z&until=2026-08-11T08:06:00Z"
+              for _ in range(30):
+                  try:
+                      with urllib.request.urlopen("http://127.0.0.1:18084/healthz", timeout=1) as response:
+                          if response.status == 200:
+                              break
+                  except Exception:
+                      time.sleep(0.2)
+              else:
+                  raise SystemExit("replay source did not become healthy")
+              with urllib.request.urlopen(url, timeout=3) as response:
+                  payload = json.load(response)
+              assert payload["sourceSystem"] == "LIS"
+              assert payload["watermarkStart"] == "2026-08-11T08:05:00Z"
+              assert [row["record_id"] for row in payload["data"]] == ["LIS-R-0001"]
+          finally:
+              process.terminate()
+              process.wait(timeout=5)
+          PY
 
       - name: Validate Compose file
         run: docker compose --env-file deploy/production/.env.example -f deploy/production/docker-compose.yml config --quiet
@@ -189,8 +267,9 @@ jobs:
         run: |
           docker run --rm \
             --volume "$PWD/deploy/production/prometheus.yml:/etc/prometheus/prometheus.yml:ro" \
+            --entrypoint promtool \
             prom/prometheus:v2.54.1 \
-            promtool check config /etc/prometheus/prometheus.yml
+            check config /etc/prometheus/prometheus.yml
 
       - name: Reject mutable production image tags
         run: |

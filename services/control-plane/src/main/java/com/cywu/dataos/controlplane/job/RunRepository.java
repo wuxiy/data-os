@@ -38,6 +38,35 @@ public class RunRepository {
         return run;
     }
 
+    public int setSourceWatermarkStart(String runId, Instant watermarkStart) {
+        return jdbc.update("""
+                UPDATE data_os.job_runs
+                SET source_watermark_start = ?
+                WHERE id = ? AND source_watermark_start IS NULL
+                """, timestamp(watermarkStart), runId);
+    }
+
+    /** Persist the upper bound captured before the source query starts. */
+    public int setSourceWatermarkEndBoundary(String runId, Instant watermarkEnd) {
+        return jdbc.update("""
+                UPDATE data_os.job_runs
+                SET source_watermark_end = ?
+                WHERE id = ? AND source_watermark_end IS NULL
+                """, timestamp(watermarkEnd), runId);
+    }
+
+    public Optional<Instant> findSourceWatermarkEnd(String runId) {
+        return jdbc.query("""
+                SELECT source_watermark_end
+                FROM data_os.job_runs
+                WHERE id = ?
+                """, (resultSet, rowNumber) -> resultSet.getTimestamp("source_watermark_end"), runId)
+                .stream()
+                .filter(value -> value != null)
+                .map(Timestamp::toInstant)
+                .findFirst();
+    }
+
     public Optional<RunRequest> findByRequestKey(String jobId, String requestKey) {
         return jdbc.query("""
                 SELECT id, job_id, status, executor, external_id, request_fingerprint, message,
@@ -98,6 +127,19 @@ public class RunRepository {
                 resultSet.getString("executor"), resultSet.getString("external_id"), resultSet.getString("message"),
                 resultSet.getTimestamp("submitted_at").toInstant(), instant(resultSet.getTimestamp("started_at")),
                 instant(resultSet.getTimestamp("finished_at"))));
+    }
+
+    /** Mark a lost pre-submit lease as retryable instead of leaving it stuck forever. */
+    public int recoverStaleSubmitting(long leaseMillis) {
+        if (leaseMillis < 1) return 0;
+        return jdbc.update("""
+                UPDATE data_os.job_runs
+                SET status = 'BLOCKED_DEPENDENCY',
+                    message = '提交租约已超时，执行器未返回外部运行编号；请核对执行器后重试',
+                    finished_at = CURRENT_TIMESTAMP
+                WHERE status = 'SUBMITTING'
+                  AND submitted_at < CURRENT_TIMESTAMP - (? * INTERVAL '1 millisecond')
+                """, leaseMillis);
     }
 
     public Optional<IngestionRun> findById(String jobId, String runId) {

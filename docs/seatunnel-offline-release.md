@@ -14,7 +14,7 @@
 | 驱动 | `driver-manifest.tsv` 固定版本和 SHA-256；JAR 从受控构建输入提供，不提交 Git |
 | Oracle | `oracle-enabled` profile，必须由甲方提供授权 JAR 并完成许可证审批 |
 | 安全 | 正式包必须有 detached Cosign 签名；私钥只在受控发布机存在 |
-| 运行语义 | 单节点批处理；目标表可用 UNIQUE KEY/批次策略实现幂等；水位持久化与自动恢复待后续实现；不宣称 HA/CDC/exactly-once |
+| 运行语义 | 单节点批处理；控制面持久化作业水位和稳定批次号；目标表用 UNIQUE KEY/UPSERT 实现重放幂等；不宣称 HA/CDC/exactly-once |
 
 SeaTunnel 的 JDBC 连接器和数据库驱动是两类依赖：连接器通过固定 Maven
 制品纳入镜像，数据库厂商驱动通过清单和许可证边界注入镜像。这里不允许
@@ -121,9 +121,9 @@ DATAOS_ROLLBACK_CONFIRM=YES \
 ```
 
 单节点 checkpoint、日志和工作目录使用命名卷。首版合同中的
-`${last_success_time}` 只是增量水位占位符，当前控制面尚未持久化或注入水位；在
-水位服务完成前不得把模板标记为自动增量任务，也不得宣称失败批次可自动从上次
-成功水位重跑。需要自动故障转移、CDC、跨院多活时，应切换到独立 SeaTunnel
+`${last_success_time}` 由控制面在提交前从 `data_os.ingestion_checkpoints` 注入，`${run_start_time}`
+作为本批次提取上界；成功批次才推进到该上界，失败/阻塞批次从上次成功水位重放。控制面将稳定 `dataos_run_id` 写入任务环境和 HTTP
+幂等请求头，不能据此把跨系统语义升级为 exactly-once。需要自动故障转移、CDC、跨院多活时，应切换到独立 SeaTunnel
 集群方案并重新评审恢复语义。
 
 ## 版本升级验收
@@ -139,4 +139,5 @@ SeaTunnel 配置位于权限受限的临时目录，脚本输出不会打印密�
 调用者事先创建合成源表和 Doris 目标表。当前开发机已完成同一镜像的
 PostgreSQL→Console JDBC 作业（2 行读取、2 行提交、`FINISHED`），但开发环境
 当前没有可达 Doris FE，因此 PostgreSQL→Doris 和 UPSERT 重跑证据仍是待办，
-不能把前者冒充后者。
+不能把前者冒充后者。开发阶段可先使用 `deploy/dev/replay-source` 的无 PHI HTTP fixture
+验证字段合同和水位替换；真实端点交接后必须重新执行本验收。

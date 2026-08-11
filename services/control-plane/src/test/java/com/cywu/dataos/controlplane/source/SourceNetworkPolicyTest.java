@@ -44,4 +44,29 @@ class SourceNetworkPolicyTest {
 
         assertDoesNotThrow(() -> policy.validateJdbcUrl("jdbc:h2:mem:data_os"));
     }
+
+    @Test
+    void productionPrivateTargetRequiresExplicitCidrAllowlist() {
+        var properties = new SourceNetworkProperties();
+        properties.setAllowPrivateNetworks(true);
+        properties.setAllowedHosts(List.of("10.42.0.0/16"));
+        var policy = new SourceNetworkPolicy(properties);
+
+        assertDoesNotThrow(() -> policy.validateJdbcUrl("jdbc:postgresql://10.42.3.7:5432/lis"));
+        assertThrows(IllegalArgumentException.class,
+                () -> policy.validateJdbcUrl("jdbc:postgresql://10.43.3.7:5432/lis"));
+    }
+
+    @Test
+    void privateNetworkAllowlistDoesNotEnableDevelopmentCredentialFallback() {
+        var properties = new SourceNetworkProperties();
+        properties.setAllowPrivateNetworks(true);
+        properties.setAllowedHosts(List.of("10.42.0.0/16"));
+        var policy = new SourceNetworkPolicy(properties);
+
+        org.junit.jupiter.api.Assertions.assertFalse(policy.isLocalMode());
+
+        properties.setAllowTestProtocols(true);
+        org.junit.jupiter.api.Assertions.assertFalse(policy.isLocalMode());
+    }
 }

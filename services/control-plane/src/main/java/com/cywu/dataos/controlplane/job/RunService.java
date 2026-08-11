@@ -37,6 +37,7 @@ public class RunService {
     private final ObjectMapper objectMapper;
     private final JobConfigurationPolicy configurationPolicy;
     private final TenantScope tenantScope;
+    private final IngestionCheckpointRepository checkpointRepository;
 
     public RunService(JobRepository jobRepository,
                       RunRepository runRepository,
@@ -45,7 +46,8 @@ public class RunService {
                       PlatformTransactionManager transactionManager,
                       ObjectMapper objectMapper,
                       JobConfigurationPolicy configurationPolicy,
-                      TenantScope tenantScope) {
+                      TenantScope tenantScope,
+                      IngestionCheckpointRepository checkpointRepository) {
         this.jobRepository = jobRepository;
         this.runRepository = runRepository;
         this.jobConfigService = jobConfigService;
@@ -54,6 +56,7 @@ public class RunService {
         this.objectMapper = objectMapper;
         this.configurationPolicy = configurationPolicy;
         this.tenantScope = tenantScope;
+        this.checkpointRepository = checkpointRepository;
     }
 
     /**
@@ -99,20 +102,31 @@ public class RunService {
         var job = jobRepository.findByIdForUpdate(jobId, scope.tenantId(), scope.institutionId())
                 .orElseThrow(() -> new ResourceNotFoundException("未找到采集作业：" + jobId));
         var requestKey = normalizeIdempotencyKey(idempotencyKey);
-        var config = request.config().isEmpty()
-                ? jobConfigService.findOptional(job.id()).map(IngestionJobConfig::config).orElse(Map.of())
-                : request.config();
-        configurationPolicy.validateRun(job, config);
-        var requestFingerprint = requestKey == null ? null : fingerprint(config);
+        var savedConfig = jobConfigService.findOptional(job.id()).map(IngestionJobConfig::config);
+        var config = savedConfig.orElse(Map.of());
+        // A run may only execute the last persisted, validated configuration.
+        // The request body is retained solely for idempotency compatibility and
+        // must be byte-equivalent (canonical JSON) to that saved configuration.
+        var fingerprintConfig = request.config().isEmpty() ? config : request.config();
+        var requestFingerprint = requestKey == null ? null : fingerprint(fingerprintConfig);
         if (requestKey != null) {
             var existing = runRepository.findByRequestKey(jobId, requestKey);
             if (existing.isPresent()) {
                 if (!java.util.Objects.equals(existing.get().requestFingerprint(), requestFingerprint)) {
                     throw new com.cywu.dataos.controlplane.api.ConflictException("相同 Idempotency-Key 的请求内容不一致");
                 }
-                return new RunClaim(null, null, Map.of(), existing.get().run());
+                return new RunClaim(null, null, Map.of(), existing.get().run(), null, null);
             }
         }
+        if (!request.config().isEmpty()) {
+            if (savedConfig.isEmpty()) {
+                throw new ConflictException("采集任务尚未保存配置，不能通过运行请求临时注入配置");
+            }
+            if (!fingerprint(savedConfig.get()).equals(fingerprint(request.config()))) {
+                throw new ConflictException("运行请求配置必须与任务已保存配置完全一致");
+            }
+        }
+        configurationPolicy.validateRun(job, config);
         if ("PAUSED".equals(job.status())) {
             throw new ConflictException("采集任务已暂停，恢复后才能启动运行");
         }
@@ -128,8 +142,15 @@ public class RunService {
         });
 
         var submittedAt = Instant.now();
+        var runId = UUID.randomUUID().toString();
+        var watermarkStart = checkpointRepository.findLastSuccessWatermark(job.id()).orElse(Instant.parse("1970-01-01T00:00:00Z"));
+        // Capture an upper bound before the source query starts. Advancing to
+        // the external executor's finish time would skip rows committed while
+        // the query was already running.
+        var watermarkEnd = submittedAt;
+        config = interpolateConfig(config, watermarkStart, watermarkEnd, runId);
         var run = new IngestionRun(
-                UUID.randomUUID().toString(),
+                runId,
                 job.id(),
                 "SUBMITTING",
                 job.executor(),
@@ -139,8 +160,51 @@ public class RunService {
                 null,
                 null);
         runRepository.save(run, requestKey, requestFingerprint);
+        runRepository.setSourceWatermarkStart(runId, watermarkStart);
+        runRepository.setSourceWatermarkEndBoundary(runId, watermarkEnd);
         runRepository.updateJobLastRunAt(job.id(), submittedAt);
-        return new RunClaim(job, run, config, null);
+        return new RunClaim(job, run, config, null, watermarkStart, watermarkEnd);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> interpolateConfig(Map<String, Object> source, Instant watermarkStart,
+                                                   Instant watermarkEnd, String runId) {
+        var value = interpolateNode(source, watermarkStart, watermarkEnd, runId);
+        if (!(value instanceof Map<?, ?> map)) return Map.of();
+        var result = new java.util.HashMap<String, Object>();
+        map.forEach((key, item) -> result.put(String.valueOf(key), item));
+        var env = result.get("env");
+        var resolvedEnv = new java.util.HashMap<String, Object>();
+        if (env instanceof Map<?, ?> envMap) {
+            envMap.forEach((key, item) -> resolvedEnv.put(String.valueOf(key), item));
+        }
+        resolvedEnv.put("dataos_run_id", runId);
+        resolvedEnv.put("dataos.watermark.start",
+                watermarkStart == null ? "1970-01-01T00:00:00Z" : watermarkStart.toString());
+        resolvedEnv.put("dataos.watermark.end",
+                watermarkEnd == null ? Instant.now().toString() : watermarkEnd.toString());
+        result.put("env", resolvedEnv);
+        return result;
+    }
+
+    private Object interpolateNode(Object value, Instant watermarkStart, Instant watermarkEnd, String runId) {
+        if (value instanceof Map<?, ?> map) {
+            var result = new java.util.HashMap<String, Object>();
+            map.forEach((key, item) -> result.put(String.valueOf(key),
+                    interpolateNode(item, watermarkStart, watermarkEnd, runId)));
+            return result;
+        }
+        if (value instanceof java.util.Collection<?> collection) {
+            return collection.stream().map(item -> interpolateNode(item, watermarkStart, watermarkEnd, runId)).toList();
+        }
+        if (value instanceof String text) {
+            return text.replace("${last_success_time}",
+                            watermarkStart == null ? "1970-01-01T00:00:00Z" : watermarkStart.toString())
+                    .replace("${run_start_time}",
+                            watermarkEnd == null ? Instant.now().toString() : watermarkEnd.toString())
+                    .replace("${data_os_run_id}", runId);
+        }
+        return value;
     }
 
     private IngestionRun complete(RunClaim claim, String status, String externalId, String message,
@@ -210,6 +274,7 @@ public class RunService {
         }
     }
 
-    private record RunClaim(IngestionJob job, IngestionRun run, Map<String, Object> config, IngestionRun replay) {
+    private record RunClaim(IngestionJob job, IngestionRun run, Map<String, Object> config,
+                            IngestionRun replay, Instant watermarkStart, Instant watermarkEnd) {
     }
 }

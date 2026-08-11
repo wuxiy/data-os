@@ -30,6 +30,7 @@ data-os:
   runtime:
     # Fail closed: production is the default unless a local/dev deployment opts in explicitly.
     environment: ${DATAOS_RUNTIME_ENV:production}
+    external-https-terminated: ${DATAOS_EXTERNAL_HTTPS_TERMINATED:false}
   auth:
     mode: ${DATAOS_AUTH_MODE:ENFORCED}
     issuer-uri: ${DATAOS_OIDC_ISSUER_URI:}
@@ -88,6 +89,7 @@ data-os:
   runs:
     sync-interval-ms: ${DATAOS_RUN_SYNC_INTERVAL_MS:30000}
     sync-initial-delay-ms: ${DATAOS_RUN_SYNC_INITIAL_DELAY_MS:10000}
+    submit-lease-ms: ${DATAOS_RUN_SUBMIT_LEASE_MS:120000}
 
 management:
   endpoints:

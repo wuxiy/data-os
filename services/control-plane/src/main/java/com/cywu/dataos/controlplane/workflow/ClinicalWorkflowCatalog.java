@@ -16,6 +16,7 @@ import org.springframework.stereotype.Component;
 public final class ClinicalWorkflowCatalog {
 
     public static final String LIS_JDBC_TO_DORIS = "LIS_JDBC_TO_DORIS";
+    public static final String LIS_HTTP_TO_DORIS = "LIS_HTTP_TO_DORIS";
     public static final String EMR_JDBC_TO_DORIS = "EMR_JDBC_TO_DORIS";
     public static final String SURGERY_JDBC_TO_DORIS = "SURGERY_JDBC_TO_DORIS";
     public static final int VERSION = 1;
@@ -24,6 +25,9 @@ public final class ClinicalWorkflowCatalog {
             template(LIS_JDBC_TO_DORIS, "LIS 检验结果入仓", "LIS",
                     "检验结果、检验报告和危急值按更新时间增量采集到 ODS/LIS。",
                     "lis-laboratory-readonly", "ods_lis", "lab_result"),
+            httpTemplate(LIS_HTTP_TO_DORIS, "LIS HTTP 回放入仓", "LIS",
+                    "适用于前置机或院内 HTTP API 的脱敏回放/增量采集，按 since 参数读取结果。",
+                    "lis-http-readonly", "ods_lis", "lab_result"),
             template(EMR_JDBC_TO_DORIS, "EMR 病历入仓", "EMR",
                     "门诊/住院病历按业务主键和更新时间批量或增量采集到 ODS/EMR。",
                     "emr-clinical-readonly", "ods_emr", "clinical_record"),
@@ -51,15 +55,23 @@ public final class ClinicalWorkflowCatalog {
     public void validateConfig(String key, Integer version, Map<String, Object> config) {
         if (!supports(key)) return;
         require(key, version);
-        requirePlugin(config, "source", "Jdbc", "临床工作流的 source 必须使用 Jdbc 连接器");
+        var httpSource = LIS_HTTP_TO_DORIS.equalsIgnoreCase(key);
+        requirePlugin(config, "source", httpSource ? "Http" : "Jdbc",
+                httpSource ? "LIS HTTP 工作流的 source 必须使用 Http 连接器"
+                        : "临床工作流的 source 必须使用 Jdbc 连接器");
         requirePlugin(config, "sink", "Doris", "临床工作流的 sink 必须使用 Doris 连接器");
         requireCredentialRef(config, "source");
         requireCredentialRef(config, "sink");
         var source = firstPlugin(config, "source");
         var sink = firstPlugin(config, "sink");
         requireText(source, "url", "临床工作流 source.url 不能为空");
-        requireText(source, "driver", "临床工作流 source.driver 不能为空");
-        requireText(source, "query", "临床工作流 source.query 不能为空");
+        if (httpSource) {
+            requireText(source, "method", "LIS HTTP 工作流 source.method 不能为空");
+            requireText(source, "format", "LIS HTTP 工作流 source.format 不能为空");
+        } else {
+            requireText(source, "driver", "临床工作流 source.driver 不能为空");
+            requireText(source, "query", "临床工作流 source.query 不能为空");
+        }
         requireText(sink, "fenodes", "临床工作流 sink.fenodes 不能为空");
         requireText(sink, "database", "临床工作流 sink.database 不能为空");
         requireText(sink, "table", "临床工作流 sink.table 不能为空");
@@ -84,7 +96,7 @@ public final class ClinicalWorkflowCatalog {
                 "plugin_name", "Jdbc",
                 "url", "jdbc:<replace-with-lis-emr-surgery-host>:<port>/<database>",
                 "driver", "<replace-with-jdbc-driver>",
-                "query", "SELECT * FROM <replace-with-source-table> WHERE update_time >= '${last_success_time}'",
+                "query", "SELECT * FROM <replace-with-source-table> WHERE update_time >= '${last_success_time}' AND update_time < '${run_start_time}'",
                 "credentialRef", "<replace-with-source-credential-id>");
         var sink = Map.<String, Object>ofEntries(
                 Map.entry("plugin_name", "Doris"),
@@ -102,6 +114,32 @@ public final class ClinicalWorkflowCatalog {
                 Map.entry("doris.config", Map.of("format", "json", "read_json_by_line", "true")),
                 Map.entry("credentialRef", "<replace-with-target-credential-id>"));
         return new ClinicalWorkflowTemplate(key, VERSION, displayName, systemType, "JDBC", "SEATUNNEL",
+                "BATCH", description, List.of(credentialRole, "doris-ods-writer"),
+                Map.of("env", Map.of("job.mode", "BATCH", "parallelism", 1),
+                        "source", List.of(source), "transform", List.of(), "sink", List.of(sink)));
+    }
+
+    private ClinicalWorkflowTemplate httpTemplate(String key, String displayName, String systemType,
+                                                   String description, String credentialRole,
+                                                   String database, String table) {
+        var source = Map.<String, Object>of(
+                "plugin_name", "Http",
+                "url", "https://<replace-with-lis-api-host>/api/lab/results?since=${last_success_time}&until=${run_start_time}",
+                "method", "GET",
+                "format", "JSON",
+                "credentialRef", "<replace-with-source-credential-id>");
+        var sink = Map.<String, Object>ofEntries(
+                Map.entry("plugin_name", "Doris"),
+                Map.entry("fenodes", "<replace-with-doris-fe-host>:8030"),
+                Map.entry("database", database),
+                Map.entry("table", table),
+                Map.entry("sink.label-prefix", "dataos_" + key.toLowerCase(Locale.ROOT)),
+                Map.entry("sink.enable-2pc", false),
+                Map.entry("schema_save_mode", "CREATE_SCHEMA_WHEN_NOT_EXIST"),
+                Map.entry("data_save_mode", "APPEND_DATA"),
+                Map.entry("doris.config", Map.of("format", "json", "read_json_by_line", "true")),
+                Map.entry("credentialRef", "<replace-with-target-credential-id>"));
+        return new ClinicalWorkflowTemplate(key, VERSION, displayName, systemType, "HTTP", "SEATUNNEL",
                 "BATCH", description, List.of(credentialRole, "doris-ods-writer"),
                 Map.of("env", Map.of("job.mode", "BATCH", "parallelism", 1),
                         "source", List.of(source), "transform", List.of(), "sink", List.of(sink)));

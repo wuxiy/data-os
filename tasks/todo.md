@@ -538,3 +538,25 @@ Gate 0 尚未覆盖 OIDC 多租户授权列表、CIDR allowlist/DNS rebinding �
 ### 交付边界
 
 当前远程验收使用无患者信息的合成 Doris 数据，开发 Runner 为 `DISABLED` 认证模式、控制面仍保留免登录开发 scope。真实 LIS/EMR/手术端点、院方 OIDC 客户端、RustFS 生产地址、消息网关和生产密钥必须在生产 `.env` 注入后另行验收，不应写成已完成临床接入。
+
+## 2026-08-11 四项可交付路线收口
+
+### 执行范围
+
+- [x] Gate 0 生产环境：未知运行环境 fail-closed；生产强制外部 HTTPS 终止确认、OIDC HTTPS、通知密钥强度和命名网络白名单；私网地址仅在显式 allowlist 下允许，且不启用开发凭据回退
+- [x] 采集可靠性：为每次运行生成稳定 `dataOsRunId`，持久化起始/结束水位和批次号，仅在目标成功后推进检查点；恢复过期 `SUBMITTING`，失败运行可重试/回放，执行器请求带稳定幂等标识
+- [x] 质量运行器：规则证据使用显式字段分类与 HMAC/脱敏投影，失败表和制品按租户与保留期清理；启动恢复租约、心跳、取消和异常清理；CI 纳入 pytest-asyncio、镜像构建和供应链扫描
+- [x] 质量事实来源：新增受保护 `POST /api/v1/governance/quality-findings`，以 `sourceSystem + findingKey + executionBatchId` 幂等写入问题、执行批次、样本证据、事件和通知；通过/失败分别闭环，不再依赖生产 DemoDataInitializer 生成质量问题
+- [x] 交付验收夹具：新增仅供开发/验收的脱敏 LIS、EMR、手术 HTTP 回放源，覆盖健康检查、since 水位和三类数据合同；文档明确真实院端点、账号、Doris ODS 表和样本仍需院方交接
+
+### 验证记录
+
+- Java 21 Maven 全量测试：78 项通过，失败/错误/跳过均为 0（包含通过无问题观察、并发 finding 幂等、证据脱敏和 DolphinScheduler runId 覆盖）
+- quality-runner：pytest 4 项通过，应用与回放源 `compileall` 通过
+- 回放源：`/healthz`、LIS、EMR、手术接口均以 200 返回脱敏 JSON，并验证半开水位窗口（`since <= update_time < until`）
+- 开发/生产 Compose 配置、CI YAML、`git diff --check` 通过；生产配置默认拒绝未知环境、缺少 TLS 确认、弱 Webhook Secret 和未配置凭据的真实端点
+- 门禁补齐：CI 增加回放源 HTTP 合同 smoke；运行状态接口在 Webhook 密钥缺失/弱值时返回可见告警；DolphinScheduler 强制覆盖旧 `dataos_run_id`
+
+### 交付边界
+
+本轮实现了可交付的运行时合同和闭环，但没有虚构真实临床接入：真实 LIS/EMR/手术主机、只读账号、Doris ODS/UNIQUE KEY 表、院方 OIDC、RustFS 和通知网关仍是上线前置条件。开发回放源不可部署到生产，也不替代院方联调。

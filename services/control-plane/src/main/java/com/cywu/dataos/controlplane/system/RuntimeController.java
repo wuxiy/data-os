@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.Locale;
 import java.util.List;
 
+import com.cywu.dataos.controlplane.quality.WebhookSecretProvider;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -19,6 +21,7 @@ public class RuntimeController {
     private final boolean demoQualityExecutorEnabled;
     private final String seatunnelBaseUrl;
     private final String notificationWebhookUrl;
+    private final WebhookSecretProvider notificationSecrets;
 
     public RuntimeController(
             @Value("${data-os.seed-demo:false}") boolean seedDemoEnabled,
@@ -26,13 +29,18 @@ public class RuntimeController {
             @Value("${data-os.quality.base-url:}") String qualityExecutorBaseUrl,
             @Value("${data-os.quality.demo-enabled:false}") boolean demoQualityExecutorEnabled,
             @Value("${data-os.seatunnel.base-url:}") String seatunnelBaseUrl,
-            @Value("${data-os.notification.webhook-url:}") String notificationWebhookUrl) {
+            @Value("${data-os.notification.webhook-url:}") String notificationWebhookUrl,
+            @Value("${data-os.notification.webhook-secret:}") String notificationWebhookSecret,
+            @Value("${data-os.notification.webhook-secret-file:}") String notificationWebhookSecretFile,
+            ObjectMapper objectMapper) {
         this.seedDemoEnabled = seedDemoEnabled;
         this.qualityExecutor = normalize(qualityExecutor, "HTTP");
         this.qualityExecutorBaseUrl = normalizeUrl(qualityExecutorBaseUrl);
         this.demoQualityExecutorEnabled = demoQualityExecutorEnabled;
         this.seatunnelBaseUrl = normalizeUrl(seatunnelBaseUrl);
         this.notificationWebhookUrl = normalizeUrl(notificationWebhookUrl);
+        this.notificationSecrets = new WebhookSecretProvider(objectMapper, notificationWebhookSecret,
+                notificationWebhookSecretFile);
     }
 
     @GetMapping("/status")
@@ -49,12 +57,18 @@ public class RuntimeController {
         }
         if (!qualityConfigured) warnings.add("质量规则执行器未完成配置");
         if (seatunnelBaseUrl.isBlank()) warnings.add("SeaTunnel 执行器未配置");
-        if (notificationWebhookUrl.isBlank()) warnings.add("责任人 Webhook 未配置，通知只会记录为 SKIPPED");
+        var notificationConfigured = !notificationWebhookUrl.isBlank()
+                && notificationSecrets.current().length() >= 32;
+        if (notificationWebhookUrl.isBlank()) {
+            warnings.add("责任人 Webhook 未配置，通知只会记录为 SKIPPED");
+        } else if (!notificationConfigured) {
+            warnings.add("责任人 Webhook 签名密钥缺失或强度不足，通知不会发送");
+        }
         var mode = seedDemoEnabled || ("DEMO".equals(qualityExecutor) && demoQualityExecutorEnabled)
                 ? "DEMO" : "LIVE";
         return new RuntimeStatus(mode, seedDemoEnabled, qualityExecutor, qualityConfigured,
                 demoQualityExecutorEnabled, !seatunnelBaseUrl.isBlank(),
-                !notificationWebhookUrl.isBlank(), List.copyOf(warnings));
+                notificationConfigured, List.copyOf(warnings));
     }
 
     private String normalize(String value, String fallback) {

@@ -73,10 +73,10 @@ public class DemoDataInitializer implements CommandLineRunner {
         jdbc.update("""
                 INSERT INTO data_os.governance_issues
                     (id, tenant_id, institution_id, title, severity, status, dataset_id, rule_id,
-                     owner_department, owner_name, ticket_id, impact, due_at)
-                VALUES (?, 'default', 'demo-hospital', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     owner_department, owner_name, ticket_id, impact, due_at, source_key, source_system)
+                VALUES (?, 'default', 'demo-hospital', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'demo')
                 """, id, title, severity, status, datasetId, ruleId, department, owner, ticketId, impact,
-                Timestamp.from(dueAt));
+                Timestamp.from(dueAt), "demo:" + id);
     }
 
     private int count(String table) {

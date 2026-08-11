@@ -39,6 +39,13 @@ class RuntimeConfigurationValidatorTest {
     }
 
     @Test
+    void unknownEnvironmentFailsClosed() {
+        var validator = new RuntimeConfigurationValidator("staging", false, "HTTP", false);
+
+        assertThrows(IllegalStateException.class, validator::validate);
+    }
+
+    @Test
     void productionAcceptsOnlyExplicitlyHardenedConfiguration() {
         var auth = new AuthProperties();
         auth.setMode("enforced");

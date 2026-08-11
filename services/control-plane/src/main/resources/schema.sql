@@ -69,7 +69,9 @@ CREATE TABLE IF NOT EXISTS data_os.governance_issues (
     processing_note TEXT NULL,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     last_action_at TIMESTAMP NULL,
-    last_action VARCHAR(64) NULL
+    last_action VARCHAR(64) NULL,
+    source_key VARCHAR(300) NULL,
+    source_system VARCHAR(100) NOT NULL DEFAULT ''
 );
 
 ALTER TABLE data_os.governance_issues ADD COLUMN IF NOT EXISTS object_label VARCHAR(500) NOT NULL DEFAULT '';
@@ -79,6 +81,8 @@ ALTER TABLE data_os.governance_issues ADD COLUMN IF NOT EXISTS last_action_at TI
 ALTER TABLE data_os.governance_issues ADD COLUMN IF NOT EXISTS last_action VARCHAR(64) NULL;
 ALTER TABLE data_os.governance_issues ADD COLUMN IF NOT EXISTS sla_overdue_at TIMESTAMP NULL;
 ALTER TABLE data_os.governance_issues ADD COLUMN IF NOT EXISTS owner_id VARCHAR(200) NOT NULL DEFAULT '';
+ALTER TABLE data_os.governance_issues ADD COLUMN IF NOT EXISTS source_key VARCHAR(300) NULL;
+ALTER TABLE data_os.governance_issues ADD COLUMN IF NOT EXISTS source_system VARCHAR(100) NOT NULL DEFAULT '';
 
 CREATE TABLE IF NOT EXISTS data_os.governance_issue_events (
     id VARCHAR(36) PRIMARY KEY,
@@ -93,10 +97,15 @@ CREATE TABLE IF NOT EXISTS data_os.governance_issue_events (
 CREATE INDEX IF NOT EXISTS idx_data_os_jobs_source ON data_os.ingestion_jobs(source_id);
 CREATE INDEX IF NOT EXISTS idx_data_os_issue_scope ON data_os.governance_issues(tenant_id, institution_id);
 CREATE INDEX IF NOT EXISTS idx_data_os_issue_events_issue ON data_os.governance_issue_events(issue_id, created_at DESC);
+UPDATE data_os.governance_issues
+SET source_key = CONCAT('legacy:', id)
+WHERE source_key IS NULL OR source_key = '';
+CREATE UNIQUE INDEX IF NOT EXISTS uq_data_os_issue_source
+    ON data_os.governance_issues(tenant_id, institution_id, source_key);
 
 CREATE TABLE IF NOT EXISTS data_os.quality_rule_runs (
     id VARCHAR(36) PRIMARY KEY,
-    issue_id VARCHAR(64) NOT NULL,
+    issue_id VARCHAR(64) NULL,
     tenant_id VARCHAR(128) NOT NULL,
     institution_id VARCHAR(128) NOT NULL,
     rule_id VARCHAR(200) NOT NULL,

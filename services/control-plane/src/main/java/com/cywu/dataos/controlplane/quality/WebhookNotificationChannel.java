@@ -46,7 +46,7 @@ public class WebhookNotificationChannel implements NotificationChannel {
 
     /** Focused test constructor; production wiring always uses the signed-secret constructor above. */
     public WebhookNotificationChannel(RestClient.Builder builder, String webhookUrl) {
-        this(builder, webhookUrl, "test-webhook-secret", "", new ObjectMapper(),
+        this(builder, webhookUrl, "test-webhook-secret-0123456789012345", "", new ObjectMapper(),
                 new NotificationEndpointPolicy(true, true, java.util.List.of("127.0.0.1", "localhost"), true));
     }
 
@@ -62,6 +62,9 @@ public class WebhookNotificationChannel implements NotificationChannel {
         }
         var secret = secrets.current();
         if (secret.isBlank()) return new NotificationDeliveryResult("FAILED", "责任人 Webhook 签名密钥未配置");
+        if (secret.length() < 32) {
+            return new NotificationDeliveryResult("FAILED", "责任人 Webhook 签名密钥强度不足");
+        }
         try {
             endpointPolicy.validate(webhookUrl);
         } catch (IllegalArgumentException exception) {

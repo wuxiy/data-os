@@ -176,7 +176,7 @@ class RunnerDatabase:
                 SET status = :status, passed = :passed, message = :message,
                     sample_evidence_json = :evidence, artifact_uri = :artifact_uri,
                     finished_at = CURRENT_TIMESTAMP, heartbeat_at = NULL, updated_at = CURRENT_TIMESTAMP
-                WHERE run_id = :run_id
+                WHERE run_id = :run_id AND status = 'RUNNING'
             """), {
                 "run_id": run_id, "status": status, "passed": passed,
                 "message": message[:1000], "evidence": json.dumps(evidence[:20], ensure_ascii=False),
@@ -200,7 +200,7 @@ class RunnerDatabase:
                 SET status = 'QUEUED', message = 'Runtime 重启后恢复排队', heartbeat_at = NULL,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE status = 'RUNNING'
-                  AND heartbeat_at < CURRENT_TIMESTAMP - (:seconds * INTERVAL '1 second')
+                  AND (heartbeat_at IS NULL OR heartbeat_at < CURRENT_TIMESTAMP - (:seconds * INTERVAL '1 second'))
             """), {"seconds": stale_seconds})
         return result.rowcount
 

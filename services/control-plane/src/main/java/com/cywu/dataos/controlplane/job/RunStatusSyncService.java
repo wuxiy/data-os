@@ -23,6 +23,7 @@ public class RunStatusSyncService {
     private final RunRepository runRepository;
     private final List<ExecutorAdapter> adapters;
     private final TenantScope tenantScope;
+    private final IngestionCheckpointRepository checkpointRepository;
     private final Set<String> inFlight = ConcurrentHashMap.newKeySet();
 
     @Value("${data-os.runs.sync-interval-ms:30000}")
@@ -31,15 +32,20 @@ public class RunStatusSyncService {
     @Value("${data-os.runs.sync-initial-delay-ms:10000}")
     private long syncInitialDelayMs;
 
+    @Value("${data-os.runs.submit-lease-ms:120000}")
+    private long submitLeaseMs;
+
     @Autowired
-    public RunStatusSyncService(RunRepository runRepository, List<ExecutorAdapter> adapters, TenantScope tenantScope) {
+    public RunStatusSyncService(RunRepository runRepository, List<ExecutorAdapter> adapters, TenantScope tenantScope,
+                                IngestionCheckpointRepository checkpointRepository) {
         this.runRepository = runRepository;
         this.adapters = adapters;
         this.tenantScope = tenantScope;
+        this.checkpointRepository = checkpointRepository;
     }
 
     public RunStatusSyncService(RunRepository runRepository, List<ExecutorAdapter> adapters) {
-        this(runRepository, adapters, new TenantScope(new AuthProperties()));
+        this(runRepository, adapters, new TenantScope(new AuthProperties()), null);
     }
 
     @PostConstruct
@@ -49,6 +55,9 @@ public class RunStatusSyncService {
         }
         if (syncInitialDelayMs < 0 || syncInitialDelayMs > 3_600_000) {
             throw new IllegalStateException("data-os.runs.sync-initial-delay-ms 必须在 0 到 3600000 毫秒之间");
+        }
+        if (submitLeaseMs < 1000 || submitLeaseMs > 86_400_000) {
+            throw new IllegalStateException("data-os.runs.submit-lease-ms 必须在 1000 到 86400000 毫秒之间");
         }
     }
 
@@ -60,6 +69,7 @@ public class RunStatusSyncService {
     }
 
     public void syncPendingRuns() {
+        runRepository.recoverStaleSubmitting(submitLeaseMs);
         runRepository.findSyncCandidates().forEach(this::syncOne);
     }
 
@@ -101,8 +111,17 @@ public class RunStatusSyncService {
 
     private void updateStatus(IngestionRun run, String status, String message, Instant startedAt, Instant finishedAt) {
         var lastRunAt = finishedAt != null ? finishedAt : startedAt != null ? startedAt : Instant.now();
-        runRepository.updateStatusAndJobLastRunAt(run.id(), run.jobId(), status, message, startedAt, finishedAt,
-                lastRunAt);
+        var updated = runRepository.updateStatusAndJobLastRunAt(run.id(), run.jobId(), status, message, startedAt,
+                finishedAt, lastRunAt);
+        if (updated > 0 && "SUCCEEDED".equals(status) && checkpointRepository != null) {
+            // Prefer the upper bound captured before extraction. Falling back
+            // to finish time is only for runs created before V3, otherwise a
+            // slow run could advance past rows committed while its query ran.
+            var watermarkEnd = runRepository.findSourceWatermarkEnd(run.id())
+                    .orElse(finishedAt != null ? finishedAt : lastRunAt);
+            runRepository.setSourceWatermarkEndBoundary(run.id(), watermarkEnd);
+            checkpointRepository.advance(run.jobId(), run.id(), watermarkEnd);
+        }
     }
 
     private boolean isSyncable(IngestionRun run) {

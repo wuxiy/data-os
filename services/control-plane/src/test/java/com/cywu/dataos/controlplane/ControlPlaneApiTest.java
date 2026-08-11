@@ -105,6 +105,146 @@ class ControlPlaneApiTest {
     }
 
     @Test
+    void ingestsQualityFindingAndReopensOrClosesTheSameSourceIssueIdempotently() throws Exception {
+        var failedFinding = """
+                {
+                  "findingKey":"lis:result-timeliness",
+                  "sourceSystem":"dbt-quality",
+                  "tenantId":"default",
+                  "institutionId":"demo-hospital",
+                  "title":"LIS 检验结果及时率下降",
+                  "severity":"HIGH",
+                  "datasetId":"asset-lis-lab-result",
+                  "ruleId":"rule-timeliness-result-time",
+                  "ownerDepartment":"检验科",
+                  "ownerId":"lab-data-admin",
+                  "ownerName":"检验科数据管理员",
+                  "ticketId":"TICKET-QUALITY-001",
+                  "impact":"检验主题 / 38 张表",
+                  "objectLabel":"检验结果",
+                  "executionBatchId":"quality-batch-001",
+                  "passed":false,
+                  "sampleEvidence":[{"record_id":"hmac-sha256:abc123","status":"INVALID"}],
+                  "message":"发现 2 条不符合规则的记录"
+                }
+                """;
+
+        mockMvc.perform(post("/api/v1/governance/quality-findings")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(failedFinding))
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.issueCreated", is(true)))
+                .andExpect(jsonPath("$.status", is("PENDING")))
+                .andExpect(jsonPath("$.passed", is(false)));
+
+        mockMvc.perform(post("/api/v1/governance/quality-findings")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(failedFinding))
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.issueCreated", is(false)))
+                .andExpect(jsonPath("$.message", is("相同执行批次已登记")));
+
+        mockMvc.perform(post("/api/v1/governance/quality-findings")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(failedFinding.replace("quality-batch-001", "quality-batch-002")
+                                .replace("\"passed\":false", "\"passed\":true")))
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.status", is("CLOSED")))
+                .andExpect(jsonPath("$.passed", is(true)));
+
+        mockMvc.perform(get("/api/v1/governance/issues")
+                        .param("query", "LIS 检验结果及时率下降"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total", is(1)))
+                .andExpect(jsonPath("$.items[0].status", is("CLOSED")));
+    }
+
+    @Test
+    void recordsPassingObservationWithoutCreatingIssueAndRedactsEvidence() throws Exception {
+        mockMvc.perform(post("/api/v1/governance/quality-findings")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "findingKey":"lis:result-timeliness:passing-observation",
+                                  "sourceSystem":"dbt-quality",
+                                  "tenantId":"default",
+                                  "institutionId":"demo-hospital",
+                                  "title":"LIS 检验结果及时率",
+                                  "severity":"LOW",
+                                  "datasetId":"asset-lis-lab-result",
+                                  "ruleId":"rule-timeliness-result-time",
+                                  "ownerDepartment":"检验科",
+                                  "ownerId":"lab-data-admin",
+                                  "ownerName":"检验科数据管理员",
+                                  "impact":"检验主题 / 38 张表",
+                                  "objectLabel":"检验结果",
+                                  "executionBatchId":"quality-passing-observation-001",
+                                  "passed":true,
+                                  "sampleEvidence":[{"patient_name":"张三","record_id":"hmac-sha256:abc123","status":"VALID"}]
+                                }
+                                """))
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.issueCreated", is(false)))
+                .andExpect(jsonPath("$.status", is("NO_ISSUE")))
+                .andExpect(jsonPath("$.passed", is(true)));
+
+        org.assertj.core.api.Assertions.assertThat(jdbc.queryForObject(
+                "SELECT COUNT(*) FROM data_os.quality_rule_runs WHERE executor = 'QUALITY_FINDING' "
+                        + "AND execution_batch_id = ? AND issue_id IS NULL", Integer.class,
+                "quality-passing-observation-001")).isEqualTo(1);
+        var evidence = jdbc.queryForObject(
+                "SELECT sample_evidence_json FROM data_os.quality_rule_runs WHERE execution_batch_id = ?",
+                String.class, "quality-passing-observation-001");
+        org.assertj.core.api.Assertions.assertThat(evidence).contains("[REDACTED]").doesNotContain("张三");
+    }
+
+    @Test
+    void concurrentQualityFindingCreatesOneIssueRunAndEvent() throws Exception {
+        var finding = """
+                {
+                  "findingKey":"concurrent:quality",
+                  "sourceSystem":"dbt-quality",
+                  "tenantId":"default",
+                  "institutionId":"demo-hospital",
+                  "title":"并发质量问题",
+                  "severity":"HIGH",
+                  "datasetId":"asset-concurrent",
+                  "ruleId":"rule-concurrent",
+                  "ownerDepartment":"信息中心",
+                  "ownerId":"quality-owner",
+                  "ownerName":"质量管理员",
+                  "impact":"测试主题 / 1 张表",
+                  "objectLabel":"测试对象",
+                  "executionBatchId":"quality-concurrent-001",
+                  "passed":false,
+                  "sampleEvidence":[{"record_id":"hmac-sha256:concurrent"}]
+                }
+                """;
+        var ready = new CountDownLatch(2);
+        var start = new CountDownLatch(1);
+        var executor = Executors.newFixedThreadPool(2);
+        try {
+            var first = executor.submit(() -> submitFindingAfter(start, ready, finding));
+            var second = executor.submit(() -> submitFindingAfter(start, ready, finding));
+            ready.await(2, TimeUnit.SECONDS);
+            start.countDown();
+            org.assertj.core.api.Assertions.assertThat(first.get(5, TimeUnit.SECONDS).getResponse().getStatus()).isEqualTo(202);
+            org.assertj.core.api.Assertions.assertThat(second.get(5, TimeUnit.SECONDS).getResponse().getStatus()).isEqualTo(202);
+            org.assertj.core.api.Assertions.assertThat(jdbc.queryForObject(
+                    "SELECT COUNT(*) FROM data_os.governance_issues WHERE source_key = ?", Integer.class,
+                    "dbt-quality|concurrent:quality")).isEqualTo(1);
+            org.assertj.core.api.Assertions.assertThat(jdbc.queryForObject(
+                    "SELECT COUNT(*) FROM data_os.quality_rule_runs WHERE executor = 'QUALITY_FINDING' "
+                            + "AND execution_batch_id = ?", Integer.class, "quality-concurrent-001")).isEqualTo(1);
+            org.assertj.core.api.Assertions.assertThat(jdbc.queryForObject(
+                    "SELECT COUNT(*) FROM data_os.governance_issue_events WHERE event_type = ?", Integer.class,
+                    "QUALITY_FINDING_DETECTED")).isEqualTo(1);
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
     void managesGovernanceIssueWorkflowThroughPublicApi() throws Exception {
         var now = Timestamp.from(Instant.now());
         jdbc.update("""
@@ -463,6 +603,20 @@ class ControlPlaneApiTest {
             Thread.currentThread().interrupt();
         }
         return notificationService.remind("DQ-TEST-008B", "default", "demo-hospital", "same-reminder-key");
+    }
+
+    private org.springframework.test.web.servlet.MvcResult submitFindingAfter(
+            CountDownLatch start, CountDownLatch ready, String body) {
+        ready.countDown();
+        try {
+            start.await(2, TimeUnit.SECONDS);
+            return mockMvc.perform(post("/api/v1/governance/quality-findings")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(body))
+                    .andReturn();
+        } catch (Exception exception) {
+            throw new IllegalStateException(exception);
+        }
     }
 
     private void insertIssue(String id, String title, String ruleId, String status, Instant dueAt) {

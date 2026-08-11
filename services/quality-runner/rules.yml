@@ -6,7 +6,10 @@ rules:
       kind: not_null
       table: dataos_quality_acceptance.quality_sample
       column: patient_id
-      columns: [record_id, patient_id, status]
+      columns:
+        - {name: record_id, classification: IDENTIFIER}
+        - {name: patient_id, classification: IDENTIFIER}
+        - {name: status, classification: CATEGORY}
   - rule_id: quality.acceptance.unique_record_id
     selector: quality_acceptance_unique_record_id
     dataset_id: dataos_quality_acceptance.quality_sample
@@ -14,7 +17,10 @@ rules:
       kind: unique
       table: dataos_quality_acceptance.quality_sample
       column: record_id
-      columns: [record_id, patient_id, status]
+      columns:
+        - {name: record_id, classification: IDENTIFIER}
+        - {name: patient_id, classification: IDENTIFIER}
+        - {name: status, classification: CATEGORY}
   - rule_id: quality.acceptance.status_values
     selector: quality_acceptance_status_values
     dataset_id: dataos_quality_acceptance.quality_sample
@@ -23,7 +29,10 @@ rules:
       table: dataos_quality_acceptance.quality_sample
       column: status
       values: [VALID, CANCELLED]
-      columns: [record_id, patient_id, status]
+      columns:
+        - {name: record_id, classification: IDENTIFIER}
+        - {name: patient_id, classification: IDENTIFIER}
+        - {name: status, classification: CATEGORY}
   # Compatibility bindings for the first hospital governance seed records.
   # They intentionally point at the synthetic acceptance table until each
   # institution supplies its LIS/EMR/surgery table contract; the rule IDs
@@ -35,7 +44,10 @@ rules:
       kind: not_null
       table: dataos_quality_acceptance.quality_sample
       column: updated_at
-      columns: [record_id, patient_id, updated_at]
+      columns:
+        - {name: record_id, classification: IDENTIFIER}
+        - {name: patient_id, classification: IDENTIFIER}
+        - {name: updated_at, classification: SAFE}
   - rule_id: rule-icd10-mapping
     selector: quality_acceptance_icd10_mapping
     dataset_id: asset-emr-diagnosis
@@ -44,7 +56,10 @@ rules:
       table: dataos_quality_acceptance.quality_sample
       column: status
       values: [VALID, CANCELLED]
-      columns: [record_id, patient_id, status]
+      columns:
+        - {name: record_id, classification: IDENTIFIER}
+        - {name: patient_id, classification: IDENTIFIER}
+        - {name: status, classification: CATEGORY}
   - rule_id: rule-surgery-required-fields
     selector: quality_acceptance_surgery_required_fields
     dataset_id: asset-surgery-record
@@ -52,4 +67,7 @@ rules:
       kind: not_null
       table: dataos_quality_acceptance.quality_sample
       column: patient_id
-      columns: [record_id, patient_id, status]
+      columns:
+        - {name: record_id, classification: IDENTIFIER}
+        - {name: patient_id, classification: IDENTIFIER}
+        - {name: status, classification: CATEGORY}

@@ -31,8 +31,21 @@ class RuleCatalog:
             columns = evidence.get("columns", [])
             if table and not _IDENTIFIER.fullmatch(table):
                 raise ValueError(f"invalid evidence table for {rule_id}")
-            if not isinstance(columns, list) or any(not _IDENTIFIER.fullmatch(str(item)) for item in columns):
+            if not isinstance(columns, list):
                 raise ValueError(f"invalid evidence columns for {rule_id}")
+            for item in columns:
+                if isinstance(item, str):
+                    if not _IDENTIFIER.fullmatch(item):
+                        raise ValueError(f"invalid evidence column for {rule_id}")
+                elif isinstance(item, dict):
+                    name = str(item.get("name", ""))
+                    classification = str(item.get("classification", "REDACTED")).upper()
+                    if not _IDENTIFIER.fullmatch(name) or classification not in {
+                        "IDENTIFIER", "CATEGORY", "SAFE", "REDACTED"
+                    }:
+                        raise ValueError(f"invalid evidence column policy for {rule_id}")
+                else:
+                    raise ValueError(f"invalid evidence column for {rule_id}")
             self._rules[rule_id] = RuleDefinition(rule_id, selector, dataset_id, dict(evidence))
 
     def get(self, rule_id: str) -> RuleDefinition | None:

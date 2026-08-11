@@ -14,6 +14,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.cywu.dataos.controlplane.quality.QualityRuleRun;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 @Repository
 public class GovernanceRepository {
@@ -82,6 +84,38 @@ public class GovernanceRepository {
         return items.stream().findFirst();
     }
 
+    public Optional<GovernanceIssue> findIssueBySourceKey(String sourceKey, String tenantId, String institutionId) {
+        return jdbc.query(ISSUE_SELECT + " WHERE source_key = ? AND tenant_id = ? AND institution_id = ?",
+                this::mapIssue, sourceKey, tenantId, institutionId).stream().findFirst();
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public int insertQualityFindingIssue(String id, String tenantId, String institutionId,
+                                         com.cywu.dataos.controlplane.quality.QualityFindingRequest request,
+                                         String sourceKey, String sourceSystem, String severity, Instant now) {
+        return jdbc.update("""
+                INSERT INTO data_os.governance_issues
+                    (id, tenant_id, institution_id, title, severity, status, dataset_id, rule_id,
+                     owner_department, owner_id, owner_name, ticket_id, impact, due_at, object_label,
+                     processing_note, updated_at, last_action_at, last_action, source_key, source_system)
+                VALUES (?, ?, ?, ?, ?, 'PENDING', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'QUALITY_FINDING_DETECTED', ?, ?)
+                """, id, tenantId, institutionId, request.title().trim(), severity, request.datasetId().trim(),
+                request.ruleId().trim(), request.ownerDepartment().trim(), request.ownerId().trim(),
+                request.ownerName().trim(), request.ticketId().trim(), request.impact().trim(),
+                timestamp(request.dueAt()), request.objectLabel().trim(), request.message().trim(), timestamp(now),
+                timestamp(now), sourceKey, sourceSystem);
+    }
+
+    public int updateIssueFromQualityFinding(String id, String tenantId, String institutionId,
+                                             String status, String note, String action, Instant actionAt) {
+        return jdbc.update("""
+                UPDATE data_os.governance_issues
+                SET status = ?, processing_note = ?, updated_at = ?, last_action_at = ?, last_action = ?
+                WHERE id = ? AND tenant_id = ? AND institution_id = ?
+                """, status, safe(note), timestamp(actionAt), timestamp(actionAt), action,
+                id, tenantId, institutionId);
+    }
+
     public List<GovernanceIssueEvent> findEvents(String issueId) {
         return jdbc.query("""
                 SELECT id, issue_id, event_type, note, actor, created_at
@@ -142,6 +176,43 @@ public class GovernanceRepository {
                 FROM data_os.quality_rule_runs
                 WHERE id = ? AND issue_id = ? AND tenant_id = ? AND institution_id = ?
                 """, this::mapQualityRun, runId, issueId, tenantId, institutionId).stream().findFirst();
+    }
+
+    public Optional<QualityRuleRun> findQualityRunByExternal(String executor, String externalId) {
+        return jdbc.query("""
+                SELECT id, issue_id, tenant_id, institution_id, rule_id, dataset_id, executor, status, external_id,
+                       execution_batch_id, passed, result_message, sample_evidence_json,
+                       submitted_at, started_at, finished_at, attempt_count, next_poll_at,
+                       last_error, updated_at
+                FROM data_os.quality_rule_runs
+                WHERE executor = ? AND external_id = ?
+                """, this::mapQualityRun, executor, externalId).stream().findFirst();
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public QualityFindingRunWrite recordQualityFindingRun(String issueId, String tenantId, String institutionId,
+                                                          com.cywu.dataos.controlplane.quality.QualityFindingRequest request,
+                                                          String executor, String externalId, String status, Instant now) {
+        var id = UUID.randomUUID().toString();
+        jdbc.update("""
+                    INSERT INTO data_os.quality_rule_runs
+                        (id, issue_id, tenant_id, institution_id, rule_id, dataset_id, executor, status,
+                         external_id, execution_batch_id, passed, result_message, sample_evidence_json,
+                         sample_evidence_count, submitted_at, started_at, finished_at, attempt_count, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+                    """, id, issueId, tenantId, institutionId, request.ruleId().trim(), request.datasetId().trim(),
+                    executor, status, externalId, request.executionBatchId().trim(), request.passed(),
+                    safe(request.message()), evidenceJson(request.sampleEvidence()),
+                    request.sampleEvidence() == null ? 0 : request.sampleEvidence().size(), timestamp(now),
+                    timestamp(now), timestamp(now), timestamp(now));
+        var run = issueId == null
+                ? findQualityRunByExternal(executor, externalId)
+                : findQualityRun(id, issueId, tenantId, institutionId);
+        var persisted = run.orElseThrow(() -> new IllegalStateException("质量结果执行批次写入失败"));
+        return new QualityFindingRunWrite(persisted, true);
+    }
+
+    public record QualityFindingRunWrite(QualityRuleRun run, boolean inserted) {
     }
 
     public Optional<QualityRuleRun> findLatestQualityRun(String issueId, String tenantId, String institutionId) {

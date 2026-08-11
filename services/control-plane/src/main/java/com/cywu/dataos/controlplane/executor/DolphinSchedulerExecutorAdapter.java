@@ -179,7 +179,9 @@ public class DolphinSchedulerExecutorAdapter implements OrchestratorAdapter {
                 throw new AdapterConfigurationException("DolphinScheduler startParams 必须是对象");
             }
             if (dataOsRunId != null && !dataOsRunId.isBlank()) {
-                startParams.putIfAbsent("dataos_run_id", dataOsRunId);
+                // The control plane owns the run identity. Never let a stale or
+                // caller-supplied startParam break status correlation/idempotency.
+                startParams.put("dataos_run_id", dataOsRunId);
             }
             query.add("startParams", json(startParams));
         }

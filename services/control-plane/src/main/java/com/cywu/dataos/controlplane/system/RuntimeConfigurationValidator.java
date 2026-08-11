@@ -1,6 +1,11 @@
 package com.cywu.dataos.controlplane.system;
 
 import jakarta.annotation.PostConstruct;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -35,6 +40,8 @@ public final class RuntimeConfigurationValidator {
     private final String notificationWebhookSecretFile;
     private final String notificationAllowedHosts;
     private final boolean strictSecurity;
+    private final boolean externalHttpsTerminated;
+    private final ObjectMapper objectMapper;
 
     private enum CompatibilityMode {
         DEMO_TEST
@@ -59,8 +66,9 @@ public final class RuntimeConfigurationValidator {
             @Value("${data-os.notification.webhook-secret:}") String notificationWebhookSecret,
             @Value("${data-os.notification.webhook-secret-file:}") String notificationWebhookSecretFile,
             @Value("${data-os.notification.allowed-hosts:}") String notificationAllowedHosts,
+            @Value("${data-os.runtime.external-https-terminated:false}") boolean externalHttpsTerminated,
             AuthProperties authProperties, CredentialProperties credentialProperties,
-            SourceNetworkProperties sourceNetworkProperties) {
+            SourceNetworkProperties sourceNetworkProperties, ObjectMapper objectMapper) {
         this.environment = environment;
         this.seedDemoEnabled = seedDemoEnabled;
         this.qualityExecutor = qualityExecutor;
@@ -82,6 +90,8 @@ public final class RuntimeConfigurationValidator {
         this.notificationWebhookSecretFile = normalize(notificationWebhookSecretFile);
         this.notificationAllowedHosts = normalize(notificationAllowedHosts);
         this.strictSecurity = true;
+        this.externalHttpsTerminated = externalHttpsTerminated;
+        this.objectMapper = objectMapper;
     }
 
     /** Compatibility constructor retained for focused unit tests. */
@@ -106,10 +116,12 @@ public final class RuntimeConfigurationValidator {
         this.qualityOidcClientId = "dataos-control-plane";
         this.qualityOidcClientSecret = "compatibility-secret";
         this.notificationWebhookUrl = "https://notify.example.test/data-os";
-        this.notificationWebhookSecret = "compatibility-webhook-secret";
+        this.notificationWebhookSecret = "compatibility-webhook-secret-32bytes";
         this.notificationWebhookSecretFile = "";
         this.notificationAllowedHosts = "notify.example.test";
         this.strictSecurity = true;
+        this.externalHttpsTerminated = true;
+        this.objectMapper = new ObjectMapper();
     }
 
     /** Compatibility constructor preserving the historical explicit tenant argument in tests. */
@@ -134,10 +146,12 @@ public final class RuntimeConfigurationValidator {
         this.qualityOidcClientId = "dataos-control-plane";
         this.qualityOidcClientSecret = "compatibility-secret";
         this.notificationWebhookUrl = "https://notify.example.test/data-os";
-        this.notificationWebhookSecret = "compatibility-webhook-secret";
+        this.notificationWebhookSecret = "compatibility-webhook-secret-32bytes";
         this.notificationWebhookSecretFile = "";
         this.notificationAllowedHosts = "notify.example.test";
         this.strictSecurity = true;
+        this.externalHttpsTerminated = true;
+        this.objectMapper = new ObjectMapper();
     }
 
     /** Minimal compatibility constructor retained for demo-only tests. */
@@ -169,6 +183,8 @@ public final class RuntimeConfigurationValidator {
         this.notificationWebhookSecretFile = "";
         this.notificationAllowedHosts = "";
         this.strictSecurity = false;
+        this.externalHttpsTerminated = true;
+        this.objectMapper = new ObjectMapper();
     }
 
     @PostConstruct
@@ -193,7 +209,8 @@ public final class RuntimeConfigurationValidator {
                 throw new IllegalStateException("DATAOS_SOURCE_MAX_RESPONSE_BYTES 必须在 1024 到 1048576 字节之间");
             }
         }
-        if (!"production".equalsIgnoreCase(normalize(environment))) {
+        var normalizedEnvironment = RuntimeEnvironment.normalize(environment);
+        if (!"production".equals(normalizedEnvironment)) {
             return;
         }
         if (seedDemoEnabled || demoQualityExecutorEnabled || "DEMO".equalsIgnoreCase(normalize(qualityExecutor))) {
@@ -202,6 +219,10 @@ public final class RuntimeConfigurationValidator {
                             + "DATAOS_QUALITY_EXECUTOR=HTTP/DBT、DATAOS_QUALITY_DEMO_ENABLED=false");
         }
         if (!strictSecurity) return;
+        if (!externalHttpsTerminated) {
+            throw new IllegalStateException(
+                    "生产环境必须由受控入口终止 HTTPS，并设置 DATAOS_EXTERNAL_HTTPS_TERMINATED=true");
+        }
         if (!authProperties.isEnforced() || authProperties.getIssuerUri() == null
                 || authProperties.getIssuerUri().isBlank()) {
             throw new IllegalStateException("生产环境必须启用 OIDC，并配置 DATAOS_OIDC_ISSUER_URI");
@@ -242,20 +263,29 @@ public final class RuntimeConfigurationValidator {
         if (qualityOidcTokenUri.isBlank() || qualityOidcClientId.isBlank() || qualityOidcClientSecret.isBlank()) {
             throw new IllegalStateException("生产环境必须配置质量 Runtime 的 OIDC Client Credentials");
         }
+        if (!qualityOidcTokenUri.toLowerCase(java.util.Locale.ROOT).startsWith("https://")) {
+            throw new IllegalStateException("生产环境质量 Runtime OIDC token URI 必须使用 HTTPS");
+        }
         if (notificationWebhookUrl.isBlank()) {
             throw new IllegalStateException("生产环境必须配置 DATAOS_NOTIFICATION_WEBHOOK_URL");
         }
         if (notificationWebhookSecret.isBlank() && notificationWebhookSecretFile.isBlank()) {
             throw new IllegalStateException("生产环境必须配置责任人 Webhook 签名密钥或 Secret 文件");
         }
+        if (!notificationWebhookSecret.isBlank() && notificationWebhookSecret.length() < 32) {
+            throw new IllegalStateException("生产环境责任人 Webhook 签名密钥至少需要 32 个字符");
+        }
+        if (!notificationWebhookSecretFile.isBlank() && !isStrongWebhookSecretFile()) {
+            throw new IllegalStateException("生产环境责任人 Webhook Secret 文件必须可读且 current 密钥至少需要 32 个字符");
+        }
         if (notificationAllowedHosts.isBlank()) {
             throw new IllegalStateException("生产环境必须配置 DATAOS_NOTIFICATION_ALLOWED_HOSTS");
         }
         var allowedHosts = sourceNetworkProperties.getAllowedHosts().stream()
                 .filter(item -> item != null && !item.isBlank()).toList();
-        if (sourceNetworkProperties.isAllowHttp() || sourceNetworkProperties.isAllowPrivateNetworks()
-                || sourceNetworkProperties.isAllowTestProtocols() || allowedHosts.isEmpty()) {
-            throw new IllegalStateException("生产环境必须使用 HTTPS、关闭内网/测试地址，并配置 DATAOS_SOURCE_ALLOWED_HOSTS");
+        if (sourceNetworkProperties.isAllowHttp() || sourceNetworkProperties.isAllowTestProtocols()
+                || allowedHosts.isEmpty()) {
+            throw new IllegalStateException("生产环境必须使用 HTTPS、关闭测试协议，并配置 DATAOS_SOURCE_ALLOWED_HOSTS");
         }
     }
 
@@ -265,5 +295,18 @@ public final class RuntimeConfigurationValidator {
 
     private boolean isDefaultValue(String value, String defaultValue) {
         return value != null && defaultValue.equalsIgnoreCase(value.trim());
+    }
+
+    private boolean isStrongWebhookSecretFile() {
+        try {
+            var path = Path.of(notificationWebhookSecretFile);
+            if (!Files.isRegularFile(path) || !Files.isReadable(path)) return false;
+            var root = objectMapper.readTree(Files.readString(path, StandardCharsets.UTF_8));
+            var current = root == null ? "" : root.path("current").asText("").trim();
+            return current.length() >= 32;
+        } catch (Exception ignored) {
+            // Do not leak a secret path or file contents in the startup error.
+            return false;
+        }
     }
 }

@@ -4,6 +4,7 @@ import java.net.InetAddress;
 import java.net.Inet6Address;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.UnknownHostException;
 import java.util.Locale;
 import java.util.Set;
 
@@ -31,7 +32,13 @@ public class SourceNetworkPolicy {
     }
 
     public boolean isLocalMode() {
-        return properties.isAllowPrivateNetworks();
+        // Inline credentials are only acceptable in the isolated development
+        // adapter.  A production installation may legitimately allow private
+        // hospital CIDRs, but that must never turn the development credential
+        // fallback back on.
+        return properties.isAllowPrivateNetworks()
+                && properties.isAllowTestProtocols()
+                && properties.getAllowedHosts().stream().noneMatch(item -> item != null && !item.isBlank());
     }
 
     /** Maximum number of bytes a source health check is allowed to consume. */
@@ -64,6 +71,22 @@ public class SourceNetworkPolicy {
         validateHost(host);
     }
 
+    /** Validate a host or host:port value used by a sink endpoint. */
+    public void validateHostPort(String rawHost) {
+        if (rawHost == null || rawHost.isBlank()) {
+            throw new IllegalArgumentException("数据源目标主机不能为空");
+        }
+        var value = rawHost.trim();
+        if (value.startsWith("[")) {
+            var end = value.indexOf(']');
+            if (end < 0) throw new IllegalArgumentException("数据源目标主机格式无效");
+            validateHost(value.substring(1, end));
+            return;
+        }
+        var colon = value.indexOf(':');
+        validateHost(colon > 0 ? value.substring(0, colon) : value);
+    }
+
     private void validateHost(String rawHost) {
         var host = rawHost.trim().toLowerCase(Locale.ROOT);
         if (BLOCKED_HOSTS.contains(host) || "localhost".equals(host)
@@ -73,27 +96,79 @@ public class SourceNetworkPolicy {
         if (!properties.isAllowPrivateNetworks() && properties.getAllowedHosts().isEmpty()) {
             throw new IllegalArgumentException("生产数据源目标必须配置 DATAOS_SOURCE_ALLOWED_HOSTS");
         }
-        if (!properties.getAllowedHosts().isEmpty() && properties.getAllowedHosts().stream()
-                .map(item -> item == null ? "" : item.trim().toLowerCase(Locale.ROOT))
-                .noneMatch(allowed -> host.equals(allowed) || host.endsWith("." + allowed))) {
+        var allowlist = properties.getAllowedHosts().stream()
+                .filter(item -> item != null && !item.isBlank())
+                .map(item -> item.trim().toLowerCase(Locale.ROOT))
+                .toList();
+        if (!allowlist.isEmpty() && !matchesAllowlist(host, null, allowlist)
+                && allowlist.stream().noneMatch(item -> item.contains("/"))) {
             throw new IllegalArgumentException("数据源目标主机不在允许列表中");
         }
         try {
             for (var address : InetAddress.getAllByName(host)) {
-                if (isPrivateOrLocal(address) && !properties.isAllowPrivateNetworks()) {
+                if (isAlwaysBlocked(address)) {
+                    throw new IllegalArgumentException("数据源目标地址属于禁止访问的本机、链路本地或组播地址");
+                }
+                if (isPrivateNetwork(address) && !properties.isAllowPrivateNetworks()) {
                     throw new IllegalArgumentException("数据源目标地址属于禁止访问的内网或本机地址");
                 }
+                if (!allowlist.isEmpty() && !matchesAllowlist(host, address, allowlist)) {
+                    throw new IllegalArgumentException("数据源解析地址不在允许列表中");
+                }
             }
-        } catch (java.net.UnknownHostException exception) {
+        } catch (UnknownHostException exception) {
             throw new IllegalArgumentException("数据源目标主机无法解析");
         }
     }
 
-    private boolean isPrivateOrLocal(InetAddress address) {
-        if (address.isAnyLocalAddress() || address.isLoopbackAddress() || address.isLinkLocalAddress()
-                || address.isSiteLocalAddress() || address.isMulticastAddress()) {
-            return true;
+    private boolean matchesAllowlist(String host, InetAddress address, java.util.List<String> allowlist) {
+        for (var allowed : allowlist) {
+            if (allowed.contains("/")) {
+                if (address != null && matchesCidr(address, allowed)) return true;
+                continue;
+            }
+            if (host.equals(allowed) || host.endsWith("." + allowed)) return true;
+            if (address != null && allowed.equals(address.getHostAddress().toLowerCase(Locale.ROOT))) return true;
         }
+        return false;
+    }
+
+    private boolean matchesCidr(InetAddress address, String cidr) {
+        try {
+            var parts = cidr.split("/", 2);
+            var network = InetAddress.getByName(parts[0]);
+            var prefix = Integer.parseInt(parts[1]);
+            var addressBytes = address.getAddress();
+            var networkBytes = network.getAddress();
+            if (addressBytes.length != networkBytes.length || prefix < 0 || prefix > addressBytes.length * 8) {
+                return false;
+            }
+            var fullBytes = prefix / 8;
+            var remainingBits = prefix % 8;
+            for (var index = 0; index < fullBytes; index++) {
+                if (addressBytes[index] != networkBytes[index]) return false;
+            }
+            if (remainingBits == 0) return true;
+            var mask = (byte) (0xff << (8 - remainingBits));
+            return (addressBytes[fullBytes] & mask) == (networkBytes[fullBytes] & mask);
+        } catch (Exception exception) {
+            throw new IllegalArgumentException("DATAOS_SOURCE_ALLOWED_HOSTS 中存在无效 CIDR：" + cidr, exception);
+        }
+    }
+
+    private boolean isAlwaysBlocked(InetAddress address) {
+        // An empty allowlist plus explicit private/test switches is the
+        // isolated development mode used by the local health-check adapter.
+        // Production must always provide a non-empty allowlist, so loopback
+        // cannot be smuggled into a private-network exception there.
+        var developmentLoopback = properties.isAllowPrivateNetworks()
+                && properties.getAllowedHosts().stream().noneMatch(item -> item != null && !item.isBlank());
+        return address.isAnyLocalAddress() || (address.isLoopbackAddress() && !developmentLoopback)
+                || address.isLinkLocalAddress() || address.isMulticastAddress();
+    }
+
+    private boolean isPrivateNetwork(InetAddress address) {
+        if (address.isSiteLocalAddress()) return true;
         if (address instanceof Inet6Address ipv6) {
             // RFC 4193 unique-local addresses (fc00::/7) are private even
             // though java.net.InetAddress does not classify them as site-local.

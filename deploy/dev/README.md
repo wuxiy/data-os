@@ -54,7 +54,8 @@ DOLPHINSCHEDULER_DEFAULT_TENANT_ENABLED=false
 DATAOS_QUALITY_EXECUTOR=HTTP
 DATAOS_QUALITY_EXECUTOR_BASE_URL=http://quality-runner:8080
 DATAOS_QUALITY_DEMO_ENABLED=false
-QUALITY_RUNNER_DB_URL=postgresql+psycopg://keycloak:<keycloak-db-password>@keycloak-db:5432/keycloak
+# Replace the bracketed value in a local, uncommitted .env file only.
+QUALITY_RUNNER_DB_URL=postgresql+psycopg://keycloak:replace-with-local-password@keycloak-db:5432/keycloak
 QUALITY_RUNNER_AUTH_MODE=DISABLED
 DORIS_FE_HOST=172.16.66.8
 DORIS_FE_PORT=9030
