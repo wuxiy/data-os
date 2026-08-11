@@ -604,3 +604,23 @@ SeaTunnel `2.3.13`、DolphinScheduler `UP`、RustFS `ok`；DolphinScheduler UI �
 Compose config 和 `git diff --check` 通过；远程控制面、门户、SeaTunnel、DolphinScheduler、RustFS
 容器均保持运行。浏览器插件在远程页面检查时发生连接超时，因此 UI 证据以门户深链 HTTP 200、
 发布 bundle 包含“平台运维舱”以及服务端真实 API 探针结果为准，未将浏览器插件超时误报为组件故障。
+
+## 2026-08-11 开发环境访问查询卡
+
+### 执行计划
+
+- [x] 盘点开发机主机、部署目录、端口、入口 URL、运行服务和凭据存放位置
+- [x] 新增脱敏环境查询文档，列出组件账号/角色、密码或 Token 的变量名与 Secret 卷位置
+- [x] 在 README 和开发部署说明中建立文档入口，明确甲方入口与技术组件入口边界
+- [x] 执行敏感信息扫描、文档链接检查、`git diff --check`，提交并推送
+
+### 结果复盘
+
+新增 [`docs/environment-access-reference.md`](../docs/environment-access-reference.md)，记录开发机
+`172.16.65.59`、门户/平台运维舱、SeaTunnel、DolphinScheduler、RustFS、Doris 的访问入口，以及
+PostgreSQL、调度器、RustFS、Doris、质量运行器和通知通道的账号角色与凭据查询位置。真实密码、
+Secret、Token 和连接串没有写入 Git；开发机 `.env` 权限核验为 `0600`，调度器短周期 Token 仍由
+Secret 卷托管。新增文档链接已放入根 README 和 `deploy/dev/README.md`，未改变远程运行容器。
+
+验证通过：远程 `docker compose ps` 中门户、控制面、质量运行器、RustFS、SeaTunnel、DolphinScheduler
+和 Token 轮换器均为运行状态；仓库敏感值扫描未发现新增明文凭据，`git diff --check` 通过。

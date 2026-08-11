@@ -4,6 +4,10 @@
 
 ## 组件
 
+开发机主机、门户/组件入口、账号角色和凭据查询位置集中记录在
+[`docs/environment-access-reference.md`](../../docs/environment-access-reference.md)。该文档不保存真实密码、Secret
+或 Token；实际值只存在远程 `.env`（`0600`）和调度器 Secret 卷中。
+
 | 服务 | 作用 | 暴露端口 |
 | --- | --- | --- |
 | `control-plane` | Java 21 / Spring Boot API，初始化 PostgreSQL schema | 仅平台网络 `8080` |

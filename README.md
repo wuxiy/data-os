@@ -11,6 +11,7 @@
 - `prototype/`：React + Vite 高保真桌面原型，路由与数据说明见其 `README.md`。
 - `services/control-plane/`：Java 21 / Spring Boot 控制面首条垂直切片，含数据源、采集任务、运行记录和治理摘要 API。
 - `deploy/dev/`：不含密钥的开发环境 Compose 覆盖；复用 data-ops 的 PostgreSQL 与 `platform-net`。
+- `docs/environment-access-reference.md`：开发环境主机、访问入口、组件账号角色及密码/Token 的受保护查询位置（脱敏，不提交秘密值）。
 - `tasks/`：执行计划与结果复盘（`todo.md`）、经验教训（`lessons.md`）。
 - `docs/mock-production-readiness.md`：mock/真实运行模式边界、落地使用方式与验收清单。
 
