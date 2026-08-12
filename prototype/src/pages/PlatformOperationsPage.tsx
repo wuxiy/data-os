@@ -62,6 +62,9 @@ export function PlatformOperationsPage({ canAccess }: { canAccess: boolean }) {
   const upCount = payload?.services.filter(service => service.status === 'UP').length ?? 0
   const configuredCount = payload?.services.filter(service => service.status !== 'NOT_CONFIGURED').length ?? 0
   const checkedAt = payload?.checkedAt ? formatTime(payload.checkedAt) : '尚未检查'
+  const operationalLabel = payload?.operational.state === 'READY'
+    ? '核心链路就绪'
+    : payload?.operational.state === 'DEGRADED' ? '核心链路降级' : '核心链路未知'
 
   return (
     <div className={styles.page}>
@@ -78,7 +81,7 @@ export function PlatformOperationsPage({ canAccess }: { canAccess: boolean }) {
         <div className={styles.heroStatus}>
           <div className={styles.heroStatusLabel}>平台探针</div>
           <strong>{payload ? `${upCount}/${payload.services.length}` : '—'}</strong>
-          <span>{payload ? '组件健康' : '等待首次检查'}</span>
+          <span>{payload ? operationalLabel : '等待首次检查'}</span>
           <button className={styles.refreshButton} onClick={() => void load()} aria-label="刷新平台组件状态">
             <RefreshCw size={15} />刷新
           </button>

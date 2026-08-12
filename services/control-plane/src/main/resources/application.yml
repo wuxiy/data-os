@@ -84,6 +84,7 @@ data-os:
     submit-lease-ms: ${DATAOS_QUALITY_SUBMIT_LEASE_MS:120000}
   notification:
     webhook-url: ${DATAOS_NOTIFICATION_WEBHOOK_URL:}
+    health-url: ${DATAOS_NOTIFICATION_HEALTH_URL:}
     webhook-secret: ${DATAOS_NOTIFICATION_WEBHOOK_SECRET:}
     webhook-secret-file: ${DATAOS_NOTIFICATION_WEBHOOK_SECRET_FILE:}
     allow-http: ${DATAOS_NOTIFICATION_ALLOW_HTTP:false}

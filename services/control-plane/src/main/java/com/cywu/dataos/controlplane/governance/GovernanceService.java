@@ -5,7 +5,6 @@ import java.util.List;
 
 import com.cywu.dataos.controlplane.api.ConflictException;
 import com.cywu.dataos.controlplane.api.ResourceNotFoundException;
-import com.cywu.dataos.controlplane.quality.QualityWorkflowService;
 import com.cywu.dataos.controlplane.security.TenantScope;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,13 +13,10 @@ import org.springframework.transaction.annotation.Transactional;
 public class GovernanceService {
 
     private final GovernanceRepository repository;
-    private final QualityWorkflowService qualityWorkflow;
     private final TenantScope tenantScope;
 
-    public GovernanceService(GovernanceRepository repository, QualityWorkflowService qualityWorkflow,
-                             TenantScope tenantScope) {
+    public GovernanceService(GovernanceRepository repository, TenantScope tenantScope) {
         this.repository = repository;
-        this.qualityWorkflow = qualityWorkflow;
         this.tenantScope = tenantScope;
     }
 
@@ -69,17 +65,6 @@ public class GovernanceService {
         if (updated != 1) throw new ResourceNotFoundException("未找到治理问题：" + issueId);
         repository.insertEvent(issueId, "WORKFLOW_UPDATED", request.note().trim(), "当前治理负责人", now);
         return detail(issueId, resolvedTenant, resolvedInstitution);
-    }
-
-    public GovernanceIssueDetail requestRecheck(String issueId, String tenantId, String institutionId,
-                                                RecheckGovernanceIssueRequest request) {
-        var scope = tenantScope.resolve(tenantId, institutionId);
-        var resolvedTenant = scope.tenantId();
-        var resolvedInstitution = scope.institutionId();
-        var note = request == null || request.note() == null || request.note().isBlank()
-                ? "已按原质量规则发起复检"
-                : request.note().trim();
-        return qualityWorkflow.requestRecheck(issueId, resolvedTenant, resolvedInstitution, note);
     }
 
     private GovernanceIssue require(String issueId, String tenantId, String institutionId) {

@@ -764,3 +764,36 @@ Secret 卷托管。新增文档链接已放入根 README 和 `deploy/dev/README.
 - 成功状态 CAS、source watermark 边界和 checkpoint 推进收拢在同一个短事务；对账 `FOUND` 拒绝空外部编号并转人工确认；SeaTunnel/DolphinScheduler adapter 未改协议实现。
 - 新增 4 项生命周期行为测试，覆盖状态同步、自动对账关联、空外部编号保护和 checkpoint 事务顺序；控制面 Maven 全量测试 `88` 项全绿，`git diff --check` 通过。
 - 双轴代码审查无 P0；已修复审查发现的 checkpoint 非原子和 `FOUND` 空编号 P1/P2 问题。构造器依赖较多仍是后续可选的深模块拆分方向，本轮不扩大范围。
+
+## 2026-08-13 Quality Outcome 与 Operational Facts 深化
+
+### 范围与不扩张边界
+
+- 本轮按架构审查的实际优先顺序处理第二、第三项：Quality Outcome、Operational Facts；不进入 Portal Workspace 的推测性重构。
+- 保持治理与平台运维现有 HTTP 路径兼容；质量执行器、通知渠道和外部组件探针继续作为 adapter，不改外部协议。
+- 不新增安全范围，不把平台依赖异常并入控制面自身 `/healthz`，避免轻量部署被可选外部组件拖成不可用。
+
+### 执行计划
+
+- [x] 复核架构报告、技能约束、历史教训与真实源码路径
+- [x] 固化 Quality Outcome 的公开 seam，先增加终态闭环与回滚行为测试
+- [x] 合并质量 finding 与复检结果闭环的事实所有权，并分离定时触发 adapter
+- [x] 固化 Operational Facts 的聚合契约，先增加 ready/degraded/unknown 行为测试
+- [x] 让平台运维 HTTP、运行状态横幅与 `platformctl smoke` 使用同一聚合事实
+- [x] 运行控制面、前端、脚本及差异验证，完成双轴代码审查
+- [x] 补充结果复盘并完成本地 `main` 提交前检查
+
+### 验收标准
+
+- 质量运行写入终态与治理问题、事件、通知闭环处于同一事务；闭环失败时运行仍可重试，不留下“运行终态但问题仍复检中”的悬挂状态。
+- 控制器只通过一个 Quality Outcome module 接入 finding 与复检结果；调度器只负责触发，不持有业务事实。
+- Operational Facts 对 `READY`、`DEGRADED`、`UNKNOWN` 有唯一判定；Java HTTP、React 状态展示和 `platformctl smoke` 不再各自推断。
+- 现有公开端点和手工 `UNKNOWN` 处置语义保持兼容，所有相关自动化测试与静态检查通过。
+
+### 结果复盘
+
+- 以 `QualityOutcomeService` 统一接管外部 finding、复检投递、结果同步、人工校准与 SLA 闭环；控制器只传输输入，默认复检备注等业务规则也留在模块内。
+- 质量运行终态、治理问题、事件和通知改为同一外层事务；唯一键竞争使用嵌套保存点隔离，真实 H2 用例证明通知入队失败时整段闭环回滚，运行保留可重试状态。
+- 新增唯一 `OperationalFacts` 判定与线程安全 registry；运行状态 API、平台运维 API、React 横幅/页面和 `platformctl smoke` 共用 `READY / DEGRADED / UNKNOWN` 语义。配置只决定是否可探测，未经真实成功探测保持 `UNKNOWN`，可选外部组件仍只保留明细状态。
+- 双轴审查识别并修复了默认复检备注仍在控制器、未跟踪新文件可能漏暂存、配置被误判为就绪、调度器持有提交租约规则四项风险；最终提交前显式核对完整暂存内容。
+- 验证通过：控制面 96 个测试、前端生产构建与 mock QA、CLI 语法/Operational Facts 契约测试及 dry-run status/smoke、`git diff --check`。

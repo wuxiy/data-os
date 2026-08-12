@@ -16,10 +16,9 @@ import jakarta.validation.Valid;
 import com.cywu.dataos.controlplane.quality.GovernanceNotificationDeliveryResult;
 import com.cywu.dataos.controlplane.quality.GovernanceSlaScanResult;
 import com.cywu.dataos.controlplane.quality.NotificationService;
-import com.cywu.dataos.controlplane.quality.QualityWorkflowService;
+import com.cywu.dataos.controlplane.quality.QualityOutcomeService;
 import com.cywu.dataos.controlplane.quality.QualityFindingRequest;
 import com.cywu.dataos.controlplane.quality.QualityFindingResult;
-import com.cywu.dataos.controlplane.quality.QualityFindingService;
 import com.cywu.dataos.controlplane.security.TenantScope;
 
 @RestController
@@ -27,18 +26,16 @@ import com.cywu.dataos.controlplane.security.TenantScope;
 public class GovernanceController {
 
     private final GovernanceService service;
-    private final QualityWorkflowService qualityWorkflow;
+    private final QualityOutcomeService qualityOutcomes;
     private final NotificationService notifications;
-    private final QualityFindingService qualityFindings;
     private final TenantScope tenantScope;
 
-    public GovernanceController(GovernanceService service, QualityWorkflowService qualityWorkflow,
-                                NotificationService notifications, QualityFindingService qualityFindings,
+    public GovernanceController(GovernanceService service, QualityOutcomeService qualityOutcomes,
+                                NotificationService notifications,
                                 TenantScope tenantScope) {
         this.service = service;
-        this.qualityWorkflow = qualityWorkflow;
+        this.qualityOutcomes = qualityOutcomes;
         this.notifications = notifications;
-        this.qualityFindings = qualityFindings;
         this.tenantScope = tenantScope;
     }
 
@@ -74,7 +71,7 @@ public class GovernanceController {
     @PostMapping("/quality-findings")
     @ResponseStatus(HttpStatus.ACCEPTED)
     public QualityFindingResult ingestQualityFinding(@Valid @RequestBody QualityFindingRequest request) {
-        return qualityFindings.ingest(request);
+        return qualityOutcomes.ingest(request);
     }
 
     @PutMapping("/issues/{issueId}/workflow")
@@ -92,7 +89,11 @@ public class GovernanceController {
             @RequestParam(required = false) String tenantId,
             @RequestParam(required = false) String institutionId,
             @Valid @RequestBody(required = false) RecheckGovernanceIssueRequest request) {
-        return service.requestRecheck(issueId, tenantId, institutionId, request);
+        return qualityOutcomes.requestRecheck(
+                issueId,
+                tenantId,
+                institutionId,
+                request == null ? null : request.note());
     }
 
     @PostMapping("/issues/{issueId}/runs/{runId}/sync")
@@ -101,7 +102,7 @@ public class GovernanceController {
             @PathVariable String runId,
             @RequestParam(required = false) String tenantId,
             @RequestParam(required = false) String institutionId) {
-        return qualityWorkflow.sync(issueId, runId, tenantId, institutionId);
+        return qualityOutcomes.sync(issueId, runId, tenantId, institutionId);
     }
 
     @PostMapping("/issues/{issueId}/runs/{runId}/reconcile")
@@ -110,7 +111,7 @@ public class GovernanceController {
             @PathVariable String runId,
             @RequestParam(required = false) String tenantId,
             @RequestParam(required = false) String institutionId) {
-        return qualityWorkflow.reconcile(issueId, runId, tenantId, institutionId);
+        return qualityOutcomes.reconcile(issueId, runId, tenantId, institutionId);
     }
 
     @PostMapping("/issues/{issueId}/runs/{runId}/reconcile/confirm-absent")
@@ -119,7 +120,7 @@ public class GovernanceController {
             @PathVariable String runId,
             @RequestParam(required = false) String tenantId,
             @RequestParam(required = false) String institutionId) {
-        return qualityWorkflow.confirmAbsent(issueId, runId, tenantId, institutionId);
+        return qualityOutcomes.confirmAbsent(issueId, runId, tenantId, institutionId);
     }
 
     @PostMapping("/issues/{issueId}/notifications/remind")
@@ -137,7 +138,7 @@ public class GovernanceController {
     public GovernanceSlaScanResult scanSla(
             @RequestParam(required = false) String tenantId,
             @RequestParam(required = false) String institutionId) {
-        return qualityWorkflow.scanSla(tenantId, institutionId);
+        return qualityOutcomes.scanSla(tenantId, institutionId);
     }
 
     @PostMapping("/notifications/deliver")

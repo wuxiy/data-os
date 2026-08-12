@@ -384,11 +384,33 @@ status() {
 
 system_status_smoke() {
     local url="${CONTROL_PLANE_URL%/}/api/v1/system/status"
-    local code
-    code=$(http_code "$url")
+    local response code body
+    if ! response=$(curl --silent --show-error --max-time "$HTTP_TIMEOUT" \
+        --write-out $'\n%{http_code}' "${AUTH_ARGS[@]}" "$url" 2>/dev/null); then
+        fail 'control-plane system/status 请求失败'
+        return 1
+    fi
+    code=${response##*$'\n'}
+    body=${response%$'\n'*}
     case "$code" in
         2??|3??)
-            pass "control-plane system/status：HTTP $code"
+            case "$(operational_facts_state "$body")" in
+                READY)
+                    pass "control-plane operational facts：READY（HTTP $code）"
+                    ;;
+                DEGRADED)
+                    fail 'control-plane operational facts：DEGRADED'
+                    return 1
+                    ;;
+                UNKNOWN)
+                    fail 'control-plane operational facts：UNKNOWN'
+                    return 1
+                    ;;
+                *)
+                    fail 'control-plane system/status 未返回可识别的 operational facts'
+                    return 1
+                    ;;
+            esac
             ;;
         401|403)
             fail 'control-plane system/status 需要认证；请设置 PLATFORMCTL_AUTH_HEADER 后重试'
@@ -398,6 +420,16 @@ system_status_smoke() {
             fail "control-plane system/status：HTTP $code"
             return 1
             ;;
+    esac
+}
+
+operational_facts_state() {
+    local body=${1:-}
+    case "$body" in
+        *'"operational"'*'"state"'*'"READY"'*) printf 'READY' ;;
+        *'"operational"'*'"state"'*'"DEGRADED"'*) printf 'DEGRADED' ;;
+        *'"operational"'*'"state"'*'"UNKNOWN"'*) printf 'UNKNOWN' ;;
+        *) printf 'INVALID' ;;
     esac
 }
 
@@ -590,4 +622,6 @@ main() {
     esac
 }
 
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+    main "$@"
+fi

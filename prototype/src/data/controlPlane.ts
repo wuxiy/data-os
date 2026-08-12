@@ -112,7 +112,18 @@ export interface RuntimeStatusApiResponse {
   demoQualityExecutorEnabled: boolean
   seatunnelConfigured: boolean
   notificationConfigured: boolean
+  operational: OperationalFactsApiResponse
   warnings: string[]
+}
+
+export type OperationalState = 'READY' | 'DEGRADED' | 'UNKNOWN'
+
+export interface OperationalFactsApiResponse {
+  state: OperationalState
+  ready: number
+  degraded: number
+  unknown: number
+  total: number
 }
 
 export type PlatformServiceStatus = 'UP' | 'DOWN' | 'NOT_CONFIGURED'
@@ -132,6 +143,7 @@ export interface PlatformServiceApiItem {
 export interface PlatformOperationsApiResponse {
   technicalAccess: boolean
   checkedAt: string
+  operational: OperationalFactsApiResponse
   services: PlatformServiceApiItem[]
 }
 

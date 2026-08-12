@@ -8,9 +8,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.cywu.dataos.controlplane.operational.OperationalFacts;
+import com.cywu.dataos.controlplane.operational.OperationalFactsRegistry;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
@@ -27,20 +30,30 @@ public final class PlatformOperationsService {
 
     private final RestClient restClient;
     private final String seatunnelBaseUrl;
+    private final String qualityExecutor;
+    private final String qualityExecutorBaseUrl;
+    private final boolean demoQualityExecutorEnabled;
+    private final String notificationHealthUrl;
     private final String seatunnelUiUrl;
     private final String dolphinschedulerBaseUrl;
     private final String dolphinschedulerUiUrl;
     private final String rustfsEndpoint;
     private final String rustfsConsoleUrl;
+    private final OperationalFactsRegistry operationalFacts;
 
     public PlatformOperationsService(
             RestClient.Builder builder,
             @Value("${data-os.seatunnel.base-url:}") String seatunnelBaseUrl,
+            @Value("${data-os.quality.executor:HTTP}") String qualityExecutor,
+            @Value("${data-os.quality.base-url:}") String qualityExecutorBaseUrl,
+            @Value("${data-os.quality.demo-enabled:false}") boolean demoQualityExecutorEnabled,
+            @Value("${data-os.notification.health-url:}") String notificationHealthUrl,
             @Value("${data-os.platform.seatunnel-ui-url:}") String seatunnelUiUrl,
             @Value("${data-os.dolphinscheduler.base-url:}") String dolphinschedulerBaseUrl,
             @Value("${data-os.platform.dolphinscheduler-ui-url:}") String dolphinschedulerUiUrl,
             @Value("${data-os.platform.rustfs-endpoint:}") String rustfsEndpoint,
-            @Value("${data-os.platform.rustfs-console-url:}") String rustfsConsoleUrl) {
+            @Value("${data-os.platform.rustfs-console-url:}") String rustfsConsoleUrl,
+            OperationalFactsRegistry operationalFacts) {
         var client = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(2))
                 .version(HttpClient.Version.HTTP_1_1)
@@ -49,17 +62,52 @@ public final class PlatformOperationsService {
         requestFactory.setReadTimeout(Duration.ofSeconds(4));
         this.restClient = builder.requestFactory(requestFactory).build();
         this.seatunnelBaseUrl = normalize(seatunnelBaseUrl);
+        this.qualityExecutor = qualityExecutor == null ? "HTTP" : qualityExecutor.trim().toUpperCase(java.util.Locale.ROOT);
+        this.qualityExecutorBaseUrl = normalize(qualityExecutorBaseUrl);
+        this.demoQualityExecutorEnabled = demoQualityExecutorEnabled;
+        this.notificationHealthUrl = normalize(notificationHealthUrl);
         this.seatunnelUiUrl = browserUrl(seatunnelUiUrl);
         this.dolphinschedulerBaseUrl = normalize(dolphinschedulerBaseUrl);
         this.dolphinschedulerUiUrl = browserUrl(dolphinschedulerUiUrl);
         this.rustfsEndpoint = normalize(rustfsEndpoint);
         this.rustfsConsoleUrl = browserUrl(rustfsConsoleUrl);
+        this.operationalFacts = operationalFacts;
     }
 
     public PlatformOperationsStatus snapshot() {
         var checkedAt = Instant.now();
-        return new PlatformOperationsStatus(true, checkedAt,
-                List.of(probeSeaTunnel(checkedAt), probeDolphinScheduler(checkedAt), probeRustFs(checkedAt)));
+        var services = List.of(probeSeaTunnel(checkedAt), probeDolphinScheduler(checkedAt), probeRustFs(checkedAt));
+        operationalFacts.updateQualityExecutor(probeQualityExecutor());
+        operationalFacts.updateSeaTunnel(services.getFirst().status());
+        operationalFacts.updateNotification(probeNotification());
+        var operational = operationalFacts.snapshot();
+        return new PlatformOperationsStatus(true, checkedAt, operational, services);
+    }
+
+    @Scheduled(
+            fixedDelayString = "${data-os.platform.probe-interval-ms:30000}",
+            initialDelayString = "${data-os.platform.probe-initial-delay-ms:10000}")
+    public void scheduledRefresh() {
+        snapshot();
+    }
+
+    private String probeQualityExecutor() {
+        if ("DEMO".equals(qualityExecutor)) return demoQualityExecutorEnabled ? "READY" : "UNKNOWN";
+        if (qualityExecutorBaseUrl.isBlank()) return "UNKNOWN";
+        return probe(qualityExecutorBaseUrl + "/readyz");
+    }
+
+    private String probeNotification() {
+        return notificationHealthUrl.isBlank() ? "UNKNOWN" : probe(notificationHealthUrl);
+    }
+
+    private String probe(String url) {
+        try {
+            restClient.get().uri(url).retrieve().toBodilessEntity();
+            return "READY";
+        } catch (RestClientException exception) {
+            return "DOWN";
+        }
     }
 
     private PlatformServiceStatus probeSeaTunnel(Instant checkedAt) {
@@ -178,6 +226,7 @@ public final class PlatformOperationsService {
     }
 
     public record PlatformOperationsStatus(boolean technicalAccess, Instant checkedAt,
+                                           OperationalFacts operational,
                                            List<PlatformServiceStatus> services) {
         public PlatformOperationsStatus {
             services = List.copyOf(services);

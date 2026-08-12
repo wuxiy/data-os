@@ -222,7 +222,8 @@ API 诊断端口只绑定 `127.0.0.1`，不通过门户或公网暴露。首次�
 - 首次验收前，在 Doris 8030/9030 执行 [`init-quality-doris.sql`](../scripts/init-quality-doris.sql)
   和 [`seed-quality-doris.sql`](../scripts/seed-quality-doris.sql)，再从门户发起复检；
   null、重复主键和非法状态样本应分别得到失败、证据与执行批次。
-- 责任人通知必须配置 `DATAOS_NOTIFICATION_WEBHOOK_URL`、签名密钥（推荐
+- 责任人通知必须配置 `DATAOS_NOTIFICATION_WEBHOOK_URL`、用于运行事实探测的
+  `DATAOS_NOTIFICATION_HEALTH_URL`、签名密钥（推荐
   `DATAOS_NOTIFICATION_WEBHOOK_SECRET_FILE`）和 `DATAOS_NOTIFICATION_ALLOWED_HOSTS`；
   通道以 `timestamp.nonce.payload` 的 HMAC-SHA256 签名发送，生产缺任一项会阻止启动。
 - 容器网络不直接公开 PostgreSQL；生产反向代理或负载均衡器负责 TLS、证书轮换和访问控制。

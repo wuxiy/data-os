@@ -25,6 +25,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.web.servlet.MockMvc;
@@ -33,7 +34,14 @@ import com.cywu.dataos.controlplane.governance.GovernanceIssueEvent;
 import com.cywu.dataos.controlplane.governance.GovernanceRepository;
 import com.cywu.dataos.controlplane.quality.NotificationService;
 import com.cywu.dataos.controlplane.quality.WebhookNotificationChannel;
-import com.cywu.dataos.controlplane.quality.QualityWorkflowService;
+import com.cywu.dataos.controlplane.quality.QualityOutcomeScheduler;
+import com.cywu.dataos.controlplane.quality.QualityOutcomeService;
+import com.cywu.dataos.controlplane.quality.QualityRuleExecutionRequest;
+import com.cywu.dataos.controlplane.quality.QualityRuleExecutionStatus;
+import com.cywu.dataos.controlplane.quality.QualityRuleExecutor;
+import com.cywu.dataos.controlplane.quality.QualityRuleSubmission;
+import com.cywu.dataos.controlplane.security.AuthProperties;
+import com.cywu.dataos.controlplane.security.TenantScope;
 import com.cywu.dataos.controlplane.job.RunLifecycleScheduler;
 
 @SpringBootTest
@@ -52,13 +60,16 @@ class ControlPlaneApiTest {
     private GovernanceRepository governanceRepository;
 
     @Autowired
-    private QualityWorkflowService qualityWorkflow;
+    private QualityOutcomeScheduler qualityOutcomeScheduler;
 
     @Autowired
     private NotificationService notificationService;
 
     @Autowired
     private RunLifecycleScheduler runLifecycleScheduler;
+
+    @Autowired
+    private PlatformTransactionManager transactionManager;
 
     @Test
     void exposesNonSensitiveRuntimeStatusForPortalDiagnostics() throws Exception {
@@ -70,7 +81,21 @@ class ControlPlaneApiTest {
                 .andExpect(jsonPath("$.demoQualityExecutorEnabled", is(true)))
                 .andExpect(jsonPath("$.seatunnelConfigured", is(false)))
                 .andExpect(jsonPath("$.notificationConfigured", is(false)))
+                .andExpect(jsonPath("$.operational.state", is("UNKNOWN")))
+                .andExpect(jsonPath("$.operational.ready", is(0)))
+                .andExpect(jsonPath("$.operational.unknown", is(3)))
                 .andExpect(jsonPath("$.warnings", hasSize(2)));
+    }
+
+    @Test
+    void exposesPlatformProbesThroughTheSameOperationalFactsContract() throws Exception {
+        mockMvc.perform(get("/api/v1/platform-operations"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.operational.state", is("DEGRADED")))
+                .andExpect(jsonPath("$.operational.ready", is(1)))
+                .andExpect(jsonPath("$.operational.degraded", is(0)))
+                .andExpect(jsonPath("$.operational.unknown", is(2)))
+                .andExpect(jsonPath("$.services", hasSize(3)));
     }
 
     @Test
@@ -401,6 +426,55 @@ class ControlPlaneApiTest {
     }
 
     @Test
+    void rollsBackTerminalQualityOutcomeWhenNotificationCannotBeQueued() {
+        insertIssue("DQ-TEST-004A", "质量闭环回滚", "rule-pass", "RECHECKING",
+                Instant.now().plusSeconds(3600));
+        var created = governanceRepository.createQualityRun("DQ-TEST-004A", "default", "demo-hospital",
+                "rule-pass", "asset-test", "ROLLBACK_TEST", "qr-rollback-004a", Instant.now());
+        jdbc.update("""
+                UPDATE data_os.quality_rule_runs
+                SET status = 'RUNNING', external_id = 'quality-external-004a', next_poll_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """, created.id());
+        var executor = new QualityRuleExecutor() {
+            @Override
+            public boolean supports(String name) {
+                return "ROLLBACK_TEST".equals(name);
+            }
+
+            @Override
+            public QualityRuleSubmission submit(QualityRuleExecutionRequest request) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public QualityRuleExecutionStatus status(String externalId) {
+                return new QualityRuleExecutionStatus("SUCCEEDED", true, "复检通过", "qr-rollback-004a",
+                        List.of(), null, Instant.now(), Instant.now());
+            }
+        };
+        var failingNotifications = new NotificationService(governanceRepository, List.of(), 5, 5_000) {
+            @Override
+            public com.cywu.dataos.controlplane.governance.GovernanceNotification enqueue(
+                    com.cywu.dataos.controlplane.governance.GovernanceIssue issue,
+                    GovernanceIssueEvent event, String subject, String body) {
+                throw new IllegalStateException("模拟通知入队失败");
+            }
+        };
+        var outcomes = new QualityOutcomeService(governanceRepository, List.of(executor), failingNotifications,
+                transactionManager, "ROLLBACK_TEST", 30_000, 120_000,
+                new TenantScope(new AuthProperties()));
+
+        var detail = outcomes.sync("DQ-TEST-004A", created.id(), "default", "demo-hospital");
+
+        org.assertj.core.api.Assertions.assertThat(detail.issue().status()).isEqualTo("RECHECKING");
+        org.assertj.core.api.Assertions.assertThat(detail.latestRun().status()).isEqualTo("RUNNING");
+        org.assertj.core.api.Assertions.assertThat(detail.latestRun().lastError()).contains("模拟通知入队失败");
+        org.assertj.core.api.Assertions.assertThat(detail.events()).isEmpty();
+        org.assertj.core.api.Assertions.assertThat(detail.notifications()).isEmpty();
+    }
+
+    @Test
     void exposesQualityUnknownReconciliationAndRequiresExplicitAbsenceConfirmation() throws Exception {
         insertIssue("DQ-TEST-004B", "质量执行对账", "rule-pass", "RECHECKING", Instant.now().plusSeconds(3600));
         var run = governanceRepository.createQualityRun("DQ-TEST-004B", "default", "demo-hospital",
@@ -491,7 +565,7 @@ class ControlPlaneApiTest {
                         'asset-test', 'DEMO', 'SUBMITTING', 'qr-recovery-007', ?, ?, ?)
                 """, now, now, now);
 
-        qualityWorkflow.scheduledSync();
+        qualityOutcomeScheduler.scheduledSync();
 
         var run = jdbc.queryForMap("SELECT status, external_id FROM data_os.quality_rule_runs WHERE id = 'run-recovery-007'");
         org.assertj.core.api.Assertions.assertThat(run.get("STATUS")).isEqualTo("SUBMITTED");

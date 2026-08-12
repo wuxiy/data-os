@@ -14,8 +14,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.cywu.dataos.controlplane.quality.QualityRuleRun;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Propagation;
 
 @Repository
 public class GovernanceRepository {
@@ -89,7 +89,7 @@ public class GovernanceRepository {
                 this::mapIssue, sourceKey, tenantId, institutionId).stream().findFirst();
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional(propagation = Propagation.NESTED)
     public int insertQualityFindingIssue(String id, String tenantId, String institutionId,
                                          com.cywu.dataos.controlplane.quality.QualityFindingRequest request,
                                          String sourceKey, String sourceSystem, String severity, Instant now) {
@@ -191,7 +191,7 @@ public class GovernanceRepository {
                 """, this::mapQualityRun, executor, externalId).stream().findFirst();
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional(propagation = Propagation.NESTED)
     public QualityFindingRunWrite recordQualityFindingRun(String issueId, String tenantId, String institutionId,
                                                           com.cywu.dataos.controlplane.quality.QualityFindingRequest request,
                                                           String executor, String externalId, String status, Instant now) {
@@ -207,9 +207,7 @@ public class GovernanceRepository {
                     safe(request.message()), evidenceJson(request.sampleEvidence()),
                     request.sampleEvidence() == null ? 0 : request.sampleEvidence().size(), timestamp(now),
                     timestamp(now), timestamp(now), timestamp(now));
-        var run = issueId == null
-                ? findQualityRunByExternal(executor, externalId)
-                : findQualityRun(id, issueId, tenantId, institutionId);
+        var run = findQualityRunByExternal(executor, externalId);
         var persisted = run.orElseThrow(() -> new IllegalStateException("质量结果执行批次写入失败"));
         return new QualityFindingRunWrite(persisted, true);
     }

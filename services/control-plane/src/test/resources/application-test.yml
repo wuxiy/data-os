@@ -32,6 +32,7 @@ data-os:
     sla-scan-initial-delay-ms: 3600000
     submit-lease-ms: 120000
   notification:
+    health-url: ""
     delivery-interval-ms: 3600000
     delivery-initial-delay-ms: 3600000
   runs:

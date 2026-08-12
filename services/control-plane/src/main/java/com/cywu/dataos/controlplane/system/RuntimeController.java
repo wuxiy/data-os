@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.Locale;
 import java.util.List;
 
+import com.cywu.dataos.controlplane.operational.OperationalFacts;
+import com.cywu.dataos.controlplane.operational.OperationalFactsRegistry;
 import com.cywu.dataos.controlplane.quality.WebhookSecretProvider;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
@@ -22,6 +24,7 @@ public class RuntimeController {
     private final String seatunnelBaseUrl;
     private final String notificationWebhookUrl;
     private final WebhookSecretProvider notificationSecrets;
+    private final OperationalFactsRegistry operationalFacts;
 
     public RuntimeController(
             @Value("${data-os.seed-demo:false}") boolean seedDemoEnabled,
@@ -32,7 +35,8 @@ public class RuntimeController {
             @Value("${data-os.notification.webhook-url:}") String notificationWebhookUrl,
             @Value("${data-os.notification.webhook-secret:}") String notificationWebhookSecret,
             @Value("${data-os.notification.webhook-secret-file:}") String notificationWebhookSecretFile,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            OperationalFactsRegistry operationalFacts) {
         this.seedDemoEnabled = seedDemoEnabled;
         this.qualityExecutor = normalize(qualityExecutor, "HTTP");
         this.qualityExecutorBaseUrl = normalizeUrl(qualityExecutorBaseUrl);
@@ -41,15 +45,14 @@ public class RuntimeController {
         this.notificationWebhookUrl = normalizeUrl(notificationWebhookUrl);
         this.notificationSecrets = new WebhookSecretProvider(objectMapper, notificationWebhookSecret,
                 notificationWebhookSecretFile);
+        this.operationalFacts = operationalFacts;
+        this.operationalFacts.updateConfiguration(qualityConfigured(), !this.seatunnelBaseUrl.isBlank(),
+                notificationConfigured());
     }
 
     @GetMapping("/status")
     public RuntimeStatus status() {
-        var qualityConfigured = switch (qualityExecutor) {
-            case "DEMO" -> demoQualityExecutorEnabled;
-            case "HTTP", "DBT" -> !qualityExecutorBaseUrl.isBlank();
-            default -> false;
-        };
+        var qualityConfigured = qualityConfigured();
         var warnings = new ArrayList<String>();
         if (seedDemoEnabled) warnings.add("当前数据库允许写入演示种子数据");
         if ("DEMO".equals(qualityExecutor) && !demoQualityExecutorEnabled) {
@@ -57,8 +60,7 @@ public class RuntimeController {
         }
         if (!qualityConfigured) warnings.add("质量规则执行器未完成配置");
         if (seatunnelBaseUrl.isBlank()) warnings.add("SeaTunnel 执行器未配置");
-        var notificationConfigured = !notificationWebhookUrl.isBlank()
-                && notificationSecrets.current().length() >= 32;
+        var notificationConfigured = notificationConfigured();
         if (notificationWebhookUrl.isBlank()) {
             warnings.add("责任人 Webhook 未配置，通知只会记录为 SKIPPED");
         } else if (!notificationConfigured) {
@@ -66,9 +68,10 @@ public class RuntimeController {
         }
         var mode = seedDemoEnabled || ("DEMO".equals(qualityExecutor) && demoQualityExecutorEnabled)
                 ? "DEMO" : "LIVE";
+        OperationalFacts operational = operationalFacts.snapshot();
         return new RuntimeStatus(mode, seedDemoEnabled, qualityExecutor, qualityConfigured,
                 demoQualityExecutorEnabled, !seatunnelBaseUrl.isBlank(),
-                notificationConfigured, List.copyOf(warnings));
+                notificationConfigured, operational, List.copyOf(warnings));
     }
 
     private String normalize(String value, String fallback) {
@@ -77,5 +80,17 @@ public class RuntimeController {
 
     private String normalizeUrl(String value) {
         return value == null ? "" : value.trim();
+    }
+
+    private boolean qualityConfigured() {
+        return switch (qualityExecutor) {
+            case "DEMO" -> demoQualityExecutorEnabled;
+            case "HTTP", "DBT" -> !qualityExecutorBaseUrl.isBlank();
+            default -> false;
+        };
+    }
+
+    private boolean notificationConfigured() {
+        return !notificationWebhookUrl.isBlank() && notificationSecrets.current().length() >= 32;
     }
 }

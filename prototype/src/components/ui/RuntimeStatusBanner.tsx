@@ -37,12 +37,17 @@ export function RuntimeStatusBanner() {
 
   const demo = frontendDemoMode || status?.mode === 'DEMO'
   const warning = status?.warnings[0]
+  const operationalState = status?.operational.state ?? 'UNKNOWN'
+  const operationalLabel = operationalState === 'READY'
+    ? '核心链路就绪'
+    : operationalState === 'DEGRADED' ? '核心链路降级' : '核心链路未知'
   return (
-    <div className={`${styles.banner} ${demo ? styles.demo : styles.live}`} role="status">
+    <div className={`${styles.banner} ${demo ? styles.demo : operationalState === 'READY' ? styles.live : styles.warning}`} role="status">
       {demo ? <CloudCog size={14} /> : <span className={styles.liveDot} />}
       <strong>{demo ? '演示运行模式' : '真实运行模式'}</strong>
       <span>{frontendDemoMode ? '前端已显式启用脱敏演示数据' : `质量执行器 ${status?.qualityExecutor ?? '未知'}`}</span>
       {status?.qualityExecutorConfigured ? <StatusTag tone="healthy">执行器已配置</StatusTag> : <StatusTag tone="warning">执行器待配置</StatusTag>}
+      <StatusTag tone={operationalState === 'READY' ? 'healthy' : 'warning'}>{operationalLabel}</StatusTag>
       {warning ? <span className={styles.warningText}>{warning}</span> : null}
       <span className={styles.scope}>{SCOPE_SUMMARY}</span>
     </div>

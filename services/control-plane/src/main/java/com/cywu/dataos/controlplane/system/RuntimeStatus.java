@@ -2,6 +2,8 @@ package com.cywu.dataos.controlplane.system;
 
 import java.util.List;
 
+import com.cywu.dataos.controlplane.operational.OperationalFacts;
+
 /**
  * Non-sensitive runtime capabilities exposed to the portal.  It intentionally
  * reports configuration state, never URLs, credentials or connection details.
@@ -14,5 +16,6 @@ public record RuntimeStatus(
         boolean demoQualityExecutorEnabled,
         boolean seatunnelConfigured,
         boolean notificationConfigured,
+        OperationalFacts operational,
         List<String> warnings) {
 }

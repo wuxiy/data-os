@@ -1,5 +1,7 @@
 package com.cywu.dataos.controlplane.quality;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
@@ -7,8 +9,8 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 import jakarta.annotation.PostConstruct;
-
 import com.cywu.dataos.controlplane.api.ConflictException;
+import com.cywu.dataos.controlplane.api.InvalidRequestException;
 import com.cywu.dataos.controlplane.api.ResourceNotFoundException;
 import com.cywu.dataos.controlplane.executor.AdapterConfigurationException;
 import com.cywu.dataos.controlplane.executor.AdapterUnavailableException;
@@ -17,8 +19,8 @@ import com.cywu.dataos.controlplane.governance.GovernanceIssueDetail;
 import com.cywu.dataos.controlplane.governance.GovernanceIssueEvent;
 import com.cywu.dataos.controlplane.governance.GovernanceRepository;
 import com.cywu.dataos.controlplane.security.TenantScope;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -30,7 +32,9 @@ import org.springframework.transaction.support.TransactionTemplate;
  * events.
  */
 @Service
-public class QualityWorkflowService {
+public class QualityOutcomeService {
+
+    private static final String FINDING_EXECUTOR = "QUALITY_FINDING";
 
     private final GovernanceRepository repository;
     private final List<QualityRuleExecutor> executors;
@@ -38,45 +42,52 @@ public class QualityWorkflowService {
     private final TransactionTemplate transactions;
     private final String executorName;
     private final long pollIntervalMs;
-    private final long pollInitialDelayMs;
-    private final long slaScanIntervalMs;
-    private final long slaScanInitialDelayMs;
     private final long submitLeaseMs;
     private final java.util.Set<String> inFlight = ConcurrentHashMap.newKeySet();
     private final String workerId = "quality-worker-" + UUID.randomUUID();
     private final TenantScope tenantScope;
 
-    public QualityWorkflowService(GovernanceRepository repository,
-                                  List<QualityRuleExecutor> executors,
-                                  NotificationService notifications,
-                                  PlatformTransactionManager transactionManager,
-                                  @Value("${data-os.quality.executor:HTTP}") String executorName,
-                                  @Value("${data-os.quality.poll-interval-ms:30000}") long pollIntervalMs,
-                                  @Value("${data-os.quality.poll-initial-delay-ms:10000}") long pollInitialDelayMs,
-                                  @Value("${data-os.quality.sla-scan-interval-ms:60000}") long slaScanIntervalMs,
-                                  @Value("${data-os.quality.sla-scan-initial-delay-ms:15000}") long slaScanInitialDelayMs,
-                                  @Value("${data-os.quality.submit-lease-ms:120000}") long submitLeaseMs,
-                                  TenantScope tenantScope) {
+    public QualityOutcomeService(GovernanceRepository repository,
+                                 List<QualityRuleExecutor> executors,
+                                 NotificationService notifications,
+                                 PlatformTransactionManager transactionManager,
+                                 @Value("${data-os.quality.executor:HTTP}") String executorName,
+                                 @Value("${data-os.quality.poll-interval-ms:30000}") long pollIntervalMs,
+                                 @Value("${data-os.quality.submit-lease-ms:120000}") long submitLeaseMs,
+                                 TenantScope tenantScope) {
         this.repository = repository;
         this.executors = executors;
         this.notifications = notifications;
         this.transactions = new TransactionTemplate(transactionManager);
         this.executorName = executorName == null ? "HTTP" : executorName.trim().toUpperCase(Locale.ROOT);
         this.pollIntervalMs = pollIntervalMs;
-        this.pollInitialDelayMs = pollInitialDelayMs;
-        this.slaScanIntervalMs = slaScanIntervalMs;
-        this.slaScanInitialDelayMs = slaScanInitialDelayMs;
         this.submitLeaseMs = submitLeaseMs;
         this.tenantScope = tenantScope;
     }
 
     @PostConstruct
-    void validateSchedule() {
-        validateDelay("data-os.quality.poll-interval-ms", pollIntervalMs, 1000, 3_600_000);
-        validateDelay("data-os.quality.poll-initial-delay-ms", pollInitialDelayMs, 0, 3_600_000);
-        validateDelay("data-os.quality.sla-scan-interval-ms", slaScanIntervalMs, 1000, 3_600_000);
-        validateDelay("data-os.quality.sla-scan-initial-delay-ms", slaScanInitialDelayMs, 0, 3_600_000);
-        validateDelay("data-os.quality.submit-lease-ms", submitLeaseMs, 5_000, 3_600_000);
+    void validatePolicy() {
+        if (submitLeaseMs < 5_000 || submitLeaseMs > 3_600_000) {
+            throw new IllegalStateException("data-os.quality.submit-lease-ms 必须在 5000 到 3600000 毫秒之间");
+        }
+    }
+
+    /** Records a terminal result emitted by an approved external quality workflow. */
+    public QualityFindingResult ingest(QualityFindingRequest request) {
+        var safeRequest = request.withSampleEvidence(sanitizeEvidence(request.sampleEvidence()));
+        var scope = tenantScope.resolve(safeRequest.tenantId(), safeRequest.institutionId());
+        var tenant = scope.tenantId();
+        var institution = scope.institutionId();
+        var findingKey = normalizeKey(safeRequest.findingKey());
+        var sourceSystem = normalizeKey(safeRequest.sourceSystem());
+        var executionBatchId = normalizeKey(safeRequest.executionBatchId());
+        var severity = normalizeSeverity(safeRequest.severity());
+        var externalId = externalId(tenant, institution, sourceSystem, findingKey, executionBatchId);
+        var issueSourceKey = issueSourceKey(sourceSystem, findingKey);
+        var result = transactions.execute(status -> ingestInTransaction(safeRequest, tenant, institution,
+                issueSourceKey, sourceSystem, severity, externalId));
+        if (result == null) throw new IllegalStateException("质量问题结果未写入");
+        return result;
     }
 
     public GovernanceIssueDetail requestRecheck(String issueId, String tenantId, String institutionId, String note) {
@@ -158,10 +169,7 @@ public class QualityWorkflowService {
         return detail(issueId, resolvedTenant, resolvedInstitution);
     }
 
-    @Scheduled(
-            fixedDelayString = "${data-os.quality.poll-interval-ms:30000}",
-            initialDelayString = "${data-os.quality.poll-initial-delay-ms:10000}")
-    public void scheduledSync() {
+    public void syncPending() {
         for (var run : repository.findQualitySyncCandidates(Instant.now())) {
             syncOne(run);
         }
@@ -172,10 +180,7 @@ public class QualityWorkflowService {
         return scanSlaScope(scope.tenantId(), scope.institutionId());
     }
 
-    @Scheduled(
-            fixedDelayString = "${data-os.quality.sla-scan-interval-ms:60000}",
-            initialDelayString = "${data-os.quality.sla-scan-initial-delay-ms:15000}")
-    public void scheduledSlaScan() {
+    public void scanOverdue() {
         for (var scope : repository.findSlaScopes(Instant.now())) {
             scanSlaScope(scope.tenantId(), scope.institutionId());
         }
@@ -240,27 +245,26 @@ public class QualityWorkflowService {
                     run.status(), run.externalId());
             if (claimed != 1) return;
             if (executor == null) {
-                var updated = repository.markQualityRunError(run.id(), "暂不支持质量规则执行器：" + run.executor(),
-                        null, "FAILED", run.status(), run.externalId(), statusWorkerId);
-                if (updated == 1) applyTerminalResult(run.id(), run.issueId(), run.tenantId(), run.institutionId());
+                completeTerminalError(run, statusWorkerId, "暂不支持质量规则执行器：" + run.executor());
                 return;
             }
             var result = executor.status(run.externalId());
             var status = normalizeStatus(result.status());
             var terminal = List.of("SUCCEEDED", "FAILED", "CANCELED").contains(status);
-            var updated = repository.updateQualityRunStatus(run.id(), status, result.passed(), result.executionBatchId(),
-                    result.message(), result.sampleEvidence(), result.artifactUri(), result.startedAt(), result.finishedAt(),
-                    terminal ? null : Instant.now().plusMillis(pollIntervalMs), null,
-                    run.status(), run.externalId(), statusWorkerId);
-            if (updated == 1 && terminal) applyTerminalResult(run.id(), run.issueId(), run.tenantId(), run.institutionId());
+            if (terminal) {
+                completeTerminalStatus(run, statusWorkerId, status, result);
+            } else {
+                repository.updateQualityRunStatus(run.id(), status, result.passed(), result.executionBatchId(),
+                        result.message(), result.sampleEvidence(), result.artifactUri(), result.startedAt(),
+                        result.finishedAt(), Instant.now().plusMillis(pollIntervalMs), null,
+                        run.status(), run.externalId(), statusWorkerId);
+            }
         } catch (AdapterUnavailableException exception) {
             repository.markQualityRunError(run.id(), safeMessage(exception),
                     Instant.now().plusMillis(pollIntervalMs), null,
                     run.status(), run.externalId(), statusWorkerId);
         } catch (AdapterConfigurationException exception) {
-            var updated = repository.markQualityRunError(run.id(), safeMessage(exception), null, "FAILED",
-                    run.status(), run.externalId(), statusWorkerId);
-            if (updated == 1) applyTerminalResult(run.id(), run.issueId(), run.tenantId(), run.institutionId());
+            completeTerminalError(run, statusWorkerId, safeMessage(exception));
         } catch (RuntimeException exception) {
             repository.markQualityRunError(run.id(), "状态同步失败：" + safeMessage(exception),
                     Instant.now().plusMillis(pollIntervalMs), null,
@@ -329,11 +333,31 @@ public class QualityWorkflowService {
         });
     }
 
-    private void applyTerminalResult(String runId, String issueId, String tenantId, String institutionId) {
-        transactions.execute(status -> {
-            var issue = repository.findIssue(issueId, tenantId, institutionId).orElse(null);
-            var run = repository.findQualityRun(runId, issueId, tenantId, institutionId).orElse(null);
-            if (issue == null || run == null || !"RECHECKING".equals(issue.status())) return null;
+    private void completeTerminalStatus(QualityRuleRun run, String statusWorkerId, String status,
+                                        QualityRuleExecutionStatus result) {
+        transactions.executeWithoutResult(transaction -> {
+            var updated = repository.updateQualityRunStatus(run.id(), status, result.passed(),
+                    result.executionBatchId(), result.message(), result.sampleEvidence(), result.artifactUri(),
+                    result.startedAt(), result.finishedAt(), null, null,
+                    run.status(), run.externalId(), statusWorkerId);
+            if (updated == 1) applyTerminalResultInTransaction(run);
+        });
+    }
+
+    private void completeTerminalError(QualityRuleRun run, String statusWorkerId, String message) {
+        transactions.executeWithoutResult(transaction -> {
+            var updated = repository.markQualityRunError(run.id(), message, null, "FAILED",
+                    run.status(), run.externalId(), statusWorkerId);
+            if (updated == 1) applyTerminalResultInTransaction(run);
+        });
+    }
+
+    private void applyTerminalResultInTransaction(QualityRuleRun claimedRun) {
+            var issue = repository.findIssue(claimedRun.issueId(), claimedRun.tenantId(),
+                    claimedRun.institutionId()).orElse(null);
+            var run = repository.findQualityRun(claimedRun.id(), claimedRun.issueId(), claimedRun.tenantId(),
+                    claimedRun.institutionId()).orElse(null);
+            if (issue == null || run == null || !"RECHECKING".equals(issue.status())) return;
             var pass = "SUCCEEDED".equals(run.status()) && Boolean.TRUE.equals(run.passed());
             var returned = !pass;
             var targetStatus = returned ? "RETURNED" : "CLOSED";
@@ -341,16 +365,14 @@ public class QualityWorkflowService {
             var note = run.resultMessage() == null ? (returned ? "复检未通过，已退回治理" : "复检通过，已自动关闭")
                     : run.resultMessage();
             var now = Instant.now();
-            if (repository.updateIssueAfterQualityResult(issueId, tenantId, institutionId,
+            if (repository.updateIssueAfterQualityResult(issue.id(), issue.tenantId(), issue.institutionId(),
                     targetStatus, note, action, now) == 1) {
-                var eventId = repository.insertEvent(issueId, action, note, "质量复检编排器", now);
-                var event = new GovernanceIssueEvent(eventId, issueId, action, note, "质量复检编排器", now);
+                var eventId = repository.insertEvent(issue.id(), action, note, "质量复检编排器", now);
+                var event = new GovernanceIssueEvent(eventId, issue.id(), action, note, "质量复检编排器", now);
                 notifications.enqueue(issue, event,
                         returned ? "质量复检未通过，问题已退回" : "质量复检通过，问题已自动关闭",
                         "问题「" + issue.title() + "」的执行批次 " + run.executionBatchId() + " 已完成：" + note);
             }
-            return null;
-        });
     }
 
     private GovernanceSlaScanResult scanSlaScope(String tenant, String institution) {
@@ -399,12 +421,6 @@ public class QualityWorkflowService {
         };
     }
 
-    private void validateDelay(String name, long value, long min, long max) {
-        if (value < min || value > max) {
-            throw new IllegalStateException(name + " 必须在 " + min + " 到 " + max + " 毫秒之间");
-        }
-    }
-
     private String safeMessage(Exception exception) {
         var message = exception.getMessage();
         if (message == null || message.isBlank()) return "未知错误";
@@ -413,5 +429,161 @@ public class QualityWorkflowService {
 
     private record RecheckClaim(GovernanceIssue issue, String tenantId, String institutionId,
                                 QualityRuleRun run, QualityRuleExecutionRequest request) {
+    }
+
+    private QualityFindingResult ingestInTransaction(QualityFindingRequest request,
+                                                     String tenant,
+                                                     String institution,
+                                                     String issueSourceKey,
+                                                     String sourceSystem,
+                                                     String severity,
+                                                     String externalId) {
+        var existingRun = repository.findQualityRunByExternal(FINDING_EXECUTOR, externalId);
+        if (existingRun.isPresent()) {
+            var existingIssue = repository.findIssue(existingRun.get().issueId(), tenant, institution).orElse(null);
+            return new QualityFindingResult(existingIssue == null ? null : existingIssue.id(),
+                    existingIssue == null ? "IGNORED" : existingIssue.status(), false,
+                    Boolean.TRUE.equals(existingRun.get().passed()), existingRun.get().executionBatchId(),
+                    "相同执行批次已登记");
+        }
+
+        var issue = repository.findIssueBySourceKey(issueSourceKey, tenant, institution).orElse(null);
+        var now = Instant.now();
+        var passed = Boolean.TRUE.equals(request.passed());
+        var created = false;
+        var action = passed ? "QUALITY_FINDING_PASSED" : "QUALITY_FINDING_DETECTED";
+        var note = findingMessage(request, passed);
+
+        if (issue == null && passed) {
+            var runWrite = recordFindingRun(null, tenant, institution, request, externalId, "SUCCEEDED", now);
+            var run = runWrite.run();
+            return new QualityFindingResult(null, "NO_ISSUE", false, true, run.executionBatchId(),
+                    runWrite.inserted() ? "质量规则通过，未产生治理问题" : "相同执行批次已登记");
+        }
+
+        if (issue == null) {
+            issue = insertFindingIssue(request, tenant, institution, issueSourceKey, sourceSystem, severity, now);
+            created = true;
+        } else {
+            var targetStatus = passed ? "CLOSED" : ("CLOSED".equals(issue.status()) ? "RETURNED" : issue.status());
+            if (!targetStatus.equals(issue.status()) || !passed) {
+                repository.updateIssueFromQualityFinding(issue.id(), tenant, institution, targetStatus, note,
+                        action, now);
+            }
+            issue = repository.findIssue(issue.id(), tenant, institution).orElseThrow();
+        }
+
+        var runWrite = recordFindingRun(issue.id(), tenant, institution, request, externalId,
+                passed ? "SUCCEEDED" : "FAILED", now);
+        var run = runWrite.run();
+        if (!runWrite.inserted()) {
+            return new QualityFindingResult(issue.id(), issue.status(), false, passed,
+                    run.executionBatchId(), "相同执行批次已登记");
+        }
+        var eventId = repository.insertEvent(issue.id(), action, note, "质量规则执行器", now);
+        var event = new GovernanceIssueEvent(eventId, issue.id(), action, note, "质量规则执行器", now);
+        notifications.enqueue(issue, event,
+                passed ? "质量检查通过" : "发现新的数据质量问题",
+                passed ? "问题「" + issue.title() + "」已通过质量检查，执行批次：" + run.executionBatchId()
+                        : "问题「" + issue.title() + "」检测失败，执行批次：" + run.executionBatchId());
+        return new QualityFindingResult(issue.id(), issue.status(), created, passed,
+                run.executionBatchId(), note);
+    }
+
+    private GovernanceIssue insertFindingIssue(QualityFindingRequest request, String tenant, String institution,
+                                               String issueSourceKey, String sourceSystem, String severity,
+                                               Instant now) {
+        var id = "DQ-" + UUID.randomUUID();
+        try {
+            repository.insertQualityFindingIssue(id, tenant, institution, request, issueSourceKey, sourceSystem,
+                    severity, now);
+        } catch (DuplicateKeyException duplicate) {
+            // NESTED rolls back only the conflicting insert savepoint; the
+            // caller's outcome transaction remains usable for the winner.
+        }
+        return repository.findIssueBySourceKey(issueSourceKey, tenant, institution)
+                .orElseThrow(() -> new IllegalStateException("质量问题写入后无法读取"));
+    }
+
+    private GovernanceRepository.QualityFindingRunWrite recordFindingRun(
+            String issueId, String tenant, String institution, QualityFindingRequest request,
+            String externalId, String status, Instant now) {
+        try {
+            return repository.recordQualityFindingRun(issueId, tenant, institution, request, FINDING_EXECUTOR,
+                    externalId, status, now);
+        } catch (DuplicateKeyException duplicate) {
+            var existing = repository.findQualityRunByExternal(FINDING_EXECUTOR, externalId)
+                    .orElseThrow(() -> duplicate);
+            return new GovernanceRepository.QualityFindingRunWrite(existing, false);
+        }
+    }
+
+    private String normalizeKey(String value) {
+        var normalized = value == null ? "" : value.trim();
+        if (normalized.isBlank() || normalized.length() > 300 || normalized.contains("\n")
+                || normalized.contains("\r")) {
+            throw new InvalidRequestException("质量问题来源键格式无效");
+        }
+        return normalized;
+    }
+
+    private String normalizeSeverity(String value) {
+        var normalized = value == null ? "" : value.trim().toUpperCase(Locale.ROOT);
+        if (!List.of("CRITICAL", "HIGH", "MEDIUM", "LOW").contains(normalized)) {
+            throw new InvalidRequestException("质量问题严重度必须为 CRITICAL/HIGH/MEDIUM/LOW");
+        }
+        return normalized;
+    }
+
+    private String issueSourceKey(String sourceSystem, String findingKey) {
+        var readable = sourceSystem + "|" + findingKey;
+        return readable.length() <= 300 ? readable : "source|" + sha256Hex(readable);
+    }
+
+    private String externalId(String tenant, String institution, String sourceSystem,
+                              String findingKey, String batchId) {
+        return "finding|" + sourceSystem + "|"
+                + sha256Hex(tenant + "|" + institution + "|" + sourceSystem + "|" + findingKey + "|" + batchId);
+    }
+
+    private String sha256Hex(String canonical) {
+        try {
+            var digest = MessageDigest.getInstance("SHA-256").digest(canonical.getBytes(StandardCharsets.UTF_8));
+            var hex = new StringBuilder(64);
+            for (var value : digest) hex.append(String.format(Locale.ROOT, "%02x", value & 0xff));
+            return hex.toString();
+        } catch (java.security.NoSuchAlgorithmException exception) {
+            throw new IllegalStateException("运行时缺少 SHA-256", exception);
+        }
+    }
+
+    private String findingMessage(QualityFindingRequest request, boolean passed) {
+        var value = request.message() == null || request.message().isBlank()
+                ? (passed ? "质量规则通过" : "质量规则未通过") : request.message().trim();
+        return value.length() <= 1000 ? value : value.substring(0, 1000);
+    }
+
+    private List<java.util.Map<String, Object>> sanitizeEvidence(List<java.util.Map<String, Object>> evidence) {
+        var safeRows = new java.util.ArrayList<java.util.Map<String, Object>>();
+        for (var row : evidence == null ? List.<java.util.Map<String, Object>>of() : evidence) {
+            var safe = new java.util.LinkedHashMap<String, Object>();
+            if (row == null) continue;
+            row.forEach((key, value) -> {
+                var name = key == null ? "" : key.trim();
+                if (!name.matches("[A-Za-z_][A-Za-z0-9_]{0,127}")) return;
+                var text = value == null ? null : String.valueOf(value);
+                var sensitive = name.matches("(?i).*(name|patient|person|phone|mobile|id_card|identity|address|encounter|visit|password|secret|token|sql|credential|connection).*");
+                var identifier = name.matches("(?i).*(^|_)(id|key|code)$") || name.endsWith("_id");
+                if (text != null && (sensitive || identifier)
+                        && !text.startsWith("hmac-sha256:") && !"[REDACTED]".equals(text)) {
+                    text = "[REDACTED]";
+                }
+                if (text != null && text.length() > 256) text = text.substring(0, 256);
+                safe.put(name, text);
+            });
+            safeRows.add(safe);
+            if (safeRows.size() >= 20) break;
+        }
+        return List.copyOf(safeRows);
     }
 }

@@ -33,6 +33,9 @@ jobs:
       - name: Test control plane
         run: mvn -B -ntp -f services/control-plane/pom.xml test
 
+      - name: Test platformctl operational facts contract
+        run: bash deploy/production/tests/platformctl-operational-facts-test.sh
+
       - name: Package control plane
         run: mvn -B -ntp -f services/control-plane/pom.xml -DskipTests package
 
