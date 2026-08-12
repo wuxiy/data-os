@@ -16,9 +16,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/jobs/{jobId}/runs")
 public class RunController {
 
-    private final RunService service;
+    private final RunLifecycleService service;
 
-    public RunController(RunService service) {
+    public RunController(RunLifecycleService service) {
         this.service = service;
     }
 

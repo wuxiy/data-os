@@ -34,7 +34,7 @@ import com.cywu.dataos.controlplane.governance.GovernanceRepository;
 import com.cywu.dataos.controlplane.quality.NotificationService;
 import com.cywu.dataos.controlplane.quality.WebhookNotificationChannel;
 import com.cywu.dataos.controlplane.quality.QualityWorkflowService;
-import com.cywu.dataos.controlplane.job.RunStatusSyncService;
+import com.cywu.dataos.controlplane.job.RunLifecycleScheduler;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -58,7 +58,7 @@ class ControlPlaneApiTest {
     private NotificationService notificationService;
 
     @Autowired
-    private RunStatusSyncService runStatusSyncService;
+    private RunLifecycleScheduler runLifecycleScheduler;
 
     @Test
     void exposesNonSensitiveRuntimeStatusForPortalDiagnostics() throws Exception {
@@ -724,13 +724,13 @@ class ControlPlaneApiTest {
                         ?, NULL, NULL)
                 """, jobId, Timestamp.from(Instant.now().minusSeconds(600)));
 
-        runStatusSyncService.syncPendingRuns();
+        runLifecycleScheduler.scheduledSync();
 
         mockMvc.perform(get("/api/v1/jobs/" + jobId + "/runs"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items[0].status", is("UNKNOWN")))
                 .andExpect(jsonPath("$.items[0].reconciliationStatus", is("MANUAL_REQUIRED")))
-                .andExpect(jsonPath("$.items[0].reconciliationMessage", org.hamcrest.Matchers.containsString("人工")));
+                .andExpect(jsonPath("$.items[0].reconciliationMessage", is("中心采集执行器未配置，无法按 data_os_run_id 对账，请人工确认")));
 
         mockMvc.perform(post("/api/v1/jobs/" + jobId + "/runs/reconcile-run-1/reconcile/confirm-absent"))
                 .andExpect(status().isOk())

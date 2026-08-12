@@ -737,3 +737,30 @@ Secret 卷托管。新增文档链接已放入根 README 和 `deploy/dev/README.
 ### 交付边界
 
 本轮不虚构后端过滤能力；范围摘要是当前真实实现边界。平台运维页保留独立的技术深色主题色值，未强行并入业务页面 token，以避免改变其技术诊断可读性。
+
+## 2026-08-12 Run Lifecycle 深化
+
+### 执行计划
+
+- [x] 读取 `grilling`、`implement`、`tdd`、`code-review` 技能与项目历史约束
+- [x] 复核 `RunService`、`RunStatusSyncService`、`RunRepository`、`ExecutorAdapter` 及现有测试覆盖
+- [x] 确认最小边界：合并采集运行的业务生命周期；保留数据库 CAS、执行器 adapter、短事务和定时触发入口
+- [x] 以新生命周期边界的公开行为为 seam 增加回归测试
+- [x] 实现提交、同步、恢复、对账、人工确认、重试和 checkpoint 的统一归属
+- [x] 运行控制面全量测试、差异检查与代码审查
+
+### 验收标准
+
+- `RunController` 与 `RunStatusController` 不再分别持有两个运行状态机 service
+- 外部网络调用仍在事务外，提交结果仍通过数据库条件更新回写
+- `SUBMITTING` stale recovery、`UNKNOWN` 人工对账、`CONFIRMED_ABSENT` retry、成功 watermark 推进行为保持不变
+- SeaTunnel 与 DolphinScheduler adapter 不改接口与协议语义
+- 现有控制面测试通过，并新增至少一个覆盖统一生命周期边界的行为测试
+
+### 结果复盘
+
+- 删除 `RunService` 与 `RunStatusSyncService` 的双边界，新增 `RunLifecycleService` 统一承载启动、轮询、stale 恢复、对账、人工确认、重试和 checkpoint；`RunLifecycleScheduler` 仅负责定时触发与配置校验。
+- 修复 stale `SUBMITTING` 对账候选不可达问题：先置为 `UNKNOWN + reconciliation_status=NULL`，由 adapter 可靠关联；无法关联时仍落为 `MANUAL_REQUIRED`，不自动重复投递。
+- 成功状态 CAS、source watermark 边界和 checkpoint 推进收拢在同一个短事务；对账 `FOUND` 拒绝空外部编号并转人工确认；SeaTunnel/DolphinScheduler adapter 未改协议实现。
+- 新增 4 项生命周期行为测试，覆盖状态同步、自动对账关联、空外部编号保护和 checkpoint 事务顺序；控制面 Maven 全量测试 `88` 项全绿，`git diff --check` 通过。
+- 双轴代码审查无 P0；已修复审查发现的 checkpoint 非原子和 `FOUND` 空编号 P1/P2 问题。构造器依赖较多仍是后续可选的深模块拆分方向，本轮不扩大范围。

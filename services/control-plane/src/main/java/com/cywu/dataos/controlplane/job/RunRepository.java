@@ -133,14 +133,14 @@ public class RunRepository {
                 """, this::mapRun);
     }
 
-    /** Mark a lost pre-submit lease as retryable instead of leaving it stuck forever. */
+    /** Queue a lost pre-submit lease for adapter reconciliation instead of leaving it stuck forever. */
     public int recoverStaleSubmitting(long leaseMillis) {
         if (leaseMillis < 1) return 0;
         return jdbc.update("""
                 UPDATE data_os.job_runs
                 SET status = 'UNKNOWN',
                     message = '提交请求可能已被执行器接受，正在等待人工/执行器对账',
-                    reconciliation_status = 'MANUAL_REQUIRED',
+                    reconciliation_status = NULL,
                     reconciliation_message = '控制面未收到外部运行编号；请人工先按 data_os_run_id 对账，确认不存在后再重试',
                     finished_at = NULL
                 WHERE status = 'SUBMITTING' AND submitted_at < ?
