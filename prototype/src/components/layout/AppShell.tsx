@@ -99,7 +99,8 @@ export function AppShell({ route, children, onNavigate, onUnavailable, authDispl
                 : item.route === 'assistant'
                   ? ['assistant', 'assistantWorkspace'].includes(route)
                   : item.route === route
-            return (
+            const content = <><Icon size={19} strokeWidth={1.5} /><span>{item.label}</span>{!item.route ? <em className={styles.plannedLabel}>规划中</em> : null}</>
+            return item.route ? (
               <button
                 key={item.label}
                 className={`${styles.navItem} ${isActive ? styles.navItemActive : ''}`}
@@ -107,9 +108,17 @@ export function AppShell({ route, children, onNavigate, onUnavailable, authDispl
                 aria-current={isActive ? 'page' : undefined}
                 title={item.label}
               >
-                <Icon size={19} strokeWidth={1.5} />
-                <span>{item.label}</span>
+                {content}
               </button>
+            ) : (
+              <div
+                key={item.label}
+                className={`${styles.navItem} ${styles.navItemPlanned}`}
+                aria-disabled="true"
+                title={`${item.label} · 规划中`}
+              >
+                {content}
+              </div>
             )
           })}
         </nav>

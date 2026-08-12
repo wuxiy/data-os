@@ -20,7 +20,7 @@ import {
   X,
 } from 'lucide-react'
 import type { FormEvent, ReactNode } from 'react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { PageHeader } from '../components/ui/PageHeader'
 import { StatusTag } from '../components/ui/Primitives'
 import {
@@ -139,6 +139,44 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
   const [sourceCheckText, setSourceCheckText] = useState('')
   const [sourceCheckLoading, setSourceCheckLoading] = useState(false)
   const [sourceCheckError, setSourceCheckError] = useState<string | null>(null)
+  const drawerCloseRef = useRef<HTMLElement | null>(null)
+
+  useEffect(() => {
+    if (!checkingSource && !configuringJob && !detailsJob) return
+    drawerCloseRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
+    function handleKeyDown(event: KeyboardEvent) {
+      const drawer = document.querySelector<HTMLElement>('[role="dialog"]')
+      if (!drawer) return
+      if (event.key === 'Escape') {
+        setCheckingSource(null)
+        setConfiguringJob(null)
+        setDetailsJob(null)
+        return
+      }
+      if (event.key !== 'Tab') return
+      const focusable = Array.from(drawer.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'))
+      if (!focusable.length) return
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      document.body.style.overflow = previousOverflow
+      drawerCloseRef.current?.focus({ preventScroll: true })
+      drawerCloseRef.current = null
+    }
+  }, [checkingSource, configuringJob, detailsJob])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -494,7 +532,7 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
 
   return (
     <div className={styles.page}>
-      <PageHeader title="数据接入" onFilterNotice={onNotice} />
+      <PageHeader title="数据接入" />
       <div className={styles.apiStatus} role="status" aria-live="polite">
         <span className={`${styles.apiDot} ${state === 'live' ? styles.apiDotLive : ''}`} />
         {state === 'loading' ? '正在连接采集控制面…' : state === 'live' ? '控制面已连接 · 数据源与任务来自 PostgreSQL' : '控制面暂不可用 · 未加载业务数据'}
@@ -571,8 +609,8 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
 
       {checkingSource ? <>
         <button className={styles.drawerBackdrop} aria-label="关闭数据源检查" onClick={() => setCheckingSource(null)} />
-        <aside className={styles.sideDrawer} aria-label="数据源可用性检查" aria-modal="true">
-          <div className={styles.drawerHeader}><div><span className={styles.drawerEyebrow}>数据源检查 · {checkingSource.protocol}</span><h2>{checkingSource.name}</h2></div><button className={styles.iconButton} aria-label="关闭" onClick={() => setCheckingSource(null)}><X size={17} /></button></div>
+        <aside className={styles.sideDrawer} role="dialog" aria-labelledby="source-check-title" aria-modal="true">
+          <div className={styles.drawerHeader}><div><span className={styles.drawerEyebrow}>数据源检查 · {checkingSource.protocol}</span><h2 id="source-check-title">{checkingSource.name}</h2></div><button autoFocus className={styles.iconButton} aria-label="关闭" onClick={() => setCheckingSource(null)}><X size={17} /></button></div>
           <div className={styles.drawerBody}>
             <div className={styles.drawerNotice}><CheckCircle2 size={16} /><span>检查只在当前请求中使用连接参数，不会把密码或 Token 写入来源记录。结果会回写为健康、失败或待配置，并显示最近检查时间。</span></div>
             <div className={styles.formField}><label htmlFor="source-check-editor">检查配置 JSON</label><textarea id="source-check-editor" className={`${styles.codeInput} ${styles.codeInputLarge}`} value={sourceCheckText} onChange={(event) => setSourceCheckText(event.target.value)} spellCheck={false} disabled={sourceCheckLoading} /></div>
@@ -585,8 +623,8 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
 
       {configuringJob ? <>
         <button className={styles.drawerBackdrop} aria-label="关闭任务配置" onClick={() => setConfiguringJob(null)} />
-        <aside className={styles.sideDrawer} aria-label="任务配置" aria-modal="true">
-          <div className={styles.drawerHeader}><div><span className={styles.drawerEyebrow}>任务配置 · {configuringJob.id.slice(0, 8)}</span><h2>{configuringJob.name}</h2></div><button className={styles.iconButton} aria-label="关闭" onClick={() => setConfiguringJob(null)}><X size={17} /></button></div>
+        <aside className={styles.sideDrawer} role="dialog" aria-labelledby="job-config-title" aria-modal="true">
+          <div className={styles.drawerHeader}><div><span className={styles.drawerEyebrow}>任务配置 · {configuringJob.id.slice(0, 8)}</span><h2 id="job-config-title">{configuringJob.name}</h2></div><button autoFocus className={styles.iconButton} aria-label="关闭" onClick={() => setConfiguringJob(null)}><X size={17} /></button></div>
           <div className={styles.drawerBody}>
             <div className={styles.drawerNotice}><Settings2 size={16} /><span>保存的是可审计的结构配置。连接密码、Token、Secret 等敏感值必须通过凭据引用接入，本版不会落库。</span></div>
             <div className={styles.drawerFields}><div className={styles.formField}><label htmlFor="config-template">模板标识</label><select id="config-template" value={configTemplateKey} onChange={(event) => selectConfigTemplate(event.target.value)}>{frontendDemoMode || configTemplateKey === DEFAULT_TEMPLATE_KEY ? <option value={DEFAULT_TEMPLATE_KEY} disabled={!frontendDemoMode}>FakeSource → Console（仅演示）</option> : null}{workflowTemplates.map((template) => <option value={template.key} key={template.key}>{template.displayName} · {template.systemType}</option>)}<option value={LIVE_TEMPLATE_KEY}>自定义 JSON</option></select></div><div className={styles.formField}><label htmlFor="config-version">模板版本</label><input id="config-version" type="number" min={1} value={configTemplateVersion} onChange={(event) => setConfigTemplateVersion(Math.max(1, Number(event.target.value) || 1))} /></div></div>
@@ -600,8 +638,8 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
 
       {detailsJob ? <>
         <button className={styles.drawerBackdrop} aria-label="关闭运行详情" onClick={() => setDetailsJob(null)} />
-        <aside className={styles.sideDrawer} aria-label="运行详情" aria-modal="true">
-          <div className={styles.drawerHeader}><div><span className={styles.drawerEyebrow}>运行详情 · 自动刷新 5 秒</span><h2>{detailsJob.name}</h2></div><button className={styles.iconButton} aria-label="关闭" onClick={() => setDetailsJob(null)}><PanelRightClose size={17} /></button></div>
+        <aside className={styles.sideDrawer} role="dialog" aria-labelledby="run-details-title" aria-modal="true">
+          <div className={styles.drawerHeader}><div><span className={styles.drawerEyebrow}>运行详情 · 自动刷新 5 秒</span><h2 id="run-details-title">{detailsJob.name}</h2></div><button autoFocus className={styles.iconButton} aria-label="关闭" onClick={() => setDetailsJob(null)}><PanelRightClose size={17} /></button></div>
           <div className={styles.drawerBody}>
             <div className={styles.runSummary}><span>执行通道</span><strong>{executorLabel(detailsJob.executor)}</strong><span>配置状态</span><strong className={detailsJob.configured ? styles.textHealthy : styles.textWarning}>{detailsJob.configured ? `${detailsJob.templateKey ?? '自定义'} v${detailsJob.templateVersion ?? 1}` : '未配置'}</strong></div>
             {detailsLoading && detailsRuns.length === 0 ? <p className={styles.drawerHint}>正在读取运行记录…</p> : null}

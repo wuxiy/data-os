@@ -2,6 +2,7 @@
   display: flex;
   min-height: 31px;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
   padding: 6px 10px;
   color: var(--ink-muted);
@@ -11,20 +12,20 @@
 }
 
 .loading {
-  background: #f7f8f6;
+  background: var(--surface-raised);
 }
 
 .live {
-  background: #f4f8f4;
+  background: var(--surface-active);
 }
 
 .demo {
-  background: #faf6ec;
+  background: var(--amber-soft);
 }
 
 .warning {
-  color: #8b5b16;
-  background: #fff8e8;
+  color: var(--amber-dark);
+  background: color-mix(in srgb, var(--amber-soft) 72%, var(--paper));
 }
 
 .warning button {
@@ -42,7 +43,7 @@
 }
 
 .warning button:hover {
-  background: rgba(139, 91, 22, 0.1);
+  background: color-mix(in srgb, var(--amber) 10%, transparent);
 }
 
 .liveDot {
@@ -55,9 +56,15 @@
 .warningText {
   overflow: hidden;
   max-width: 520px;
-  color: #8b5b16;
+  color: var(--amber-dark);
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.scope {
+  flex: 1 1 300px;
+  min-width: 220px;
+  color: var(--muted);
 }
 
 @media (max-width: 900px) {

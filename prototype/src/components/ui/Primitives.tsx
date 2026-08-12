@@ -1,4 +1,4 @@
-import { Check, ChevronRight, X } from 'lucide-react'
+import { Check, ChevronRight, CircleAlert, Info, X } from 'lucide-react'
 import type { ButtonHTMLAttributes, ReactNode } from 'react'
 import type { Metric, Tone } from '../../types'
 import styles from './Primitives.module.css'
@@ -41,10 +41,13 @@ export function MetricStrip({ metrics, onSelect }: { metrics: Metric[]; onSelect
   )
 }
 
-export function Toast({ message, onClose }: { message: string; onClose: () => void }) {
+type ToastTone = 'success' | 'info' | 'warning' | 'danger'
+
+export function Toast({ message, onClose, tone = 'info' }: { message: string; onClose: () => void; tone?: ToastTone }) {
+  const Icon = tone === 'success' ? Check : tone === 'info' ? Info : CircleAlert
   return (
-    <div className={styles.toast} role="status">
-      <span className={styles.toastIcon}><Check size={16} /></span>
+    <div className={`${styles.toast} ${styles[`toast${tone[0].toUpperCase()}${tone.slice(1)}`]}`} role={tone === 'danger' ? 'alert' : 'status'}>
+      <span className={styles.toastIcon}><Icon size={16} /></span>
       <span>{message}</span>
       <button onClick={onClose} aria-label="关闭提示"><X size={16} /></button>
     </div>

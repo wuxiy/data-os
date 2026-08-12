@@ -20,16 +20,19 @@ export function GovernanceTabs({ route, onNavigate, onUnavailable }: {
     <nav className={styles.tabs} aria-label="数据治理子导航">
       {tabs.map((tab) => {
         const active = tab.route === route
-        return (
+        return tab.route ? (
           <button
             key={tab.label}
-            className={`${active ? styles.active : ''} ${tab.route ? '' : styles.unavailable}`.trim()}
-            onClick={() => tab.route ? onNavigate(tab.route) : onUnavailable(tab.label)}
+            className={active ? styles.active : ''}
+            onClick={() => onNavigate(tab.route!)}
             aria-current={active ? 'page' : undefined}
-            title={tab.route ? undefined : '下一轮接入'}
           >
             {tab.label}
           </button>
+        ) : (
+          <span key={tab.label} className={`${styles.tab} ${styles.unavailable}`} aria-disabled="true" title="下一轮接入">
+            {tab.label}<small>规划中</small>
+          </span>
         )
       })}
     </nav>

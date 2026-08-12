@@ -39,7 +39,6 @@ export function AssistantPage({ onNotice, onNavigate, professional = false }: { 
         eyebrow={professional ? '受控只读分析 · 专业模式' : '受控只读分析'}
         subtitle={professional ? '面向数据分析人员的可复核工作区，保留查询口径、SQL 和数据资产证据。' : '自然语言提出业务问题，回答必须同时给出数据来源、查询口径和可复核证据'}
         compact
-        onFilterNotice={onNotice}
       />
       <DemoDataBoundary moduleName={professional ? '专业问数工作区' : '智能问数'} onNavigate={onNavigate}>
         <div className={styles.assistantWorkspace}>

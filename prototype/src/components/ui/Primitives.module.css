@@ -10,7 +10,14 @@
   cursor: pointer;
   font-size: 13px;
   font-weight: 600;
-  transition: transform 150ms ease-out, border-color 150ms ease-out, background 150ms ease-out;
+  transition: transform 150ms var(--ease-out), border-color 150ms var(--ease-out), background 150ms var(--ease-out);
+}
+
+.button:focus-visible,
+.metric:focus-visible,
+.toast button:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
 }
 
 .button:active:not(:disabled) {
@@ -23,13 +30,13 @@
 }
 
 .primary {
-  color: #fff;
-  background: #205c50;
+  color: var(--paper);
+  background: var(--jade-dark);
   border-color: transparent;
 }
 
 .primary:hover:not(:disabled) {
-  background: #1a4f45;
+  background: var(--jade);
 }
 
 .secondary {
@@ -38,7 +45,7 @@
 }
 
 .secondary:hover:not(:disabled) {
-  border-color: rgba(46, 118, 105, 0.5);
+  border-color: color-mix(in srgb, var(--jade) 50%, var(--line));
 }
 
 .quiet {
@@ -99,7 +106,12 @@
   padding: 18px 22px;
   background: transparent;
   border: 0;
+  border-right: 1px solid var(--line);
   text-align: left;
+}
+
+.metric:last-child {
+  border-right: 0;
 }
 
 .metricInteractive {
@@ -152,7 +164,7 @@
   bottom: 12px;
   color: var(--jade);
   opacity: 0;
-  transition: opacity 150ms ease-out, transform 150ms ease-out;
+  transition: opacity 150ms var(--ease-out), transform 150ms var(--ease-out);
 }
 
 .metricInteractive:hover .metricArrow {
@@ -182,7 +194,7 @@
   background: var(--paper);
   border-radius: var(--radius-panel);
   box-shadow: var(--shadow-card);
-  animation: toastIn 180ms ease-out;
+  animation: toastIn 180ms var(--ease-out);
   font-size: 13px;
 }
 
@@ -191,9 +203,24 @@
   width: 26px;
   height: 26px;
   place-items: center;
-  color: #fff;
+  color: var(--paper);
   background: var(--jade);
   border-radius: 50%;
+}
+
+.toastWarning .toastIcon {
+  color: var(--amber-dark);
+  background: var(--amber-soft);
+}
+
+.toastDanger .toastIcon {
+  color: var(--red);
+  background: var(--red-soft);
+}
+
+.toastSuccess .toastIcon {
+  color: var(--jade-dark);
+  background: var(--jade-soft);
 }
 
 .toast button {
@@ -217,7 +244,7 @@
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
-  .metric:nth-child(3) {
+  .metric:nth-child(3n) {
     border-right: 0;
   }
 
@@ -236,8 +263,12 @@
     padding: 14px 16px;
   }
 
-  .metric:nth-child(3) {
+  .metric:nth-child(2n) {
     border-right: 1px solid var(--line);
+  }
+
+  .metric:last-child {
+    border-right: 0;
   }
 
   .metric:nth-child(2n) {

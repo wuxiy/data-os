@@ -42,7 +42,6 @@ export function AssetCatalogPage({ onNotice, onNavigate }: { onNotice: (message:
         eyebrow="资产目录与影响分析"
         subtitle="从业务定义进入字段、质量、血缘和消费证据，不暴露底层元数据控制台"
         compact
-        onFilterNotice={onNotice}
       />
       <DemoDataBoundary moduleName="数据资产目录" onNavigate={onNavigate}>
         <div className={styles.integrationWorkspace}>

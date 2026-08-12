@@ -126,16 +126,17 @@
   background: var(--surface-raised);
   border: 1px solid var(--line-strong);
   border-radius: 6px;
-  outline: 0;
   font: inherit;
   font-size: 12px;
 }
 
-.formField input:focus,
-.formField select:focus,
-.formField textarea:focus {
+.formField input:focus-visible,
+.formField select:focus-visible,
+.formField textarea:focus-visible {
   border-color: var(--jade);
   box-shadow: 0 0 0 3px var(--jade-soft);
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
 }
 
 .formActions {
@@ -171,11 +172,19 @@
   font: inherit;
   font-size: 11px;
   font-weight: 600;
-  transition: background-color 120ms ease-out, border-color 120ms ease-out, opacity 120ms ease-out;
+  transition: background-color 120ms var(--ease-out), border-color 120ms var(--ease-out), opacity 120ms var(--ease-out);
+}
+
+.primaryButton:focus-visible,
+.secondaryButton:focus-visible,
+.tableButton:focus-visible,
+.attention button:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
 }
 
 .primaryButton {
-  color: #fff;
+  color: var(--paper);
   background: var(--jade-dark);
   border: 1px solid var(--jade-dark);
 }
@@ -222,15 +231,21 @@
   box-sizing: border-box;
   padding: 10px 11px;
   color: var(--ink);
-  background: #fbfcfb;
+  background: var(--surface-raised);
   border: 1px solid var(--line-strong);
   border-radius: 6px;
-  outline: 0;
+  outline: none;
   resize: vertical;
   font-family: var(--font-number);
   font-size: 11px;
   line-height: 1.55;
   tab-size: 2;
+}
+
+.codeInput:focus-visible {
+  box-shadow: 0 0 0 3px var(--jade-soft);
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
 }
 
 .codeInput:disabled {
@@ -343,7 +358,7 @@
   bottom: 0;
   display: flex;
   width: min(540px, 44vw);
-  min-width: 430px;
+  min-width: 0;
   flex-direction: column;
   background: var(--paper);
   border-left: 1px solid var(--line-strong);
@@ -819,7 +834,9 @@
 
 .tableScroll {
   width: 100%;
+  max-width: 100%;
   overflow-x: auto;
+  overscroll-behavior-x: contain;
 }
 
 .table {
@@ -848,7 +865,7 @@
 }
 
 .table tbody tr {
-  transition: background 120ms ease-out;
+  transition: background 120ms var(--ease-out);
 }
 
 .table tbody tr:hover {
@@ -876,7 +893,7 @@
   border-radius: 4px;
   cursor: pointer;
   text-align: left;
-  transition: background 120ms ease-out;
+  transition: background 120ms var(--ease-out);
 }
 
 .tableButton:hover {
@@ -910,6 +927,13 @@
   color: var(--jade);
   font-size: 11px;
   white-space: nowrap;
+}
+
+@media (max-width: 767px) {
+  .attention > .tableButton {
+    width: auto;
+    max-width: 100%;
+  }
 }
 
 .statusDetail {
@@ -1053,6 +1077,11 @@
   border: 0;
   outline: 0;
   font-size: 12px;
+}
+
+.search input:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
 }
 
 .tree,
@@ -1587,8 +1616,10 @@
   line-height: 1.6;
 }
 
-.noteBox textarea:focus {
-  box-shadow: 0 0 0 2px rgba(46, 118, 105, 0.5);
+.noteBox textarea:focus-visible {
+  box-shadow: 0 0 0 3px var(--jade-soft);
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
 }
 
 .noteActions {
@@ -1697,8 +1728,9 @@
 }
 
 .recommendedValue select:focus-visible {
-  outline: 0;
-  box-shadow: 0 0 0 2px rgba(46, 118, 105, 0.5);
+  box-shadow: 0 0 0 3px var(--jade-soft);
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
 }
 
 .mpiLower {
@@ -1816,6 +1848,35 @@
 
   .attention > button {
     flex: 0 0 auto;
+  }
+
+  .sourceForm,
+  .jobForm {
+    grid-template-columns: 1fr;
+  }
+
+  .sourceForm,
+  .jobForm,
+  .drawerBody {
+    min-width: 0;
+  }
+
+  .formActions {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .formActions > span {
+    max-width: 100%;
+  }
+
+  .tableActions {
+    flex-wrap: wrap;
+    max-width: 280px;
+  }
+
+  .sideDrawer {
+    width: 100%;
   }
 
   .flow {

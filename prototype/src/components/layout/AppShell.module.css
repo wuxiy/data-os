@@ -8,11 +8,11 @@
   left: 248px;
   z-index: 80;
   padding: 8px 12px;
-  color: #fff;
+  color: var(--paper);
   background: var(--jade);
   border-radius: 6px;
   transform: translateY(-160%);
-  transition: transform 150ms ease-out;
+  transition: transform 150ms var(--ease-out);
 }
 
 .skipLink:focus {
@@ -76,7 +76,16 @@
   border-radius: var(--radius-control);
   cursor: pointer;
   text-align: left;
-  transition: color 150ms ease-out, background 150ms ease-out;
+  transition: color 150ms var(--ease-out), background 150ms var(--ease-out);
+}
+
+.navItem:focus-visible,
+.settings:focus-visible,
+.mobileMenu:focus-visible,
+.closeMobile:focus-visible,
+.logoutButton:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
 }
 
 .navItem::before {
@@ -92,6 +101,22 @@
 .settings:hover {
   color: #1c2422;
   background: rgba(20, 28, 25, 0.05);
+}
+
+.navItemPlanned,
+.navItemPlanned:hover {
+  color: rgba(28, 36, 34, 0.48);
+  background: transparent;
+  cursor: default;
+}
+
+.plannedLabel {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 500;
+  white-space: nowrap;
 }
 
 .navItemActive {
@@ -179,6 +204,7 @@
 
   .brand span,
   .navItem span,
+  .plannedLabel,
   .settings span,
   .authPanel {
     display: none;
@@ -238,7 +264,7 @@
   .sidebar {
     width: min(82vw, 300px);
     transform: translateX(-105%);
-    transition: transform 180ms ease-out;
+    transition: transform 180ms var(--ease-out);
   }
 
   .sidebarOpen {
@@ -253,7 +279,7 @@
     background: rgba(15, 25, 22, 0.42);
     opacity: 0;
     pointer-events: none;
-    transition: opacity 180ms ease-out;
+    transition: opacity 180ms var(--ease-out);
   }
 
   .backdropVisible {

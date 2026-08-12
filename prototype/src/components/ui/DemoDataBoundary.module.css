@@ -10,8 +10,8 @@
   margin: -10px 0 14px;
   padding: 7px 10px;
   color: var(--ink-muted);
-  background: #f8f5ee;
-  border: 1px solid #e5dfd4;
+  background: var(--amber-soft);
+  border: 1px solid color-mix(in srgb, var(--amber) 18%, var(--line));
   border-radius: 6px;
   font-size: 12px;
 }

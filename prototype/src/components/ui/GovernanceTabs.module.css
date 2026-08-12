@@ -14,9 +14,13 @@
   display: none;
 }
 
-.tabs button {
+.tabs button,
+.tab {
   position: relative;
+  display: inline-flex;
   flex: 0 0 auto;
+  align-items: center;
+  gap: 5px;
   padding: 0 14px;
   color: var(--muted);
   background: transparent;
@@ -38,6 +42,12 @@
 
 .tabs button:hover {
   color: var(--ink);
+}
+
+.tab small {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 400;
 }
 
 .tabs .active {

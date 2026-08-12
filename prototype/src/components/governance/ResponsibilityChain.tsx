@@ -8,7 +8,7 @@ import {
   Users,
   X,
 } from 'lucide-react'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { Button } from '../ui/Primitives'
 import { frontendDemoMode } from '../../data/runtime'
 import styles from './ResponsibilityChain.module.css'
@@ -96,25 +96,61 @@ interface ResponsibilityDrawerProps {
 }
 
 export function ResponsibilityDrawer({ open, onClose, onAction }: ResponsibilityDrawerProps) {
+  const dialogRef = useRef<HTMLElement>(null)
+  const closeButtonRef = useRef<HTMLButtonElement>(null)
+  const previousFocusRef = useRef<HTMLElement | null>(null)
+
   useEffect(() => {
     if (!open) return
+
+    previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const focusFrame = window.requestAnimationFrame(() => closeButtonRef.current?.focus())
+
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') onClose()
+      if (event.key === 'Escape') {
+        onClose()
+        return
+      }
+      if (event.key !== 'Tab') return
+
+      const dialog = dialogRef.current
+      if (!dialog) return
+      const focusable = Array.from(dialog.querySelectorAll<HTMLElement>('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'))
+      if (!focusable.length) return
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
     }
     window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
+    return () => {
+      window.cancelAnimationFrame(focusFrame)
+      window.removeEventListener('keydown', handleKeyDown)
+      document.body.style.overflow = previousOverflow
+      previousFocusRef.current?.focus({ preventScroll: true })
+      previousFocusRef.current = null
+    }
   }, [open, onClose])
+
+  if (!open) return null
 
   return (
     <>
-      <div className={`${styles.drawerBackdrop} ${open ? styles.drawerBackdropOpen : ''}`} onClick={onClose} aria-hidden="true" />
-      <aside className={`${styles.drawer} ${open ? styles.drawerOpen : ''}`} aria-hidden={!open} aria-label="责任链详情">
+      <div className={`${styles.drawerBackdrop} ${styles.drawerBackdropOpen}`} onClick={onClose} aria-hidden="true" />
+      <aside ref={dialogRef} className={`${styles.drawer} ${styles.drawerOpen}`} role="dialog" aria-modal="true" aria-labelledby="responsibility-drawer-title" tabIndex={-1}>
         <div className={styles.drawerHeader}>
           <div>
             <span>数据治理 / 质量事件</span>
-            <h2>责任链详情</h2>
+            <h2 id="responsibility-drawer-title">责任链详情</h2>
           </div>
-          <button onClick={onClose} aria-label="关闭责任链详情"><X size={21} /></button>
+          <button ref={closeButtonRef} onClick={onClose} aria-label="关闭责任链详情"><X size={21} /></button>
         </div>
         <div className={styles.provenance}>
           <dl>

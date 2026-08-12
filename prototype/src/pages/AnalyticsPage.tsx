@@ -24,7 +24,6 @@ export function AnalyticsPage({ onNotice, onNavigate }: { onNotice: (message: st
         eyebrow="嵌入式分析"
         subtitle="业务人员在统一门户查看结果，专业人员按权限进入分析设计器"
         compact
-        onFilterNotice={onNotice}
       />
       <DemoDataBoundary moduleName="分析看板" onNavigate={onNavigate}>
         <div className={styles.integrationWorkspace}>

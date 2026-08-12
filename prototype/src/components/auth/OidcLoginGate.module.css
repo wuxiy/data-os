@@ -3,7 +3,7 @@
   min-height: 100vh;
   padding: 32px;
   place-items: center;
-  background: radial-gradient(circle at 20% 20%, rgba(46, 118, 105, 0.1), transparent 34%), var(--canvas);
+  background: var(--canvas);
 }
 
 .card {
@@ -22,7 +22,7 @@
   width: 52px;
   height: 52px;
   margin: 0 auto 22px;
-  color: #fff;
+  color: var(--paper);
   background: var(--jade-dark);
   border-radius: 15px;
   place-items: center;
@@ -68,7 +68,7 @@ h1 {
   align-items: center;
   justify-content: center;
   gap: 9px;
-  color: #fff;
+  color: var(--paper);
   background: var(--jade-dark);
   border: 0;
   border-radius: var(--radius-control);

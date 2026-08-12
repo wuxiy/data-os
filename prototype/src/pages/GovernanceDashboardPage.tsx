@@ -21,6 +21,7 @@ interface Props {
 export function GovernanceDashboardPage({ onOpenChain, onNavigate, onUnavailable, onNotice }: Props) {
   const [metrics, setMetrics] = useState<Metric[]>([])
   const [issues, setIssues] = useState<GovernanceApiIssue[]>([])
+  const [asOf, setAsOf] = useState<string | null>(null)
   const [apiState, setApiState] = useState<'loading' | 'live' | 'unavailable'>('loading')
 
   useEffect(() => {
@@ -36,9 +37,13 @@ export function GovernanceDashboardPage({ onOpenChain, onNavigate, onUnavailable
           tone: metric.tone,
         })))
         setIssues(summary.issues)
+        setAsOf(formatSnapshotAt(summary.asOf))
         setApiState('live')
       })
-      .catch(() => setApiState('unavailable'))
+      .catch(() => {
+        setAsOf(null)
+        setApiState('unavailable')
+      })
       .finally(() => window.clearTimeout(timeout))
     return () => {
       window.clearTimeout(timeout)
@@ -48,7 +53,7 @@ export function GovernanceDashboardPage({ onOpenChain, onNavigate, onUnavailable
 
   return (
     <div className={styles.page}>
-      <PageHeader title="治理驾驶舱" onFilterNotice={onNotice} />
+      <PageHeader title="治理驾驶舱" asOf={apiState === 'live' ? asOf : null} />
       <GovernanceTabs route="governance" onNavigate={onNavigate} onUnavailable={onUnavailable} />
       <div className={styles.apiStatus} role="status" aria-live="polite">
         <span className={`${styles.apiDot} ${apiState === 'live' ? styles.apiDotLive : ''}`} />
@@ -95,6 +100,18 @@ export function GovernanceDashboardPage({ onOpenChain, onNavigate, onUnavailable
 
 function formatMetricValue(value: number) {
   return Number.isInteger(value) ? String(value) : value.toFixed(1)
+}
+
+function formatSnapshotAt(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return new Intl.DateTimeFormat('zh-CN', {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(date).replace('/', '-').replace('/', ' ')
 }
 
 function riskRankingFromIssues(issues: GovernanceApiIssue[]) {

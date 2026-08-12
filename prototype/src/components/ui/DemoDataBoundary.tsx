@@ -17,7 +17,7 @@ interface Props {
  */
 export function DemoDataBoundary({ moduleName, children, onNavigate }: Props) {
   if (frontendDemoMode) {
-    return <div className={styles.demoFrame} data-data-mode="demo"><div className={styles.demoRibbon}><FlaskConical size={14} /><StatusTag tone="warning">演示模式</StatusTag><span>{moduleName}使用脱敏/合成数据，仅用于交互验收；保存、确认和生成只改变演示状态，不写入控制面</span></div>{children}</div>
+    return <div className={styles.demoFrame} data-data-mode="demo"><div className={styles.demoRibbon}><FlaskConical size={14} /><StatusTag tone="warning">脱敏/合成数据</StatusTag><span>{moduleName}仅用于交互验收；保存、确认和生成只改变演示状态，不写入控制面</span></div>{children}</div>
   }
 
   return (

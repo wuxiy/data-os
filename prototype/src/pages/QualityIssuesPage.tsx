@@ -193,7 +193,7 @@ export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props
 
   return (
     <div className={styles.page}>
-      <PageHeader title="数据质量闭环" compact onFilterNotice={onNotice} />
+      <PageHeader title="数据质量闭环" compact />
       <GovernanceTabs route="quality" onNavigate={onNavigate} onUnavailable={onUnavailable} />
       <div className={styles.apiStatus} role="status" aria-live="polite">
         <span className={`${styles.apiDot} ${apiState === 'live' ? styles.apiDotLive : ''}`} />

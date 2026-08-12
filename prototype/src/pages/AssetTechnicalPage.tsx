@@ -30,7 +30,6 @@ export function AssetTechnicalPage({ onNotice }: { onNotice: (message: string) =
         eyebrow={`数据资产 · ${asset.entityId}`}
         subtitle="面向数据开发与运维人员的结构、血缘和同步证据；业务定义仍以资产详情为准。"
         compact
-        onFilterNotice={onNotice}
       />
       <DemoDataBoundary moduleName="数据资产技术视图">
         <div className={styles.technicalWorkspace}>

@@ -29,7 +29,7 @@ export function DataStandardsPage({ onNavigate, onUnavailable, onNotice }: Props
 
   return (
     <div className={styles.page}>
-      <PageHeader title="数据标准" compact onFilterNotice={onNotice} />
+      <PageHeader title="数据标准" compact />
       <GovernanceTabs route="standards" onNavigate={onNavigate} onUnavailable={onUnavailable} />
       <DemoDataBoundary moduleName="数据标准" onNavigate={onNavigate}>
         <div className={styles.workspace}>

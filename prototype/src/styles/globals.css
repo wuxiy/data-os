@@ -11,8 +11,10 @@
   --sidebar: #eceee9;
   --selection-mark: #c0a56a;
   --muted: #687c75;
+  --ink-muted: var(--muted);
   --jade: #2e7669;
   --jade-dark: #255f55;
+  --jade-deep: var(--jade-dark);
   --jade-soft: #e1ece8;
   --amber: #b96c26;
   --amber-dark: #94531b;
@@ -20,6 +22,7 @@
   --red: #b4483e;
   --red-soft: #f9e7e4;
   --surface-raised: #f7f8f5;
+  --surface: var(--paper);
   --surface-hover: #f8faf7;
   --surface-active: #f2f7f4;
   --surface-sunken: #e9eeea;
@@ -27,6 +30,9 @@
   --line: rgba(32, 49, 45, 0.11);
   --line-strong: rgba(32, 49, 45, 0.19);
   --ring: rgba(20, 28, 25, 0.05);
+  --focus-ring: #1f6c5e;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --shadow: 0 8px 28px rgba(32, 49, 45, 0.12);
   --shadow-card: 0 1px 2px rgba(20, 28, 25, 0.04), 0 4px 16px -8px rgba(20, 28, 25, 0.06);
   --shadow-raise: 0 2px 4px rgba(20, 28, 25, 0.05), 0 12px 32px -12px rgba(20, 28, 25, 0.12);
@@ -42,13 +48,15 @@
 
 html {
   background: var(--canvas);
+  overflow-x: clip;
 }
 
 body {
-  min-width: 320px;
+  min-width: 0;
   min-height: 100vh;
   margin: 0;
   background: var(--canvas);
+  overflow-x: clip;
 }
 
 button,
@@ -72,12 +80,12 @@ a {
 }
 
 :focus-visible {
-  outline: 3px solid rgba(46, 118, 105, 0.28);
+  outline: 3px solid var(--focus-ring);
   outline-offset: 2px;
 }
 
 ::selection {
-  color: #fff;
+  color: var(--paper);
   background: var(--jade);
 }
 
