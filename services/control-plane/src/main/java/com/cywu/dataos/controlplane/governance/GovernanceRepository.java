@@ -171,6 +171,7 @@ public class GovernanceRepository {
         return jdbc.query("""
                 SELECT id, issue_id, tenant_id, institution_id, rule_id, dataset_id, executor, status, external_id,
                        execution_batch_id, passed, result_message, sample_evidence_json,
+                       artifact_uri, reconciliation_status, reconciliation_message,
                        submitted_at, started_at, finished_at, attempt_count, next_poll_at,
                        last_error, updated_at
                 FROM data_os.quality_rule_runs
@@ -182,6 +183,7 @@ public class GovernanceRepository {
         return jdbc.query("""
                 SELECT id, issue_id, tenant_id, institution_id, rule_id, dataset_id, executor, status, external_id,
                        execution_batch_id, passed, result_message, sample_evidence_json,
+                       artifact_uri, reconciliation_status, reconciliation_message,
                        submitted_at, started_at, finished_at, attempt_count, next_poll_at,
                        last_error, updated_at
                 FROM data_os.quality_rule_runs
@@ -219,6 +221,7 @@ public class GovernanceRepository {
         return jdbc.query("""
                 SELECT id, issue_id, tenant_id, institution_id, rule_id, dataset_id, executor, status, external_id,
                        execution_batch_id, passed, result_message, sample_evidence_json,
+                       artifact_uri, reconciliation_status, reconciliation_message,
                        submitted_at, started_at, finished_at, attempt_count, next_poll_at,
                        last_error, updated_at
                 FROM data_os.quality_rule_runs
@@ -232,6 +235,7 @@ public class GovernanceRepository {
         return jdbc.query("""
                 SELECT id, issue_id, tenant_id, institution_id, rule_id, dataset_id, executor, status, external_id,
                        execution_batch_id, passed, result_message, sample_evidence_json,
+                       artifact_uri, reconciliation_status, reconciliation_message,
                        submitted_at, started_at, finished_at, attempt_count, next_poll_at,
                        last_error, updated_at
                 FROM data_os.quality_rule_runs
@@ -245,10 +249,13 @@ public class GovernanceRepository {
         return jdbc.query("""
                 SELECT id, issue_id, tenant_id, institution_id, rule_id, dataset_id, executor, status, external_id,
                        execution_batch_id, passed, result_message, sample_evidence_json,
+                       artifact_uri, reconciliation_status, reconciliation_message,
                        submitted_at, started_at, finished_at, attempt_count, next_poll_at,
                        last_error, updated_at
                 FROM data_os.quality_rule_runs
                 WHERE status IN ('SUBMITTING', 'SUBMITTED', 'RUNNING', 'UNKNOWN')
+                  AND (reconciliation_status IS NULL OR reconciliation_status <> 'MANUAL_REQUIRED')
+                  AND (status_lease_until IS NULL OR status_lease_until <= ?)
                   AND ((status = 'SUBMITTING'
                         AND (next_poll_at IS NULL OR next_poll_at <= ?)
                         AND (submit_lease_until IS NULL OR submit_lease_until <= ?))
@@ -256,7 +263,19 @@ public class GovernanceRepository {
                         AND (next_poll_at IS NULL OR next_poll_at <= ?)))
                 ORDER BY submitted_at
                 LIMIT 100
-                """, this::mapQualityRun, timestamp(now), timestamp(now), timestamp(now));
+                """, this::mapQualityRun, timestamp(now), timestamp(now), timestamp(now), timestamp(now));
+    }
+
+    public int claimQualityRunForStatus(String runId, String workerId, Instant leaseUntil, Instant now,
+                                        String expectedStatus, String expectedExternalId) {
+        return jdbc.update("""
+                UPDATE data_os.quality_rule_runs
+                SET status_lease_until = ?, status_lease_by = ?, updated_at = ?
+                WHERE id = ? AND status = ?
+                  AND (external_id = ? OR (external_id IS NULL AND ? IS NULL))
+                  AND (status_lease_until IS NULL OR status_lease_until <= ?)
+                """, timestamp(leaseUntil), workerId, timestamp(now), runId, expectedStatus,
+                expectedExternalId, expectedExternalId, timestamp(now));
     }
 
     public int claimQualityRunForSubmission(String runId, String workerId,
@@ -278,6 +297,7 @@ public class GovernanceRepository {
                 SET status = 'SUBMITTED', external_id = ?, result_message = ?,
                     attempt_count = attempt_count + 1, next_poll_at = ?, last_error = NULL,
                     submit_lease_until = NULL, submit_lease_by = NULL,
+                    status_lease_until = NULL, status_lease_by = NULL,
                     updated_at = ?
                 WHERE id = ? AND status = 'SUBMITTING' AND submit_lease_by = ?
                 """, externalId, safe(message), timestamp(nextPollAt), timestamp(Instant.now()), runId, workerId);
@@ -295,7 +315,8 @@ public class GovernanceRepository {
             return jdbc.update("""
                     UPDATE data_os.quality_rule_runs
                     SET attempt_count = attempt_count + 1, last_error = ?, next_poll_at = ?,
-                        submit_lease_until = NULL, submit_lease_by = NULL, updated_at = ?
+                        submit_lease_until = NULL, submit_lease_by = NULL,
+                        status_lease_until = NULL, status_lease_by = NULL, updated_at = ?
                     WHERE id = ? AND status = 'SUBMITTING' AND submit_lease_by = ?
                     """, safe(lastError), timestamp(nextPollAt), timestamp(Instant.now()), runId, workerId);
         }
@@ -303,6 +324,7 @@ public class GovernanceRepository {
                 UPDATE data_os.quality_rule_runs
                 SET status = ?, result_message = ?, last_error = ?, attempt_count = attempt_count + 1,
                     finished_at = ?, next_poll_at = NULL, submit_lease_until = NULL, submit_lease_by = NULL,
+                    status_lease_until = NULL, status_lease_by = NULL,
                     updated_at = ?
                 WHERE id = ? AND status = 'SUBMITTING' AND submit_lease_by = ?
                 """, status, safe(lastError), safe(lastError), timestamp(Instant.now()), timestamp(Instant.now()),
@@ -323,38 +345,85 @@ public class GovernanceRepository {
     public int updateQualityRunStatus(String runId, String status, Boolean passed,
                                       String executionBatchId, String message,
                                       List<Map<String, Object>> sampleEvidence,
+                                      String artifactUri,
                                       Instant startedAt, Instant finishedAt,
-                                      Instant nextPollAt, String lastError) {
+                                      Instant nextPollAt, String lastError,
+                                      String expectedStatus, String expectedExternalId,
+                                      String statusWorkerId) {
         return jdbc.update("""
                 UPDATE data_os.quality_rule_runs
                 SET status = ?, passed = ?, execution_batch_id = COALESCE(NULLIF(?, ''), execution_batch_id),
-                    result_message = ?, sample_evidence_json = ?, sample_evidence_count = ?,
+                    result_message = ?, sample_evidence_json = ?, sample_evidence_count = ?, artifact_uri = ?,
+                    reconciliation_status = CASE WHEN ? = 'UNKNOWN' THEN 'MANUAL_REQUIRED' ELSE NULL END,
+                    reconciliation_message = CASE WHEN ? = 'UNKNOWN' THEN ? ELSE NULL END,
                     started_at = COALESCE(?, started_at), finished_at = ?,
-                    attempt_count = attempt_count + 1, next_poll_at = ?, last_error = ?, updated_at = ?
+                    attempt_count = attempt_count + 1, next_poll_at = ?, last_error = ?,
+                    status_lease_until = NULL, status_lease_by = NULL, updated_at = ?
                 WHERE id = ? AND status IN ('SUBMITTED', 'RUNNING', 'UNKNOWN')
+                  AND status = ?
+                  AND (external_id = ? OR (external_id IS NULL AND ? IS NULL))
+                  AND status_lease_by = ?
                 """, normalizeRunStatus(status), passed,
                 executionBatchId == null ? "" : executionBatchId, safe(message), evidenceJson(sampleEvidence),
-                sampleEvidence == null ? 0 : sampleEvidence.size(), timestamp(startedAt), timestamp(finishedAt),
-                timestamp(nextPollAt), safe(lastError), timestamp(Instant.now()), runId);
+                sampleEvidence == null ? 0 : sampleEvidence.size(), safe(artifactUri), normalizeRunStatus(status),
+                normalizeRunStatus(status), safe(message), timestamp(startedAt), timestamp(finishedAt),
+                "UNKNOWN".equals(normalizeRunStatus(status)) ? null : timestamp(nextPollAt), safe(lastError),
+                timestamp(Instant.now()), runId, expectedStatus, expectedExternalId, expectedExternalId,
+                statusWorkerId);
     }
 
-    public int markQualityRunError(String runId, String lastError, Instant nextPollAt, String terminalStatus) {
+    public int reopenQualityRunForReconciliation(String runId) {
+        return jdbc.update("""
+                UPDATE data_os.quality_rule_runs
+                SET reconciliation_status = NULL, reconciliation_message = NULL,
+                    next_poll_at = CURRENT_TIMESTAMP, last_error = NULL,
+                    status_lease_until = NULL, status_lease_by = NULL, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ? AND status = 'UNKNOWN' AND external_id IS NOT NULL
+                  AND reconciliation_status = 'MANUAL_REQUIRED'
+                """, runId);
+    }
+
+    public int confirmQualityRunAbsent(String runId, String message) {
+        return jdbc.update("""
+                UPDATE data_os.quality_rule_runs
+                SET status = 'SUBMIT_FAILED', passed = FALSE, result_message = ?, last_error = ?,
+                    reconciliation_status = 'CONFIRMED_ABSENT', reconciliation_message = ?,
+                    finished_at = CURRENT_TIMESTAMP, next_poll_at = NULL,
+                    submit_lease_until = NULL, submit_lease_by = NULL,
+                    status_lease_until = NULL, status_lease_by = NULL, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ? AND status = 'UNKNOWN' AND external_id IS NOT NULL
+                  AND reconciliation_status = 'MANUAL_REQUIRED'
+                """, safe(message), safe(message), safe(message), runId);
+    }
+
+    public int markQualityRunError(String runId, String lastError, Instant nextPollAt, String terminalStatus,
+                                   String expectedStatus, String expectedExternalId, String statusWorkerId) {
         var status = terminalStatus == null || terminalStatus.isBlank() ? null : normalizeRunStatus(terminalStatus);
         if (status == null) {
             return jdbc.update("""
                     UPDATE data_os.quality_rule_runs
                     SET attempt_count = attempt_count + 1, last_error = ?, next_poll_at = ?,
-                        submit_lease_until = NULL, submit_lease_by = NULL, updated_at = ?
+                        submit_lease_until = NULL, submit_lease_by = NULL,
+                        status_lease_until = NULL, status_lease_by = NULL, updated_at = ?
                     WHERE id = ? AND status IN ('SUBMITTING', 'SUBMITTED', 'RUNNING', 'UNKNOWN')
-                    """, safe(lastError), timestamp(nextPollAt), timestamp(Instant.now()), runId);
+                      AND status = ?
+                      AND (external_id = ? OR (external_id IS NULL AND ? IS NULL))
+                      AND status_lease_by = ?
+                    """, safe(lastError), timestamp(nextPollAt), timestamp(Instant.now()), runId,
+                    expectedStatus, expectedExternalId, expectedExternalId, statusWorkerId);
         }
         return jdbc.update("""
                 UPDATE data_os.quality_rule_runs
                 SET status = ?, result_message = ?, last_error = ?, attempt_count = attempt_count + 1,
                     finished_at = ?, next_poll_at = NULL, submit_lease_until = NULL, submit_lease_by = NULL,
+                    status_lease_until = NULL, status_lease_by = NULL,
                     updated_at = ?
                 WHERE id = ? AND status IN ('SUBMITTING', 'SUBMITTED', 'RUNNING', 'UNKNOWN')
-                """, status, safe(lastError), safe(lastError), timestamp(Instant.now()), timestamp(Instant.now()), runId);
+                  AND status = ?
+                  AND (external_id = ? OR (external_id IS NULL AND ? IS NULL))
+                  AND status_lease_by = ?
+                """, status, safe(lastError), safe(lastError), timestamp(Instant.now()), timestamp(Instant.now()), runId,
+                expectedStatus, expectedExternalId, expectedExternalId, statusWorkerId);
     }
 
     public int updateIssueAfterQualityResult(String issueId, String tenantId, String institutionId,
@@ -518,7 +587,8 @@ public class GovernanceRepository {
                 resultSet.getString("executor"), resultSet.getString("status"),
                 resultSet.getString("external_id"), resultSet.getString("execution_batch_id"),
                 (Boolean) resultSet.getObject("passed"), resultSet.getString("result_message"),
-                evidenceList(resultSet.getString("sample_evidence_json")),
+                evidenceList(resultSet.getString("sample_evidence_json")), resultSet.getString("artifact_uri"),
+                resultSet.getString("reconciliation_status"), resultSet.getString("reconciliation_message"),
                 instant(resultSet.getTimestamp("submitted_at")), instant(resultSet.getTimestamp("started_at")),
                 instant(resultSet.getTimestamp("finished_at")), resultSet.getInt("attempt_count"),
                 instant(resultSet.getTimestamp("next_poll_at")), resultSet.getString("last_error"),

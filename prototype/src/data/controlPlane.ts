@@ -61,6 +61,9 @@ export interface GovernanceQualityRunApiItem {
   passed: boolean | null
   resultMessage: string | null
   sampleEvidence: Array<Record<string, unknown>>
+  artifactUri: string | null
+  reconciliationStatus: string | null
+  reconciliationMessage: string | null
   submittedAt: string
   startedAt: string | null
   finishedAt: string | null
@@ -187,6 +190,8 @@ export interface IngestionRunApiItem {
   executor: string
   externalId: string | null
   message: string
+  reconciliationStatus: string | null
+  reconciliationMessage: string | null
   submittedAt: string
   startedAt: string | null
   finishedAt: string | null
@@ -309,6 +314,26 @@ export async function syncGovernanceIssueRun(issueId: string, runId: string, sig
     signal,
   })
   if (!response.ok) await responseError(response, '质量复检结果同步失败')
+  return response.json() as Promise<GovernanceIssueDetailApiResponse>
+}
+
+export async function reconcileGovernanceIssueRun(issueId: string, runId: string, signal?: AbortSignal): Promise<GovernanceIssueDetailApiResponse> {
+  const response = await apiFetch(`/v1/governance/issues/${encodeURIComponent(issueId)}/runs/${encodeURIComponent(runId)}/reconcile`, {
+    method: 'POST',
+    headers: { Accept: 'application/json' },
+    signal,
+  })
+  if (!response.ok) await responseError(response, '质量执行批次重新对账失败')
+  return response.json() as Promise<GovernanceIssueDetailApiResponse>
+}
+
+export async function confirmGovernanceIssueRunAbsent(issueId: string, runId: string, signal?: AbortSignal): Promise<GovernanceIssueDetailApiResponse> {
+  const response = await apiFetch(`/v1/governance/issues/${encodeURIComponent(issueId)}/runs/${encodeURIComponent(runId)}/reconcile/confirm-absent`, {
+    method: 'POST',
+    headers: { Accept: 'application/json' },
+    signal,
+  })
+  if (!response.ok) await responseError(response, '确认质量执行批次不存在失败')
   return response.json() as Promise<GovernanceIssueDetailApiResponse>
 }
 
@@ -438,6 +463,16 @@ export async function syncIngestionRun(jobId: string, runId: string, signal?: Ab
     signal,
   })
   if (!response.ok) await responseError(response, '运行状态同步失败')
+  return response.json() as Promise<IngestionRunApiItem>
+}
+
+export async function confirmIngestionRunAbsent(jobId: string, runId: string, signal?: AbortSignal): Promise<IngestionRunApiItem> {
+  const response = await apiFetch(`/v1/jobs/${jobId}/runs/${runId}/reconcile/confirm-absent`, {
+    method: 'POST',
+    headers: { Accept: 'application/json' },
+    signal,
+  })
+  if (!response.ok) await responseError(response, '确认外部运行不存在失败')
   return response.json() as Promise<IngestionRunApiItem>
 }
 

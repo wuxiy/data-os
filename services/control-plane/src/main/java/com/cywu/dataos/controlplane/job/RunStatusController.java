@@ -19,4 +19,9 @@ public class RunStatusController {
     public IngestionRun sync(@PathVariable String jobId, @PathVariable String runId) {
         return service.sync(jobId, runId);
     }
+
+    @PostMapping("/reconcile/confirm-absent")
+    public IngestionRun confirmAbsent(@PathVariable String jobId, @PathVariable String runId) {
+        return service.confirmAbsent(jobId, runId);
+    }
 }

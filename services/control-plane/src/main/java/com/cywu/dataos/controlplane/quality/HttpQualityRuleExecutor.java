@@ -126,12 +126,13 @@ public class HttpQualityRuleExecutor implements QualityRuleExecutor {
                     firstOr(response, "message", "质量规则执行状态已同步"),
                     first(response, "executionBatchId", "batchId"),
                     evidence(response == null ? null : response.get("sampleEvidence")),
+                    first(response, "artifactUri", "artifactURI", "artifact_url"),
                     instant(response == null ? null : response.get("startedAt")),
                     instant(response == null ? null : response.get("finishedAt")));
         } catch (HttpClientErrorException exception) {
             if (exception.getStatusCode().value() == 404) {
                 return new QualityRuleExecutionStatus("UNKNOWN", null, "质量规则执行批次暂未找到",
-                        null, List.of(), null, null);
+                        null, List.of(), null, null, null);
             }
             if (exception.getStatusCode().value() == 408 || exception.getStatusCode().value() == 429) {
                 throw new AdapterUnavailableException("质量规则执行器暂时不可用（HTTP "

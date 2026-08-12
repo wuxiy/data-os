@@ -44,12 +44,12 @@ public class DemoQualityRuleExecutor implements QualityRuleExecutor {
         var run = runs.get(externalId);
         if (run == null) {
             return new QualityRuleExecutionStatus("UNKNOWN", null, "开发质量规则执行器未找到批次",
-                    null, List.of(), null, null);
+                    null, List.of(), null, null, null);
         }
         var startedAt = run.submittedAt();
         if (Duration.between(run.submittedAt(), Instant.now()).toMillis() < delayMs) {
             return new QualityRuleExecutionStatus("RUNNING", null, "开发质量规则执行器执行中",
-                    run.request().executionBatchId(), List.of(), startedAt, null);
+                    run.request().executionBatchId(), List.of(), null, startedAt, null);
         }
         var passed = passRule(run.request().ruleId());
         var evidence = List.of(Map.<String, Object>of(
@@ -59,7 +59,7 @@ public class DemoQualityRuleExecutor implements QualityRuleExecutor {
                 "observed", passed ? "通过" : "存在不符合规则的样本"));
         return new QualityRuleExecutionStatus("SUCCEEDED", passed,
                 passed ? "开发质量规则执行通过" : "开发质量规则执行失败，已返回样本证据",
-                run.request().executionBatchId(), evidence, startedAt, Instant.now());
+                run.request().executionBatchId(), evidence, null, startedAt, Instant.now());
     }
 
     private boolean passRule(String ruleId) {

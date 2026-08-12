@@ -199,9 +199,14 @@ public class DolphinSchedulerExecutorAdapter implements OrchestratorAdapter {
                     encodeExternalId(projectCode, workflowCode, instanceId),
                     "DolphinScheduler 已接受工作流运行");
         } catch (HttpClientErrorException exception) {
+            if (exception.getStatusCode().value() == 408 || exception.getStatusCode().value() == 429
+                    || exception.getStatusCode().value() >= 500) {
+                throw new AdapterSubmissionUnknownException("DolphinScheduler 提交结果未知（HTTP "
+                        + exception.getStatusCode().value() + "），需按 data_os_run_id 人工核对");
+            }
             throw classifyHttp("DolphinScheduler 工作流提交", exception);
         } catch (RestClientException exception) {
-            throw new AdapterUnavailableException("DolphinScheduler 暂时不可用");
+            throw new AdapterSubmissionUnknownException("DolphinScheduler 提交结果未知：需按 data_os_run_id 人工核对");
         }
     }
 
@@ -233,6 +238,12 @@ public class DolphinSchedulerExecutorAdapter implements OrchestratorAdapter {
         } catch (RestClientException exception) {
             throw new AdapterUnavailableException("DolphinScheduler 暂时不可用");
         }
+    }
+
+    @Override
+    public AdapterReconciliation reconcile(String dataOsRunId) {
+        return AdapterReconciliation.manualRequired(
+                "DolphinScheduler 未提供可靠的 data_os_run_id 查询接口，请人工核对工作流后确认");
     }
 
     private Map<String, Object> workflowBinding(Map<String, Object> requestConfig) {

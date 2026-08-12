@@ -22,8 +22,9 @@ from settings import Settings
 _SECRET = re.compile(r"(?i)(password|secret|token|authorization)=?[^\s,;]+")
 
 
-def tenant_namespace(tenant_id: str, institution_id: str) -> str:
-    canonical = f"{tenant_id.strip()}|{institution_id.strip()}".encode("utf-8")
+def tenant_namespace(tenant_id: str, institution_id: str, execution_generation: int | None = None) -> str:
+    generation = "" if execution_generation is None else f"|generation:{execution_generation}"
+    canonical = f"{tenant_id.strip()}|{institution_id.strip()}{generation}".encode("utf-8")
     # Doris limits table names to 64 characters. Registered dbt failure
     # tables use ``<namespace>__<selector>``; keeping 18 hash characters
     # leaves room for the longest bundled selector while retaining an
@@ -129,23 +130,30 @@ class QualityRunManager:
             # Cancellation may win the race between queue claim and task
             # startup. Do not launch dbt for a row already marked terminal.
             current = await asyncio.to_thread(self.database.get_run, run.run_id)
-            if current.status != "RUNNING":
+            if current.status != "RUNNING" or current.execution_generation != run.execution_generation:
                 return
             rule = self.catalog.get(run.rule_id)
             if rule is None:
-                await asyncio.to_thread(self.database.finish, run.run_id, "FAILED", False,
+                await asyncio.to_thread(self.database.finish, run.run_id, run.execution_generation, "FAILED", False,
                                         "规则注册已不存在", [], None)
                 return
             directory = Path(tempfile.mkdtemp(prefix=f"dataos-quality-{run.run_id}-"))
             try:
                 result = await self._run_dbt(run, rule, directory)
-                await asyncio.to_thread(self.database.finish, run.run_id, result["status"], result["passed"],
-                                        result["message"], result["evidence"], result["artifact_uri"])
+                accepted = await asyncio.to_thread(
+                    self.database.finish, run.run_id, run.execution_generation,
+                    result["status"], result["passed"], result["message"],
+                    result["evidence"], result["artifact_uri"]
+                )
+                if not accepted:
+                    self.artifacts.delete(result["artifact_uri"])
             except asyncio.CancelledError:
-                await asyncio.to_thread(self.database.finish, run.run_id, "CANCELED", False, "执行已取消", [], None)
+                await asyncio.to_thread(self.database.finish, run.run_id, run.execution_generation,
+                                        "CANCELED", False, "执行已取消", [], None)
                 raise
             except Exception as exc:
-                await asyncio.to_thread(self.database.finish, run.run_id, "FAILED", False, _safe_message(str(exc)), [], None)
+                await asyncio.to_thread(self.database.finish, run.run_id, run.execution_generation,
+                                        "FAILED", False, _safe_message(str(exc)), [], None)
             finally:
                 shutil.rmtree(directory, ignore_errors=True)
 
@@ -162,7 +170,7 @@ class QualityRunManager:
         ]
         env = os.environ.copy()
         env["DBT_PROFILES_DIR"] = self.settings.profiles_dir
-        namespace = tenant_namespace(run.tenant_id, run.institution_id)
+        namespace = tenant_namespace(run.tenant_id, run.institution_id, run.execution_generation)
         env["DATAOS_TEST_NAMESPACE"] = namespace
         process: asyncio.subprocess.Process | None = None
         heartbeat_task: asyncio.Task[Any] | None = None
@@ -174,7 +182,9 @@ class QualityRunManager:
                 stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
             )
             self._processes[run.run_id] = process
-            heartbeat_task = asyncio.create_task(self._heartbeat_loop(run.run_id))
+            heartbeat_task = asyncio.create_task(
+                self._heartbeat_loop(run.run_id, run.execution_generation, process)
+            )
             try:
                 stdout, stderr = await asyncio.wait_for(process.communicate(), self.settings.timeout_seconds)
             except asyncio.TimeoutError:
@@ -197,29 +207,45 @@ class QualityRunManager:
             summary = self._parse_results(results_path, process.returncode, stdout, stderr)
             if not summary["passed"]:
                 summary["evidence"] = self.evidence.read(rule.evidence, namespace)
+            if not await asyncio.to_thread(self.database.owns_generation,
+                                           run.run_id, run.execution_generation):
+                return {"status": "CANCELED", "passed": False, "message": "执行代次已失效",
+                        "evidence": [], "artifact_uri": None}
             summary["artifact_uri"] = self.artifacts.store(namespace, run.run_id, {
                 "runId": run.run_id, "ruleId": rule.rule_id, "selector": rule.selector,
                 "status": summary["status"], "passed": summary["passed"], "message": summary["message"],
                 "evidenceCount": len(summary["evidence"]),
-            })
+            }, run.execution_generation)
+            if not await asyncio.to_thread(self.database.owns_generation,
+                                           run.run_id, run.execution_generation):
+                self.artifacts.delete(summary["artifact_uri"])
+                summary["artifact_uri"] = None
             return summary
         finally:
             if heartbeat_task is not None:
                 heartbeat_task.cancel()
                 with suppress(asyncio.CancelledError):
                     await heartbeat_task
-            self._processes.pop(run.run_id, None)
+            if self._processes.get(run.run_id) is process:
+                self._processes.pop(run.run_id, None)
             # dbt --store-failures is useful only until evidence is captured.
             # This finally block also runs for timeout, cancellation and dbt
             # startup failures, preventing audit-table residue.
             self.evidence.cleanup_failure_tables(rule.selector, namespace)
 
-    async def _heartbeat_loop(self, run_id: str) -> None:
+    async def _heartbeat_loop(self, run_id: str, execution_generation: int,
+                              process: asyncio.subprocess.Process) -> None:
         interval = max(5, min(60, self.settings.stale_run_seconds // 3))
         while not self._stop.is_set():
             await asyncio.sleep(interval)
             try:
-                await asyncio.to_thread(self.database.heartbeat, run_id)
+                owns_generation = await asyncio.to_thread(
+                    self.database.heartbeat, run_id, execution_generation
+                )
+                if not owns_generation:
+                    if process.returncode is None:
+                        process.terminate()
+                    return
             except Exception:
                 # A transient database outage should not kill the dbt process;
                 # startup requeue remains the recovery authority.

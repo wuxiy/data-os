@@ -138,3 +138,106 @@ Gate 0 实现与验证完成。控制面全量 Maven 测试 56 项通过，前�
 ### Status
 
 **Complete**：实现、远程部署、闭环验收、问题修复和复盘均完成；生产启用前仍需按 Boundary 清单替换开发凭据与端点。
+
+## 2026-08-12 当前版本产品级轻量投入复审
+
+### Goal
+
+在不评价安全、合规和隐私风险的前提下，重新判断当前版本是否具备产品级功能闭环，以及是否适合轻量投入使用。重点区分真实实现、仅有协议/代码但未完成跨组件证明、静态演示和规划能力。
+
+### Scope
+
+- 审查 `prototype` 门户、`control-plane`、`quality-runner`、采集执行器适配、治理/质量闭环、Compose 交付和运行文档。
+- 仅从功能可用性、真实数据闭环、失败恢复、部署复杂度、运维可操作性和验证证据判断。
+- 不把安全、认证、合规、医疗隐私和漏洞扫描作为本轮结论依据。
+
+### Phases
+
+- [x] Phase 1: 回顾既有审查与任务教训，冻结本轮评价口径
+- [x] Phase 2: 盘点门户路由、真实 API、状态机、质量运行器和部署依赖
+- [x] Phase 3: 执行 Java、Python、前端、Compose、脚本和回放源验证
+- [x] Phase 4: 抽查门户失败态、空态、真实/演示边界和用户路径
+- [x] Phase 5: 形成产品级结论、功能分级、轻量投入门槛和最小补齐路线
+- [x] Phase 6: 写入复审报告、notes 和任务结果复盘，并完成差异校验
+
+### Verification checklist
+
+- [x] 控制面 Maven 测试：80 项通过，0 failures/errors/skipped
+- [x] quality-runner：独立临时环境执行 4 项 pytest，全部通过；compileall 通过
+- [x] 前端：mock audit、portal interaction smoke、生产 build 通过
+- [x] 开发回放源：healthz 与 LIS 数据合同 HTTP smoke 通过
+- [x] 生产基础 Compose、DolphinScheduler/SeaTunnel overlays 配置解析通过
+- [x] SeaTunnel 脚本 shell 语法检查通过，`git diff --check` 通过
+- [x] 浏览器抽查首页、数据接入、治理驾驶舱、质量闭环和平台运维的不可用/空态
+- [x] 交叉确认真实临床端点、完整业务模块、统一安装/恢复和跨组件 E2E 仍未闭环
+
+### Validation notes
+
+- 默认 Python 环境没有 pytest；改用工作区运行时创建 `/private/tmp/dataos-quality-venv` 并安装 CI 所需测试依赖后完成验证。
+- 前端初次安装受本机 npm 缓存权限和残缺 `node_modules` 影响；改用隔离缓存完成干净安装与构建。
+- 浏览器静态预览使用普通 Python HTTP server 时，直接深链依赖服务器回退到 `index.html`；仓库生产 Nginx 已有回退配置，但尚未纳入真实发布 smoke。
+- 回放源首次断言误读响应字段，按实际合同使用 `data` 字段复验通过；不影响产品代码。
+
+### Result
+
+- **完整产品级：未达到。** 门户公开范围包含多个未接入真实服务的模块；真实临床端点和跨组件生产闭环也没有由仓库持续集成证明。
+- **核心垂直试点：有条件达到。** 数据源/采集任务/运行状态/水位/治理问题/质量复检/通知具备真实代码和持久化闭环骨架，适合已有平台团队配合外部依赖进行受控技术试点。
+- **轻量投入：未达到“一份 Compose 即可用”。** 生产依赖 Doris、RustFS/S3、通知端点、PostgreSQL、制品和可选调度器，初始化、验收、备份恢复和升级仍有较多人工步骤。
+
+### Deliverables
+
+- 正式复审报告：`docs/product-readiness-review-20260812.md`
+- 原始事实与证据笔记：`notes.md` 的 2026-08-12 小节
+- 任务结果复盘：`tasks/todo.md` 的 2026-08-12 小节
+
+## 2026-08-12 按复审建议补齐实现
+
+### Goal
+
+在不虚构真实院端点的前提下，把复审中可以由仓库直接补齐的最小产品闭环落地：首期范围收敛提示、外部运行可恢复关联、quality-runner 执行 fencing、UNKNOWN 人工接管、质量制品地址回传，以及可重复的 preflight/status/smoke 验收入口与恢复演练脚本。
+
+### Scope and seams
+
+- 控制面运行恢复 seam：`RunService`/`RunRepository` 与 `ExecutorAdapter` 的提交关联和人工对账接口。
+- 质量运行 seam：quality-runner `claim/heartbeat/finish/requeue` 的 execution generation 合同。
+- 质量结果 seam：quality-runner → `HttpQualityRuleExecutor` → `QualityRuleRun` → 治理详情的 `artifactUri`。
+- 运维交付 seam：`deploy/production/scripts/platformctl` 的 `preflight/status/smoke/backup/restore` 子命令；不接管真实外部凭据。
+- 门户范围 seam：未接入模块显示清晰的规划/不可用状态，不伪造业务副作用。
+
+### Phases
+
+- [x] Phase 1: 读取规范、复盘教训、冻结范围和测试 seam
+- [x] Phase 2: 以失败测试/契约测试驱动控制面运行恢复与 UNKNOWN 接管
+- [x] Phase 3: 以失败测试驱动 quality-runner fencing 与 artifact URI 全链路回传
+- [x] Phase 4: 实现 platformctl 和最小 PostgreSQL/服务恢复验收脚本
+- [x] Phase 5: 收敛门户未接入模块文案/动作，补前端契约检查
+- [x] Phase 6: 运行全量测试、构建、Compose/脚本 smoke，并完成代码复审和复盘
+
+### Acceptance checklist
+
+- [x] 外部提交超时/控制面重启后，可按稳定 `dataOsRunId` 查询并人工关联外部运行，不直接重复提交
+- [x] 采集和质量 `UNKNOWN` 均能进入明确的人工接管状态，且有重查/确认入口
+- [x] quality-runner 旧执行代次无法 heartbeat、finish 或写入制品
+- [x] `artifactUri` 从 quality-runner 回写到控制面质量运行和门户详情
+- [x] `platformctl preflight/status/smoke` 可在无真实院端点时报告缺口并返回可判断退出码
+- [x] `platformctl backup/restore` 提供标准化 PostgreSQL 操作和恢复后迁移检查，不删除数据卷
+- [x] 未接入门户模块不再让用户误以为保存/确认/生成已经产生真实业务副作用
+- [x] Java、Python、前端、脚本、Compose 和差异检查全部通过
+
+### Status
+
+**Complete** - 仓库内可直接补齐的建议项已实现并通过验证；真实院端点和跨组件生产验收仍保持明确边界。
+
+### Interim validation
+
+- 主线首轮编译发现 `HttpQualityRuleExecutor` 的 404 UNKNOWN 分支未同步新增 `artifactUri` 构造参数；已修复，随后 `mvn -DskipTests compile` 通过。
+- H2 测试不支持原有 `INTERVAL` 参数表达式；恢复逻辑改为由 Java 计算截止时间后绑定时间参数，Maven 全量测试通过。
+- 初始前端 smoke 使用过时的静态文案断言；按新的产品范围提示更新契约检查后重新通过。
+- `platformctl` 对 `.env.example` 的占位值会明确失败；`status/smoke` dry-run 和 Compose `config --quiet` 通过，证明脚本在无真实端点环境也有可判断退出码。
+
+### Verification result
+
+- Control-plane Maven：85 项通过，0 failure/error/skipped。
+- quality-runner：独立临时环境 8 项 pytest 通过，`compileall` 通过。
+- Portal：`npm run build`、`npm run qa:mock`、`node qa/portal-interactions-smoke.mjs` 通过。
+- Delivery：`bash -n deploy/production/scripts/platformctl`、`platformctl status/smoke` dry-run、占位环境 `preflight` 预期失败、生产 Compose `config --quiet` 和 `git diff --check` 通过。

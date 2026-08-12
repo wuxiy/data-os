@@ -2,6 +2,7 @@ package com.cywu.dataos.controlplane;
 
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -33,6 +34,7 @@ import com.cywu.dataos.controlplane.governance.GovernanceRepository;
 import com.cywu.dataos.controlplane.quality.NotificationService;
 import com.cywu.dataos.controlplane.quality.WebhookNotificationChannel;
 import com.cywu.dataos.controlplane.quality.QualityWorkflowService;
+import com.cywu.dataos.controlplane.job.RunStatusSyncService;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -54,6 +56,9 @@ class ControlPlaneApiTest {
 
     @Autowired
     private NotificationService notificationService;
+
+    @Autowired
+    private RunStatusSyncService runStatusSyncService;
 
     @Test
     void exposesNonSensitiveRuntimeStatusForPortalDiagnostics() throws Exception {
@@ -371,6 +376,7 @@ class ControlPlaneApiTest {
                 .andExpect(jsonPath("$.latestRun.status", is("SUCCEEDED")))
                 .andExpect(jsonPath("$.latestRun.passed", is(true)))
                 .andExpect(jsonPath("$.latestRun.sampleEvidence", hasSize(1)))
+                .andExpect(jsonPath("$.latestRun.artifactUri", nullValue()))
                 .andExpect(jsonPath("$.events[0].eventType", is("AUTO_CLOSED")));
     }
 
@@ -392,6 +398,33 @@ class ControlPlaneApiTest {
                 .andExpect(jsonPath("$.latestRun.passed", is(false)))
                 .andExpect(jsonPath("$.latestRun.sampleEvidence", hasSize(1)))
                 .andExpect(jsonPath("$.events[0].eventType", is("AUTO_RETURNED")));
+    }
+
+    @Test
+    void exposesQualityUnknownReconciliationAndRequiresExplicitAbsenceConfirmation() throws Exception {
+        insertIssue("DQ-TEST-004B", "质量执行对账", "rule-pass", "RECHECKING", Instant.now().plusSeconds(3600));
+        var run = governanceRepository.createQualityRun("DQ-TEST-004B", "default", "demo-hospital",
+                "rule-pass", "asset-test", "DEMO", "qr-unknown-004b", Instant.now());
+        jdbc.update("""
+                UPDATE data_os.quality_rule_runs
+                SET status = 'UNKNOWN', external_id = 'quality-external-004b',
+                    reconciliation_status = 'MANUAL_REQUIRED',
+                    reconciliation_message = '执行器未返回可靠状态'
+                WHERE id = ?
+                """, run.id());
+
+        mockMvc.perform(get("/api/v1/governance/issues/DQ-TEST-004B"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.latestRun.status", is("UNKNOWN")))
+                .andExpect(jsonPath("$.latestRun.reconciliationStatus", is("MANUAL_REQUIRED")))
+                .andExpect(jsonPath("$.latestRun.reconciliationMessage", is("执行器未返回可靠状态")));
+
+        mockMvc.perform(post("/api/v1/governance/issues/DQ-TEST-004B/runs/" + run.id() + "/reconcile/confirm-absent"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.issue.status", is("RETURNED")))
+                .andExpect(jsonPath("$.latestRun.status", is("SUBMIT_FAILED")))
+                .andExpect(jsonPath("$.latestRun.reconciliationStatus", is("CONFIRMED_ABSENT")))
+                .andExpect(jsonPath("$.events[0].eventType", is("RECHECK_CONFIRMED_ABSENT")));
     }
 
     @Test
@@ -670,6 +703,43 @@ class ControlPlaneApiTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.total", is(1)))
                 .andExpect(jsonPath("$.items[0].message", is("中心采集执行器未配置")));
+    }
+
+    @Test
+    void putsStaleSubmittingRunIntoVisibleManualReconciliationBeforeRetry() throws Exception {
+        var source = mockMvc.perform(post("/api/v1/sources")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"对账测试源\",\"systemType\":\"LIS\",\"protocol\":\"JDBC\"}"))
+                .andReturn().getResponse().getContentAsString();
+        var sourceId = source.replaceAll(".*\\\"id\\\":\\\"([^\\\"]+)\\\".*", "$1");
+        var job = mockMvc.perform(post("/api/v1/jobs")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"sourceId\":\"" + sourceId + "\",\"name\":\"对账测试作业\"}"))
+                .andReturn().getResponse().getContentAsString();
+        var jobId = job.replaceAll(".*\\\"id\\\":\\\"([^\\\"]+)\\\".*", "$1");
+        jdbc.update("""
+                INSERT INTO data_os.job_runs
+                    (id, job_id, status, executor, external_id, message, submitted_at, started_at, finished_at)
+                VALUES ('reconcile-run-1', ?, 'SUBMITTING', 'SEATUNNEL', NULL, '中心采集作业提交中',
+                        ?, NULL, NULL)
+                """, jobId, Timestamp.from(Instant.now().minusSeconds(600)));
+
+        runStatusSyncService.syncPendingRuns();
+
+        mockMvc.perform(get("/api/v1/jobs/" + jobId + "/runs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].status", is("UNKNOWN")))
+                .andExpect(jsonPath("$.items[0].reconciliationStatus", is("MANUAL_REQUIRED")))
+                .andExpect(jsonPath("$.items[0].reconciliationMessage", org.hamcrest.Matchers.containsString("人工")));
+
+        mockMvc.perform(post("/api/v1/jobs/" + jobId + "/runs/reconcile-run-1/reconcile/confirm-absent"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status", is("SUBMIT_FAILED")))
+                .andExpect(jsonPath("$.reconciliationStatus", is("CONFIRMED_ABSENT")));
+
+        mockMvc.perform(post("/api/v1/jobs/" + jobId + "/runs/reconcile-run-1/retry"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id", org.hamcrest.Matchers.not(is("reconcile-run-1"))));
     }
 
     @Test

@@ -27,6 +27,7 @@ import {
   createIngestionJob,
   createSource,
   checkSource,
+  confirmIngestionRunAbsent,
   fetchIngestionJobs,
   fetchIngestionRuns,
   fetchJobConfig,
@@ -295,6 +296,21 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
       onNotice(`已创建重试运行：${statusLabel(retried.status).label}`)
     } catch (error) {
       onNotice(error instanceof Error ? error.message : '运行重试失败，请先确认任务未暂停且没有活动运行')
+    } finally {
+      setRunningJob(null)
+    }
+  }
+
+  async function confirmRunAbsent(job: IngestionJobApiItem, run: IngestionRunApiItem) {
+    if (state !== 'live') return
+    setRunningJob(job.id)
+    try {
+      const confirmed = await confirmIngestionRunAbsent(job.id, run.id)
+      setLatestRuns((current) => ({ ...current, [job.id]: confirmed }))
+      setDetailsRuns((current) => current.map((item) => item.id === confirmed.id ? confirmed : item))
+      onNotice('已确认外部运行不存在，当前运行允许重试')
+    } catch (error) {
+      onNotice(error instanceof Error ? error.message : '确认外部运行不存在失败，请刷新后重试')
     } finally {
       setRunningJob(null)
     }
@@ -591,7 +607,7 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
             {detailsLoading && detailsRuns.length === 0 ? <p className={styles.drawerHint}>正在读取运行记录…</p> : null}
             {detailsError ? <p className={styles.formError} role="alert">{detailsError}</p> : null}
             {detailsRuns.length === 0 && !detailsLoading ? <div className={styles.emptyState}><Clock3 size={18} /><p>还没有运行记录</p><span>保存任务配置后，可从任务列表启动一次采集。</span></div> : null}
-            <ol className={styles.runTimeline}>{detailsRuns.slice(0, 10).map((run) => { const status = statusLabel(run.status); const active = ['SUBMITTING', 'SUBMITTED', 'RUNNING', 'UNKNOWN'].includes(run.status); const retryable = retryableRunStatus(run.status); return <li key={run.id}><div className={styles.timelineDot} data-tone={status.tone} /><div className={styles.timelineBody}><div className={styles.timelineTitle}><strong>{status.label}</strong><time>{formatTime(run.submittedAt)}</time></div><p>{businessMessage(run.message)}</p><dl><div><dt>运行编号</dt><dd>{run.id.slice(0, 8)}</dd></div>{run.externalId ? <div><dt>外部编号</dt><dd>{run.externalId}</dd></div> : null}{run.finishedAt ? <div><dt>完成时间</dt><dd>{formatTime(run.finishedAt)}</dd></div> : null}</dl><div className={styles.timelineActions}>{active ? <button className={styles.textButton} disabled={runningJob === detailsJob.id} onClick={() => void syncRun(detailsJob, run)}><RefreshCw size={12} />同步状态</button> : null}{retryable ? <button className={styles.textButton} disabled={runningJob === detailsJob.id || detailsJob.status === 'PAUSED' || detailsJob.status === 'ARCHIVED'} onClick={() => void retryRun(detailsJob, run)}><RotateCcw size={12} />重试</button> : null}</div></div></li> })}</ol>
+            <ol className={styles.runTimeline}>{detailsRuns.slice(0, 10).map((run) => { const status = statusLabel(run.status); const active = ['SUBMITTING', 'SUBMITTED', 'RUNNING', 'UNKNOWN'].includes(run.status); const retryable = retryableRunStatus(run.status); return <li key={run.id}><div className={styles.timelineDot} data-tone={status.tone} /><div className={styles.timelineBody}><div className={styles.timelineTitle}><strong>{status.label}</strong><time>{formatTime(run.submittedAt)}</time></div><p>{businessMessage(run.message)}</p>{run.reconciliationStatus === 'MANUAL_REQUIRED' ? <div className={styles.connectionNotice} role="status"><strong>待人工对账：</strong>{run.reconciliationMessage ?? '请先确认外部运行不存在后再重试。'}<div className={styles.timelineActions}><button className={styles.textButton} disabled={runningJob === detailsJob.id} onClick={() => void syncRun(detailsJob, run)}>重新查询</button><button className={styles.textButton} disabled={runningJob === detailsJob.id} onClick={() => void confirmRunAbsent(detailsJob, run)}>确认不存在</button></div></div> : null}<dl><div><dt>运行编号</dt><dd>{run.id.slice(0, 8)}</dd></div>{run.externalId ? <div><dt>外部编号</dt><dd>{run.externalId}</dd></div> : null}{run.finishedAt ? <div><dt>完成时间</dt><dd>{formatTime(run.finishedAt)}</dd></div> : null}</dl><div className={styles.timelineActions}>{active && run.reconciliationStatus !== 'MANUAL_REQUIRED' ? <button className={styles.textButton} disabled={runningJob === detailsJob.id} onClick={() => void syncRun(detailsJob, run)}><RefreshCw size={12} />同步状态</button> : null}{retryable ? <button className={styles.textButton} disabled={runningJob === detailsJob.id || detailsJob.status === 'PAUSED' || detailsJob.status === 'ARCHIVED'} onClick={() => void retryRun(detailsJob, run)}><RotateCcw size={12} />重试</button> : null}</div></div></li> })}</ol>
           </div>
           <div className={styles.drawerFooter}><button className={styles.secondaryButton} onClick={() => setDetailsJob(null)}>关闭</button><button className={styles.primaryButton} disabled={runningJob === detailsJob.id || detailsJob.status === 'PAUSED' || detailsJob.status === 'ARCHIVED' || detailsRuns.some((run) => ['SUBMITTING', 'SUBMITTED', 'RUNNING', 'UNKNOWN'].includes(run.status))} onClick={() => detailsJob.configured ? void runJob(detailsJob) : void openJobConfig(detailsJob)}><Play size={14} />{detailsJob.status === 'PAUSED' ? '已暂停' : detailsJob.status === 'ARCHIVED' ? '已归档' : detailsJob.configured ? '再次启动' : '配置任务'}</button></div>
         </aside>

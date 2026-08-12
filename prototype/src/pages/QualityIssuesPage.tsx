@@ -6,7 +6,9 @@ import { Button, StatusTag } from '../components/ui/Primitives'
 import {
   fetchGovernanceIssue,
   fetchGovernanceIssues,
+  confirmGovernanceIssueRunAbsent,
   remindGovernanceIssueOwner,
+  reconcileGovernanceIssueRun,
   requestGovernanceIssueRecheck,
   syncGovernanceIssueRun,
   updateGovernanceIssueWorkflow,
@@ -23,7 +25,7 @@ interface Props {
 }
 
 type ApiState = 'loading' | 'live' | 'unavailable'
-type ActionState = 'note' | 'recheck' | 'sync' | 'notify' | null
+type ActionState = 'note' | 'recheck' | 'sync' | 'notify' | 'reconcile' | 'confirm-absent' | null
 
 export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props) {
   const [apiState, setApiState] = useState<ApiState>('loading')
@@ -138,6 +140,36 @@ export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props
     }
   }
 
+  async function reconcileRun() {
+    if (!selected || !detail?.latestRun || actionState) return
+    setActionState('reconcile')
+    setActionError(null)
+    try {
+      const next = await reconcileGovernanceIssueRun(selected.id, detail.latestRun.id)
+      applyDetail(next)
+      onNotice('已重新查询质量执行器，状态已更新')
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : '质量执行批次重新对账失败，请稍后重试')
+    } finally {
+      setActionState(null)
+    }
+  }
+
+  async function confirmRunAbsent() {
+    if (!selected || !detail?.latestRun || actionState) return
+    setActionState('confirm-absent')
+    setActionError(null)
+    try {
+      const next = await confirmGovernanceIssueRunAbsent(selected.id, detail.latestRun.id)
+      applyDetail(next)
+      onNotice('已确认外部质量执行批次不存在，问题已退回处理队列')
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : '确认质量执行批次不存在失败，请稍后重试')
+    } finally {
+      setActionState(null)
+    }
+  }
+
   async function remindOwner() {
     if (!selected || actionState) return
     setActionState('notify')
@@ -203,6 +235,8 @@ export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props
                 <p className={styles.evidenceMessage}>尝试 {detail.latestRun.attemptCount} 次{detail.latestRun.nextPollAt ? <> · 下次重试/轮询：{formatDateTime(detail.latestRun.nextPollAt)}</> : null}</p>
                 {detail.latestRun.resultMessage ? <p className={styles.evidenceMessage}>{detail.latestRun.resultMessage}</p> : null}
                 {detail.latestRun.lastError ? <p className={styles.formError}>最近错误：{detail.latestRun.lastError}</p> : null}
+                {detail.latestRun.reconciliationStatus === 'MANUAL_REQUIRED' ? <div className={styles.connectionNotice} role="status"><CircleAlert size={17} /><div><strong>质量执行批次待人工对账</strong><span>{detail.latestRun.reconciliationMessage ?? '外部执行器未能可靠返回状态，请先重新查询；确认不存在后才允许结束本批次。'}</span></div><div className={styles.timelineActions}><button className={styles.secondaryButton} onClick={() => void reconcileRun()} disabled={actionState !== null}>{actionState === 'reconcile' ? '查询中…' : '重新查询'}</button><button className={styles.textButton} onClick={() => void confirmRunAbsent()} disabled={actionState !== null}>{actionState === 'confirm-absent' ? '确认中…' : '确认不存在'}</button></div></div> : null}
+                {detail.latestRun.artifactUri ? <p className={styles.evidenceMessage}>制品地址：{isSafeArtifactLink(detail.latestRun.artifactUri) ? <a href={detail.latestRun.artifactUri} target="_blank" rel="noreferrer">打开复检制品</a> : <code className={styles.inlineCode}>{detail.latestRun.artifactUri}</code>}</p> : null}
                 {detail.latestRun.sampleEvidence.length > 0 ? <div className={styles.sampleEvidence}><strong>样本证据（{detail.latestRun.sampleEvidence.length}）</strong>{detail.latestRun.sampleEvidence.map((item, index) => <pre key={`${detail.latestRun?.id}-${index}`}>{JSON.stringify(item, null, 2)}</pre>)}</div> : null}
                 {detail.runs.length > 1 ? <div className={styles.runHistory}><strong>历史执行批次（{detail.runs.length}）</strong>{detail.runs.slice(1).map((run) => <div className={styles.runHistoryItem} key={run.id}><StatusTag tone={runTone(run.status)}>{runStatus(run.status)}</StatusTag><span>{run.executionBatchId}</span><time>{formatDateTime(run.submittedAt)}</time><small>{run.sampleEvidence.length} 条证据</small></div>)}</div> : null}
               </> : <p>尚未提交质量规则复检。</p>}
@@ -278,4 +312,13 @@ function formatDateTime(value: string | null | undefined) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
   return new Intl.DateTimeFormat('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).format(date).replace('/', '-').replace('/', ' ')
+}
+
+function isSafeArtifactLink(value: string) {
+  try {
+    const url = new URL(value)
+    return url.protocol === 'https:' || url.protocol === 'http:'
+  } catch {
+    return false
+  }
 }

@@ -24,14 +24,18 @@ class ArtifactStore:
                 aws_access_key_id=access_key, aws_secret_access_key=secret_key,
             )
 
-    def store(self, tenant_namespace: str, run_id: str, summary: dict[str, Any]) -> str:
+    def store(self, tenant_namespace: str, run_id: str, summary: dict[str, Any],
+              execution_generation: int | None = None) -> str:
         body = json.dumps(summary, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
-        key = f"quality-runs/{tenant_namespace}/{run_id}/summary.json"
+        generation_path = (
+            f"generation-{execution_generation}/" if execution_generation is not None else ""
+        )
+        key = f"quality-runs/{tenant_namespace}/{run_id}/{generation_path}summary.json"
         if self._s3 is not None:
             self._s3.put_object(Bucket=self.bucket, Key=key, Body=body,
                                 ContentType="application/json", ServerSideEncryption="AES256")
             return f"s3://{self.bucket}/{key}"
-        path = self.local_dir / tenant_namespace / run_id / "summary.json"
+        path = self.local_dir / tenant_namespace / run_id / generation_path / "summary.json"
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(body)
         return str(path)
@@ -60,3 +64,13 @@ class ArtifactStore:
                     pass
                 deleted += 1
         return deleted
+
+    def delete(self, uri: str | None) -> None:
+        if not uri:
+            return
+        if self._s3 is not None and uri.startswith(f"s3://{self.bucket}/"):
+            self._s3.delete_object(Bucket=self.bucket, Key=uri.removeprefix(f"s3://{self.bucket}/"))
+            return
+        path = Path(uri)
+        if path.is_file():
+            path.unlink(missing_ok=True)

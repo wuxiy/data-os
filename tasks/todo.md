@@ -624,3 +624,71 @@ Secret 卷托管。新增文档链接已放入根 README 和 `deploy/dev/README.
 
 验证通过：远程 `docker compose ps` 中门户、控制面、质量运行器、RustFS、SeaTunnel、DolphinScheduler
 和 Token 轮换器均为运行状态；仓库敏感值扫描未发现新增明文凭据，`git diff --check` 通过。
+
+## 2026-08-12 产品级与轻量投入复审
+
+### 执行计划
+
+- [x] 复盘既有审查和历史教训，冻结“只评估功能与轻量投入、不评估安全”的口径
+- [x] 盘点门户页面、真实 API、控制面状态机、质量运行器和部署拓扑
+- [x] 执行 Java、Python、前端、回放源、Compose 和脚本验证
+- [x] 浏览器抽查核心页面的真实/演示边界、失败态、空态和用户路径
+- [x] 形成完整产品级判断、P0/P1/P2 缺口和最小补齐路线
+- [x] 归档正式报告、事实笔记和结果复盘
+
+### 结果复盘
+
+#### 结论
+
+项目整体尚未达到产品级，也尚未达到“轻量投入即可使用”的标准；但核心采集—治理—质量垂直链路已经具备真实实现和受控试点基础。
+
+适合：平台工程师配合外部依赖，范围收窄到数据接入、采集运行、治理问题、质量复检和通知的单院技术试点。
+
+暂不适合：把标准、映射、MPI、资产、分析、问数、数据服务和交付中心作为已完成业务产品交付，或让业务团队脱离平台工程师自行安装、验收、恢复和运维。
+
+#### 已证实能力
+
+- 控制面具备数据源登记/检查、任务配置、运行提交/同步/重试、成功水位推进、治理问题、质量复检、样本证据和通知队列。
+- 生产模式的门户会关闭未接入页面的静态样例，控制面不可用时展示空态/不可用态，没有把本地演示指标冒充真实数据。
+- 控制面 Maven 80 项通过；quality-runner 在独立临时环境 4 项 pytest 通过；前端 mock audit、交互 smoke、build 通过；Compose overlay 配置、SeaTunnel 脚本语法和 LIS 回放源 smoke 通过。
+
+#### 仍未闭环
+
+- 真实临床端点、Doris 目标和院方通知网关没有形成仓库内可重复的跨组件验收。
+- 生产 Compose 不是单命令交付，依赖 Doris、RustFS/S3、PostgreSQL、SeaTunnel 制品、通知端点和可选 DolphinScheduler，并包含多次人工初始化。
+- 外部采集提交崩溃窗口、quality-runner 重启 fencing、UNKNOWN 人工接管和 artifact URI 回传仍存在产品级功能缺口。
+- 没有平台级标准安装、预检、备份恢复、恢复校验、升级回滚和诊断入口；`platformctl` 仍只是架构规划。
+- CI 主要验证代码、契约、配置和构建，没有真实 PostgreSQL、Compose up、SeaTunnel/DolphinScheduler、Doris/dbt/RustFS 或容器重启 E2E。
+
+#### 最小补齐顺序
+
+1. 冻结首期范围，只承诺采集 + 治理 + 质量闭环，明确其他模块为规划中/不可用。
+2. 选择一个真实 LIS 或 EMR 来源，打通真实来源 → SeaTunnel → Doris → quality-runner → 治理问题 → 通知。
+3. 提供最小 `preflight/install/status/smoke` 交付入口，自动汇总外部依赖和服务 readiness。
+4. 修正外部提交可恢复对账、质量运行执行 fencing、UNKNOWN 终态和 artifact URI 回传。
+5. 增加空库迁移、备份恢复、服务重启、失败重试和通知重投的机器验收记录。
+
+正式报告：[`docs/product-readiness-review-20260812.md`](../docs/product-readiness-review-20260812.md)
+
+## 2026-08-12 按复审建议补齐实现
+
+### 执行计划
+
+- [x] 收敛门户首期范围，明确未接入模块和演示动作边界
+- [x] 补齐采集外部运行对账、UNKNOWN 接管、人工关联和确认不存在
+- [x] 补齐 quality-runner execution fencing、失效制品清理和 artifact URI 回传
+- [x] 补齐质量 UNKNOWN 人工重查/确认不存在及治理状态联动
+- [x] 新增 `platformctl` 的 preflight/install/status/smoke/backup/restore/restart
+- [x] 完成 Java、Python、前端、Compose、脚本和差异检查
+
+### 结果复盘
+
+- 控制面新增 V6/V7/V8 迁移，采集运行和质量运行均保留对账状态/消息；外部采集可按稳定 `data_os_run_id` 查询并关联，无法确认时不会自动伪造成功或失败。
+- quality-runner 以 `execution_generation` 做 claim/heartbeat/finish CAS fencing，并把代次写入制品命名空间；旧 worker 的写回和制品会被拒绝/清理。
+- 质量制品 URI 从 runner、HTTP executor、数据库、治理 API 传到门户详情；UNKNOWN 的重查和“确认不存在”均要求明确用户动作。
+- `platformctl` 对占位 `.env.example` 返回非零，dry-run status/smoke 返回 0，生产 Compose `config --quiet` 返回 0；备份不覆盖已有文件，恢复要求 `--yes`，恢复后检查 PostgreSQL 和 Flyway 版本。
+- 验证通过：Maven 85 项、quality-runner pytest 8 项、前端 build/mock/interaction smoke、脚本 `bash -n`、Compose 配置和 `git diff --check`。
+
+### 交付边界
+
+这轮完成的是仓库内可直接实现的产品化补齐，不替代真实院端点联调、真实 PostgreSQL/对象存储恢复演练和跨容器生产 E2E。整体产品仍不宣称完整产品级；范围收窄后的核心垂直链路可进入平台工程师主导的受控试点。

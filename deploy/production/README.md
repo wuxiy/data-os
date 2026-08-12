@@ -202,7 +202,7 @@ chmod +x deploy/production/provision-named-tenant.sh
 
 API 诊断端口只绑定 `127.0.0.1`，不通过门户或公网暴露。首次部署仍需由调度管理员在内网完成一次性服务账号、项目和已发布工作流绑定；data-os 任务配置只保存 `projectCode`、`workflowDefinitionCode`、版本审计信息和非敏感启动参数，调度器密码/token 不进入任务 JSON。
 
-控制面把 data-os 运行编号写入 `startParams.dataos_run_id`，但当前 DolphinScheduler 公开 API 无法按该启动参数可靠对账。因而提交响应超时会进入 `BLOCKED_DEPENDENCY`，不会自动重试；运维人员需先在调度器中核对实例，再人工处理，避免重复采集。跨系统幂等对账列为下一阶段 Gate 1 P1，不把当前方案宣称为 exactly-once。
+控制面把 data-os 运行编号写入 `startParams.dataos_run_id`，但当前 DolphinScheduler 公开 API 无法按该启动参数可靠对账。因而提交响应超时会进入 `UNKNOWN` 人工对账状态，不会自动重试；运维人员需先在调度器中核对实例，再在门户确认关联或确认不存在，避免重复采集。跨系统幂等对账仍不宣称为 exactly-once。
 
 ## 必须检查的生产配置
 
@@ -231,6 +231,43 @@ API 诊断端口只绑定 `127.0.0.1`，不通过门户或公网暴露。首次�
 Compose 文件使用 `read_only` 根文件系统、非 root 控制面用户、`no-new-privileges` 和丢弃 Linux capabilities。若甲方镜像仓库启用签名或漏洞门禁，应在推送前对控制面和 nginx/Postgres/Prometheus 镜像执行同等检查。
 
 ## 迁移、备份与升级
+
+### 轻量运维入口
+
+生产基线提供一个不依赖额外平台的 Compose 操作入口。它不会创建或删除
+PostgreSQL 数据卷，且 `restore` 必须显式确认；备份文件应保存到部署机的离线
+备份位置，并由院方现有备份系统接管保留和异地复制。
+
+```bash
+cd /opt/data-os/deploy/production
+chmod +x scripts/platformctl
+
+# 首次部署或变更前：检查环境文件、Compose 解析和关键依赖
+scripts/platformctl preflight
+
+# 启动基础服务并等待控制面 readiness
+scripts/platformctl install
+
+# 日常巡检；status 只读，smoke 还会检查 system/status 和可选通知健康端点
+scripts/platformctl status
+PLATFORMCTL_AUTH_HEADER="Authorization: Bearer <operator-token>" \
+  PLATFORMCTL_NOTIFICATION_HEALTH_URL="http://notification-receiver:8080/healthz" \
+  scripts/platformctl smoke
+
+# 升级前备份。目标文件已存在时命令拒绝覆盖。
+scripts/platformctl backup "backups/data-os-$(date +%Y%m%d-%H%M%S).dump"
+
+# 恢复会短暂停止应用服务，并在恢复后重新启动和检查 readiness；默认按
+# DATAOS_DB_HOST 判断使用 Compose PostgreSQL 或外部 PostgreSQL，可用
+# PLATFORMCTL_DB_TARGET 显式覆盖。
+# 仅恢复控制面 PostgreSQL；Doris、RustFS、SeaTunnel 和调度器仍需按各自手册恢复。
+scripts/platformctl restore backups/data-os-20260812-120000.dump --yes
+```
+
+`preflight` 和 `smoke` 的退出码可直接接入发布门禁；没有真实外部端点时会明确
+报告缺口，不会把未配置组件显示为成功；`restore` 还会校验 Flyway 最新成功迁移、核心运行表和本轮对账/制品列。生产环境应在安全的部署机上设置
+`ENV_FILE`、`CONTROL_PLANE_URL` 和 `QUALITY_RUNNER_URL`，不要把 Token 写入
+仓库或命令历史。
 
 升级前先备份数据库并记录镜像、迁移版本和配置摘要（不要记录任何密码/Token）：
 

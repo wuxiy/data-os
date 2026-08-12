@@ -1,6 +1,7 @@
 package com.cywu.dataos.controlplane.executor;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -103,6 +104,35 @@ class SeaTunnelExecutorAdapterTest {
     }
 
     @Test
+    void treatsRetryableSubmitTimeoutAsUnknownInsteadOfRetryingBusinessRun() throws IOException {
+        var requests = new AtomicInteger();
+        var server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/submit-job", exchange -> {
+            requests.incrementAndGet();
+            var response = "temporary upstream failure".getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(503, response.length);
+            try (var output = exchange.getResponseBody()) {
+                output.write(response);
+            }
+        });
+        server.start();
+        try {
+            var adapter = new SeaTunnelExecutorAdapter(
+                    RestClient.builder(), "http://127.0.0.1:" + server.getAddress().getPort(), "UTC");
+            var job = new IngestionJob("job-1", "source-1", "门诊批次", "BATCH", "SEATUNNEL",
+                    "ACTIVE", null, null, null, null, null, false);
+
+            assertThatThrownBy(() -> adapter.submit(job,
+                    Map.of("source", Map.of("plugin_name", "FakeSource")), "run-unknown-1"))
+                    .isInstanceOf(AdapterSubmissionUnknownException.class)
+                    .hasMessageContaining("需按 data_os_run_id 对账");
+            assertThat(requests).hasValue(2);
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
     void mapsSeaTunnelFinishedStatusToSucceeded() throws IOException {
         var server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/job-info/seatunnel-123", exchange -> {
@@ -148,6 +178,36 @@ class SeaTunnelExecutorAdapterTest {
 
             assertThat(status.status()).isEqualTo("UNKNOWN");
             assertThat(status.message()).isEqualTo("中心采集作业暂未找到，请人工重试");
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void reconcilesExistingJobByStableDataOsRunId() throws IOException {
+        var requestPath = new AtomicReference<String>();
+        var server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/job-info", exchange -> {
+            requestPath.set(exchange.getRequestURI().toString());
+            var response = "{\"jobId\":\"seatunnel-recovered\",\"jobStatus\":\"RUNNING\"}"
+                    .getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, response.length);
+            try (var output = exchange.getResponseBody()) {
+                output.write(response);
+            }
+        });
+        server.start();
+        try {
+            var adapter = new SeaTunnelExecutorAdapter(
+                    RestClient.builder(), "http://127.0.0.1:" + server.getAddress().getPort(), "UTC");
+
+            var reconciliation = adapter.reconcile("run-recover-1");
+
+            assertThat(reconciliation.outcome()).isEqualTo(AdapterReconciliation.Outcome.FOUND);
+            assertThat(reconciliation.externalId()).isEqualTo("seatunnel-recovered");
+            assertThat(reconciliation.status().status()).isEqualTo("RUNNING");
+            assertThat(requestPath).hasValue("/job-info?dataos_run_id=run-recover-1");
         } finally {
             server.stop(0);
         }

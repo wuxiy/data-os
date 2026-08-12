@@ -104,6 +104,24 @@ public class GovernanceController {
         return qualityWorkflow.sync(issueId, runId, tenantId, institutionId);
     }
 
+    @PostMapping("/issues/{issueId}/runs/{runId}/reconcile")
+    public GovernanceIssueDetail reconcileQualityRun(
+            @PathVariable String issueId,
+            @PathVariable String runId,
+            @RequestParam(required = false) String tenantId,
+            @RequestParam(required = false) String institutionId) {
+        return qualityWorkflow.reconcile(issueId, runId, tenantId, institutionId);
+    }
+
+    @PostMapping("/issues/{issueId}/runs/{runId}/reconcile/confirm-absent")
+    public GovernanceIssueDetail confirmQualityRunAbsent(
+            @PathVariable String issueId,
+            @PathVariable String runId,
+            @RequestParam(required = false) String tenantId,
+            @RequestParam(required = false) String institutionId) {
+        return qualityWorkflow.confirmAbsent(issueId, runId, tenantId, institutionId);
+    }
+
     @PostMapping("/issues/{issueId}/notifications/remind")
     public GovernanceIssueDetail remindOwner(
             @PathVariable String issueId,

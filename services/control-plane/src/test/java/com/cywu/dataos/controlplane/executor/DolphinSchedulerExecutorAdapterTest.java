@@ -155,4 +155,15 @@ class DolphinSchedulerExecutorAdapterTest {
         assertThat(DolphinSchedulerExecutorAdapter.normalizeStatus("FAILURE")).isEqualTo("FAILED");
         assertThat(DolphinSchedulerExecutorAdapter.normalizeStatus("STOP")).isEqualTo("CANCELED");
     }
+
+    @Test
+    void reportsManualReconciliationWhenStableRunIdCannotBeQueriedReliably() {
+        var adapter = new DolphinSchedulerExecutorAdapter(RestClient.builder(), "http://127.0.0.1:1", "token", "UTC");
+
+        var reconciliation = adapter.reconcile("run-reconcile-1");
+
+        assertThat(reconciliation.outcome()).isEqualTo(AdapterReconciliation.Outcome.MANUAL_REQUIRED);
+        assertThat(reconciliation.externalId()).isNull();
+        assertThat(reconciliation.message()).contains("人工");
+    }
 }

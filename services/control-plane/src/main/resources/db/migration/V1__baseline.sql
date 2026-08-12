@@ -103,6 +103,9 @@ CREATE TABLE IF NOT EXISTS data_os.quality_rule_runs (
     passed BOOLEAN NULL,
     result_message VARCHAR(1000) NULL,
     sample_evidence_json TEXT NULL,
+    artifact_uri VARCHAR(1000) NULL,
+    reconciliation_status VARCHAR(40) NULL,
+    reconciliation_message VARCHAR(500) NULL,
     sample_evidence_count INTEGER NOT NULL DEFAULT 0,
     submitted_at TIMESTAMP NOT NULL,
     started_at TIMESTAMP NULL,
@@ -111,6 +114,8 @@ CREATE TABLE IF NOT EXISTS data_os.quality_rule_runs (
     next_poll_at TIMESTAMP NULL,
     submit_lease_until TIMESTAMP NULL,
     submit_lease_by VARCHAR(128) NULL,
+    status_lease_until TIMESTAMP NULL,
+    status_lease_by VARCHAR(128) NULL,
     last_error VARCHAR(1000) NULL,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_data_os_quality_run_issue FOREIGN KEY (issue_id) REFERENCES data_os.governance_issues(id)
@@ -146,6 +151,8 @@ CREATE TABLE IF NOT EXISTS data_os.job_runs (
     request_key VARCHAR(128) NULL,
     request_fingerprint VARCHAR(64) NULL,
     message VARCHAR(500) NOT NULL,
+    reconciliation_status VARCHAR(40) NULL,
+    reconciliation_message VARCHAR(500) NULL,
     submitted_at TIMESTAMP NOT NULL,
     started_at TIMESTAMP NULL,
     finished_at TIMESTAMP NULL,
@@ -154,12 +161,16 @@ CREATE TABLE IF NOT EXISTS data_os.job_runs (
 
 ALTER TABLE data_os.job_runs ADD COLUMN IF NOT EXISTS request_key VARCHAR(128) NULL;
 ALTER TABLE data_os.job_runs ADD COLUMN IF NOT EXISTS request_fingerprint VARCHAR(64) NULL;
+ALTER TABLE data_os.job_runs ADD COLUMN IF NOT EXISTS reconciliation_status VARCHAR(40) NULL;
+ALTER TABLE data_os.job_runs ADD COLUMN IF NOT EXISTS reconciliation_message VARCHAR(500) NULL;
 ALTER TABLE data_os.sources ADD COLUMN IF NOT EXISTS last_checked_at TIMESTAMP NULL;
 ALTER TABLE data_os.sources ADD COLUMN IF NOT EXISTS last_check_message VARCHAR(500) NULL;
 ALTER TABLE data_os.governance_notifications ADD COLUMN IF NOT EXISTS locked_until TIMESTAMP NULL;
 ALTER TABLE data_os.governance_notifications ADD COLUMN IF NOT EXISTS locked_by VARCHAR(128) NULL;
 ALTER TABLE data_os.quality_rule_runs ADD COLUMN IF NOT EXISTS submit_lease_until TIMESTAMP NULL;
 ALTER TABLE data_os.quality_rule_runs ADD COLUMN IF NOT EXISTS submit_lease_by VARCHAR(128) NULL;
+ALTER TABLE data_os.quality_rule_runs ADD COLUMN IF NOT EXISTS status_lease_until TIMESTAMP NULL;
+ALTER TABLE data_os.quality_rule_runs ADD COLUMN IF NOT EXISTS status_lease_by VARCHAR(128) NULL;
 
 CREATE TABLE IF NOT EXISTS data_os.credentials (
     id VARCHAR(64) PRIMARY KEY,

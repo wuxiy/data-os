@@ -30,7 +30,8 @@ class HttpQualityRuleExecutorTest {
             var body = """
                     {"status":"success","passed":true,"message":"ok","batchId":"qr-test-001",
                      "sampleEvidence":[{"row":"patient-001","field":"result_time"}],
-                     "startedAt":"2026-08-05T09:00:00+08:00","finishedAt":"2026-08-05T09:00:02+08:00"}
+                     "startedAt":"2026-08-05T09:00:00+08:00","finishedAt":"2026-08-05T09:00:02+08:00",
+                     "artifactUri":"s3://dataos-quality-artifacts/quality-runs/runner-001/summary.json"}
                     """;
             exchange.getResponseHeaders().add("Content-Type", "application/json");
             exchange.sendResponseHeaders(200, body.length());
@@ -50,6 +51,7 @@ class HttpQualityRuleExecutorTest {
             assertThat(result.passed()).isTrue();
             assertThat(result.executionBatchId()).isEqualTo("qr-test-001");
             assertThat(result.sampleEvidence()).hasSize(1);
+            assertThat(result.artifactUri()).isEqualTo("s3://dataos-quality-artifacts/quality-runs/runner-001/summary.json");
             assertThat(requests).hasValue(1);
         } finally {
             server.stop(0);

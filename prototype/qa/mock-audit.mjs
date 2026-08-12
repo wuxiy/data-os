@@ -35,5 +35,7 @@ assert.match(runtime, /VITE_DATAOS_DEMO_MODE/, '前端演示模式必须通过�
 assert.match(src('src/data/controlPlane.ts'), /fetchRuntimeStatus/, '门户必须读取控制面运行状态')
 assert.match(src('src/components/ui/RuntimeStatusBanner.tsx'), /演示运行模式/, '门户必须展示当前运行模式')
 assert.match(src('src/components/ui/RuntimeStatusBanner.tsx'), /真实运行模式/, '门户必须展示真实运行模式')
+assert.match(src('src/components/ui/DemoDataBoundary.tsx'), /不写入控制面/, '演示模式必须明确动作不会产生真实业务副作用')
+assert.match(src('src/data/controlPlane.ts'), /confirmIngestionRunAbsent/, '采集 UNKNOWN 必须有人工确认不存在接口')
 
 console.log(`mock audit passed: ${staticPages.length} static pages gated, governance fallback removed, runtime mode visible`)

@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS data_os.quality_runner_runs (
     started_at TIMESTAMP NULL,
     finished_at TIMESTAMP NULL,
     heartbeat_at TIMESTAMP NULL,
+    execution_generation BIGINT NOT NULL DEFAULT 0,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE (tenant_id, idempotency_key)
@@ -47,6 +48,8 @@ CREATE INDEX IF NOT EXISTS idx_quality_runner_queue
     ON data_os.quality_runner_runs(status, created_at);
 CREATE INDEX IF NOT EXISTS idx_quality_runner_tenant
     ON data_os.quality_runner_runs(tenant_id, status, created_at);
+ALTER TABLE data_os.quality_runner_runs
+    ADD COLUMN IF NOT EXISTS execution_generation BIGINT NOT NULL DEFAULT 0;
 """
 
 
@@ -155,33 +158,56 @@ class RunnerDatabase:
             connection.execute(text("""
                 UPDATE data_os.quality_runner_runs
                 SET status = 'RUNNING', started_at = COALESCE(started_at, CURRENT_TIMESTAMP),
-                    heartbeat_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+                    heartbeat_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP,
+                    execution_generation = execution_generation + 1
                 WHERE run_id = :run_id
             """), {"run_id": row["run_id"]})
-            return self._map({**row, "status": "RUNNING", "started_at": row["started_at"] or utcnow()})
+            return self._map({
+                **row,
+                "status": "RUNNING",
+                "started_at": row["started_at"] or utcnow(),
+                "execution_generation": row["execution_generation"] + 1,
+            })
 
-    def heartbeat(self, run_id: str) -> None:
+    def heartbeat(self, run_id: str, execution_generation: int) -> bool:
         with self.engine.begin() as connection:
-            connection.execute(text("""
+            result = connection.execute(text("""
                 UPDATE data_os.quality_runner_runs
                 SET heartbeat_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
                 WHERE run_id = :run_id AND status = 'RUNNING'
-            """), {"run_id": run_id})
+                  AND execution_generation = :execution_generation
+            """), {"run_id": run_id, "execution_generation": execution_generation})
+        return result.rowcount == 1
 
-    def finish(self, run_id: str, status: str, passed: bool | None, message: str,
-               evidence: list[dict[str, Any]], artifact_uri: str | None) -> None:
+    def owns_generation(self, run_id: str, execution_generation: int) -> bool:
+        with self.engine.connect() as connection:
+            row = connection.execute(text("""
+                SELECT 1
+                FROM data_os.quality_runner_runs
+                WHERE run_id = :run_id AND status = 'RUNNING'
+                  AND execution_generation = :execution_generation
+            """), {
+                "run_id": run_id, "execution_generation": execution_generation,
+            }).first()
+        return row is not None
+
+    def finish(self, run_id: str, execution_generation: int, status: str, passed: bool | None, message: str,
+               evidence: list[dict[str, Any]], artifact_uri: str | None) -> bool:
         with self.engine.begin() as connection:
-            connection.execute(text("""
+            result = connection.execute(text("""
                 UPDATE data_os.quality_runner_runs
                 SET status = :status, passed = :passed, message = :message,
                     sample_evidence_json = :evidence, artifact_uri = :artifact_uri,
                     finished_at = CURRENT_TIMESTAMP, heartbeat_at = NULL, updated_at = CURRENT_TIMESTAMP
                 WHERE run_id = :run_id AND status = 'RUNNING'
+                  AND execution_generation = :execution_generation
             """), {
-                "run_id": run_id, "status": status, "passed": passed,
+                "run_id": run_id, "execution_generation": execution_generation,
+                "status": status, "passed": passed,
                 "message": message[:1000], "evidence": json.dumps(evidence[:20], ensure_ascii=False),
                 "artifact_uri": artifact_uri,
             })
+        return result.rowcount == 1
 
     def cancel(self, run_id: str) -> bool:
         with self.engine.begin() as connection:
@@ -198,7 +224,7 @@ class RunnerDatabase:
             result = connection.execute(text("""
                 UPDATE data_os.quality_runner_runs
                 SET status = 'QUEUED', message = 'Runtime 重启后恢复排队', heartbeat_at = NULL,
-                    updated_at = CURRENT_TIMESTAMP
+                    updated_at = CURRENT_TIMESTAMP, execution_generation = execution_generation + 1
                 WHERE status = 'RUNNING'
                   AND (heartbeat_at IS NULL OR heartbeat_at < CURRENT_TIMESTAMP - (:seconds * INTERVAL '1 second'))
             """), {"seconds": stale_seconds})
@@ -213,5 +239,5 @@ class RunnerDatabase:
             status=row["status"], passed=row["passed"], message=row["message"] or "",
             sample_evidence=json.loads(row["sample_evidence_json"] or "[]"),
             artifact_uri=row["artifact_uri"], started_at=row["started_at"], finished_at=row["finished_at"],
-            created_at=row["created_at"],
+            created_at=row["created_at"], execution_generation=row["execution_generation"],
         )

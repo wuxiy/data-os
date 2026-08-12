@@ -20,4 +20,13 @@ public interface ExecutorAdapter {
     }
 
     AdapterRunStatus status(String externalId);
+
+    /**
+     * Resolve a submission whose external id was lost after the request was
+     * accepted.  Adapters that cannot query by the durable run id must return
+     * MANUAL_REQUIRED instead of guessing or submitting again.
+     */
+    default AdapterReconciliation reconcile(String dataOsRunId) {
+        return AdapterReconciliation.manualRequired("执行器不支持按 data_os_run_id 对账，请人工确认");
+    }
 }

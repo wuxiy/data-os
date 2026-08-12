@@ -15,6 +15,7 @@ import com.cywu.dataos.controlplane.api.InvalidRequestException;
 import com.cywu.dataos.controlplane.api.ResourceNotFoundException;
 import com.cywu.dataos.controlplane.api.ConflictException;
 import com.cywu.dataos.controlplane.executor.AdapterConfigurationException;
+import com.cywu.dataos.controlplane.executor.AdapterSubmissionUnknownException;
 import com.cywu.dataos.controlplane.executor.AdapterUnavailableException;
 import com.cywu.dataos.controlplane.executor.ExecutorAdapter;
 import com.cywu.dataos.controlplane.security.TenantScope;
@@ -26,8 +27,8 @@ import org.springframework.stereotype.Service;
 public class RunService {
 
     private static final Set<String> RETRYABLE_TERMINAL_STATUSES = Set.of(
-            "FAILED", "CANCELED", "BLOCKED_CONFIGURATION", "BLOCKED_DEPENDENCY", "SUBMIT_FAILED",
-            "UNSUPPORTED_EXECUTOR");
+        "FAILED", "CANCELED", "BLOCKED_CONFIGURATION", "BLOCKED_DEPENDENCY", "SUBMIT_FAILED",
+            "UNSUPPORTED_EXECUTOR", "UNKNOWN");
 
     private final JobRepository jobRepository;
     private final RunRepository runRepository;
@@ -83,12 +84,14 @@ public class RunService {
         try {
             var submission = adapter.submit(claim.job(), claim.config(), claim.run().id());
             if (submission == null || submission.externalId() == null || submission.externalId().isBlank()) {
-                return complete(claim, "SUBMIT_FAILED", null,
-                        "中心采集执行器未返回外部运行编号", null, Instant.now());
+                return complete(claim, "UNKNOWN", null,
+                        "中心采集执行器未返回外部运行编号，需按 data_os_run_id 对账", null, null);
             }
             return complete(claim, "SUBMITTED", submission.externalId(), submission.message(), Instant.now(), null);
         } catch (AdapterConfigurationException exception) {
             return complete(claim, "BLOCKED_CONFIGURATION", null, exception.getMessage(), null, null);
+        } catch (AdapterSubmissionUnknownException exception) {
+            return complete(claim, "UNKNOWN", null, exception.getMessage(), null, null);
         } catch (AdapterUnavailableException exception) {
             return complete(claim, "BLOCKED_DEPENDENCY", null, exception.getMessage(), null, null);
         } catch (RuntimeException exception) {
@@ -245,6 +248,9 @@ public class RunService {
                 .orElseThrow(() -> new ResourceNotFoundException("未找到采集运行记录：" + runId));
         if (!RETRYABLE_TERMINAL_STATUSES.contains(run.status())) {
             throw new ConflictException("只有失败、阻塞或取消的运行记录才能重试");
+        }
+        if ("UNKNOWN".equals(run.status()) && !"CONFIRMED_ABSENT".equals(run.reconciliationStatus())) {
+            throw new ConflictException("外部运行尚未完成对账；请确认不存在后再重试");
         }
         return start(jobId, new CreateRunRequest(Map.of()), "retry-" + runId + "-" + UUID.randomUUID());
     }

@@ -104,6 +104,60 @@ public class QualityWorkflowService {
         return detail(issueId, resolvedTenant, resolvedInstitution);
     }
 
+    /** Re-open an UNKNOWN external batch for an explicit operator lookup. */
+    public GovernanceIssueDetail reconcile(String issueId, String runId, String tenantId, String institutionId) {
+        var scope = tenantScope.resolve(tenantId, institutionId);
+        var resolvedTenant = scope.tenantId();
+        var resolvedInstitution = scope.institutionId();
+        repository.findIssue(issueId, resolvedTenant, resolvedInstitution)
+                .orElseThrow(() -> new ResourceNotFoundException("未找到治理问题：" + issueId));
+        var run = repository.findQualityRun(runId, issueId, resolvedTenant, resolvedInstitution)
+                .orElseThrow(() -> new ResourceNotFoundException("未找到质量复检执行批次：" + runId));
+        requireManualReconciliation(run);
+        if (repository.reopenQualityRunForReconciliation(run.id()) != 1) {
+            throw new ConflictException("质量执行批次状态已变化，请刷新后重试");
+        }
+        repository.findQualityRun(run.id(), issueId, resolvedTenant, resolvedInstitution)
+                .ifPresent(this::syncOne);
+        return detail(issueId, resolvedTenant, resolvedInstitution);
+    }
+
+    /** Confirm an UNKNOWN external batch is absent before returning the issue. */
+    public GovernanceIssueDetail confirmAbsent(String issueId, String runId, String tenantId, String institutionId) {
+        var scope = tenantScope.resolve(tenantId, institutionId);
+        var resolvedTenant = scope.tenantId();
+        var resolvedInstitution = scope.institutionId();
+        var issue = repository.findIssue(issueId, resolvedTenant, resolvedInstitution)
+                .orElseThrow(() -> new ResourceNotFoundException("未找到治理问题：" + issueId));
+        var run = repository.findQualityRun(runId, issueId, resolvedTenant, resolvedInstitution)
+                .orElseThrow(() -> new ResourceNotFoundException("未找到质量复检执行批次：" + runId));
+        requireManualReconciliation(run);
+        var message = "人工确认外部质量执行批次不存在，问题已退回复核队列";
+        // Keep the run terminal transition and the issue workflow transition in
+        // one transaction; otherwise a database failure between the two can
+        // leave a terminal run attached to an issue still marked RECHECKING.
+        transactions.execute(status -> {
+            if (repository.confirmQualityRunAbsent(run.id(), message) != 1) {
+                throw new ConflictException("质量执行批次状态已变化，请刷新后重试");
+            }
+            var now = Instant.now();
+            if (repository.updateIssueAfterQualityResult(issue.id(), resolvedTenant, resolvedInstitution,
+                    "RETURNED", message, "RECHECK_CONFIRMED_ABSENT", now) != 1) {
+                throw new ConflictException("治理问题状态已变化，请刷新后重试");
+            }
+            {
+                var eventId = repository.insertEvent(issue.id(), "RECHECK_CONFIRMED_ABSENT",
+                        message, "质量复检编排器", now);
+                var event = new GovernanceIssueEvent(eventId, issue.id(), "RECHECK_CONFIRMED_ABSENT",
+                        message, "质量复检编排器", now);
+                notifications.enqueue(issue, event, "质量复检批次已人工确认不存在",
+                        "问题「" + issue.title() + "」已退回处理队列，请确认后重新发起复检。");
+            }
+            return null;
+        });
+        return detail(issueId, resolvedTenant, resolvedInstitution);
+    }
+
     @Scheduled(
             fixedDelayString = "${data-os.quality.poll-interval-ms:30000}",
             initialDelayString = "${data-os.quality.poll-initial-delay-ms:10000}")
@@ -166,6 +220,7 @@ public class QualityWorkflowService {
                 || (!"SUBMITTING".equals(run.status())
                 && (run.externalId() == null || run.externalId().isBlank()))
                 || !inFlight.add(run.id())) return;
+        var statusWorkerId = workerId + ":status";
         try {
             if ("SUBMITTING".equals(run.status())) {
                 var issue = repository.findIssue(run.issueId(), run.tenantId(), run.institutionId()).orElse(null);
@@ -180,29 +235,45 @@ public class QualityWorkflowService {
                 return;
             }
             var executor = findExecutor(run.executor());
+            var claimed = repository.claimQualityRunForStatus(run.id(), statusWorkerId,
+                    Instant.now().plusMillis(Math.max(5_000L, submitLeaseMs)), Instant.now(),
+                    run.status(), run.externalId());
+            if (claimed != 1) return;
             if (executor == null) {
-                repository.markQualityRunError(run.id(), "暂不支持质量规则执行器：" + run.executor(), null, "FAILED");
-                applyTerminalResult(run.id(), run.issueId(), run.tenantId(), run.institutionId());
+                var updated = repository.markQualityRunError(run.id(), "暂不支持质量规则执行器：" + run.executor(),
+                        null, "FAILED", run.status(), run.externalId(), statusWorkerId);
+                if (updated == 1) applyTerminalResult(run.id(), run.issueId(), run.tenantId(), run.institutionId());
                 return;
             }
             var result = executor.status(run.externalId());
             var status = normalizeStatus(result.status());
             var terminal = List.of("SUCCEEDED", "FAILED", "CANCELED").contains(status);
-            repository.updateQualityRunStatus(run.id(), status, result.passed(), result.executionBatchId(),
-                    result.message(), result.sampleEvidence(), result.startedAt(), result.finishedAt(),
-                    terminal ? null : Instant.now().plusMillis(pollIntervalMs), null);
-            if (terminal) applyTerminalResult(run.id(), run.issueId(), run.tenantId(), run.institutionId());
+            var updated = repository.updateQualityRunStatus(run.id(), status, result.passed(), result.executionBatchId(),
+                    result.message(), result.sampleEvidence(), result.artifactUri(), result.startedAt(), result.finishedAt(),
+                    terminal ? null : Instant.now().plusMillis(pollIntervalMs), null,
+                    run.status(), run.externalId(), statusWorkerId);
+            if (updated == 1 && terminal) applyTerminalResult(run.id(), run.issueId(), run.tenantId(), run.institutionId());
         } catch (AdapterUnavailableException exception) {
             repository.markQualityRunError(run.id(), safeMessage(exception),
-                    Instant.now().plusMillis(pollIntervalMs), null);
+                    Instant.now().plusMillis(pollIntervalMs), null,
+                    run.status(), run.externalId(), statusWorkerId);
         } catch (AdapterConfigurationException exception) {
-            repository.markQualityRunError(run.id(), safeMessage(exception), null, "FAILED");
-            applyTerminalResult(run.id(), run.issueId(), run.tenantId(), run.institutionId());
+            var updated = repository.markQualityRunError(run.id(), safeMessage(exception), null, "FAILED",
+                    run.status(), run.externalId(), statusWorkerId);
+            if (updated == 1) applyTerminalResult(run.id(), run.issueId(), run.tenantId(), run.institutionId());
         } catch (RuntimeException exception) {
             repository.markQualityRunError(run.id(), "状态同步失败：" + safeMessage(exception),
-                    Instant.now().plusMillis(pollIntervalMs), null);
+                    Instant.now().plusMillis(pollIntervalMs), null,
+                    run.status(), run.externalId(), workerId + ":status");
         } finally {
             inFlight.remove(run.id());
+        }
+    }
+
+    private void requireManualReconciliation(QualityRuleRun run) {
+        if (!"UNKNOWN".equals(run.status()) || run.externalId() == null || run.externalId().isBlank()
+                || !"MANUAL_REQUIRED".equals(run.reconciliationStatus())) {
+            throw new ConflictException("当前质量执行批次不处于待人工对账状态");
         }
     }
 

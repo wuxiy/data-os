@@ -1,0 +1,593 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# Small, dependency-light operator entry point for the single-node Compose
+# baseline. It deliberately keeps credentials in Compose/.env and never prints
+# the rendered Compose configuration.
+
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+PRODUCTION_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
+
+COMPOSE_FILE=${COMPOSE_FILE:-"$PRODUCTION_DIR/docker-compose.yml"}
+ENV_FILE=${ENV_FILE:-"$PRODUCTION_DIR/.env"}
+COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME:-data-os-production}
+CONTROL_PLANE_URL=${CONTROL_PLANE_URL:-"http://127.0.0.1:${DATAOS_PORTAL_PORT:-8080}"}
+QUALITY_RUNNER_URL=${QUALITY_RUNNER_URL:-}
+HTTP_TIMEOUT=${PLATFORMCTL_HTTP_TIMEOUT:-5}
+DRY_RUN=${PLATFORMCTL_DRY_RUN:-0}
+DB_TARGET=${PLATFORMCTL_DB_TARGET:-}
+FORCE_RESTORE=0
+AUTH_ARGS=()
+
+usage() {
+    cat <<'EOF'
+用法：platformctl <命令> [参数]
+
+命令：
+  preflight              检查 Compose、环境文件、必需命令和配置解析
+  install                预检后启动生产基线并等待 readiness
+  status                 查看容器状态、门户 readiness 和质量运行器 readyz
+  smoke                  执行最小服务/系统状态 smoke，失败时返回非零
+  backup <文件>          导出 PostgreSQL custom-format 备份（不覆盖已有文件）
+  restore <文件> --yes   停止应用、恢复 PostgreSQL，并做恢复后 readiness 检查
+  restart                重启控制面、质量运行器、门户和 Prometheus
+  help                   显示帮助
+
+可覆盖环境变量：
+  ENV_FILE, COMPOSE_FILE, COMPOSE_PROJECT_NAME
+  CONTROL_PLANE_URL（默认门户的 http://127.0.0.1:8080）
+  QUALITY_RUNNER_URL（若未设置则通过 Compose exec 检查 /readyz）
+  PLATFORMCTL_AUTH_HEADER（可选，例如 Bearer <token>；不会打印）
+  PLATFORMCTL_NOTIFICATION_HEALTH_URL（可选的通知接收端健康地址）
+  PLATFORMCTL_DB_TARGET=compose|external（默认按 DATAOS_DB_HOST 自动判断）
+  PLATFORMCTL_DRY_RUN=1（只打印 Compose 动作，不访问 Docker）
+EOF
+}
+
+die() {
+    printf '错误：%s\n' "$*" >&2
+    exit 1
+}
+
+note() {
+    printf '%s\n' "$*"
+}
+
+pass() {
+    printf '[PASS] %s\n' "$*"
+}
+
+warn() {
+    printf '[WARN] %s\n' "$*"
+}
+
+fail() {
+    printf '[FAIL] %s\n' "$*"
+}
+
+require_command() {
+    command -v "$1" >/dev/null 2>&1 || die "缺少命令：$1"
+}
+
+compose() {
+    if [ "$DRY_RUN" = "1" ]; then
+        printf '[DRY-RUN] docker compose --project-name %s --env-file %s -f %s' \
+            "$COMPOSE_PROJECT_NAME" "$ENV_FILE" "$COMPOSE_FILE"
+        printf ' %s\n' "$*"
+        return 0
+    fi
+    docker compose \
+        --project-name "$COMPOSE_PROJECT_NAME" \
+        --env-file "$ENV_FILE" \
+        -f "$COMPOSE_FILE" \
+        "$@"
+}
+
+check_file() {
+    local path=$1
+    local label=$2
+    if [ -f "$path" ] || [ -d "$path" ]; then
+        pass "${label}：${path}"
+        return 0
+    fi
+    fail "${label}不存在：${path}"
+    return 1
+}
+
+check_compose_config() {
+    if [ "$DRY_RUN" = "1" ]; then
+        pass 'Compose 配置解析：dry-run 已跳过 Docker'
+        return 0
+    fi
+    if compose config --quiet >/dev/null 2>&1; then
+        pass 'Compose 配置解析通过'
+        return 0
+    fi
+    fail 'Compose 配置解析失败；请先修正 .env 和 overlay'
+    return 1
+}
+
+env_value() {
+    local key=$1
+    [ -f "$ENV_FILE" ] || return 0
+    awk -v key="$key" '
+        $0 ~ "^[[:space:]]*" key "=" {
+            sub("^[[:space:]]*" key "=", "", $0)
+            sub("[[:space:]]+#.*$", "", $0)
+            gsub(/^"|"$/, "", $0)
+            gsub(/^\x27|\x27$/, "", $0)
+            print $0
+            exit
+        }
+    ' "$ENV_FILE"
+}
+
+configured_value() {
+    local key=$1
+    if [ -n "${!key:-}" ]; then
+        printf '%s' "${!key}"
+    else
+        env_value "$key"
+    fi
+}
+
+database_target() {
+    if [ -n "$DB_TARGET" ]; then
+        printf '%s' "$DB_TARGET"
+        return
+    fi
+    case "$(configured_value DATAOS_DB_URL)" in
+        jdbc:postgresql://postgres:*|jdbc:postgresql://postgres/*|postgresql://postgres:*|postgresql://postgres/*)
+            printf 'compose'
+            ;;
+        '')
+            if [ "$(configured_value DATAOS_DB_HOST)" = 'postgres' ]; then
+                printf 'compose'
+            else
+                printf 'external'
+            fi
+            ;;
+        *)
+            printf 'external'
+            ;;
+    esac
+}
+
+database_connection() {
+    local configured_url host port name username sslmode
+    configured_url=$(configured_value DATAOS_DB_URL)
+    case "$configured_url" in
+        jdbc:postgresql://*) printf '%s' "${configured_url#jdbc:}"; return ;;
+        postgresql://*) printf '%s' "$configured_url"; return ;;
+    esac
+    host=$(configured_value DATAOS_DB_HOST)
+    port=$(configured_value DATAOS_DB_PORT)
+    name=$(configured_value DATAOS_DB_NAME)
+    username=$(configured_value DATAOS_DB_USERNAME)
+    sslmode=$(configured_value DATAOS_DB_SSLMODE)
+    [ -n "$host" ] || host='localhost'
+    [ -n "$port" ] || port='5432'
+    [ -n "$name" ] || name='data_os'
+    [ -n "$sslmode" ] || sslmode='prefer'
+    printf 'host=%s port=%s dbname=%s user=%s sslmode=%s' "$host" "$port" "$name" "$username" "$sslmode"
+}
+
+db_exec() {
+    local sql=$1
+    if [ "$(database_target)" = 'compose' ]; then
+        compose exec -T postgres sh -c \
+            'psql --set ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atqc "$1"' \
+            sh "$sql"
+        return
+    fi
+    require_command psql
+    local pg_code
+    if PGPASSWORD="$(configured_value DATAOS_DB_PASSWORD)" psql "$(database_connection)" \
+        --set ON_ERROR_STOP=1 -Atqc "$sql"; then
+        pg_code=0
+    else
+        pg_code=$?
+    fi
+    return "$pg_code"
+}
+
+db_dump() {
+    if [ "$(database_target)" = 'compose' ]; then
+        compose exec -T postgres sh -c \
+            'pg_dump --format=custom --no-owner -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+        return
+    fi
+    require_command pg_dump
+    local pg_code
+    if PGPASSWORD="$(configured_value DATAOS_DB_PASSWORD)" pg_dump --format=custom --no-owner "$(database_connection)"; then
+        pg_code=0
+    else
+        pg_code=$?
+    fi
+    return "$pg_code"
+}
+
+db_restore_sql() {
+    if [ "$(database_target)" = 'compose' ]; then
+        compose exec -T postgres sh -c \
+            'psql --set ON_ERROR_STOP=1 --single-transaction -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+        return
+    fi
+    require_command psql
+    local pg_code
+    if PGPASSWORD="$(configured_value DATAOS_DB_PASSWORD)" psql "$(database_connection)" \
+        --set ON_ERROR_STOP=1 --single-transaction; then
+        pg_code=0
+    else
+        pg_code=$?
+    fi
+    return "$pg_code"
+}
+
+db_restore_custom() {
+    if [ "$(database_target)" = 'compose' ]; then
+        compose exec -T postgres sh -c \
+            'pg_restore --clean --if-exists --exit-on-error --no-owner -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+        return
+    fi
+    require_command pg_restore
+    local pg_code
+    if PGPASSWORD="$(configured_value DATAOS_DB_PASSWORD)" pg_restore --clean --if-exists --exit-on-error --no-owner \
+        --dbname="$(database_connection)"; then
+        pg_code=0
+    else
+        pg_code=$?
+    fi
+    return "$pg_code"
+}
+
+check_runtime_placeholders() {
+    [ -f "$ENV_FILE" ] || return 0
+    local placeholders
+    if command -v rg >/dev/null 2>&1; then
+        placeholders=$(rg -n 'replace-with-|example\.invalid' "$ENV_FILE" 2>/dev/null || true)
+    else
+        placeholders=$(grep -nE 'replace-with-|example\.invalid' "$ENV_FILE" 2>/dev/null || true)
+    fi
+    if [ -n "$placeholders" ]; then
+        fail '环境文件仍包含 replace-with-* 或 example.invalid 占位值'
+        return 1
+    fi
+    pass '环境文件未发现明显占位值'
+}
+
+preflight() {
+    local failures=0
+    note "data-os production preflight"
+    check_file "$COMPOSE_FILE" 'Compose 文件' || failures=$((failures + 1))
+    check_file "$ENV_FILE" '环境文件' || failures=$((failures + 1))
+
+    if [ "$DRY_RUN" = "1" ]; then
+        pass 'Docker/Compose 命令：dry-run 已跳过'
+    else
+        if command -v docker >/dev/null 2>&1; then
+            pass 'Docker 命令可用'
+        else
+            fail '缺少 Docker 命令'
+            failures=$((failures + 1))
+        fi
+        if command -v curl >/dev/null 2>&1; then
+            pass 'curl 命令可用'
+        else
+            fail '缺少 curl 命令'
+            failures=$((failures + 1))
+        fi
+    fi
+
+    check_compose_config || failures=$((failures + 1))
+    check_runtime_placeholders || failures=$((failures + 1))
+
+    for required_key in DATAOS_DB_URL DATAOS_DB_USERNAME DATAOS_DB_PASSWORD \
+        DATAOS_QUALITY_EXECUTOR_BASE_URL DATAOS_NOTIFICATION_WEBHOOK_URL; do
+        if [ -n "${!required_key:-}" ] || [ -n "$(env_value "$required_key")" ]; then
+            pass "配置项存在：${required_key}"
+        else
+            fail "配置项缺失：${required_key}"
+            failures=$((failures + 1))
+        fi
+    done
+
+    if [ "$failures" -gt 0 ]; then
+        fail "preflight 未通过：$failures 项"
+        return 1
+    fi
+    pass 'preflight 通过'
+}
+
+http_code() {
+    local url=$1
+    curl --silent --show-error --max-time "$HTTP_TIMEOUT" \
+        --output /dev/null --write-out '%{http_code}' \
+        "${AUTH_ARGS[@]}" "$url" 2>/dev/null || printf '000'
+}
+
+check_http() {
+    local label=$1
+    local url=$2
+    local code
+    code=$(http_code "$url")
+    case "$code" in
+        2??|3??)
+            pass "${label}：HTTP ${code}"
+            return 0
+            ;;
+        *)
+            fail "${label}：HTTP ${code}（${url}）"
+            return 1
+            ;;
+    esac
+}
+
+service_running() {
+    local service=$1
+    if [ "$DRY_RUN" = "1" ]; then
+        return 0
+    fi
+    local services
+    services=$(compose ps --status running --services 2>/dev/null || true)
+    printf '%s\n' "$services" | grep -Fxq "$service"
+}
+
+check_quality_runner() {
+    if [ -n "$QUALITY_RUNNER_URL" ]; then
+        check_http 'quality-runner readyz' "${QUALITY_RUNNER_URL%/}/readyz"
+        return $?
+    fi
+    if ! service_running quality-runner; then
+        fail 'quality-runner 容器未运行'
+        return 1
+    fi
+    if [ "$DRY_RUN" = "1" ]; then
+        pass 'quality-runner 容器：dry-run 已跳过 readyz'
+        return 0
+    fi
+    if compose exec -T quality-runner python -c \
+        'import urllib.request; urllib.request.urlopen("http://127.0.0.1:8080/readyz", timeout=4)' \
+        >/dev/null 2>&1; then
+        pass 'quality-runner readyz：HTTP 200'
+        return 0
+    fi
+    fail 'quality-runner readyz 未通过'
+    return 1
+}
+
+status() {
+    local failures=0
+    note 'data-os production status'
+    if [ "$DRY_RUN" = "1" ]; then
+        compose ps
+        pass 'status：dry-run 未访问 Docker/HTTP'
+        return 0
+    fi
+    if compose ps; then
+        pass 'Compose 状态已读取'
+    else
+        fail '无法读取 Compose 状态'
+        failures=$((failures + 1))
+    fi
+    check_http 'portal/control-plane readiness' "${CONTROL_PLANE_URL%/}/healthz" \
+        || failures=$((failures + 1))
+    check_quality_runner || failures=$((failures + 1))
+
+    if [ "$failures" -gt 0 ]; then
+        fail "status 未通过：$failures 项"
+        return 1
+    fi
+    pass 'status 通过'
+}
+
+system_status_smoke() {
+    local url="${CONTROL_PLANE_URL%/}/api/v1/system/status"
+    local code
+    code=$(http_code "$url")
+    case "$code" in
+        2??|3??)
+            pass "control-plane system/status：HTTP $code"
+            ;;
+        401|403)
+            fail 'control-plane system/status 需要认证；请设置 PLATFORMCTL_AUTH_HEADER 后重试'
+            return 1
+            ;;
+        *)
+            fail "control-plane system/status：HTTP $code"
+            return 1
+            ;;
+    esac
+}
+
+smoke() {
+    local failures=0
+    note 'data-os production smoke'
+    status || failures=$((failures + 1))
+    if [ "$DRY_RUN" = '1' ]; then
+        pass 'control-plane system/status：dry-run 已跳过 HTTP'
+    else
+        system_status_smoke || failures=$((failures + 1))
+    fi
+
+    if [ -n "${PLATFORMCTL_NOTIFICATION_HEALTH_URL:-}" ]; then
+        check_http 'notification health' "$PLATFORMCTL_NOTIFICATION_HEALTH_URL" \
+            || failures=$((failures + 1))
+    else
+        warn '未配置 PLATFORMCTL_NOTIFICATION_HEALTH_URL，未验证通知接收端回执'
+    fi
+
+    if [ "$failures" -gt 0 ]; then
+        fail "smoke 未通过：$failures 项"
+        return 1
+    fi
+    pass 'smoke 通过'
+}
+
+wait_for_readiness() {
+    if [ "$DRY_RUN" = '1' ]; then
+        pass 'readiness：dry-run 已跳过 HTTP'
+        return 0
+    fi
+    local url="${CONTROL_PLANE_URL%/}/healthz"
+    local attempt
+    for attempt in $(seq 1 30); do
+        if [ "$(http_code "$url")" = '200' ]; then
+            pass "readiness 已通过（第 ${attempt} 次）"
+            return 0
+        fi
+        sleep 2
+    done
+    fail "等待 readiness 超时：$url"
+    return 1
+}
+
+install_cmd() {
+    preflight
+    compose up -d
+    wait_for_readiness
+    status
+}
+
+restart_cmd() {
+    compose restart control-plane quality-runner portal prometheus
+    wait_for_readiness
+    status
+}
+
+backup_cmd() {
+    local destination=${1:-}
+    [ -n "$destination" ] || die 'backup 需要目标文件，例如 backups/data-os-20260812.dump'
+    if [ "$DRY_RUN" = '1' ]; then
+        if [ "$(database_target)" = 'compose' ]; then
+            compose exec -T postgres pg_dump --format=custom
+        else
+            note '[DRY-RUN] pg_dump --format=custom --no-owner（外部 PostgreSQL）'
+        fi
+        pass "backup：dry-run 未写入文件 $destination"
+        return 0
+    fi
+    if [ "$(database_target)" = 'compose' ]; then
+        require_command docker
+    fi
+    [ -e "$destination" ] && die "备份目标已存在，为避免覆盖请更换路径：$destination"
+    mkdir -p "$(dirname -- "$destination")"
+    local temp_file
+    temp_file=$(mktemp "$(dirname -- "$destination")/.platformctl-backup.XXXXXX")
+    if ! db_dump > "$temp_file"; then
+        rm -f -- "$temp_file"
+        die "PostgreSQL 备份失败，未留下残缺目标文件：$destination"
+    fi
+    if [ ! -s "$temp_file" ]; then
+        rm -f -- "$temp_file"
+        die "备份文件为空：$destination"
+    fi
+    mv -- "$temp_file" "$destination"
+    printf 'created_at=%s\ncompose_file=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$COMPOSE_FILE" \
+        > "${destination}.metadata"
+    pass "PostgreSQL 备份完成：$destination"
+}
+
+restore_cmd() {
+    local backup=${1:-}
+    [ -n "$backup" ] || die 'restore 需要备份文件'
+    [ "$FORCE_RESTORE" = '1' ] || die 'restore 是覆盖性操作，请显式追加 --yes'
+    [ -f "$backup" ] || die "备份文件不存在：$backup"
+    if [ "$DRY_RUN" = '1' ]; then
+        compose stop control-plane quality-runner portal prometheus
+        compose start control-plane quality-runner portal prometheus
+        pass "restore：dry-run 未写入数据库 $backup"
+        return 0
+    fi
+    require_command docker
+
+    local stopped=0
+    restart_after_restore() {
+        if [ "$stopped" = '1' ]; then
+            compose start control-plane quality-runner portal prometheus >/dev/null 2>&1 || true
+        fi
+    }
+    trap restart_after_restore EXIT
+
+    compose stop control-plane quality-runner portal prometheus
+    stopped=1
+    case "$backup" in
+        *.sql|*.sql.gz)
+            if [[ "$backup" == *.gz ]]; then
+                gzip -cd -- "$backup" | db_restore_sql
+            else
+                db_restore_sql < "$backup"
+            fi
+            ;;
+        *)
+            db_restore_custom < "$backup"
+            ;;
+    esac
+    compose start control-plane quality-runner portal prometheus
+    stopped=0
+    trap - EXIT
+    wait_for_readiness
+    if db_exec 'select 1' >/dev/null 2>&1; then
+        pass '恢复后 PostgreSQL 查询校验通过'
+    else
+        die '恢复后 PostgreSQL 查询校验失败'
+    fi
+    local migration_record migration_version migration_success table_name column_name
+    migration_record=$(db_exec "select coalesce(version, 'none') || '|' || success from data_os.flyway_schema_history order by installed_rank desc limit 1" \
+        | tr -d '\r')
+    [ -n "$migration_record" ] || die '恢复后未读取到 Flyway 迁移记录'
+    migration_version=${migration_record%%|*}
+    migration_success=${migration_record#*|}
+    [ "$migration_success" = 't' ] || die "恢复后最新 Flyway 迁移未成功：$migration_record"
+    [ "$migration_version" != 'none' ] || die '恢复后 Flyway 没有已安装迁移'
+    pass "恢复后 Flyway 版本：$migration_version"
+    for table_name in job_runs quality_rule_runs; do
+        [ "$(db_exec "select coalesce(to_regclass('data_os.${table_name}')::text, '')" | tr -d '\r')" = "data_os.${table_name}" ] \
+            || die "恢复后缺少核心表：data_os.${table_name}"
+    done
+    for column_name in artifact_uri reconciliation_status reconciliation_message; do
+        [ "$(db_exec "select count(*) from information_schema.columns where table_schema = 'data_os' and table_name = 'quality_rule_runs' and column_name = '${column_name}'" | tr -d '\r')" = '1' ] \
+            || die "恢复后质量运行表缺少列：${column_name}"
+    done
+    for column_name in reconciliation_status reconciliation_message; do
+        [ "$(db_exec "select count(*) from information_schema.columns where table_schema = 'data_os' and table_name = 'job_runs' and column_name = '${column_name}'" | tr -d '\r')" = '1' ] \
+            || die "恢复后采集运行表缺少列：${column_name}"
+    done
+    pass '恢复后核心表、对账列和质量制品列校验通过'
+    pass "PostgreSQL 恢复完成：$backup"
+}
+
+main() {
+    local command=${1:-help}
+    shift || true
+
+    if [ -n "${PLATFORMCTL_AUTH_HEADER:-}" ]; then
+        AUTH_ARGS=(-H "$PLATFORMCTL_AUTH_HEADER")
+    fi
+
+    case "$command" in
+        preflight) preflight "$@" ;;
+        install) install_cmd "$@" ;;
+        status) status "$@" ;;
+        smoke) smoke "$@" ;;
+        backup) backup_cmd "$@" ;;
+        restore)
+            backup_file=''
+            while [ "$#" -gt 0 ]; do
+                case "$1" in
+                    --yes) FORCE_RESTORE=1 ;;
+                    --*) die "未知 restore 选项：$1" ;;
+                    *) [ -z "$backup_file" ] || die 'restore 只接受一个备份文件'; backup_file=$1 ;;
+                esac
+                shift
+            done
+            restore_cmd "$backup_file"
+            ;;
+        restart) restart_cmd "$@" ;;
+        help|-h|--help) usage ;;
+        *) usage >&2; die "未知命令：$command" ;;
+    esac
+}
+
+main "$@"

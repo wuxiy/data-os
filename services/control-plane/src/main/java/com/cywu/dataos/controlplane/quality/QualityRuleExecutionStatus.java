@@ -10,6 +10,7 @@ public record QualityRuleExecutionStatus(
         String message,
         String executionBatchId,
         List<Map<String, Object>> sampleEvidence,
+        String artifactUri,
         Instant startedAt,
         Instant finishedAt) {
 

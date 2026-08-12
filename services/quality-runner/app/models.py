@@ -31,3 +31,4 @@ class QualityRun:
     started_at: datetime | None
     finished_at: datetime | None
     created_at: datetime
+    execution_generation: int = 0

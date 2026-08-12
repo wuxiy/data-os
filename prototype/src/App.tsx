@@ -17,6 +17,7 @@ import { MpiReviewPage } from './pages/MpiReviewPage'
 import { QualityIssuesPage } from './pages/QualityIssuesPage'
 import { StandardMappingPage } from './pages/StandardMappingPage'
 import { PlatformOperationsPage } from './pages/PlatformOperationsPage'
+import { ProductScopeNotice } from './components/ui/ProductScopeNotice'
 import type { RouteKey } from './types'
 
 function routeFromPath(pathname: string): RouteKey {
@@ -131,6 +132,7 @@ export function App() {
     <AppShell route={route} onNavigate={navigate} onUnavailable={showUnavailable}
       authDisplayName={auth.displayName} onLogout={oidcIsConfigured() ? logoutOidc : undefined}
       technicalAccess={technicalAccess}>
+      <ProductScopeNotice />
       {page}
       <ResponsibilityDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} onAction={setNotice} />
       {notice ? <Toast message={notice} onClose={() => setNotice('')} /> : null}

@@ -7,6 +7,7 @@ import java.time.Instant;
 
 import jakarta.annotation.PostConstruct;
 import com.cywu.dataos.controlplane.api.ResourceNotFoundException;
+import com.cywu.dataos.controlplane.api.ConflictException;
 import com.cywu.dataos.controlplane.executor.AdapterConfigurationException;
 import com.cywu.dataos.controlplane.executor.AdapterUnavailableException;
 import com.cywu.dataos.controlplane.executor.ExecutorAdapter;
@@ -71,6 +72,7 @@ public class RunStatusSyncService {
     public void syncPendingRuns() {
         runRepository.recoverStaleSubmitting(submitLeaseMs);
         runRepository.findSyncCandidates().forEach(this::syncOne);
+        runRepository.findReconciliationCandidates().forEach(this::syncOne);
     }
 
     public IngestionRun sync(String jobId, String runId) {
@@ -81,6 +83,19 @@ public class RunStatusSyncService {
             return run;
         }
         syncOne(run);
+        return runRepository.findById(jobId, runId, scope.tenantId(), scope.institutionId()).orElse(run);
+    }
+
+    public IngestionRun confirmAbsent(String jobId, String runId) {
+        var scope = tenantScope.current();
+        var run = runRepository.findById(jobId, runId, scope.tenantId(), scope.institutionId())
+                .orElseThrow(() -> new ResourceNotFoundException("未找到采集运行记录：" + runId));
+        if (!"UNKNOWN".equals(run.status()) || !"MANUAL_REQUIRED".equals(run.reconciliationStatus())) {
+            throw new ConflictException("当前运行不处于待人工确认状态，不能确认外部运行不存在");
+        }
+        if (runRepository.confirmAbsent(run.id(), "人工确认外部运行不存在，允许重新投递") != 1) {
+            throw new ConflictException("运行状态已变化，请刷新后重试");
+        }
         return runRepository.findById(jobId, runId, scope.tenantId(), scope.institutionId()).orElse(run);
     }
 
@@ -97,13 +112,25 @@ public class RunStatusSyncService {
                 return;
             }
 
-            var status = adapter.status(run.externalId());
-            updateStatus(run, status.status(), status.message(), status.startedAt(), status.finishedAt());
+            if (run.externalId() == null || run.externalId().isBlank()) {
+                reconcileOne(run, adapter);
+            } else {
+                var status = adapter.status(run.externalId());
+                updateStatus(run, status.status(), status.message(), status.startedAt(), status.finishedAt());
+            }
         } catch (AdapterConfigurationException | AdapterUnavailableException exception) {
-            var targetStatus = exception instanceof AdapterConfigurationException ? "FAILED" : run.status();
-            updateStatus(run, targetStatus, exception.getMessage(), null, null);
+            if (run.externalId() == null || run.externalId().isBlank()) {
+                runRepository.markReconciliationRequired(run.id(), exception.getMessage());
+            } else {
+                var targetStatus = exception instanceof AdapterConfigurationException ? "FAILED" : run.status();
+                updateStatus(run, targetStatus, exception.getMessage(), null, null);
+            }
         } catch (RuntimeException exception) {
-            updateStatus(run, run.status(), "状态同步失败：" + safeMessage(exception), null, null);
+            if (run.externalId() == null || run.externalId().isBlank()) {
+                runRepository.markReconciliationRequired(run.id(), "对账失败：" + safeMessage(exception));
+            } else {
+                updateStatus(run, run.status(), "状态同步失败：" + safeMessage(exception), null, null);
+            }
         } finally {
             inFlight.remove(run.id());
         }
@@ -125,9 +152,40 @@ public class RunStatusSyncService {
     }
 
     private boolean isSyncable(IngestionRun run) {
-        return run.externalId() != null && !run.externalId().isBlank()
-                && ("SUBMITTED".equals(run.status()) || "RUNNING".equals(run.status())
-                || "UNKNOWN".equals(run.status()));
+        var hasExternalId = run.externalId() != null && !run.externalId().isBlank();
+        return (hasExternalId && ("SUBMITTED".equals(run.status()) || "RUNNING".equals(run.status())
+                || "UNKNOWN".equals(run.status())))
+                || (!hasExternalId && "UNKNOWN".equals(run.status())
+                && "MANUAL_REQUIRED".equals(run.reconciliationStatus()));
+    }
+
+    private void reconcileOne(IngestionRun run, ExecutorAdapter adapter) {
+        var result = adapter.reconcile(run.id());
+        if (result == null) {
+            runRepository.markReconciliationRequired(run.id(), "执行器未返回对账结果，请人工确认");
+            return;
+        }
+        switch (result.outcome()) {
+            case FOUND -> {
+                var status = result.status() == null
+                        ? new com.cywu.dataos.controlplane.executor.AdapterRunStatus(
+                        "SUBMITTED", "已找到外部运行，等待状态同步", null, null)
+                        : result.status();
+                // First bind the external id while the row is still UNKNOWN.
+                // The normal conditional status update can then advance the
+                // row from SUBMITTED to a terminal state without losing the
+                // compare-and-set guard after reconciliation.
+                var linked = runRepository.linkReconciledRun(run.id(), result.externalId(), "SUBMITTED",
+                        "已找到外部运行，等待状态同步", null, null);
+                if (linked > 0) {
+                    updateStatus(run, status.status(), status.message(), status.startedAt(), status.finishedAt());
+                }
+            }
+            case NOT_FOUND -> runRepository.markReconciliationRequired(run.id(),
+                    result.message() == null ? "未找到外部运行，请人工确认不存在后再重试" : result.message());
+            case MANUAL_REQUIRED -> runRepository.markReconciliationRequired(run.id(),
+                    result.message() == null ? "执行器无法可靠对账，请人工确认" : result.message());
+        }
     }
 
     private String safeMessage(Exception exception) {

@@ -159,6 +159,46 @@ public class SeaTunnelExecutorAdapter implements ExecutorAdapter {
         }
     }
 
+    @Override
+    @SuppressWarnings("unchecked")
+    public AdapterReconciliation reconcile(String dataOsRunId) {
+        if (baseUrl.isBlank()) {
+            return AdapterReconciliation.manualRequired("中心采集执行器未配置，无法按 data_os_run_id 对账，请人工确认");
+        }
+        if (dataOsRunId == null || dataOsRunId.isBlank()) {
+            return AdapterReconciliation.manualRequired("缺少 data_os_run_id，无法对账");
+        }
+        try {
+            var response = restClient.get()
+                    .uri(baseUrl + "/job-info?dataos_run_id={runId}", dataOsRunId)
+                    .retrieve().body(Map.class);
+            if (response == null || response.get("jobId") == null
+                    || String.valueOf(response.get("jobId")).isBlank()) {
+                return AdapterReconciliation.notFound("中心采集执行器未找到该 data_os_run_id");
+            }
+            var externalId = String.valueOf(response.get("jobId"));
+            var externalStatus = response.get("jobStatus") == null
+                    ? "UNKNOWN" : String.valueOf(response.get("jobStatus"));
+            var status = normalizeStatus(externalStatus);
+            return AdapterReconciliation.found(externalId,
+                    new AdapterRunStatus(status, statusMessage(status, response.get("errorMsg")),
+                            parseTime(response, "startTime"), parseTime(response, "finishTime", "finishedTime")),
+                    "已按 data_os_run_id 找到中心采集作业");
+        } catch (HttpClientErrorException exception) {
+            if (exception.getStatusCode().value() == 404) {
+                return AdapterReconciliation.notFound("中心采集执行器未找到该 data_os_run_id");
+            }
+            if (isRetryable(exception)) {
+                throw new AdapterUnavailableException("中心采集执行器暂时不可用（HTTP "
+                        + exception.getStatusCode().value() + "）");
+            }
+            throw new AdapterConfigurationException("中心采集对账请求不合法（HTTP "
+                    + exception.getStatusCode().value() + "）");
+        } catch (RestClientException exception) {
+            throw new AdapterUnavailableException(safeMessage(exception));
+        }
+    }
+
     @SuppressWarnings("unchecked")
     private Map<String, Object> submitWithRetry(Map<String, Object> config, String dataOsRunId) {
         for (var attempt = 1; attempt <= MAX_SUBMIT_ATTEMPTS; attempt++) {
@@ -172,12 +212,16 @@ public class SeaTunnelExecutorAdapter implements ExecutorAdapter {
                 return request.body(config).retrieve().body(Map.class);
             } catch (HttpClientErrorException | HttpServerErrorException exception) {
                 if (!isRetryable(exception) || attempt == MAX_SUBMIT_ATTEMPTS) {
+                    if (isRetryable(exception)) {
+                        throw new AdapterSubmissionUnknownException("中心采集提交结果未知（HTTP "
+                                + exception.getStatusCode().value() + "），需按 data_os_run_id 对账");
+                    }
                     throw exception;
                 }
                 backoff();
             } catch (RestClientException exception) {
                 if (attempt == MAX_SUBMIT_ATTEMPTS) {
-                    throw exception;
+                    throw new AdapterSubmissionUnknownException("中心采集提交结果未知：" + safeMessage(exception));
                 }
                 backoff();
             }

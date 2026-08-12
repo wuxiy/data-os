@@ -24,6 +24,11 @@ class RunStatusSyncServiceTest {
             }
 
             @Override
+            public List<IngestionRun> findReconciliationCandidates() {
+                return List.of();
+            }
+
+            @Override
             public int updateStatusAndJobLastRunAt(String runId, String jobId, String status, String message,
                                                    Instant startedAt, Instant finishedAt, Instant lastRunAt) {
                 updates.add(runId + "|" + status + "|" + message + "|" + startedAt + "|" + finishedAt);
