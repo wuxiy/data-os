@@ -5,7 +5,6 @@ import java.util.List;
 
 import com.cywu.dataos.controlplane.api.ConflictException;
 import com.cywu.dataos.controlplane.api.ResourceNotFoundException;
-import com.cywu.dataos.controlplane.quality.QualityRunRepository;
 import com.cywu.dataos.controlplane.security.TenantScope;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,15 +13,12 @@ import org.springframework.transaction.annotation.Transactional;
 public class GovernanceService {
 
     private final IssueRepository issues;
-    private final QualityRunRepository runs;
-    private final NotificationOutboxRepository outbox;
+    private final IssueDetailReader detailReader;
     private final TenantScope tenantScope;
 
-    public GovernanceService(IssueRepository issues, QualityRunRepository runs,
-                                 NotificationOutboxRepository outbox, TenantScope tenantScope) {
+    public GovernanceService(IssueRepository issues, IssueDetailReader detailReader, TenantScope tenantScope) {
         this.issues = issues;
-        this.runs = runs;
-        this.outbox = outbox;
+        this.detailReader = detailReader;
         this.tenantScope = tenantScope;
     }
 
@@ -46,12 +42,7 @@ public class GovernanceService {
 
     public GovernanceIssueDetail detail(String issueId, String tenantId, String institutionId) {
         var scope = tenantScope.resolve(tenantId, institutionId);
-        var issue = require(issueId, scope.tenantId(), scope.institutionId());
-        var tenant = scope.tenantId();
-        var institution = scope.institutionId();
-        return new GovernanceIssueDetail(issue, issues.findEvents(issue.id()),
-                runs.findLatestQualityRun(issue.id(), tenant, institution).orElse(null),
-                runs.findQualityRuns(issue.id(), tenant, institution), outbox.findNotifications(issue.id()));
+        return detailReader.read(issueId, scope.tenantId(), scope.institutionId());
     }
 
     @Transactional

@@ -467,6 +467,8 @@ class ControlPlaneApiTest {
             }
         };
         var outcomes = new QualityOutcomeService(issueRepository, qualityRunRepository, notificationOutbox,
+                new com.cywu.dataos.controlplane.governance.IssueDetailReader(issueRepository,
+                        qualityRunRepository, notificationOutbox),
                 List.of(executor), failingNotifications,
                 transactionManager, "ROLLBACK_TEST", 30_000, 120_000,
                 new TenantScope(new AuthProperties()));

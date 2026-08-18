@@ -22,9 +22,6 @@ class Settings:
     auth_mode: str = field(default_factory=lambda: _env("QUALITY_RUNNER_AUTH_MODE", "ENFORCED").upper())
     oidc_issuer: str = field(default_factory=lambda: _env("QUALITY_RUNNER_OIDC_ISSUER"))
     oidc_audience: str = field(default_factory=lambda: _env("QUALITY_RUNNER_OIDC_AUDIENCE", "dataos-quality-runner"))
-    oidc_required_scopes: tuple[str, ...] = field(default_factory=lambda: tuple(
-        item for item in _env("QUALITY_RUNNER_OIDC_REQUIRED_SCOPES", "quality:submit quality:read quality:cancel").split() if item
-    ))
     db_url: str = field(default_factory=lambda: _env(
         "QUALITY_RUNNER_DB_URL", "postgresql+psycopg://data_os:change-me@postgres:5432/data_os"
     ))

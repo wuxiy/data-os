@@ -10,6 +10,8 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.cywu.dataos.controlplane.api.ResourceNotFoundException;
 import com.cywu.dataos.controlplane.security.TenantScope;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -98,8 +100,11 @@ public class CredentialService implements CredentialResolver {
                                     Instant createdAt, Instant updatedAt) {
     }
 
-    public record CreateCredentialRequest(String name, String provider, Map<String, Object> secret,
-                                          Map<String, Object> metadata) {
+    public record CreateCredentialRequest(
+            @NotBlank(message = "name 不能为空") @Size(max = 200, message = "name 不能超过 200 个字符") String name,
+            @NotBlank(message = "provider 不能为空") @Size(max = 64, message = "provider 不能超过 64 个字符") String provider,
+            Map<String, Object> secret,
+            Map<String, Object> metadata) {
         public CreateCredentialRequest {
             secret = secret == null ? Map.of() : Map.copyOf(secret);
             metadata = metadata == null ? Map.of() : Map.copyOf(metadata);

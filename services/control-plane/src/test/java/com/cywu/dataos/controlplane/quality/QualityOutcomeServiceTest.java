@@ -8,6 +8,7 @@ import java.util.Optional;
 
 import com.cywu.dataos.controlplane.governance.GovernanceIssue;
 import com.cywu.dataos.controlplane.governance.GovernanceIssueEvent;
+import com.cywu.dataos.controlplane.governance.IssueDetailReader;
 import com.cywu.dataos.controlplane.governance.IssueRepository;
 import com.cywu.dataos.controlplane.governance.NotificationOutboxRepository;
 import com.cywu.dataos.controlplane.security.AuthProperties;
@@ -26,7 +27,7 @@ class QualityOutcomeServiceTest {
 
     @Test
     void rejectsSubmitLeaseOutsideOutcomePolicyBounds() {
-        var service = new QualityOutcomeService(null, null, null, List.of(), null,
+        var service = new QualityOutcomeService(null, null, null, null, List.of(), null,
                 transactionManager(new ArrayList<>()), "DEMO", 30_000, 4_999,
                 new TenantScope(new AuthProperties()));
 
@@ -139,7 +140,8 @@ class QualityOutcomeServiceTest {
                         List.of(), null, Instant.now(), Instant.now());
             }
         };
-        var service = new QualityOutcomeService(issues, runs, outbox, List.of(executor), notifications,
+        var service = new QualityOutcomeService(issues, runs, outbox,
+                new IssueDetailReader(issues, runs, outbox), List.of(executor), notifications,
                 transactionManager(events), "DEMO", 30_000, 120_000,
                 new TenantScope(new AuthProperties()));
 

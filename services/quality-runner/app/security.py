@@ -70,12 +70,6 @@ def principal(authorization: str | None = Header(default=None)) -> Principal:
     return verifier.verify(authorization[7:].strip())
 
 
-def require_scope(required: str):
-    def dependency(current: Principal = Header(default=None)):  # pragma: no cover - replaced by api dependency
-        return current
-    return dependency
-
-
 def check_scope(current: Principal, required: str) -> None:
     if settings.auth_mode != "DISABLED" and required not in current.scopes:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="OIDC token scope is insufficient")

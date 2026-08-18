@@ -4,8 +4,6 @@ import java.net.URI;
 import java.util.List;
 
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -32,9 +30,8 @@ public class CredentialController {
 
     @PostMapping
     public ResponseEntity<CredentialService.CredentialSummary> create(
-            @Valid @RequestBody CreateCredentialRequest request) {
-        var result = service.create(new CredentialService.CreateCredentialRequest(request.name(), request.provider(),
-                request.secret(), request.metadata()));
+            @Valid @RequestBody CredentialService.CreateCredentialRequest request) {
+        var result = service.create(request);
         return ResponseEntity.created(URI.create("/api/v1/credentials/" + result.id())).body(result);
     }
 
@@ -44,10 +41,4 @@ public class CredentialController {
         return ResponseEntity.noContent().build();
     }
 
-    public record CreateCredentialRequest(
-            @NotBlank(message = "name 不能为空") @Size(max = 200, message = "name 不能超过 200 个字符") String name,
-            @NotBlank(message = "provider 不能为空") @Size(max = 64, message = "provider 不能超过 64 个字符") String provider,
-            java.util.Map<String, Object> secret,
-            java.util.Map<String, Object> metadata) {
-    }
 }

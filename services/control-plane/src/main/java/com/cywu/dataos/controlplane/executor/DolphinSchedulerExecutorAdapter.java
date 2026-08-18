@@ -38,7 +38,7 @@ import org.springframework.web.util.UriComponentsBuilder;
  * configuration and are never accepted from that JSON.</p>
  */
 @Component
-public class DolphinSchedulerExecutorAdapter implements OrchestratorAdapter {
+public class DolphinSchedulerExecutorAdapter implements ExecutorAdapter {
 
     private static final String EXTERNAL_ID_PREFIX = "ds|";
     private static final DateTimeFormatter SCHEDULE_TIME =

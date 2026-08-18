@@ -13,6 +13,7 @@ import com.cywu.dataos.controlplane.api.ResourceNotFoundException;
 import com.cywu.dataos.controlplane.governance.GovernanceIssue;
 import com.cywu.dataos.controlplane.governance.IssueRepository;
 import com.cywu.dataos.controlplane.governance.GovernanceIssueDetail;
+import com.cywu.dataos.controlplane.governance.IssueDetailReader;
 import com.cywu.dataos.controlplane.governance.GovernanceIssueEvent;
 import com.cywu.dataos.controlplane.governance.NotificationOutboxRepository;
 import com.cywu.dataos.controlplane.run.ExternalRunLifecycle;
@@ -45,11 +46,13 @@ public class QualityOutcomeService {
     private final long pollIntervalMs;
     private final long submitLeaseMs;
     private final TenantScope tenantScope;
+    private final IssueDetailReader detailReader;
     private final ExternalRunLifecycle<QualityRuleRun, QualityRuleExecutionRequest, QualityResultPayload> lifecycle;
 
     public QualityOutcomeService(IssueRepository issues,
                                  QualityRunRepository runs,
                                  NotificationOutboxRepository outbox,
+                                 IssueDetailReader detailReader,
                                  List<QualityRuleExecutor> executors,
                                  NotificationService notifications,
                                  PlatformTransactionManager transactionManager,
@@ -66,6 +69,7 @@ public class QualityOutcomeService {
         this.pollIntervalMs = pollIntervalMs;
         this.submitLeaseMs = submitLeaseMs;
         this.tenantScope = tenantScope;
+        this.detailReader = detailReader;
         this.lifecycle = new ExternalRunLifecycle<>(
                 new QualityRunStore(runs, pollIntervalMs),
                 new QualityExecutorPort(executors),
@@ -281,11 +285,7 @@ public class QualityOutcomeService {
     }
 
     private GovernanceIssueDetail detail(String issueId, String tenantId, String institutionId) {
-        var issue = issues.findIssue(issueId, tenantId, institutionId)
-                .orElseThrow(() -> new ResourceNotFoundException("未找到治理问题：" + issueId));
-        return new GovernanceIssueDetail(issue, issues.findEvents(issueId),
-                runs.findLatestQualityRun(issueId, tenantId, institutionId).orElse(null),
-                runs.findQualityRuns(issueId, tenantId, institutionId), outbox.findNotifications(issueId));
+        return detailReader.read(issueId, tenantId, institutionId);
     }
 
     private record RecheckClaim(GovernanceIssue issue, String tenantId, String institutionId,
