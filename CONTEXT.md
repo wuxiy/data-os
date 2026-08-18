@@ -15,3 +15,7 @@
 ## 通知发件箱（Notification Outbox）
 
 治理问题的事件通知先落 `governance_notifications` 表（发件箱），以幂等键去重入队；`NotificationOutboxRepository` 以数据库租约抢占外发（同租约防并发重复外发），外发通道（Webhook 等）与重试/放弃策略由通知模块持有。终态回写与租约释放同事务。
+
+## 质量引擎（Rule Engine）
+
+以特定技术执行一条质量规则的引擎。质量执行器（quality-runner）按规则把运行路由给引擎：引擎负责命令构造、结果解析、失败样本读取与自身产物清理（dbt 引擎即 `DbtEngine`）；进程监督（超时击杀、取消终止、心跳续租）与执行代次围栏由执行器共享的监督器承担。第二个引擎（Great Expectations、医院自有质检服务等）到来时实现同一接口即可接入。
