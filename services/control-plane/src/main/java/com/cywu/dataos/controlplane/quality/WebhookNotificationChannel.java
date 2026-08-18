@@ -1,5 +1,7 @@
 package com.cywu.dataos.controlplane.quality;
 
+import com.cywu.dataos.controlplane.api.ErrorMessages;
+
 import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
@@ -98,7 +100,7 @@ public class WebhookNotificationChannel implements NotificationChannel {
                     .toBodilessEntity();
             return new NotificationDeliveryResult("SENT", "责任人 Webhook 已送达");
         } catch (RestClientException | java.security.GeneralSecurityException | com.fasterxml.jackson.core.JsonProcessingException exception) {
-            return new NotificationDeliveryResult("FAILED", safeMessage(exception));
+            return new NotificationDeliveryResult("FAILED", ErrorMessages.safe(exception));
         }
     }
 
@@ -106,11 +108,5 @@ public class WebhookNotificationChannel implements NotificationChannel {
         var mac = javax.crypto.Mac.getInstance("HmacSHA256");
         mac.init(new javax.crypto.spec.SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
         return mac;
-    }
-
-    private String safeMessage(Exception exception) {
-        var message = exception.getMessage();
-        if (message == null || message.isBlank()) return "责任人 Webhook 投递失败";
-        return message.length() > 240 ? message.substring(0, 240) : message;
     }
 }

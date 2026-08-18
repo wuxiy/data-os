@@ -1,5 +1,7 @@
 package com.cywu.dataos.controlplane.source;
 
+import com.cywu.dataos.controlplane.api.ErrorMessages;
+
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -70,13 +72,7 @@ public class SourceService {
         try {
             return adapter.check(source, config);
         } catch (RuntimeException exception) {
-            return SourceCheckResult.unhealthy("数据源检查执行失败：" + safeMessage(exception));
+            return SourceCheckResult.unhealthy("数据源检查执行失败：" + ErrorMessages.safe(exception));
         }
-    }
-
-    private String safeMessage(RuntimeException exception) {
-        var message = exception.getMessage();
-        if (message == null || message.isBlank()) return "未知错误";
-        return message.length() > 240 ? message.substring(0, 240) : message;
     }
 }

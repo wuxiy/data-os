@@ -1,5 +1,7 @@
 package com.cywu.dataos.controlplane.governance;
 
+import com.cywu.dataos.controlplane.run.RunStatus;
+
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -636,12 +638,7 @@ public class GovernanceRepository {
     }
 
     private String normalizeRunStatus(String value) {
-        var normalized = value == null ? "UNKNOWN" : value.trim().toUpperCase(Locale.ROOT);
-        if (!List.of("SUBMITTED", "RUNNING", "SUCCEEDED", "FAILED", "CANCELED", "UNKNOWN", "SUBMIT_FAILED")
-                .contains(normalized)) {
-            return "UNKNOWN";
-        }
-        return normalized;
+        return RunStatus.sanitized(value).name();
     }
 
     private String safe(String value) {

@@ -1,5 +1,7 @@
 package com.cywu.dataos.controlplane.executor;
 
+import com.cywu.dataos.controlplane.api.ErrorMessages;
+
 import java.net.http.HttpClient;
 import java.time.Duration;
 import java.time.Instant;
@@ -118,7 +120,7 @@ public class SeaTunnelExecutorAdapter implements ExecutorAdapter {
             throw new AdapterConfigurationException("中心采集作业配置不合法（HTTP "
                     + exception.getStatusCode().value() + "）");
         } catch (RestClientException exception) {
-            throw new AdapterUnavailableException(safeMessage(exception));
+            throw new AdapterUnavailableException(ErrorMessages.safe(exception));
         }
     }
 
@@ -155,7 +157,7 @@ public class SeaTunnelExecutorAdapter implements ExecutorAdapter {
             throw new AdapterConfigurationException("中心采集状态查询不合法（HTTP "
                     + exception.getStatusCode().value() + "）");
         } catch (RestClientException exception) {
-            throw new AdapterUnavailableException(safeMessage(exception));
+            throw new AdapterUnavailableException(ErrorMessages.safe(exception));
         }
     }
 
@@ -195,7 +197,7 @@ public class SeaTunnelExecutorAdapter implements ExecutorAdapter {
             throw new AdapterConfigurationException("中心采集对账请求不合法（HTTP "
                     + exception.getStatusCode().value() + "）");
         } catch (RestClientException exception) {
-            throw new AdapterUnavailableException(safeMessage(exception));
+            throw new AdapterUnavailableException(ErrorMessages.safe(exception));
         }
     }
 
@@ -221,7 +223,7 @@ public class SeaTunnelExecutorAdapter implements ExecutorAdapter {
                 backoff();
             } catch (RestClientException exception) {
                 if (attempt == MAX_SUBMIT_ATTEMPTS) {
-                    throw new AdapterSubmissionUnknownException("中心采集提交结果未知：" + safeMessage(exception));
+                    throw new AdapterSubmissionUnknownException("中心采集提交结果未知：" + ErrorMessages.safe(exception));
                 }
                 backoff();
             }
@@ -376,12 +378,5 @@ public class SeaTunnelExecutorAdapter implements ExecutorAdapter {
                 return null;
             }
         }
-    }
-
-    private String safeMessage(Exception exception) {
-        if (exception instanceof org.springframework.web.client.HttpStatusCodeException statusException) {
-            return "中心采集执行器请求失败（HTTP " + statusException.getStatusCode().value() + "）";
-        }
-        return "中心采集执行器请求失败";
     }
 }

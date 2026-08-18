@@ -1,5 +1,7 @@
 package com.cywu.dataos.controlplane.run;
 
+import com.cywu.dataos.controlplane.api.ErrorMessages;
+
 import java.time.Instant;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -180,22 +182,22 @@ public final class ExternalRunLifecycle<R extends ExternalRun, C, S> {
             var unknownStatus = policy.submitUnknownOutcomeStatus();
             if (unknownStatus == null) {
                 return finishSubmit(run, policy.submitFailedStatus(), null,
-                        policy.submitRuntimeErrorPrefix() + safeMessage(exception), null, Instant.now());
+                        policy.submitRuntimeErrorPrefix() + ErrorMessages.safe(exception), null, Instant.now());
             }
-            return finishSubmit(run, unknownStatus, null, safeMessage(exception), null, null);
+            return finishSubmit(run, unknownStatus, null, ErrorMessages.safe(exception), null, null);
         } catch (AdapterUnavailableException exception) {
             if (policy.retryUnavailableSubmit()) {
-                store.markSubmissionRetryable(run, safeMessage(exception), backoffRetryAt(run));
+                store.markSubmissionRetryable(run, ErrorMessages.safe(exception), backoffRetryAt(run));
                 return store.reload(run).orElse(run);
             }
             return finishSubmit(run, policy.submitUnavailableStatus(), null,
-                    safeMessage(exception), null, null);
+                    ErrorMessages.safe(exception), null, null);
         } catch (AdapterConfigurationException exception) {
             return finishSubmit(run, policy.submitMisconfiguredStatus(), null,
-                    safeMessage(exception), null, null);
+                    ErrorMessages.safe(exception), null, null);
         } catch (RuntimeException exception) {
             return finishSubmit(run, policy.submitFailedStatus(), null,
-                    policy.submitRuntimeErrorPrefix() + safeMessage(exception), null, Instant.now());
+                    policy.submitRuntimeErrorPrefix() + ErrorMessages.safe(exception), null, Instant.now());
         }
     }
 
@@ -241,11 +243,11 @@ public final class ExternalRunLifecycle<R extends ExternalRun, C, S> {
                         result.finishedAt(), result.payload(), Instant.now().plusMillis(policy.pollIntervalMs()));
             }
         } catch (AdapterUnavailableException exception) {
-            pollTemporaryFailure(run, safeMessage(exception));
+            pollTemporaryFailure(run, ErrorMessages.safe(exception));
         } catch (AdapterConfigurationException exception) {
-            finishPoll(run, policy.pollMisconfiguredStatus(), safeMessage(exception));
+            finishPoll(run, policy.pollMisconfiguredStatus(), ErrorMessages.safe(exception));
         } catch (RuntimeException exception) {
-            pollTemporaryFailure(run, "状态同步失败：" + safeMessage(exception));
+            pollTemporaryFailure(run, "状态同步失败：" + ErrorMessages.safe(exception));
         }
     }
 
@@ -307,7 +309,7 @@ public final class ExternalRunLifecycle<R extends ExternalRun, C, S> {
         } catch (AdapterConfigurationException | AdapterUnavailableException exception) {
             store.markReconciliationRequired(run, exception.getMessage());
         } catch (RuntimeException exception) {
-            store.markReconciliationRequired(run, "对账失败：" + safeMessage(exception));
+            store.markReconciliationRequired(run, "对账失败：" + ErrorMessages.safe(exception));
         }
     }
 
@@ -336,13 +338,5 @@ public final class ExternalRunLifecycle<R extends ExternalRun, C, S> {
 
     private static boolean isBlank(String value) {
         return value == null || value.isBlank();
-    }
-
-    private static String safeMessage(Exception exception) {
-        var message = exception.getMessage();
-        if (message == null || message.isBlank()) {
-            return "未知错误";
-        }
-        return message.length() > 240 ? message.substring(0, 240) : message;
     }
 }

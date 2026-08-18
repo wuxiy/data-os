@@ -1,5 +1,7 @@
 package com.cywu.dataos.controlplane.source;
 
+import com.cywu.dataos.controlplane.api.ErrorMessages;
+
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -72,7 +74,7 @@ public class HttpSourceCheckAdapter implements SourceCheckAdapter {
         } catch (IllegalArgumentException exception) {
             return SourceCheckResult.blockedConfiguration(exception.getMessage());
         } catch (Exception exception) {
-            return SourceCheckResult.unhealthy(protocol + " 服务连接失败：" + safeMessage(exception));
+            return SourceCheckResult.unhealthy(protocol + " 服务连接失败：" + ErrorMessages.safe(exception));
         }
     }
 
@@ -87,11 +89,5 @@ public class HttpSourceCheckAdapter implements SourceCheckAdapter {
             }
             return false;
         }
-    }
-
-    private String safeMessage(Exception exception) {
-        var message = exception.getMessage();
-        if (message == null || message.isBlank()) return "未知错误";
-        return message.length() > 240 ? message.substring(0, 240) : message;
     }
 }

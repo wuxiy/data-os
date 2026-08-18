@@ -1,5 +1,7 @@
 package com.cywu.dataos.controlplane.source;
 
+import com.cywu.dataos.controlplane.api.ErrorMessages;
+
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Map;
@@ -64,7 +66,7 @@ public class JdbcSourceCheckAdapter implements SourceCheckAdapter {
                     ? SourceCheckResult.healthy("JDBC 连接成功")
                     : SourceCheckResult.unhealthy("JDBC 连接未通过有效性检查");
         } catch (SQLException exception) {
-            return SourceCheckResult.unhealthy("JDBC 连接失败：" + safeMessage(exception));
+            return SourceCheckResult.unhealthy("JDBC 连接失败：" + ErrorMessages.safe(exception));
         }
     }
 
@@ -75,12 +77,5 @@ public class JdbcSourceCheckAdapter implements SourceCheckAdapter {
 
     private String stringValue(Object value) {
         return value == null ? "" : String.valueOf(value).trim();
-    }
-
-    private String safeMessage(Exception exception) {
-        var message = exception.getMessage();
-        if (message == null || message.isBlank()) return "未知错误";
-        var sanitized = message.replaceAll("(?i)(password|passwd)=[^&; ]+", "$1=***");
-        return sanitized.substring(0, Math.min(sanitized.length(), 240));
     }
 }

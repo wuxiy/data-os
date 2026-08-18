@@ -1,5 +1,9 @@
 package com.cywu.dataos.controlplane.quality;
 
+import com.cywu.dataos.controlplane.run.RunStatus;
+
+import com.cywu.dataos.controlplane.api.ErrorMessages;
+
 import java.net.http.HttpClient;
 import java.time.Duration;
 import java.time.Instant;
@@ -103,7 +107,7 @@ public class HttpQualityRuleExecutor implements QualityRuleExecutor {
             throw new AdapterConfigurationException("质量规则执行请求不合法（HTTP "
                     + exception.getStatusCode().value() + "）");
         } catch (RestClientException exception) {
-            throw new AdapterUnavailableException("质量规则执行器暂时不可用：" + safeMessage(exception));
+            throw new AdapterUnavailableException("质量规则执行器暂时不可用：" + ErrorMessages.safe(exception));
         }
     }
 
@@ -120,7 +124,7 @@ public class HttpQualityRuleExecutor implements QualityRuleExecutor {
                     .headers(headers -> addAuthorization(headers))
                     .retrieve()
                     .body(Map.class);
-            var status = normalizeStatus(first(response, "status", "state"));
+            var status = RunStatus.normalize(first(response, "status", "state")).name();
             return new QualityRuleExecutionStatus(status,
                     bool(response == null ? null : response.get("passed")),
                     firstOr(response, "message", "质量规则执行状态已同步"),
@@ -141,7 +145,7 @@ public class HttpQualityRuleExecutor implements QualityRuleExecutor {
             throw new AdapterConfigurationException("质量规则状态查询不合法（HTTP "
                     + exception.getStatusCode().value() + "）");
         } catch (RestClientException exception) {
-            throw new AdapterUnavailableException("质量规则执行器暂时不可用：" + safeMessage(exception));
+            throw new AdapterUnavailableException("质量规则执行器暂时不可用：" + ErrorMessages.safe(exception));
         }
     }
 
@@ -200,23 +204,5 @@ public class HttpQualityRuleExecutor implements QualityRuleExecutor {
                 }
             }
         }
-    }
-
-    private String normalizeStatus(String value) {
-        if (value == null) return "UNKNOWN";
-        return switch (value.trim().toUpperCase(Locale.ROOT)) {
-            case "SUBMITTED", "PENDING", "QUEUED" -> "SUBMITTED";
-            case "RUNNING", "STARTED" -> "RUNNING";
-            case "SUCCESS", "SUCCEEDED", "PASSED", "FINISHED" -> "SUCCEEDED";
-            case "FAILED", "ERROR" -> "FAILED";
-            case "CANCELED", "CANCELLED", "STOPPED" -> "CANCELED";
-            default -> "UNKNOWN";
-        };
-    }
-
-    private String safeMessage(Exception exception) {
-        var message = exception.getMessage();
-        if (message == null || message.isBlank()) return "未知错误";
-        return message.length() > 240 ? message.substring(0, 240) : message;
     }
 }

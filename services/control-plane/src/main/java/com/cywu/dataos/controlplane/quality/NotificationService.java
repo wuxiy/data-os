@@ -1,5 +1,7 @@
 package com.cywu.dataos.controlplane.quality;
 
+import com.cywu.dataos.controlplane.api.ErrorMessages;
+
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -85,7 +87,7 @@ public class NotificationService {
         try {
             result = channel.send(notification);
         } catch (RuntimeException exception) {
-            result = new NotificationDeliveryResult("FAILED", safeMessage(exception));
+            result = new NotificationDeliveryResult("FAILED", ErrorMessages.safe(exception));
         }
         var now = Instant.now();
         if ("SENT".equals(result.status())) {
@@ -141,12 +143,6 @@ public class NotificationService {
             repository.insertEvent(issue.id(), event.eventType(), event.note(), event.actor(), now);
         }
         return notification;
-    }
-
-    private String safeMessage(Exception exception) {
-        var message = exception.getMessage();
-        if (message == null || message.isBlank()) return "责任人通知投递失败";
-        return message.length() > 240 ? message.substring(0, 240) : message;
     }
 
     public record DeliverySummary(int processed, int sent, int skipped, int failed) {

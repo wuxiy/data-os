@@ -20,14 +20,6 @@ public class RunRepository {
         this.jdbc = jdbc;
     }
 
-    public IngestionRun save(IngestionRun run) {
-        return save(run, null);
-    }
-
-    public IngestionRun save(IngestionRun run, String requestKey) {
-        return save(run, requestKey, null);
-    }
-
     public IngestionRun save(IngestionRun run, String requestKey, String requestFingerprint) {
         jdbc.update("""
                 INSERT INTO data_os.job_runs

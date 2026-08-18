@@ -49,6 +49,12 @@ public enum RunStatus {
         };
     }
 
+    /** 严格白名单：仅接受已归一的枚举名，其余（含别名）归为 UNKNOWN。 */
+    public static RunStatus sanitized(String status) {
+        var value = exact(status);
+        return value == null ? UNKNOWN : value;
+    }
+
     private static RunStatus exact(String status) {
         if (status == null) return null;
         try {
