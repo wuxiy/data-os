@@ -4,6 +4,8 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
+import com.cywu.dataos.controlplane.run.ExternalRun;
+
 public record QualityRuleRun(
         String id,
         String issueId,
@@ -27,7 +29,7 @@ public record QualityRuleRun(
         int attemptCount,
         Instant nextPollAt,
         String lastError,
-        Instant updatedAt) {
+        Instant updatedAt) implements ExternalRun {
 
     public QualityRuleRun {
         sampleEvidence = sampleEvidence == null ? List.of() : List.copyOf(sampleEvidence);
