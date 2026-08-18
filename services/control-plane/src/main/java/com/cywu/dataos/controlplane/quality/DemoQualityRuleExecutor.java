@@ -33,6 +33,11 @@ public class DemoQualityRuleExecutor implements QualityRuleExecutor {
     }
 
     @Override
+    public boolean configured() {
+        return enabled;
+    }
+
+    @Override
     public QualityRuleSubmission submit(QualityRuleExecutionRequest request) {
         var externalId = "demo-quality-" + UUID.randomUUID();
         runs.put(externalId, new DemoRun(request, Instant.now()));

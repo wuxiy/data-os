@@ -1,11 +1,12 @@
 package com.cywu.dataos.controlplane.system;
 
 import java.util.ArrayList;
-import java.util.Locale;
 import java.util.List;
+import java.util.Locale;
 
 import com.cywu.dataos.controlplane.operational.OperationalFacts;
 import com.cywu.dataos.controlplane.operational.OperationalFactsRegistry;
+import com.cywu.dataos.controlplane.quality.QualityRuleExecutor;
 import com.cywu.dataos.controlplane.quality.WebhookSecretProvider;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,9 +20,9 @@ public class RuntimeController {
 
     private final boolean seedDemoEnabled;
     private final String qualityExecutor;
-    private final String qualityExecutorBaseUrl;
     private final boolean demoQualityExecutorEnabled;
     private final String seatunnelBaseUrl;
+    private final List<QualityRuleExecutor> qualityExecutors;
     private final String notificationWebhookUrl;
     private final WebhookSecretProvider notificationSecrets;
     private final OperationalFactsRegistry operationalFacts;
@@ -29,8 +30,8 @@ public class RuntimeController {
     public RuntimeController(
             @Value("${data-os.seed-demo:false}") boolean seedDemoEnabled,
             @Value("${data-os.quality.executor:HTTP}") String qualityExecutor,
-            @Value("${data-os.quality.base-url:}") String qualityExecutorBaseUrl,
             @Value("${data-os.quality.demo-enabled:false}") boolean demoQualityExecutorEnabled,
+            List<QualityRuleExecutor> qualityExecutors,
             @Value("${data-os.seatunnel.base-url:}") String seatunnelBaseUrl,
             @Value("${data-os.notification.webhook-url:}") String notificationWebhookUrl,
             @Value("${data-os.notification.webhook-secret:}") String notificationWebhookSecret,
@@ -39,8 +40,8 @@ public class RuntimeController {
             OperationalFactsRegistry operationalFacts) {
         this.seedDemoEnabled = seedDemoEnabled;
         this.qualityExecutor = normalize(qualityExecutor, "HTTP");
-        this.qualityExecutorBaseUrl = normalizeUrl(qualityExecutorBaseUrl);
         this.demoQualityExecutorEnabled = demoQualityExecutorEnabled;
+        this.qualityExecutors = qualityExecutors;
         this.seatunnelBaseUrl = normalizeUrl(seatunnelBaseUrl);
         this.notificationWebhookUrl = normalizeUrl(notificationWebhookUrl);
         this.notificationSecrets = new WebhookSecretProvider(objectMapper, notificationWebhookSecret,
@@ -82,12 +83,13 @@ public class RuntimeController {
         return value == null ? "" : value.trim();
     }
 
+    /** 「配置成什么样才算配置好」由执行器自己回答，门户只按名路由询问。 */
     private boolean qualityConfigured() {
-        return switch (qualityExecutor) {
-            case "DEMO" -> demoQualityExecutorEnabled;
-            case "HTTP", "DBT" -> !qualityExecutorBaseUrl.isBlank();
-            default -> false;
-        };
+        return qualityExecutors.stream()
+                .filter(executor -> executor.supports(qualityExecutor))
+                .findFirst()
+                .map(QualityRuleExecutor::configured)
+                .orElse(false);
     }
 
     private boolean notificationConfigured() {

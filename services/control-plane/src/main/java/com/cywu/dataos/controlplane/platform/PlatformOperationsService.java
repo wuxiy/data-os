@@ -10,6 +10,7 @@ import java.util.Map;
 
 import com.cywu.dataos.controlplane.operational.OperationalFacts;
 import com.cywu.dataos.controlplane.operational.OperationalFactsRegistry;
+import com.cywu.dataos.controlplane.quality.QualityRuleExecutor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
@@ -31,8 +32,7 @@ public final class PlatformOperationsService {
     private final RestClient restClient;
     private final String seatunnelBaseUrl;
     private final String qualityExecutor;
-    private final String qualityExecutorBaseUrl;
-    private final boolean demoQualityExecutorEnabled;
+    private final List<QualityRuleExecutor> qualityExecutors;
     private final String notificationHealthUrl;
     private final String seatunnelUiUrl;
     private final String dolphinschedulerBaseUrl;
@@ -45,8 +45,7 @@ public final class PlatformOperationsService {
             RestClient.Builder builder,
             @Value("${data-os.seatunnel.base-url:}") String seatunnelBaseUrl,
             @Value("${data-os.quality.executor:HTTP}") String qualityExecutor,
-            @Value("${data-os.quality.base-url:}") String qualityExecutorBaseUrl,
-            @Value("${data-os.quality.demo-enabled:false}") boolean demoQualityExecutorEnabled,
+            List<QualityRuleExecutor> qualityExecutors,
             @Value("${data-os.notification.health-url:}") String notificationHealthUrl,
             @Value("${data-os.platform.seatunnel-ui-url:}") String seatunnelUiUrl,
             @Value("${data-os.dolphinscheduler.base-url:}") String dolphinschedulerBaseUrl,
@@ -63,8 +62,7 @@ public final class PlatformOperationsService {
         this.restClient = builder.requestFactory(requestFactory).build();
         this.seatunnelBaseUrl = normalize(seatunnelBaseUrl);
         this.qualityExecutor = qualityExecutor == null ? "HTTP" : qualityExecutor.trim().toUpperCase(java.util.Locale.ROOT);
-        this.qualityExecutorBaseUrl = normalize(qualityExecutorBaseUrl);
-        this.demoQualityExecutorEnabled = demoQualityExecutorEnabled;
+        this.qualityExecutors = qualityExecutors;
         this.notificationHealthUrl = normalize(notificationHealthUrl);
         this.seatunnelUiUrl = browserUrl(seatunnelUiUrl);
         this.dolphinschedulerBaseUrl = normalize(dolphinschedulerBaseUrl);
@@ -91,10 +89,15 @@ public final class PlatformOperationsService {
         snapshot();
     }
 
+    /** 就绪判定经执行器 seam：配置形状与探测端点由执行器自己声明。 */
     private String probeQualityExecutor() {
-        if ("DEMO".equals(qualityExecutor)) return demoQualityExecutorEnabled ? "READY" : "UNKNOWN";
-        if (qualityExecutorBaseUrl.isBlank()) return "UNKNOWN";
-        return probe(qualityExecutorBaseUrl + "/readyz");
+        return qualityExecutors.stream()
+                .filter(executor -> executor.supports(qualityExecutor))
+                .findFirst()
+                .map(executor -> executor.configured()
+                        ? executor.readinessEndpoint().map(this::probe).orElse("READY")
+                        : "UNKNOWN")
+                .orElse("UNKNOWN");
     }
 
     private String probeNotification() {

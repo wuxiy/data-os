@@ -14,6 +14,7 @@ import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 
 import com.cywu.dataos.controlplane.executor.AdapterConfigurationException;
 import com.cywu.dataos.controlplane.executor.AdapterUnavailableException;
@@ -71,6 +72,16 @@ public class HttpQualityRuleExecutor implements QualityRuleExecutor {
     @Override
     public boolean supports(String executor) {
         return "HTTP".equalsIgnoreCase(executor) || "DBT".equalsIgnoreCase(executor);
+    }
+
+    @Override
+    public boolean configured() {
+        return !baseUrl.isBlank();
+    }
+
+    @Override
+    public Optional<String> readinessEndpoint() {
+        return baseUrl.isBlank() ? Optional.empty() : Optional.of(baseUrl + "/readyz");
     }
 
     @Override
