@@ -19,6 +19,7 @@ public final class ClinicalWorkflowCatalog {
     public static final String LIS_HTTP_TO_DORIS = "LIS_HTTP_TO_DORIS";
     public static final String EMR_JDBC_TO_DORIS = "EMR_JDBC_TO_DORIS";
     public static final String SURGERY_JDBC_TO_DORIS = "SURGERY_JDBC_TO_DORIS";
+    public static final String EP_JDBC_TO_DORIS = "EP_JDBC_TO_DORIS";
     public static final int VERSION = 1;
 
     private final List<ClinicalWorkflowTemplate> templates = List.of(
@@ -31,9 +32,12 @@ public final class ClinicalWorkflowCatalog {
             template(EMR_JDBC_TO_DORIS, "EMR 病历入仓", "EMR",
                     "门诊/住院病历按业务主键和更新时间批量或增量采集到 ODS/EMR。",
                     "emr-clinical-readonly", "ods_emr", "clinical_record"),
-            template(SURGERY_JDBC_TO_DORIS, "手术系统记录入仓", "SURGERY",
-                    "手术申请、排程、麻醉和术后记录按更新时间增量采集到 ODS/手术。",
-                    "surgery-clinical-readonly", "ods_surgery", "operation_record"));
+        template(SURGERY_JDBC_TO_DORIS, "手术系统记录入仓", "SURGERY",
+                "手术申请、排程、麻醉和术后记录按更新时间增量采集到 ODS/手术。",
+                "surgery-clinical-readonly", "ods_surgery", "operation_record"),
+        template(EP_JDBC_TO_DORIS, "电子处方入仓", "EP",
+                "门诊处方主表与药品处方明细按更新时间批量或增量采集到 ODS/EP。",
+                "ep-dm-readonly", "ods_ep", "ep_mz_cfzb"));
 
     public List<ClinicalWorkflowTemplate> list() {
         return templates;
