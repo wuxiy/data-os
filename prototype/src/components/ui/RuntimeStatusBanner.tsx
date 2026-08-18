@@ -1,6 +1,7 @@
 import { CircleAlert, CloudCog, RefreshCw } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { fetchRuntimeStatus, type RuntimeStatusApiResponse } from '../../data/controlPlane'
+import { useApiResource } from '../../hooks/useApiResource'
 import { frontendDemoMode, isDemoRuntime } from '../../data/runtimeMode'
 import { StatusTag } from './Primitives'
 import styles from './RuntimeStatusBanner.module.css'
@@ -8,24 +9,12 @@ import styles from './RuntimeStatusBanner.module.css'
 const SCOPE_SUMMARY = '首期真实范围：数据接入、采集运行、治理问题、质量复检和通知；其余模块为规划/待接入。'
 
 export function RuntimeStatusBanner() {
-  const [state, setState] = useState<'loading' | 'live' | 'unavailable'>('loading')
   const [status, setStatus] = useState<RuntimeStatusApiResponse | null>(null)
-
-  useEffect(() => {
-    const controller = new AbortController()
-    const timeout = window.setTimeout(() => controller.abort(), 2500)
-    fetchRuntimeStatus(controller.signal)
-      .then((next) => {
-        setStatus(next)
-        setState('live')
-      })
-      .catch(() => setState('unavailable'))
-      .finally(() => window.clearTimeout(timeout))
-    return () => {
-      window.clearTimeout(timeout)
-      controller.abort()
-    }
-  }, [])
+  const state = useApiResource({
+    timeoutMs: 2500,
+    load: (signal) => fetchRuntimeStatus(signal),
+    onData: setStatus,
+  })
 
   if (state === 'loading') return <div className={`${styles.banner} ${styles.loading}`} role="status"><CloudCog size={14} /><span>正在读取运行模式…</span><span className={styles.scope}>{SCOPE_SUMMARY}</span></div>
   if (state === 'unavailable') {

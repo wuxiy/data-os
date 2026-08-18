@@ -17,10 +17,10 @@ import {
   Server,
   Settings2,
   Waypoints,
-  X,
 } from 'lucide-react'
 import type { FormEvent, ReactNode } from 'react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { Drawer } from '../components/ui/Drawer'
 import { PageHeader } from '../components/ui/PageHeader'
 import { StatusTag } from '../components/ui/Primitives'
 import {
@@ -45,6 +45,7 @@ import {
   type WorkflowTemplateApiItem,
 } from '../data/controlPlane'
 import { ACTIVE_RUN_STATUSES, formatDateTime, retryableRunStatus, runStatusView } from '../data/domain'
+import { useAction } from '../hooks/useAction'
 import { allowsTemplate, defaultTemplateKey, offersDemoTemplate } from '../data/runtimeMode'
 import type { RouteKey } from '../types'
 import styles from './Pages.module.css'
@@ -118,7 +119,7 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
   const [workflowTemplates, setWorkflowTemplates] = useState<WorkflowTemplateApiItem[]>([])
   const [latestRuns, setLatestRuns] = useState<Record<string, IngestionRunApiItem>>({})
   const [state, setState] = useState<'loading' | 'live' | 'unavailable'>('loading')
-  const [runningJob, setRunningJob] = useState<string | null>(null)
+  const { pendingKey: runningJob, run: runJobAction } = useAction(onNotice)
   const [sourceFormOpen, setSourceFormOpen] = useState(false)
   const [sourceForm, setSourceForm] = useState({ name: '', systemType: 'LIS', protocol: 'JDBC' })
   const [creatingSource, setCreatingSource] = useState(false)
@@ -140,45 +141,6 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
   const [sourceCheckText, setSourceCheckText] = useState('')
   const [sourceCheckLoading, setSourceCheckLoading] = useState(false)
   const [sourceCheckError, setSourceCheckError] = useState<string | null>(null)
-  const drawerCloseRef = useRef<HTMLElement | null>(null)
-
-  useEffect(() => {
-    if (!checkingSource && !configuringJob && !detailsJob) return
-    drawerCloseRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
-    const previousOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-
-    function handleKeyDown(event: KeyboardEvent) {
-      const drawer = document.querySelector<HTMLElement>('[role="dialog"]')
-      if (!drawer) return
-      if (event.key === 'Escape') {
-        setCheckingSource(null)
-        setConfiguringJob(null)
-        setDetailsJob(null)
-        return
-      }
-      if (event.key !== 'Tab') return
-      const focusable = Array.from(drawer.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'))
-      if (!focusable.length) return
-      const first = focusable[0]
-      const last = focusable[focusable.length - 1]
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault()
-        last.focus()
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault()
-        first.focus()
-      }
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown)
-      document.body.style.overflow = previousOverflow
-      drawerCloseRef.current?.focus({ preventScroll: true })
-      drawerCloseRef.current = null
-    }
-  }, [checkingSource, configuringJob, detailsJob])
-
   useEffect(() => {
     const controller = new AbortController()
     const timeout = window.setTimeout(() => controller.abort(), 2500)
@@ -280,79 +242,54 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
       void openJobConfig(job)
       return
     }
-    setRunningJob(job.id)
-    try {
+    await runJobAction(job.id, '运行请求失败，请查看控制面运行日志', async () => {
       const run = await startIngestionRun(job.id, { idempotencyKey: createRequestKey() })
       setLatestRuns((current) => ({ ...current, [job.id]: run }))
       setDetailsRuns((current) => detailsJob?.id === job.id ? [run, ...current.filter((item) => item.id !== run.id)] : current)
       onNotice(run.status === 'BLOCKED_DEPENDENCY' ? '运行记录已保存，等待中心采集执行器上线' : `运行已提交：${runStatusView(run.status).label}`)
-    } catch {
-      onNotice('运行请求失败，请查看控制面运行日志')
-    } finally {
-      setRunningJob(null)
-    }
+    }, () => onNotice('运行请求失败，请查看控制面运行日志'))
   }
 
   async function changeJobStatus(job: IngestionJobApiItem, status: string) {
     if (state !== 'live') return
-    setRunningJob(job.id)
-    try {
+    await runJobAction(job.id, '任务状态更新失败，请稍后重试', async () => {
       const updated = await updateIngestionJobStatus(job.id, status)
       setJobs((current) => current.map((item) => item.id === updated.id ? updated : item))
       if (detailsJob?.id === updated.id) setDetailsJob(updated)
       onNotice(`任务状态已更新：${jobLifecycleLabel(updated.status)}`)
-    } catch (error) {
-      onNotice(error instanceof Error ? error.message : '任务状态更新失败，请稍后重试')
-    } finally {
-      setRunningJob(null)
-    }
+    })
   }
 
   async function syncRun(job: IngestionJobApiItem, run: IngestionRunApiItem) {
     if (state !== 'live') return
-    setRunningJob(job.id)
-    try {
+    await runJobAction(job.id, '运行状态同步失败，请稍后重试', async () => {
       const refreshed = await syncIngestionRun(job.id, run.id)
       setLatestRuns((current) => ({ ...current, [job.id]: refreshed }))
       setDetailsRuns((current) => current.map((item) => item.id === refreshed.id ? refreshed : item))
       onNotice(`运行状态已更新：${runStatusView(refreshed.status).label}`)
-    } catch {
-      onNotice('运行状态同步失败，请稍后重试')
-    } finally {
-      setRunningJob(null)
-    }
+    }, () => onNotice('运行状态同步失败，请稍后重试'))
   }
 
   async function retryRun(job: IngestionJobApiItem, run: IngestionRunApiItem) {
     if (state !== 'live') return
-    setRunningJob(job.id)
-    try {
+    await runJobAction(job.id, '运行重试失败，请先确认任务未暂停且没有活动运行', async () => {
       const retried = await retryIngestionRun(job.id, run.id)
       setLatestRuns((current) => ({ ...current, [job.id]: retried }))
       setDetailsRuns((current) => detailsJob?.id === job.id
         ? [retried, ...current.filter((item) => item.id !== retried.id)]
         : current)
       onNotice(`已创建重试运行：${runStatusView(retried.status).label}`)
-    } catch (error) {
-      onNotice(error instanceof Error ? error.message : '运行重试失败，请先确认任务未暂停且没有活动运行')
-    } finally {
-      setRunningJob(null)
-    }
+    })
   }
 
   async function confirmRunAbsent(job: IngestionJobApiItem, run: IngestionRunApiItem) {
     if (state !== 'live') return
-    setRunningJob(job.id)
-    try {
+    await runJobAction(job.id, '确认外部运行不存在失败，请刷新后重试', async () => {
       const confirmed = await confirmIngestionRunAbsent(job.id, run.id)
       setLatestRuns((current) => ({ ...current, [job.id]: confirmed }))
       setDetailsRuns((current) => current.map((item) => item.id === confirmed.id ? confirmed : item))
       onNotice('已确认外部运行不存在，当前运行允许重试')
-    } catch (error) {
-      onNotice(error instanceof Error ? error.message : '确认外部运行不存在失败，请刷新后重试')
-    } finally {
-      setRunningJob(null)
-    }
+    })
   }
 
   function openSourceCheck(source: SourceApiItem) {
@@ -608,49 +545,50 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
         </section>
       </div>
 
-      {checkingSource ? <>
-        <button className={styles.drawerBackdrop} aria-label="关闭数据源检查" onClick={() => setCheckingSource(null)} />
-        <aside className={styles.sideDrawer} role="dialog" aria-labelledby="source-check-title" aria-modal="true">
-          <div className={styles.drawerHeader}><div><span className={styles.drawerEyebrow}>数据源检查 · {checkingSource.protocol}</span><h2 id="source-check-title">{checkingSource.name}</h2></div><button autoFocus className={styles.iconButton} aria-label="关闭" onClick={() => setCheckingSource(null)}><X size={17} /></button></div>
-          <div className={styles.drawerBody}>
+            {checkingSource ? <Drawer
+        titleId="source-check-title"
+        eyebrow={`数据源检查 · ${checkingSource.protocol}`}
+        title={checkingSource.name}
+        closeLabel="关闭数据源检查"
+        onClose={() => setCheckingSource(null)}
+        footer={<><button className={styles.secondaryButton} onClick={() => setCheckingSource(null)}>关闭</button><button className={styles.primaryButton} disabled={sourceCheckLoading} onClick={() => void submitSourceCheck()}><CheckCircle2 size={14} />{sourceCheckLoading ? '检查中…' : '开始检查'}</button></>}
+      >
             <div className={styles.drawerNotice}><CheckCircle2 size={16} /><span>检查只在当前请求中使用连接参数，不会把密码或 Token 写入来源记录。结果会回写为健康、失败或待配置，并显示最近检查时间。</span></div>
             <div className={styles.formField}><label htmlFor="source-check-editor">检查配置 JSON</label><textarea id="source-check-editor" className={`${styles.codeInput} ${styles.codeInputLarge}`} value={sourceCheckText} onChange={(event) => setSourceCheckText(event.target.value)} spellCheck={false} disabled={sourceCheckLoading} /></div>
             {sourceCheckError ? <p className={styles.formError} role="alert">{sourceCheckError}</p> : null}
             {checkingSource.lastCheckMessage ? <div className={styles.checkResult}><StatusTag tone={sourceStatusLabel(checkingSource.status).tone}>{sourceStatusLabel(checkingSource.status).label}</StatusTag><p>{checkingSource.lastCheckMessage}</p><small>最近检查：{formatDateTime(checkingSource.lastCheckedAt)}</small></div> : null}
-          </div>
-          <div className={styles.drawerFooter}><button className={styles.secondaryButton} onClick={() => setCheckingSource(null)}>关闭</button><button className={styles.primaryButton} disabled={sourceCheckLoading} onClick={() => void submitSourceCheck()}><CheckCircle2 size={14} />{sourceCheckLoading ? '检查中…' : '开始检查'}</button></div>
-        </aside>
-      </> : null}
+      </Drawer> : null}
 
-      {configuringJob ? <>
-        <button className={styles.drawerBackdrop} aria-label="关闭任务配置" onClick={() => setConfiguringJob(null)} />
-        <aside className={styles.sideDrawer} role="dialog" aria-labelledby="job-config-title" aria-modal="true">
-          <div className={styles.drawerHeader}><div><span className={styles.drawerEyebrow}>任务配置 · {configuringJob.id.slice(0, 8)}</span><h2 id="job-config-title">{configuringJob.name}</h2></div><button autoFocus className={styles.iconButton} aria-label="关闭" onClick={() => setConfiguringJob(null)}><X size={17} /></button></div>
-          <div className={styles.drawerBody}>
+            {configuringJob ? <Drawer
+        titleId="job-config-title"
+        eyebrow={`任务配置 · ${configuringJob.id.slice(0, 8)}`}
+        title={configuringJob.name}
+        closeLabel="关闭任务配置"
+        onClose={() => setConfiguringJob(null)}
+        footer={<><button className={styles.secondaryButton} onClick={() => setConfiguringJob(null)}>取消</button><button className={styles.primaryButton} disabled={configLoading || configSaving} onClick={() => void saveConfiguration()}><Save size={14} />{configSaving ? '保存中…' : '保存配置'}</button></>}
+      >
             <div className={styles.drawerNotice}><Settings2 size={16} /><span>保存的是可审计的结构配置。连接密码、Token、Secret 等敏感值必须通过凭据引用接入，本版不会落库。</span></div>
             <div className={styles.drawerFields}><div className={styles.formField}><label htmlFor="config-template">模板标识</label><select id="config-template" value={configTemplateKey} onChange={(event) => selectConfigTemplate(event.target.value)}>{offersDemoTemplate() || configTemplateKey === DEFAULT_TEMPLATE_KEY ? <option value={DEFAULT_TEMPLATE_KEY} disabled={!offersDemoTemplate()}>FakeSource → Console（仅演示）</option> : null}{workflowTemplates.map((template) => <option value={template.key} key={template.key}>{template.displayName} · {template.systemType}</option>)}<option value={LIVE_TEMPLATE_KEY}>自定义 JSON</option></select></div><div className={styles.formField}><label htmlFor="config-version">模板版本</label><input id="config-version" type="number" min={1} value={configTemplateVersion} onChange={(event) => setConfigTemplateVersion(Math.max(1, Number(event.target.value) || 1))} /></div></div>
             <div className={styles.formField}><details className={styles.configDetails} open><summary>配置 JSON <span>默认展开 · 可编辑</span></summary><label htmlFor="config-editor">配置内容</label><textarea id="config-editor" className={`${styles.codeInput} ${styles.codeInputLarge}`} value={configText} onChange={(event) => setConfigText(event.target.value)} spellCheck={false} disabled={configLoading} /></details></div>
             {configLoading ? <p className={styles.drawerHint}>正在读取已保存配置…</p> : null}
             {configError ? <p className={styles.formError} role="alert">{configError}</p> : null}
-          </div>
-          <div className={styles.drawerFooter}><button className={styles.secondaryButton} onClick={() => setConfiguringJob(null)}>取消</button><button className={styles.primaryButton} disabled={configLoading || configSaving} onClick={() => void saveConfiguration()}><Save size={14} />{configSaving ? '保存中…' : '保存配置'}</button></div>
-        </aside>
-      </> : null}
+      </Drawer> : null}
 
-      {detailsJob ? <>
-        <button className={styles.drawerBackdrop} aria-label="关闭运行详情" onClick={() => setDetailsJob(null)} />
-        <aside className={styles.sideDrawer} role="dialog" aria-labelledby="run-details-title" aria-modal="true">
-          <div className={styles.drawerHeader}><div><span className={styles.drawerEyebrow}>运行详情 · 自动刷新 5 秒</span><h2 id="run-details-title">{detailsJob.name}</h2></div><button autoFocus className={styles.iconButton} aria-label="关闭" onClick={() => setDetailsJob(null)}><PanelRightClose size={17} /></button></div>
-          <div className={styles.drawerBody}>
+            {detailsJob ? <Drawer
+        titleId="run-details-title"
+        eyebrow="运行详情 · 自动刷新 5 秒"
+        title={detailsJob.name}
+        closeLabel="关闭运行详情"
+        closeIcon={<PanelRightClose size={17} />}
+        onClose={() => setDetailsJob(null)}
+        footer={<><button className={styles.secondaryButton} onClick={() => setDetailsJob(null)}>关闭</button><button className={styles.primaryButton} disabled={runningJob === detailsJob.id || detailsJob.status === 'PAUSED' || detailsJob.status === 'ARCHIVED' || detailsRuns.some((run) => ACTIVE_RUN_STATUSES.includes(run.status))} onClick={() => detailsJob.configured ? void runJob(detailsJob) : void openJobConfig(detailsJob)}><Play size={14} />{detailsJob.status === 'PAUSED' ? '已暂停' : detailsJob.status === 'ARCHIVED' ? '已归档' : detailsJob.configured ? '再次启动' : '配置任务'}</button></>}
+      >
             <div className={styles.runSummary}><span>执行通道</span><strong>{executorLabel(detailsJob.executor)}</strong><span>配置状态</span><strong className={detailsJob.configured ? styles.textHealthy : styles.textWarning}>{detailsJob.configured ? `${detailsJob.templateKey ?? '自定义'} v${detailsJob.templateVersion ?? 1}` : '未配置'}</strong></div>
             {detailsLoading && detailsRuns.length === 0 ? <p className={styles.drawerHint}>正在读取运行记录…</p> : null}
             {detailsError ? <p className={styles.formError} role="alert">{detailsError}</p> : null}
             {detailsRuns.length === 0 && !detailsLoading ? <div className={styles.emptyState}><Clock3 size={18} /><p>还没有运行记录</p><span>保存任务配置后，可从任务列表启动一次采集。</span></div> : null}
             <ol className={styles.runTimeline}>{detailsRuns.slice(0, 10).map((run) => { const status = runStatusView(run.status); const active = ACTIVE_RUN_STATUSES.includes(run.status); const retryable = retryableRunStatus(run.status); return <li key={run.id}><div className={styles.timelineDot} data-tone={status.tone} /><div className={styles.timelineBody}><div className={styles.timelineTitle}><strong>{status.label}</strong><time>{formatDateTime(run.submittedAt)}</time></div><p>{businessMessage(run.message)}</p>{run.reconciliationStatus === 'MANUAL_REQUIRED' ? <div className={styles.connectionNotice} role="status"><strong>待人工对账：</strong>{run.reconciliationMessage ?? '请先确认外部运行不存在后再重试。'}<div className={styles.timelineActions}><button className={styles.textButton} disabled={runningJob === detailsJob.id} onClick={() => void syncRun(detailsJob, run)}>重新查询</button><button className={styles.textButton} disabled={runningJob === detailsJob.id} onClick={() => void confirmRunAbsent(detailsJob, run)}>确认不存在</button></div></div> : null}<dl><div><dt>运行编号</dt><dd>{run.id.slice(0, 8)}</dd></div>{run.externalId ? <div><dt>外部编号</dt><dd>{run.externalId}</dd></div> : null}{run.finishedAt ? <div><dt>完成时间</dt><dd>{formatDateTime(run.finishedAt)}</dd></div> : null}</dl><div className={styles.timelineActions}>{active && run.reconciliationStatus !== 'MANUAL_REQUIRED' ? <button className={styles.textButton} disabled={runningJob === detailsJob.id} onClick={() => void syncRun(detailsJob, run)}><RefreshCw size={12} />同步状态</button> : null}{retryable ? <button className={styles.textButton} disabled={runningJob === detailsJob.id || detailsJob.status === 'PAUSED' || detailsJob.status === 'ARCHIVED'} onClick={() => void retryRun(detailsJob, run)}><RotateCcw size={12} />重试</button> : null}</div></div></li> })}</ol>
-          </div>
-          <div className={styles.drawerFooter}><button className={styles.secondaryButton} onClick={() => setDetailsJob(null)}>关闭</button><button className={styles.primaryButton} disabled={runningJob === detailsJob.id || detailsJob.status === 'PAUSED' || detailsJob.status === 'ARCHIVED' || detailsRuns.some((run) => ACTIVE_RUN_STATUSES.includes(run.status))} onClick={() => detailsJob.configured ? void runJob(detailsJob) : void openJobConfig(detailsJob)}><Play size={14} />{detailsJob.status === 'PAUSED' ? '已暂停' : detailsJob.status === 'ARCHIVED' ? '已归档' : detailsJob.configured ? '再次启动' : '配置任务'}</button></div>
-        </aside>
-      </> : null}
+      </Drawer> : null}
     </div>
   )
 }

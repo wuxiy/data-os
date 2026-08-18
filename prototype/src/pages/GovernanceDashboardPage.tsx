@@ -1,5 +1,6 @@
 import { ChevronRight } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useApiResource } from '../hooks/useApiResource'
 import { TrendChart } from '../components/charts/TrendChart'
 import { ResponsibilityChain } from '../components/governance/ResponsibilityChain'
 import { GovernanceTabs } from '../components/ui/GovernanceTabs'
@@ -23,34 +24,22 @@ export function GovernanceDashboardPage({ onOpenChain, onNavigate, onUnavailable
   const [metrics, setMetrics] = useState<Metric[]>([])
   const [issues, setIssues] = useState<GovernanceApiIssue[]>([])
   const [asOf, setAsOf] = useState<string | null>(null)
-  const [apiState, setApiState] = useState<'loading' | 'live' | 'unavailable'>('loading')
-
-  useEffect(() => {
-    const controller = new AbortController()
-    const timeout = window.setTimeout(() => controller.abort(), 2500)
-    fetchGovernanceSummary(controller.signal)
-      .then((summary) => {
-        setMetrics(summary.metrics.map((metric) => ({
-          label: metric.label,
-          value: formatMetricValue(metric.value),
-          unit: metric.unit,
-          detail: metric.detail,
-          tone: metric.tone,
-        })))
-        setIssues(summary.issues)
-        setAsOf(formatDateTime(summary.asOf))
-        setApiState('live')
-      })
-      .catch(() => {
-        setAsOf(null)
-        setApiState('unavailable')
-      })
-      .finally(() => window.clearTimeout(timeout))
-    return () => {
-      window.clearTimeout(timeout)
-      controller.abort()
-    }
-  }, [])
+  const apiState = useApiResource({
+    timeoutMs: 2500,
+    load: (signal) => fetchGovernanceSummary(signal),
+    onData: (summary) => {
+      setMetrics(summary.metrics.map((metric) => ({
+        label: metric.label,
+        value: formatMetricValue(metric.value),
+        unit: metric.unit,
+        detail: metric.detail,
+        tone: metric.tone,
+      })))
+      setIssues(summary.issues)
+      setAsOf(formatDateTime(summary.asOf))
+    },
+    onUnavailable: () => setAsOf(null),
+  })
 
   return (
     <div className={styles.page}>

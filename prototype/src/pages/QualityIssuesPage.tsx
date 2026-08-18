@@ -1,5 +1,7 @@
 import { CircleAlert, LoaderCircle, RefreshCw, Search, Send } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
+import { useAction } from '../hooks/useAction'
+import { useApiResource } from '../hooks/useApiResource'
 import { GovernanceTabs } from '../components/ui/GovernanceTabs'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Button, StatusTag } from '../components/ui/Primitives'
@@ -37,39 +39,27 @@ interface Props {
   onNotice: (message: string) => void
 }
 
-type ApiState = 'loading' | 'live' | 'unavailable'
-type ActionState = 'note' | 'recheck' | 'sync' | 'notify' | 'reconcile' | 'confirm-absent' | null
-
 export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props) {
-  const [apiState, setApiState] = useState<ApiState>('loading')
   const [issues, setIssues] = useState<GovernanceApiIssue[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [detail, setDetail] = useState<GovernanceIssueDetailApiResponse | null>(null)
   const [query, setQuery] = useState('')
   const [note, setNote] = useState('')
-  const [actionState, setActionState] = useState<ActionState>(null)
-  const [actionError, setActionError] = useState<string | null>(null)
   const [detailError, setDetailError] = useState<string | null>(null)
+  const { pendingKey: actionState, error: actionError, setError: setActionError, run: runAction } = useAction()
 
-  useEffect(() => {
-    const controller = new AbortController()
-    setApiState('loading')
-    fetchGovernanceIssues({ signal: controller.signal })
-      .then((response) => {
-        setIssues(response.items)
-        setSelectedId((current) => current && response.items.some((issue) => issue.id === current) ? current : response.items[0]?.id ?? null)
-        setApiState('live')
-      })
-      .catch(() => {
-        if (!controller.signal.aborted) {
-          setIssues([])
-          setSelectedId(null)
-          setDetail(null)
-          setApiState('unavailable')
-        }
-      })
-    return () => controller.abort()
-  }, [])
+  const apiState = useApiResource({
+    load: (signal) => fetchGovernanceIssues({ signal }),
+    onData: (response) => {
+      setIssues(response.items)
+      setSelectedId((current) => current && response.items.some((issue) => issue.id === current) ? current : response.items[0]?.id ?? null)
+    },
+    onUnavailable: () => {
+      setIssues([])
+      setSelectedId(null)
+      setDetail(null)
+    },
+  })
 
   useEffect(() => {
     if (apiState !== 'live' || !selectedId) {
@@ -100,11 +90,9 @@ export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props
   const canEdit = selected != null && selected.status !== 'CLOSED' && selected.status !== 'RECHECKING'
   const canRecheck = canEdit && selected?.status !== 'RECHECKING'
 
-  async function startRetest() {
-    if (!selected || actionState) return
-    setActionState('recheck')
-    setActionError(null)
-    try {
+  function startRetest() {
+    if (!selected) return
+    void runAction('recheck', '复检请求失败，请稍后重试', async () => {
       const next = await requestGovernanceIssueRecheck(selected.id, '按原质量规则重新执行复检')
       applyDetail(next)
       const run = next.latestRun
@@ -115,87 +103,56 @@ export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props
       } else {
         onNotice('复检请求已投递，等待质量规则执行器回写结果')
       }
-    } catch (error) {
-      setActionError(error instanceof Error ? error.message : '复检请求失败，请稍后重试')
-    } finally {
-      setActionState(null)
-    }
+    })
   }
 
-  async function saveNote() {
-    if (!selected || actionState || !note.trim()) return
-    setActionState('note')
-    setActionError(null)
+  function saveNote() {
+    if (!selected || !note.trim()) return
     const status = selected.status === 'CLOSED' ? 'CLOSED' : 'IN_PROGRESS'
-    try {
+    void runAction('note', '处理说明保存失败，请稍后重试', async () => {
       const next = await updateGovernanceIssueWorkflow(selected.id, { status, note: note.trim() })
       applyDetail(next)
       onNotice('处理说明已保存，治理问题状态已回写')
-    } catch (error) {
-      setActionError(error instanceof Error ? error.message : '处理说明保存失败，请稍后重试')
-    } finally {
-      setActionState(null)
-    }
+    })
   }
 
-  async function syncRun() {
-    if (!selected || !detail?.latestRun || actionState) return
-    setActionState('sync')
-    setActionError(null)
-    try {
-      const next = await syncGovernanceIssueRun(selected.id, detail.latestRun.id)
+  function syncRun() {
+    if (!selected || !detail?.latestRun) return
+    const latestRunId = detail.latestRun.id
+    void runAction('sync', '质量复检结果同步失败，请稍后重试', async () => {
+      const next = await syncGovernanceIssueRun(selected.id, latestRunId)
       applyDetail(next)
       onNotice(next.latestRun?.status === 'SUCCEEDED' ? (next.latestRun.passed ? '质量复检通过，问题已自动关闭' : '质量复检未通过，问题已退回') : '质量执行批次状态已同步')
-    } catch (error) {
-      setActionError(error instanceof Error ? error.message : '质量复检结果同步失败，请稍后重试')
-    } finally {
-      setActionState(null)
-    }
+    })
   }
 
-  async function reconcileRun() {
-    if (!selected || !detail?.latestRun || actionState) return
-    setActionState('reconcile')
-    setActionError(null)
-    try {
-      const next = await reconcileGovernanceIssueRun(selected.id, detail.latestRun.id)
+  function reconcileRun() {
+    if (!selected || !detail?.latestRun) return
+    const latestRunId = detail.latestRun.id
+    void runAction('reconcile', '质量执行批次重新对账失败，请稍后重试', async () => {
+      const next = await reconcileGovernanceIssueRun(selected.id, latestRunId)
       applyDetail(next)
       onNotice('已重新查询质量执行器，状态已更新')
-    } catch (error) {
-      setActionError(error instanceof Error ? error.message : '质量执行批次重新对账失败，请稍后重试')
-    } finally {
-      setActionState(null)
-    }
+    })
   }
 
-  async function confirmRunAbsent() {
-    if (!selected || !detail?.latestRun || actionState) return
-    setActionState('confirm-absent')
-    setActionError(null)
-    try {
-      const next = await confirmGovernanceIssueRunAbsent(selected.id, detail.latestRun.id)
+  function confirmRunAbsent() {
+    if (!selected || !detail?.latestRun) return
+    const latestRunId = detail.latestRun.id
+    void runAction('confirm-absent', '确认质量执行批次不存在失败，请稍后重试', async () => {
+      const next = await confirmGovernanceIssueRunAbsent(selected.id, latestRunId)
       applyDetail(next)
       onNotice('已确认外部质量执行批次不存在，问题已退回处理队列')
-    } catch (error) {
-      setActionError(error instanceof Error ? error.message : '确认质量执行批次不存在失败，请稍后重试')
-    } finally {
-      setActionState(null)
-    }
+    })
   }
 
-  async function remindOwner() {
-    if (!selected || actionState) return
-    setActionState('notify')
-    setActionError(null)
-    try {
+  function remindOwner() {
+    if (!selected) return
+    void runAction('notify', '责任人提醒请求失败，请稍后重试', async () => {
       const next = await remindGovernanceIssueOwner(selected.id)
       applyDetail(next)
       onNotice('责任人提醒已加入通知队列')
-    } catch (error) {
-      setActionError(error instanceof Error ? error.message : '责任人提醒请求失败，请稍后重试')
-    } finally {
-      setActionState(null)
-    }
+    })
   }
 
   function applyDetail(next: GovernanceIssueDetailApiResponse) {
@@ -228,7 +185,7 @@ export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props
             <div className={styles.detailHero}>
               <StatusTag tone={issueStatusTone(selected.status)}>{issueStatusLabel(selected.status)}</StatusTag>
               <h2>{selected.title}</h2><p>{selected.id} · {selected.objectLabel || selected.datasetId}</p>
-              <div className={styles.detailActions}><Button variant="primary" onClick={() => void startRetest()} disabled={!canRecheck || actionState !== null}>{actionState === 'recheck' ? '提交中…' : selected.status === 'RECHECKING' ? '复检中' : '开始复检'}</Button>{detail.latestRun && !isTerminalRun(detail.latestRun.status) ? <Button onClick={() => void syncRun()} disabled={actionState !== null}><RefreshCw size={14} className={actionState === 'sync' ? styles.spin : undefined} />{actionState === 'sync' ? '同步中…' : '同步复检结果'}</Button> : null}<Button onClick={() => void remindOwner()} disabled={actionState !== null || selected.status === 'CLOSED'}>{actionState === 'notify' ? '提醒中…' : selected.status === 'CLOSED' ? '问题已关闭' : '提醒责任人'}</Button></div>
+              <div className={styles.detailActions}><Button variant="primary" onClick={startRetest} disabled={!canRecheck || actionState !== null}>{actionState === 'recheck' ? '提交中…' : selected.status === 'RECHECKING' ? '复检中' : '开始复检'}</Button>{detail.latestRun && !isTerminalRun(detail.latestRun.status) ? <Button onClick={syncRun} disabled={actionState !== null}><RefreshCw size={14} className={actionState === 'sync' ? styles.spin : undefined} />{actionState === 'sync' ? '同步中…' : '同步复检结果'}</Button> : null}<Button onClick={remindOwner} disabled={actionState !== null || selected.status === 'CLOSED'}>{actionState === 'notify' ? '提醒中…' : selected.status === 'CLOSED' ? '问题已关闭' : '提醒责任人'}</Button></div>
             </div>
             <ol className={styles.timeline}>
               {detail.events.map((event) => <li key={event.id}><time>{formatDateTime(event.createdAt)}</time><div><strong>{eventTitle(event.eventType)}</strong><p>{event.note} · {event.actor}</p></div></li>)}
@@ -248,7 +205,7 @@ export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props
                 <p className={styles.evidenceMessage}>尝试 {detail.latestRun.attemptCount} 次{detail.latestRun.nextPollAt ? <> · 下次重试/轮询：{formatDateTime(detail.latestRun.nextPollAt)}</> : null}</p>
                 {detail.latestRun.resultMessage ? <p className={styles.evidenceMessage}>{detail.latestRun.resultMessage}</p> : null}
                 {detail.latestRun.lastError ? <p className={styles.formError}>最近错误：{detail.latestRun.lastError}</p> : null}
-                {detail.latestRun.reconciliationStatus === 'MANUAL_REQUIRED' ? <div className={styles.connectionNotice} role="status"><CircleAlert size={17} /><div><strong>质量执行批次待人工对账</strong><span>{detail.latestRun.reconciliationMessage ?? '外部执行器未能可靠返回状态，请先重新查询；确认不存在后才允许结束本批次。'}</span></div><div className={styles.timelineActions}><button className={styles.secondaryButton} onClick={() => void reconcileRun()} disabled={actionState !== null}>{actionState === 'reconcile' ? '查询中…' : '重新查询'}</button><button className={styles.textButton} onClick={() => void confirmRunAbsent()} disabled={actionState !== null}>{actionState === 'confirm-absent' ? '确认中…' : '确认不存在'}</button></div></div> : null}
+                {detail.latestRun.reconciliationStatus === 'MANUAL_REQUIRED' ? <div className={styles.connectionNotice} role="status"><CircleAlert size={17} /><div><strong>质量执行批次待人工对账</strong><span>{detail.latestRun.reconciliationMessage ?? '外部执行器未能可靠返回状态，请先重新查询；确认不存在后才允许结束本批次。'}</span></div><div className={styles.timelineActions}><button className={styles.secondaryButton} onClick={reconcileRun} disabled={actionState !== null}>{actionState === 'reconcile' ? '查询中…' : '重新查询'}</button><button className={styles.textButton} onClick={confirmRunAbsent} disabled={actionState !== null}>{actionState === 'confirm-absent' ? '确认中…' : '确认不存在'}</button></div></div> : null}
                 {detail.latestRun.artifactUri ? <p className={styles.evidenceMessage}>制品地址：{isSafeArtifactLink(detail.latestRun.artifactUri) ? <a href={detail.latestRun.artifactUri} target="_blank" rel="noreferrer">打开复检制品</a> : <code className={styles.inlineCode}>{detail.latestRun.artifactUri}</code>}</p> : null}
                 {detail.latestRun.sampleEvidence.length > 0 ? <div className={styles.sampleEvidence}><strong>样本证据（{detail.latestRun.sampleEvidence.length}）</strong>{detail.latestRun.sampleEvidence.map((item, index) => <pre key={`${detail.latestRun?.id}-${index}`}>{JSON.stringify(item, null, 2)}</pre>)}</div> : null}
                 {detail.runs.length > 1 ? <div className={styles.runHistory}><strong>历史执行批次（{detail.runs.length}）</strong>{detail.runs.slice(1).map((run) => <div className={styles.runHistoryItem} key={run.id}><StatusTag tone={runStatusTone(run.status)}>{runStatusLabel(run.status)}</StatusTag><span>{run.executionBatchId}</span><time>{formatDateTime(run.submittedAt)}</time><small>{run.sampleEvidence.length} 条证据</small></div>)}</div> : null}
@@ -260,7 +217,7 @@ export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props
               <label htmlFor="processing-note">处理说明</label>
               <textarea id="processing-note" value={note} onChange={(event) => setNote(event.target.value)} disabled={!canEdit || actionState !== null} />
               {actionError ? <p className={styles.formError} role="alert">{actionError}</p> : null}
-              <div className={styles.noteActions}><Button variant="primary" onClick={() => void saveNote()} disabled={!canEdit || !note.trim() || actionState !== null}><Send size={14} />{actionState === 'note' ? '保存中…' : '提交说明'}</Button></div>
+              <div className={styles.noteActions}><Button variant="primary" onClick={saveNote} disabled={!canEdit || !note.trim() || actionState !== null}><Send size={14} />{actionState === 'note' ? '保存中…' : '提交说明'}</Button></div>
             </div>
           </> : null}
         </aside>
