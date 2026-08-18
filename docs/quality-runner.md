@@ -32,6 +32,21 @@ Content-Type: application/json
 Runtime 使用 Postgres `FOR UPDATE SKIP LOCKED` 抢占队列：全局并发默认 2、单租户默认 1，
 单次 dbt 最长 15 分钟；进程重启后超过心跳阈值的 RUNNING 任务回到 QUEUED。
 
+## 状态与幂等契约
+
+- 状态词汇为 `QUEUED/RUNNING/SUCCEEDED/FAILED/CANCELED`（权威定义见仓库根
+  `CONTEXT.md`「外部运行」）。控制面侧另有别名归一（`RunStatus.normalize`），
+  执行器只回写上列五种。
+- **执行批次号即运行主键，也即幂等键**：`executionBatchId` 同时充当 `runId`、
+  `externalId` 与 `Idempotency-Key`。数据库唯一键 `(tenant_id, idempotency_key)`
+  保证重投不重复执行；控制面重试同一批次得到同一 runId。
+- 请求中的 `title`、`datasetId` 为控制面历史字段：执行器忽略（规则目录
+  `rules.yml` 才是数据集映射的权威），模型不再声明。
+- **两侧租约需协同调参**：执行器的 `QUALITY_RUNNER_STALE_RUN_SECONDS`（心跳
+  失效后将 RUNNING 重排）必须大于单次执行的最长合理时长；控制面的
+  `data-os.quality.submit-lease-ms`（提交租约）与轮询退避决定重投节奏。把一侧
+  调小而不看另一侧，会打开重复执行窗口或让控制面提前放弃仍在执行的批次。
+
 ## 质量问题来源与治理闭环
 
 生产不依赖 `DemoDataInitializer` 产生治理问题。经过审批的 DolphinScheduler/dbt 或院方质量

@@ -15,6 +15,19 @@ import {
   type GovernanceApiIssue,
   type GovernanceIssueDetailApiResponse,
 } from '../data/controlPlane'
+import {
+  eventTitle,
+  formatDateTime,
+  isTerminalRun,
+  issueStatusLabel,
+  issueStatusTone,
+  notificationStatusLabel,
+  notificationStatusTone,
+  runStatusLabel,
+  runStatusTone,
+  severityLabel,
+  severityTone,
+} from '../data/domain'
 import type { RouteKey } from '../types'
 import styles from './Pages.module.css'
 
@@ -205,7 +218,7 @@ export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props
           <div className={styles.sectionTitle}><h2>问题队列</h2><span>{issues.filter((issue) => issue.status !== 'CLOSED').length} 待闭环</span></div>
           <div className={styles.search}><Search size={15} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索问题或责任部门" aria-label="搜索质量问题" /></div>
           <ul className={styles.queue}>
-            {visibleIssues.map((issue) => <li key={issue.id}><button className={selected?.id === issue.id ? styles.selected : ''} onClick={() => { setSelectedId(issue.id); setActionError(null) }}><span className={styles.queueTop}><span className={styles.queueId}>{issue.id}</span><StatusTag tone={severityTone(issue.severity)}>{severityLabel(issue.severity)}风险</StatusTag></span><span className={styles.queueTitle}>{issue.title}</span><span className={styles.queueMeta}>{issue.ownerDepartment} · {issue.ownerName} · {issueStatus(issue.status)}</span></button></li>)}
+            {visibleIssues.map((issue) => <li key={issue.id}><button className={selected?.id === issue.id ? styles.selected : ''} onClick={() => { setSelectedId(issue.id); setActionError(null) }}><span className={styles.queueTop}><span className={styles.queueId}>{issue.id}</span><StatusTag tone={severityTone(issue.severity)}>{severityLabel(issue.severity)}风险</StatusTag></span><span className={styles.queueTitle}>{issue.title}</span><span className={styles.queueMeta}>{issue.ownerDepartment} · {issue.ownerName} · {issueStatusLabel(issue.status)}</span></button></li>)}
             {apiState === 'loading' ? <li className={styles.emptyState}><LoaderCircle size={18} className={styles.spin} />正在加载治理问题…</li> : null}
             {apiState === 'live' && visibleIssues.length === 0 ? <li className={styles.emptyState}>当前范围暂无匹配的治理问题</li> : null}
           </ul>
@@ -213,7 +226,7 @@ export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props
         <section className={styles.workspaceMain}>
           {selected && detail ? <>
             <div className={styles.detailHero}>
-              <StatusTag tone={statusTone(selected.status)}>{issueStatus(selected.status)}</StatusTag>
+              <StatusTag tone={issueStatusTone(selected.status)}>{issueStatusLabel(selected.status)}</StatusTag>
               <h2>{selected.title}</h2><p>{selected.id} · {selected.objectLabel || selected.datasetId}</p>
               <div className={styles.detailActions}><Button variant="primary" onClick={() => void startRetest()} disabled={!canRecheck || actionState !== null}>{actionState === 'recheck' ? '提交中…' : selected.status === 'RECHECKING' ? '复检中' : '开始复检'}</Button>{detail.latestRun && !isTerminalRun(detail.latestRun.status) ? <Button onClick={() => void syncRun()} disabled={actionState !== null}><RefreshCw size={14} className={actionState === 'sync' ? styles.spin : undefined} />{actionState === 'sync' ? '同步中…' : '同步复检结果'}</Button> : null}<Button onClick={() => void remindOwner()} disabled={actionState !== null || selected.status === 'CLOSED'}>{actionState === 'notify' ? '提醒中…' : selected.status === 'CLOSED' ? '问题已关闭' : '提醒责任人'}</Button></div>
             </div>
@@ -231,17 +244,17 @@ export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props
             <div className={styles.evidenceBox}>
               <h3>复检执行批次</h3>
               {detail.latestRun ? <>
-                <p><StatusTag tone={runTone(detail.latestRun.status)}>{runStatus(detail.latestRun.status)}</StatusTag><br />执行器：{detail.latestRun.executor}<br />批次：<code className={styles.inlineCode}>{detail.latestRun.executionBatchId}</code><br />提交：{formatDateTime(detail.latestRun.submittedAt)}{detail.latestRun.finishedAt ? <><br />完成：{formatDateTime(detail.latestRun.finishedAt)}</> : null}</p>
+                <p><StatusTag tone={runStatusTone(detail.latestRun.status)}>{runStatusLabel(detail.latestRun.status)}</StatusTag><br />执行器：{detail.latestRun.executor}<br />批次：<code className={styles.inlineCode}>{detail.latestRun.executionBatchId}</code><br />提交：{formatDateTime(detail.latestRun.submittedAt)}{detail.latestRun.finishedAt ? <><br />完成：{formatDateTime(detail.latestRun.finishedAt)}</> : null}</p>
                 <p className={styles.evidenceMessage}>尝试 {detail.latestRun.attemptCount} 次{detail.latestRun.nextPollAt ? <> · 下次重试/轮询：{formatDateTime(detail.latestRun.nextPollAt)}</> : null}</p>
                 {detail.latestRun.resultMessage ? <p className={styles.evidenceMessage}>{detail.latestRun.resultMessage}</p> : null}
                 {detail.latestRun.lastError ? <p className={styles.formError}>最近错误：{detail.latestRun.lastError}</p> : null}
                 {detail.latestRun.reconciliationStatus === 'MANUAL_REQUIRED' ? <div className={styles.connectionNotice} role="status"><CircleAlert size={17} /><div><strong>质量执行批次待人工对账</strong><span>{detail.latestRun.reconciliationMessage ?? '外部执行器未能可靠返回状态，请先重新查询；确认不存在后才允许结束本批次。'}</span></div><div className={styles.timelineActions}><button className={styles.secondaryButton} onClick={() => void reconcileRun()} disabled={actionState !== null}>{actionState === 'reconcile' ? '查询中…' : '重新查询'}</button><button className={styles.textButton} onClick={() => void confirmRunAbsent()} disabled={actionState !== null}>{actionState === 'confirm-absent' ? '确认中…' : '确认不存在'}</button></div></div> : null}
                 {detail.latestRun.artifactUri ? <p className={styles.evidenceMessage}>制品地址：{isSafeArtifactLink(detail.latestRun.artifactUri) ? <a href={detail.latestRun.artifactUri} target="_blank" rel="noreferrer">打开复检制品</a> : <code className={styles.inlineCode}>{detail.latestRun.artifactUri}</code>}</p> : null}
                 {detail.latestRun.sampleEvidence.length > 0 ? <div className={styles.sampleEvidence}><strong>样本证据（{detail.latestRun.sampleEvidence.length}）</strong>{detail.latestRun.sampleEvidence.map((item, index) => <pre key={`${detail.latestRun?.id}-${index}`}>{JSON.stringify(item, null, 2)}</pre>)}</div> : null}
-                {detail.runs.length > 1 ? <div className={styles.runHistory}><strong>历史执行批次（{detail.runs.length}）</strong>{detail.runs.slice(1).map((run) => <div className={styles.runHistoryItem} key={run.id}><StatusTag tone={runTone(run.status)}>{runStatus(run.status)}</StatusTag><span>{run.executionBatchId}</span><time>{formatDateTime(run.submittedAt)}</time><small>{run.sampleEvidence.length} 条证据</small></div>)}</div> : null}
+                {detail.runs.length > 1 ? <div className={styles.runHistory}><strong>历史执行批次（{detail.runs.length}）</strong>{detail.runs.slice(1).map((run) => <div className={styles.runHistoryItem} key={run.id}><StatusTag tone={runStatusTone(run.status)}>{runStatusLabel(run.status)}</StatusTag><span>{run.executionBatchId}</span><time>{formatDateTime(run.submittedAt)}</time><small>{run.sampleEvidence.length} 条证据</small></div>)}</div> : null}
               </> : <p>尚未提交质量规则复检。</p>}
             </div>
-            <div className={styles.evidenceBox}><h3>责任人通知</h3>{detail.notifications.length > 0 ? detail.notifications.slice(0, 3).map((notification) => <p key={notification.id}><StatusTag tone={notificationTone(notification.status)}>{notificationStatus(notification.status)}</StatusTag> {notification.channel} · {notification.recipient}<br />{notification.subject}{notification.lastError ? <><br /><span className={styles.evidenceMessage}>{notification.lastError}</span></> : null}</p>) : <p>当前没有通知记录。</p>}</div>
+            <div className={styles.evidenceBox}><h3>责任人通知</h3>{detail.notifications.length > 0 ? detail.notifications.slice(0, 3).map((notification) => <p key={notification.id}><StatusTag tone={notificationStatusTone(notification.status)}>{notificationStatusLabel(notification.status)}</StatusTag> {notification.channel} · {notification.recipient}<br />{notification.subject}{notification.lastError ? <><br /><span className={styles.evidenceMessage}>{notification.lastError}</span></> : null}</p>) : <p>当前没有通知记录。</p>}</div>
             <div className={styles.evidenceBox}><h3>责任归属</h3><p>{selected.ownerDepartment} · {selected.ownerName}<br />来源：资产责任人与组织主数据</p></div>
             <div className={styles.noteBox}>
               <label htmlFor="processing-note">处理说明</label>
@@ -256,63 +269,6 @@ export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props
   )
 }
 
-function severityLabel(value: string) {
-  return ({ HIGH: '高', MEDIUM: '中', LOW: '低' } as Record<string, string>)[value] ?? value
-}
-
-function severityTone(value: string): 'danger' | 'warning' | 'neutral' {
-  if (value === 'HIGH') return 'danger'
-  if (value === 'MEDIUM') return 'warning'
-  return 'neutral'
-}
-
-function statusTone(value: string): 'danger' | 'warning' | 'healthy' | 'neutral' {
-  if (value === 'OVERDUE' || value === 'RETURNED') return 'danger'
-  if (value === 'RECHECKING' || value === 'IN_PROGRESS' || value === 'PENDING_RECHECK') return 'warning'
-  if (value === 'CLOSED') return 'healthy'
-  return 'neutral'
-}
-
-function issueStatus(value: string) {
-  return ({ OVERDUE: '逾期', IN_PROGRESS: '处理中', PENDING: '待处理', PENDING_RECHECK: '待复检', RECHECKING: '复检中', RETURNED: '已退回', CLOSED: '已关闭' } as Record<string, string>)[value] ?? value
-}
-
-function eventTitle(value: string) {
-  return ({ WORKFLOW_UPDATED: '责任人提交处理说明', RECHECK_REQUESTED: '已发起质量规则复检', AUTO_CLOSED: '复检通过，问题已自动关闭', AUTO_RETURNED: '复检未通过，问题已退回', RECHECK_FAILED: '复检执行失败', RECHECK_SUBMIT_FAILED: '复检投递失败', SLA_OVERDUE: 'SLA 已逾期', RESPONSIBLE_REMINDER_REQUESTED: '已提醒责任人' } as Record<string, string>)[value] ?? '治理问题状态更新'
-}
-
-function isTerminalRun(value: string) {
-  return ['SUCCEEDED', 'FAILED', 'CANCELED', 'SUBMIT_FAILED'].includes(value)
-}
-
-function runStatus(value: string) {
-  return ({ SUBMITTING: '提交中', SUBMITTED: '已投递', RUNNING: '执行中', SUCCEEDED: '已完成', FAILED: '失败', CANCELED: '已取消', SUBMIT_FAILED: '投递失败', UNKNOWN: '待确认' } as Record<string, string>)[value] ?? value
-}
-
-function runTone(value: string): 'danger' | 'warning' | 'healthy' | 'neutral' {
-  if (value === 'FAILED' || value === 'CANCELED' || value === 'SUBMIT_FAILED') return 'danger'
-  if (value === 'SUBMITTING' || value === 'SUBMITTED' || value === 'RUNNING' || value === 'UNKNOWN') return 'warning'
-  if (value === 'SUCCEEDED') return 'healthy'
-  return 'neutral'
-}
-
-function notificationStatus(value: string) {
-  return ({ PENDING: '待投递', SENT: '已送达', SKIPPED: '已跳过', FAILED: '待重试' } as Record<string, string>)[value] ?? value
-}
-
-function notificationTone(value: string): 'danger' | 'warning' | 'healthy' | 'neutral' {
-  if (value === 'FAILED') return 'danger'
-  if (value === 'PENDING') return 'warning'
-  if (value === 'SENT') return 'healthy'
-  return 'neutral'
-}
-
-function formatDateTime(value: string | null | undefined) {
-  if (!value) return '—'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return new Intl.DateTimeFormat('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).format(date).replace('/', '-').replace('/', ' ')
-}
 
 function isSafeArtifactLink(value: string) {
   try {

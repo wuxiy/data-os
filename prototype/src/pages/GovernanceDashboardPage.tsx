@@ -6,6 +6,7 @@ import { GovernanceTabs } from '../components/ui/GovernanceTabs'
 import { PageHeader } from '../components/ui/PageHeader'
 import { MetricStrip, StatusTag } from '../components/ui/Primitives'
 import { fetchGovernanceSummary, type GovernanceApiIssue } from '../data/controlPlane'
+import { formatDateTime, issueStatusLabel, issueStatusTone } from '../data/domain'
 import { frontendDemoMode, showStaticSamples } from '../data/runtimeMode'
 import type { Metric } from '../types'
 import type { RouteKey } from '../types'
@@ -37,7 +38,7 @@ export function GovernanceDashboardPage({ onOpenChain, onNavigate, onUnavailable
           tone: metric.tone,
         })))
         setIssues(summary.issues)
-        setAsOf(formatSnapshotAt(summary.asOf))
+        setAsOf(formatDateTime(summary.asOf))
         setApiState('live')
       })
       .catch(() => {
@@ -84,8 +85,8 @@ export function GovernanceDashboardPage({ onOpenChain, onNavigate, onUnavailable
                     <td>{issue.title}</td>
                     <td>{issue.impact}</td>
                     <td>{issue.ownerDepartment}</td>
-                    <td>{formatDueAt(issue.dueAt)}</td>
-                    <td><StatusTag tone={issueTone(issue.status)}>{issueStatus(issue.status)}</StatusTag></td>
+                    <td>{formatDateTime(issue.dueAt)}</td>
+                    <td><StatusTag tone={issueStatusTone(issue.status)}>{issueStatusLabel(issue.status)}</StatusTag></td>
                   </tr>
                 ))}
                 {apiState === 'live' && issues.length === 0 ? <tr><td colSpan={5} className={styles.emptyRow}>当前机构暂无待办问题</td></tr> : null}
@@ -102,18 +103,6 @@ function formatMetricValue(value: number) {
   return Number.isInteger(value) ? String(value) : value.toFixed(1)
 }
 
-function formatSnapshotAt(value: string) {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return new Intl.DateTimeFormat('zh-CN', {
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  }).format(date).replace('/', '-').replace('/', ' ')
-}
-
 function riskRankingFromIssues(issues: GovernanceApiIssue[]) {
   return issues.slice(0, 4).map((issue) => ({
     system: issue.datasetId,
@@ -122,20 +111,3 @@ function riskRankingFromIssues(issues: GovernanceApiIssue[]) {
   }))
 }
 
-function formatDueAt(value: string | null) {
-  if (!value) return '—'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return new Intl.DateTimeFormat('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).format(date).replace('/', '-').replace('/', ' ')
-}
-
-function issueTone(status: string): 'danger' | 'warning' | 'healthy' | 'neutral' {
-  if (status === 'OVERDUE') return 'danger'
-  if (status === 'IN_PROGRESS' || status === 'PENDING') return 'warning'
-  if (status === 'CLOSED') return 'healthy'
-  return 'neutral'
-}
-
-function issueStatus(status: string) {
-  return { OVERDUE: '逾期', IN_PROGRESS: '进行中', PENDING: '待处理', CLOSED: '已关闭' }[status] ?? status
-}

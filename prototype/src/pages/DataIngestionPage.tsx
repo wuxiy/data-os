@@ -44,6 +44,7 @@ import {
   type SourceApiItem,
   type WorkflowTemplateApiItem,
 } from '../data/controlPlane'
+import { ACTIVE_RUN_STATUSES, formatDateTime, retryableRunStatus, runStatusView } from '../data/domain'
 import { allowsTemplate, defaultTemplateKey, offersDemoTemplate } from '../data/runtimeMode'
 import type { RouteKey } from '../types'
 import styles from './Pages.module.css'
@@ -284,7 +285,7 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
       const run = await startIngestionRun(job.id, { idempotencyKey: createRequestKey() })
       setLatestRuns((current) => ({ ...current, [job.id]: run }))
       setDetailsRuns((current) => detailsJob?.id === job.id ? [run, ...current.filter((item) => item.id !== run.id)] : current)
-      onNotice(run.status === 'BLOCKED_DEPENDENCY' ? '运行记录已保存，等待中心采集执行器上线' : `运行已提交：${statusLabel(run.status).label}`)
+      onNotice(run.status === 'BLOCKED_DEPENDENCY' ? '运行记录已保存，等待中心采集执行器上线' : `运行已提交：${runStatusView(run.status).label}`)
     } catch {
       onNotice('运行请求失败，请查看控制面运行日志')
     } finally {
@@ -314,7 +315,7 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
       const refreshed = await syncIngestionRun(job.id, run.id)
       setLatestRuns((current) => ({ ...current, [job.id]: refreshed }))
       setDetailsRuns((current) => current.map((item) => item.id === refreshed.id ? refreshed : item))
-      onNotice(`运行状态已更新：${statusLabel(refreshed.status).label}`)
+      onNotice(`运行状态已更新：${runStatusView(refreshed.status).label}`)
     } catch {
       onNotice('运行状态同步失败，请稍后重试')
     } finally {
@@ -331,7 +332,7 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
       setDetailsRuns((current) => detailsJob?.id === job.id
         ? [retried, ...current.filter((item) => item.id !== retried.id)]
         : current)
-      onNotice(`已创建重试运行：${statusLabel(retried.status).label}`)
+      onNotice(`已创建重试运行：${runStatusView(retried.status).label}`)
     } catch (error) {
       onNotice(error instanceof Error ? error.message : '运行重试失败，请先确认任务未暂停且没有活动运行')
     } finally {
@@ -558,7 +559,7 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
           <section className={styles.panel}>
             <div className={styles.panelHeader}><div><h2>已登记数据源</h2><p>前置机、院内系统与区域交换入口</p></div><button className={styles.textButton} onClick={() => window.location.reload()}><RefreshCw size={13} />刷新</button></div>
             <ul className={styles.ranking}>
-              {visibleSources.map((source) => { const health = sourceStatusLabel(source.status); return <li key={source.id}><span className={styles.rank}><Server size={16} /></span><div className={styles.rankBody}><strong>{source.name}</strong><span>{source.systemType} · {source.protocol} · {source.institutionId}</span>{source.lastCheckMessage ? <small className={styles.statusDetail}>{source.lastCheckMessage} · {formatTime(source.lastCheckedAt)}</small> : null}</div><div className={styles.sourceRowActions}><StatusTag tone={health.tone}>{health.label}</StatusTag>{state === 'live' ? <button className={styles.tableButton} onClick={() => openSourceCheck(source)}><CheckCircle2 size={13} />检查</button> : null}</div></li> })}
+              {visibleSources.map((source) => { const health = sourceStatusLabel(source.status); return <li key={source.id}><span className={styles.rank}><Server size={16} /></span><div className={styles.rankBody}><strong>{source.name}</strong><span>{source.systemType} · {source.protocol} · {source.institutionId}</span>{source.lastCheckMessage ? <small className={styles.statusDetail}>{source.lastCheckMessage} · {formatDateTime(source.lastCheckedAt)}</small> : null}</div><div className={styles.sourceRowActions}><StatusTag tone={health.tone}>{health.label}</StatusTag>{state === 'live' ? <button className={styles.tableButton} onClick={() => openSourceCheck(source)}><CheckCircle2 size={13} />检查</button> : null}</div></li> })}
               {visibleSources.length === 0 ? <li className={styles.emptyState}>暂无已登记数据源</li> : null}
             </ul>
           </section>
@@ -571,7 +572,7 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
               <Summary label="已配置任务" value={String(visibleJobs.filter((job) => job.configured).length)} icon={<FileCog size={15} />} />
               <Summary label="待执行" value={String(visibleJobs.filter((job) => {
                 const runStatus = latestRuns[job.id]?.status ?? job.latestRunStatus
-                return runStatus ? !['SUBMITTING', 'SUBMITTED', 'RUNNING', 'UNKNOWN'].includes(runStatus) : job.status !== 'RUNNING'
+                return runStatus ? !ACTIVE_RUN_STATUSES.includes(runStatus) : job.status !== 'RUNNING'
               }).length)} icon={<CircleAlert size={15} />} />
             </div>
             <button className={styles.textButton} onClick={() => onNavigate('governance')}>查看治理结果 <ArrowUpRight size={13} /></button>
@@ -596,8 +597,8 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
           <div className={styles.tableScroll}><table className={styles.table}><thead><tr><th>任务</th><th>来源</th><th>模式</th><th>执行通道</th><th>最近运行</th><th>操作</th></tr></thead><tbody>{visibleJobs.map((job) => {
             const run = latestRuns[job.id]
             const latestStatus = run?.status ?? job.latestRunStatus
-            const status = latestStatus ? statusLabel(latestStatus) : jobLifecycleStatusLabel(job.status)
-            const activeRun = Boolean(latestStatus && ['SUBMITTING', 'SUBMITTED', 'RUNNING', 'UNKNOWN'].includes(latestStatus))
+            const status = latestStatus ? runStatusView(latestStatus) : jobLifecycleStatusLabel(job.status)
+            const activeRun = Boolean(latestStatus && ACTIVE_RUN_STATUSES.includes(latestStatus))
             const canSync = Boolean(run && activeRun)
             const canRetry = Boolean(run && retryableRunStatus(run.status))
             const lifecycle = jobLifecycleStatusLabel(job.status)
@@ -615,7 +616,7 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
             <div className={styles.drawerNotice}><CheckCircle2 size={16} /><span>检查只在当前请求中使用连接参数，不会把密码或 Token 写入来源记录。结果会回写为健康、失败或待配置，并显示最近检查时间。</span></div>
             <div className={styles.formField}><label htmlFor="source-check-editor">检查配置 JSON</label><textarea id="source-check-editor" className={`${styles.codeInput} ${styles.codeInputLarge}`} value={sourceCheckText} onChange={(event) => setSourceCheckText(event.target.value)} spellCheck={false} disabled={sourceCheckLoading} /></div>
             {sourceCheckError ? <p className={styles.formError} role="alert">{sourceCheckError}</p> : null}
-            {checkingSource.lastCheckMessage ? <div className={styles.checkResult}><StatusTag tone={sourceStatusLabel(checkingSource.status).tone}>{sourceStatusLabel(checkingSource.status).label}</StatusTag><p>{checkingSource.lastCheckMessage}</p><small>最近检查：{formatTime(checkingSource.lastCheckedAt)}</small></div> : null}
+            {checkingSource.lastCheckMessage ? <div className={styles.checkResult}><StatusTag tone={sourceStatusLabel(checkingSource.status).tone}>{sourceStatusLabel(checkingSource.status).label}</StatusTag><p>{checkingSource.lastCheckMessage}</p><small>最近检查：{formatDateTime(checkingSource.lastCheckedAt)}</small></div> : null}
           </div>
           <div className={styles.drawerFooter}><button className={styles.secondaryButton} onClick={() => setCheckingSource(null)}>关闭</button><button className={styles.primaryButton} disabled={sourceCheckLoading} onClick={() => void submitSourceCheck()}><CheckCircle2 size={14} />{sourceCheckLoading ? '检查中…' : '开始检查'}</button></div>
         </aside>
@@ -645,9 +646,9 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
             {detailsLoading && detailsRuns.length === 0 ? <p className={styles.drawerHint}>正在读取运行记录…</p> : null}
             {detailsError ? <p className={styles.formError} role="alert">{detailsError}</p> : null}
             {detailsRuns.length === 0 && !detailsLoading ? <div className={styles.emptyState}><Clock3 size={18} /><p>还没有运行记录</p><span>保存任务配置后，可从任务列表启动一次采集。</span></div> : null}
-            <ol className={styles.runTimeline}>{detailsRuns.slice(0, 10).map((run) => { const status = statusLabel(run.status); const active = ['SUBMITTING', 'SUBMITTED', 'RUNNING', 'UNKNOWN'].includes(run.status); const retryable = retryableRunStatus(run.status); return <li key={run.id}><div className={styles.timelineDot} data-tone={status.tone} /><div className={styles.timelineBody}><div className={styles.timelineTitle}><strong>{status.label}</strong><time>{formatTime(run.submittedAt)}</time></div><p>{businessMessage(run.message)}</p>{run.reconciliationStatus === 'MANUAL_REQUIRED' ? <div className={styles.connectionNotice} role="status"><strong>待人工对账：</strong>{run.reconciliationMessage ?? '请先确认外部运行不存在后再重试。'}<div className={styles.timelineActions}><button className={styles.textButton} disabled={runningJob === detailsJob.id} onClick={() => void syncRun(detailsJob, run)}>重新查询</button><button className={styles.textButton} disabled={runningJob === detailsJob.id} onClick={() => void confirmRunAbsent(detailsJob, run)}>确认不存在</button></div></div> : null}<dl><div><dt>运行编号</dt><dd>{run.id.slice(0, 8)}</dd></div>{run.externalId ? <div><dt>外部编号</dt><dd>{run.externalId}</dd></div> : null}{run.finishedAt ? <div><dt>完成时间</dt><dd>{formatTime(run.finishedAt)}</dd></div> : null}</dl><div className={styles.timelineActions}>{active && run.reconciliationStatus !== 'MANUAL_REQUIRED' ? <button className={styles.textButton} disabled={runningJob === detailsJob.id} onClick={() => void syncRun(detailsJob, run)}><RefreshCw size={12} />同步状态</button> : null}{retryable ? <button className={styles.textButton} disabled={runningJob === detailsJob.id || detailsJob.status === 'PAUSED' || detailsJob.status === 'ARCHIVED'} onClick={() => void retryRun(detailsJob, run)}><RotateCcw size={12} />重试</button> : null}</div></div></li> })}</ol>
+            <ol className={styles.runTimeline}>{detailsRuns.slice(0, 10).map((run) => { const status = runStatusView(run.status); const active = ACTIVE_RUN_STATUSES.includes(run.status); const retryable = retryableRunStatus(run.status); return <li key={run.id}><div className={styles.timelineDot} data-tone={status.tone} /><div className={styles.timelineBody}><div className={styles.timelineTitle}><strong>{status.label}</strong><time>{formatDateTime(run.submittedAt)}</time></div><p>{businessMessage(run.message)}</p>{run.reconciliationStatus === 'MANUAL_REQUIRED' ? <div className={styles.connectionNotice} role="status"><strong>待人工对账：</strong>{run.reconciliationMessage ?? '请先确认外部运行不存在后再重试。'}<div className={styles.timelineActions}><button className={styles.textButton} disabled={runningJob === detailsJob.id} onClick={() => void syncRun(detailsJob, run)}>重新查询</button><button className={styles.textButton} disabled={runningJob === detailsJob.id} onClick={() => void confirmRunAbsent(detailsJob, run)}>确认不存在</button></div></div> : null}<dl><div><dt>运行编号</dt><dd>{run.id.slice(0, 8)}</dd></div>{run.externalId ? <div><dt>外部编号</dt><dd>{run.externalId}</dd></div> : null}{run.finishedAt ? <div><dt>完成时间</dt><dd>{formatDateTime(run.finishedAt)}</dd></div> : null}</dl><div className={styles.timelineActions}>{active && run.reconciliationStatus !== 'MANUAL_REQUIRED' ? <button className={styles.textButton} disabled={runningJob === detailsJob.id} onClick={() => void syncRun(detailsJob, run)}><RefreshCw size={12} />同步状态</button> : null}{retryable ? <button className={styles.textButton} disabled={runningJob === detailsJob.id || detailsJob.status === 'PAUSED' || detailsJob.status === 'ARCHIVED'} onClick={() => void retryRun(detailsJob, run)}><RotateCcw size={12} />重试</button> : null}</div></div></li> })}</ol>
           </div>
-          <div className={styles.drawerFooter}><button className={styles.secondaryButton} onClick={() => setDetailsJob(null)}>关闭</button><button className={styles.primaryButton} disabled={runningJob === detailsJob.id || detailsJob.status === 'PAUSED' || detailsJob.status === 'ARCHIVED' || detailsRuns.some((run) => ['SUBMITTING', 'SUBMITTED', 'RUNNING', 'UNKNOWN'].includes(run.status))} onClick={() => detailsJob.configured ? void runJob(detailsJob) : void openJobConfig(detailsJob)}><Play size={14} />{detailsJob.status === 'PAUSED' ? '已暂停' : detailsJob.status === 'ARCHIVED' ? '已归档' : detailsJob.configured ? '再次启动' : '配置任务'}</button></div>
+          <div className={styles.drawerFooter}><button className={styles.secondaryButton} onClick={() => setDetailsJob(null)}>关闭</button><button className={styles.primaryButton} disabled={runningJob === detailsJob.id || detailsJob.status === 'PAUSED' || detailsJob.status === 'ARCHIVED' || detailsRuns.some((run) => ACTIVE_RUN_STATUSES.includes(run.status))} onClick={() => detailsJob.configured ? void runJob(detailsJob) : void openJobConfig(detailsJob)}><Play size={14} />{detailsJob.status === 'PAUSED' ? '已暂停' : detailsJob.status === 'ARCHIVED' ? '已归档' : detailsJob.configured ? '再次启动' : '配置任务'}</button></div>
         </aside>
       </> : null}
     </div>
@@ -699,27 +700,6 @@ function lifecycleClass(tone: 'healthy' | 'warning' | 'danger' | 'neutral') {
   }
 }
 
-function retryableRunStatus(status: string) {
-  return ['FAILED', 'CANCELED', 'BLOCKED_CONFIGURATION', 'BLOCKED_DEPENDENCY', 'SUBMIT_FAILED', 'UNSUPPORTED_EXECUTOR'].includes(status)
-}
-
-function statusLabel(status: string): { label: string; tone: 'healthy' | 'warning' | 'danger' | 'neutral' } {
-  switch (status) {
-    case 'SUCCEEDED': return { label: '已完成', tone: 'healthy' }
-    case 'RUNNING': return { label: '运行中', tone: 'healthy' }
-    case 'SUBMITTING': return { label: '提交中', tone: 'warning' }
-    case 'SUBMITTED': return { label: '已提交', tone: 'warning' }
-    case 'FAILED':
-    case 'SUBMIT_FAILED': return { label: '失败', tone: 'danger' }
-    case 'CANCELED': return { label: '已取消', tone: 'neutral' }
-    case 'BLOCKED_CONFIGURATION':
-    case 'BLOCKED_DEPENDENCY':
-    case 'UNSUPPORTED_EXECUTOR': return { label: '待处理', tone: 'warning' }
-    case 'UNKNOWN': return { label: '状态待确认', tone: 'warning' }
-    default: return { label: '待处理', tone: 'neutral' }
-  }
-}
-
 function businessMessage(message: string) {
   return message.replace(/SeaTunnel/gi, '中心采集')
 }
@@ -740,9 +720,3 @@ function createRequestKey() {
   return `portal-${Date.now()}-${Math.random().toString(36).slice(2)}`
 }
 
-function formatTime(value: string | null) {
-  if (!value) return '—'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return new Intl.DateTimeFormat('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).format(date)
-}

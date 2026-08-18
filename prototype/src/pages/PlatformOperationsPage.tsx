@@ -12,6 +12,7 @@ import {
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ControlPlaneError, fetchPlatformOperations, type PlatformOperationsApiResponse, type PlatformServiceApiItem } from '../data/controlPlane'
 import { Button, StatusTag } from '../components/ui/Primitives'
+import { formatDateTime } from '../data/domain'
 import styles from './PlatformOperationsPage.module.css'
 
 const iconByService = {
@@ -176,7 +177,5 @@ const placeholderServices: PlatformServiceApiItem[] = [
 
 function formatTime(value: string): string {
   if (!value || value === new Date(0).toISOString()) return '—'
-  const date = new Date(value)
-  if (Number.isNaN(date.valueOf())) return '—'
-  return new Intl.DateTimeFormat('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).format(date)
+  return formatDateTime(value)
 }
