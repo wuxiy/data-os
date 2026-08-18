@@ -5,11 +5,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-/** Thin scheduling trigger; run state transitions belong to RunLifecycleService. */
+/** Thin scheduling trigger; run state transitions belong to IngestionRunService. */
 @Service
 public class RunLifecycleScheduler {
 
-    private final RunLifecycleService lifecycle;
+    private final IngestionRunService lifecycle;
 
     @Value("${data-os.runs.sync-interval-ms:30000}")
     private long syncIntervalMs;
@@ -20,7 +20,7 @@ public class RunLifecycleScheduler {
     @Value("${data-os.runs.submit-lease-ms:120000}")
     private long submitLeaseMs;
 
-    public RunLifecycleScheduler(RunLifecycleService lifecycle) {
+    public RunLifecycleScheduler(IngestionRunService lifecycle) {
         this.lifecycle = lifecycle;
     }
 
@@ -41,6 +41,6 @@ public class RunLifecycleScheduler {
             fixedDelayString = "${data-os.runs.sync-interval-ms:30000}",
             initialDelayString = "${data-os.runs.sync-initial-delay-ms:10000}")
     public void scheduledSync() {
-        lifecycle.syncPendingRuns(submitLeaseMs);
+        lifecycle.syncPending();
     }
 }

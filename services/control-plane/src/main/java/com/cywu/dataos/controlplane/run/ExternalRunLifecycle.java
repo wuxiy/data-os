@@ -111,10 +111,10 @@ public final class ExternalRunLifecycle<R extends ExternalRun, C, S> {
         }
     }
 
-    /** 同步单个运行并返回回写后的最新值。 */
-    public R syncOne(R run) {
+    /** 同步单个运行；回写结果由调用方按需重读。 */
+    public void syncOne(R run) {
         if (!eligibleForPoll(run) || !inFlight.add(run.id())) {
-            return run;
+            return;
         }
         try {
             if (RunStatus.SUBMITTING.name().equals(run.status())) {
@@ -127,7 +127,6 @@ public final class ExternalRunLifecycle<R extends ExternalRun, C, S> {
         } finally {
             inFlight.remove(run.id());
         }
-        return store.reload(run).orElse(run);
     }
 
     private boolean eligibleForPoll(R run) {
@@ -259,7 +258,7 @@ public final class ExternalRunLifecycle<R extends ExternalRun, C, S> {
         transactions.executeWithoutResult(transaction -> {
             var hit = store.applyStatus(run, status, message, null, null, null, null);
             if (hit && policy.pollTerminalEffects()) {
-                effects.onTerminal(run, status, null);
+                effects.onTerminal(run, status, null, null, null);
             }
         });
     }
@@ -270,7 +269,7 @@ public final class ExternalRunLifecycle<R extends ExternalRun, C, S> {
         transactions.executeWithoutResult(transaction -> {
             var hit = store.applyStatus(run, status, message, startedAt, finishedAt, payload, null);
             if (hit) {
-                effects.onTerminal(run, status, payload);
+                effects.onTerminal(run, status, payload, startedAt, finishedAt);
             }
         });
     }

@@ -216,7 +216,7 @@ class ExternalRunLifecycleTest {
         final List<String> calls = new ArrayList<>();
 
         @Override
-        public void onTerminal(TestRun run, String status, String payload) {
+        public void onTerminal(TestRun run, String status, String payload, Instant startedAt, Instant finishedAt) {
             calls.add("terminal:" + status + ":" + payload);
         }
 
@@ -376,9 +376,9 @@ class ExternalRunLifecycleTest {
         var lifecycle = lifecycle(store, session, new RecordingEffects(),
                 new RecordingTransactionManager(), ingestionPolicy());
 
-        var result = lifecycle.syncOne(store.runs.get("run-1"));
+        lifecycle.syncOne(store.runs.get("run-1"));
 
-        assertThat(result.status()).isEqualTo("RUNNING");
+        assertThat(store.runs.get("run-1").status()).isEqualTo("RUNNING");
         assertThat(store.calls).contains("apply:RUNNING");
     }
 
@@ -442,10 +442,10 @@ class ExternalRunLifecycleTest {
         var lifecycle = lifecycle(store, session, new RecordingEffects(),
                 new RecordingTransactionManager(), ingestionPolicy());
 
-        var result = lifecycle.syncOne(store.runs.get("run-1"));
+        lifecycle.syncOne(store.runs.get("run-1"));
 
-        assertThat(result.externalId()).isEqualTo("ext-9");
-        assertThat(result.status()).isEqualTo("RUNNING");
+        assertThat(store.runs.get("run-1").externalId()).isEqualTo("ext-9");
+        assertThat(store.runs.get("run-1").status()).isEqualTo("RUNNING");
         assertThat(store.calls).contains("link", "apply:RUNNING");
     }
 

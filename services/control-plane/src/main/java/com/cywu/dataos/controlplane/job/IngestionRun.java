@@ -2,6 +2,8 @@ package com.cywu.dataos.controlplane.job;
 
 import java.time.Instant;
 
+import com.cywu.dataos.controlplane.run.ExternalRun;
+
 public record IngestionRun(
         String id,
         String jobId,
@@ -13,7 +15,7 @@ public record IngestionRun(
         String reconciliationMessage,
         Instant submittedAt,
         Instant startedAt,
-        Instant finishedAt) {
+        Instant finishedAt) implements ExternalRun {
 
     public IngestionRun(String id, String jobId, String status, String executor,
                         String externalId, String message, Instant submittedAt,

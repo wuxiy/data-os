@@ -18,7 +18,7 @@ import org.springframework.transaction.support.SimpleTransactionStatus;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class RunLifecycleServiceTest {
+class IngestionRunServiceTest {
 
     @Test
     void writesNormalizedExternalStatusBackToRunRecord() {
@@ -67,7 +67,7 @@ class RunLifecycleServiceTest {
             }
         };
 
-        var service = new RunLifecycleService(
+        var service = new IngestionRunService(
                 null,
                 repository,
                 null,
@@ -76,9 +76,9 @@ class RunLifecycleServiceTest {
                 new ObjectMapper(),
                 new JobConfigurationPolicy("development"),
                 new TenantScope(new AuthProperties()),
-                null);
+                null, 30_000, 120_000);
 
-        service.syncPendingRuns(120_000);
+        service.syncPending();
 
         assertThat(updates)
                 .containsExactly("run-1|SUCCEEDED|中心采集作业已完成|2026-08-03T01:00:01Z|2026-08-03T01:00:02Z");
@@ -143,12 +143,12 @@ class RunLifecycleServiceTest {
             }
         };
 
-        var service = new RunLifecycleService(
+        var service = new IngestionRunService(
                 null, repository, null, List.of(adapter), transactionManager(),
                 new ObjectMapper(), new JobConfigurationPolicy("development"),
-                new TenantScope(new AuthProperties()), null);
+                new TenantScope(new AuthProperties()), null, 30_000, 120_000);
 
-        service.syncPendingRuns(120_000);
+        service.syncPending();
 
         assertThat(reconciled)
                 .containsExactly("run-2|external-2|SUBMITTED", "run-2|RUNNING");
@@ -205,12 +205,12 @@ class RunLifecycleServiceTest {
             }
         };
 
-        var service = new RunLifecycleService(
+        var service = new IngestionRunService(
                 null, repository, null, List.of(adapter), transactionManager(),
                 new ObjectMapper(), new JobConfigurationPolicy("development"),
-                new TenantScope(new AuthProperties()), null);
+                new TenantScope(new AuthProperties()), null, 30_000, 120_000);
 
-        service.syncPendingRuns(120_000);
+        service.syncPending();
 
         assertThat(outcomes).containsExactly("run-3|执行器返回了无效外部运行编号，请人工确认");
     }
@@ -280,12 +280,12 @@ class RunLifecycleServiceTest {
             }
         };
 
-        var service = new RunLifecycleService(
+        var service = new IngestionRunService(
                 null, repository, null, List.of(adapter), transactionManager(events),
                 new ObjectMapper(), new JobConfigurationPolicy("development"),
-                new TenantScope(new AuthProperties()), checkpointRepository);
+                new TenantScope(new AuthProperties()), checkpointRepository, 30_000, 120_000);
 
-        service.syncPendingRuns(120_000);
+        service.syncPending();
 
         assertThat(events).containsExactly("begin", "status", "boundary", "checkpoint", "commit");
     }

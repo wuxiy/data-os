@@ -9,6 +9,7 @@ import com.cywu.dataos.controlplane.run.RunTerminalEffects;
 /**
  * 质量复检终态的业务效果：与终态回写同事务地推进治理问题工作流、
  * 记录事件并排队通知；任何一步失败，终态写入一并回滚。
+ * 时间戳不参与质量侧效果（证据与结论以回写后的运行为准）。
  */
 public class QualityRecheckEffects implements RunTerminalEffects<QualityRuleRun, QualityResultPayload> {
 
@@ -21,7 +22,8 @@ public class QualityRecheckEffects implements RunTerminalEffects<QualityRuleRun,
     }
 
     @Override
-    public void onTerminal(QualityRuleRun run, String status, QualityResultPayload payload) {
+    public void onTerminal(QualityRuleRun run, String status, QualityResultPayload payload,
+                           Instant startedAt, Instant finishedAt) {
         var issue = repository.findIssue(run.issueId(), run.tenantId(), run.institutionId()).orElse(null);
         var persisted = repository.findQualityRun(run.id(), run.issueId(), run.tenantId(),
                 run.institutionId()).orElse(null);
