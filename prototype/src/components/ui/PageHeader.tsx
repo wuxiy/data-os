@@ -1,5 +1,5 @@
 import styles from './PageHeader.module.css'
-import { frontendDemoMode } from '../../data/runtime'
+import { frontendDemoMode, timestampPlaceholder } from '../../data/runtimeMode'
 
 interface PageHeaderProps {
   title: string
@@ -23,7 +23,7 @@ export function PageHeader({ title, eyebrow, subtitle, compact = false, asOf = n
           <span>主题域 · 全部</span>
           <span>时间 · 近 30 天</span>
         </div>
-        <span className={styles.timestamp}>{asOf ? `截至 ${asOf}` : frontendDemoMode ? '演示数据快照' : '等待首个快照'}</span>
+        <span className={styles.timestamp}>{timestampPlaceholder(asOf)}</span>
         <div className={styles.avatar} title="数据治理负责人 陈序">陈</div>
       </div>
     </header>

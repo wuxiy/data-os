@@ -4,7 +4,7 @@ import { ResponsibilityDrawer } from './components/governance/ResponsibilityChai
 import { AppShell } from './components/layout/AppShell'
 import { Toast } from './components/ui/Primitives'
 import { clearOidcSession, hasTechnicalAccess, initializeOidc, logoutOidc, oidcIsConfigured, type AuthSnapshot } from './data/oidc'
-import { routePaths } from './data/mock'
+import { routePaths } from './data/routes'
 import { DataStandardsPage } from './pages/DataStandardsPage'
 import { DataIngestionPage } from './pages/DataIngestionPage'
 import { AnalyticsPage } from './pages/AnalyticsPage'

@@ -1,7 +1,7 @@
 import { ArrowRight, FlaskConical } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Button, StatusTag } from './Primitives'
-import { frontendDemoMode } from '../../data/runtime'
+import { frontendDemoMode } from '../../data/runtimeMode'
 import styles from './DemoDataBoundary.module.css'
 
 interface Props {

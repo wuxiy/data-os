@@ -13,7 +13,7 @@ function read(path) {
 
 const app = read('src/App.tsx')
 const types = read('src/types.ts')
-const routes = read('src/data/mock.ts')
+const routes = read('src/data/routes.ts')
 const shell = read('src/components/layout/AppShell.tsx')
 const assets = read('src/pages/AssetCatalogPage.tsx')
 const assistant = read('src/pages/AssistantPage.tsx')
@@ -44,7 +44,7 @@ assert.match(controlPlane, /Authorization/, '控制面 API 请求必须支持 Be
 assert.match(oidc, /code_challenge_method.*S256/, '门户 OIDC 登录必须使用 PKCE S256')
 assert.match(oidc, /sessionStorage/, '门户 OIDC 会话必须限制在当前浏览器会话')
 assert.match(app, /OidcLoginGate/, '生产门户必须在 OIDC 未登录时阻断业务页面')
-assert.match(app, /ProductScopeNotice/, '门户必须持续显示首期真实产品范围')
+assert.match(read('src/components/ui/RuntimeStatusBanner.tsx'), /首期真实范围/, '门户必须持续显示首期真实产品范围（由运行状态横幅承载）')
 assert.match(scopeNotice, /首期真实范围/, '门户范围提示必须明确首期真实能力')
 assert.match(scopeNotice, /规划\/待接入模块/, '门户范围提示必须明确未接入模块')
 assert.doesNotMatch(quality, /from ['"]\.\.\/data\/mock['"]/, '质量闭环不得继续依赖本地演示问题数据')

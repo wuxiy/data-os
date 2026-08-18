@@ -4,13 +4,13 @@ import { TrendChart } from '../components/charts/TrendChart'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Button, MetricStrip, StatusTag } from '../components/ui/Primitives'
 import { managementMetrics, riskRanking } from '../data/mock'
-import { frontendDemoMode } from '../data/runtime'
+import { demoFlowSnapshotLabel, demoSnapshotAsOf } from '../data/runtimeMode'
 import styles from './Pages.module.css'
 
 export function ManagementDashboardPage({ onOpenChain, onUnavailable, onNotice, onNavigate }: { onOpenChain: () => void; onUnavailable: (label: string) => void; onNotice: (message: string) => void; onNavigate: (route: 'ingestion' | 'governance' | 'quality') => void }) {
   return (
     <div className={styles.page}>
-      <PageHeader title="医院数据运营总览" eyebrow="管理驾驶舱" subtitle="以结果、风险和交付进展为中心" asOf={frontendDemoMode ? '08-01 14:30（演示快照）' : null} />
+      <PageHeader title="医院数据运营总览" eyebrow="管理驾驶舱" subtitle="以结果、风险和交付进展为中心" asOf={demoSnapshotAsOf} />
       <div className={styles.content}>
         <DemoDataBoundary moduleName="医院数据运营总览" onNavigate={onNavigate}>
         <MetricStrip metrics={managementMetrics} onSelect={onOpenChain} />
@@ -26,7 +26,7 @@ export function ManagementDashboardPage({ onOpenChain, onUnavailable, onNotice, 
           <RiskRanking onSelect={onOpenChain} />
         </div>
         <section className={styles.flowPanel}>
-          <div className={styles.flowHeader}><h2>从接入到使用</h2><span>{frontendDemoMode ? '演示快照 · 08-01 14:30' : '等待首个控制面快照'}</span></div>
+          <div className={styles.flowHeader}><h2>从接入到使用</h2><span>{demoFlowSnapshotLabel}</span></div>
           <div className={styles.flow}>
             {[
               ['接入', '18 个系统 · 17 正常'], ['标准化', '1,286 项映射 · 38 待确认'], ['质量治理', '98.6% 通过 · 23 待闭环'], ['主索引', '99.2% 准确 · 36 待审核'], ['数据服务', '46 项服务 · 12.8 万次调用'],

@@ -19,3 +19,7 @@
 ## 质量引擎（Rule Engine）
 
 以特定技术执行一条质量规则的引擎。质量执行器（quality-runner）按规则把运行路由给引擎：引擎负责命令构造、结果解析、失败样本读取与自身产物清理（dbt 引擎即 `DbtEngine`）；进程监督（超时击杀、取消终止、心跳续租）与执行代次围栏由执行器共享的监督器承担。第二个引擎（Great Expectations、医院自有质检服务等）到来时实现同一接口即可接入。
+
+## 运行模式（Runtime Mode）
+
+门户的演示/真实呈现差异由运行模式模块（`prototype/src/data/runtimeMode.ts`）单一持有：构建期演示开关（`VITE_DATAOS_DEMO_MODE`）与后端报告的 DEMO 模式在此合一；静态样例可见性、演示（FakeSource）模板目录与守卫、快照文案全部由它派生，页面消费语义谓词而不散布布尔分支。生产路由表独立于演示数据（`data/routes.ts`）。

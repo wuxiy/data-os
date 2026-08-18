@@ -10,7 +10,7 @@ import {
 } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { Button } from '../ui/Primitives'
-import { frontendDemoMode } from '../../data/runtime'
+import { frontendDemoMode } from '../../data/runtimeMode'
 import styles from './ResponsibilityChain.module.css'
 
 const demoNodes = [

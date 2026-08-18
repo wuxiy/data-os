@@ -141,19 +141,3 @@ export const riskRanking = [
   { system: '手麻系统', owner: '麻醉科数据管理员', value: '7' },
   { system: '病案首页', owner: '病案室数据管理员', value: '5' },
 ]
-
-export const routePaths = {
-  management: '/',
-  ingestion: '/ingestion',
-  governance: '/governance',
-  standards: '/governance/standards',
-  mapping: '/governance/mapping',
-  quality: '/governance/quality',
-  mpi: '/mpi/review',
-  assets: '/assets',
-  assetTechnical: '/assets/technical',
-  analytics: '/analysis',
-  assistant: '/assistant',
-  assistantWorkspace: '/assistant/workspace',
-  operations: '/operations',
-} as const

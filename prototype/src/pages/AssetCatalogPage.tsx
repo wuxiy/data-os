@@ -4,7 +4,7 @@ import { DemoDataBoundary } from '../components/ui/DemoDataBoundary'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Button, StatusTag } from '../components/ui/Primitives'
 import { assets, type AssetItem } from '../data/integrations'
-import { routePaths } from '../data/mock'
+import { routePaths } from '../data/routes'
 import styles from './IntegrationPages.module.css'
 
 type AssetTab = 'overview' | 'lineage' | 'quality'

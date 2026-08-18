@@ -1,7 +1,7 @@
 import { CircleAlert, CloudCog, RefreshCw } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { fetchRuntimeStatus, type RuntimeStatusApiResponse } from '../../data/controlPlane'
-import { frontendDemoMode } from '../../data/runtime'
+import { frontendDemoMode, isDemoRuntime } from '../../data/runtimeMode'
 import { StatusTag } from './Primitives'
 import styles from './RuntimeStatusBanner.module.css'
 
@@ -35,7 +35,7 @@ export function RuntimeStatusBanner() {
     return <div className={`${styles.banner} ${styles.warning}`} role="status"><CircleAlert size={14} /><span>控制面状态未知 · 页面仅展示已明确标注的本地演示内容</span><span className={styles.scope}>{SCOPE_SUMMARY}</span><button onClick={() => window.location.reload()} aria-label="重新读取运行状态"><RefreshCw size={13} /></button></div>
   }
 
-  const demo = frontendDemoMode || status?.mode === 'DEMO'
+  const demo = isDemoRuntime(status?.mode)
   const warning = status?.warnings[0]
   const operationalState = status?.operational.state ?? 'UNKNOWN'
   const operationalLabel = operationalState === 'READY'
