@@ -64,8 +64,9 @@ public class SourceNetworkPolicy {
         var lower = url.toLowerCase(Locale.ROOT);
         if (properties.isAllowTestProtocols() && lower.startsWith("jdbc:h2:")) return;
         if (!(lower.startsWith("jdbc:postgresql://") || lower.startsWith("jdbc:mysql://")
-                || lower.startsWith("jdbc:sqlserver://") || lower.startsWith("jdbc:oracle:thin:@//"))) {
-            throw new IllegalArgumentException("生产 JDBC URL 仅允许 PostgreSQL/MySQL/SQL Server/Oracle");
+                || lower.startsWith("jdbc:sqlserver://") || lower.startsWith("jdbc:oracle:thin:@//")
+                || lower.startsWith("jdbc:dm://"))) {
+            throw new IllegalArgumentException("生产 JDBC URL 仅允许 PostgreSQL/MySQL/SQL Server/Oracle/Dameng");
         }
         var host = jdbcHost(url);
         validateHost(host);

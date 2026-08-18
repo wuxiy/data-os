@@ -46,6 +46,31 @@ class SourceNetworkPolicyTest {
     }
 
     @Test
+    void developmentPolicyAllowsDamengJdbcTarget() {
+        var properties = new SourceNetworkProperties();
+        properties.setAllowPrivateNetworks(true);
+        properties.setAllowTestProtocols(true);
+        var policy = new SourceNetworkPolicy(properties);
+
+        assertDoesNotThrow(() -> policy.validateJdbcUrl("jdbc:dm://192.168.17.76:5236?schema=EP_TEST"));
+        assertDoesNotThrow(() -> policy.validateJdbcUrl("jdbc:dm://192.168.17.76:5236/EP"));
+    }
+
+    @Test
+    void productionPolicyAppliesAllowlistToDamengTargets() {
+        var properties = new SourceNetworkProperties();
+        properties.setAllowPrivateNetworks(true);
+        properties.setAllowedHosts(List.of("192.168.17.0/24"));
+        var policy = new SourceNetworkPolicy(properties);
+
+        assertDoesNotThrow(() -> policy.validateJdbcUrl("jdbc:dm://192.168.17.76:5236?schema=EP_TEST"));
+        assertThrows(IllegalArgumentException.class,
+                () -> policy.validateJdbcUrl("jdbc:dm://192.168.18.76:5236?schema=EP_TEST"));
+        assertThrows(IllegalArgumentException.class,
+                () -> policy.validateJdbcUrl("jdbc:db2://192.168.17.76:50000/SAMPLE"));
+    }
+
+    @Test
     void productionPrivateTargetRequiresExplicitCidrAllowlist() {
         var properties = new SourceNetworkProperties();
         properties.setAllowPrivateNetworks(true);
