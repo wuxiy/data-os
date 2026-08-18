@@ -3,7 +3,8 @@ package com.cywu.dataos.controlplane.quality;
 import java.time.Instant;
 
 import com.cywu.dataos.controlplane.governance.GovernanceIssueEvent;
-import com.cywu.dataos.controlplane.governance.GovernanceRepository;
+import com.cywu.dataos.controlplane.governance.IssueRepository;
+import com.cywu.dataos.controlplane.governance.NotificationOutboxRepository;
 import com.cywu.dataos.controlplane.run.RunTerminalEffects;
 
 /**
@@ -13,19 +14,22 @@ import com.cywu.dataos.controlplane.run.RunTerminalEffects;
  */
 public class QualityRecheckEffects implements RunTerminalEffects<QualityRuleRun, QualityResultPayload> {
 
-    private final GovernanceRepository repository;
+    private final IssueRepository issues;
+    private final QualityRunRepository runs;
     private final NotificationService notifications;
 
-    public QualityRecheckEffects(GovernanceRepository repository, NotificationService notifications) {
-        this.repository = repository;
+    public QualityRecheckEffects(IssueRepository issues, QualityRunRepository runs,
+                                    NotificationService notifications) {
+        this.issues = issues;
+        this.runs = runs;
         this.notifications = notifications;
     }
 
     @Override
     public void onTerminal(QualityRuleRun run, String status, QualityResultPayload payload,
                            Instant startedAt, Instant finishedAt) {
-        var issue = repository.findIssue(run.issueId(), run.tenantId(), run.institutionId()).orElse(null);
-        var persisted = repository.findQualityRun(run.id(), run.issueId(), run.tenantId(),
+        var issue = issues.findIssue(run.issueId(), run.tenantId(), run.institutionId()).orElse(null);
+        var persisted = runs.findQualityRun(run.id(), run.issueId(), run.tenantId(),
                 run.institutionId()).orElse(null);
         if (issue == null || persisted == null || !"RECHECKING".equals(issue.status())) {
             return;
@@ -40,9 +44,9 @@ public class QualityRecheckEffects implements RunTerminalEffects<QualityRuleRun,
                 ? (returned ? "复检未通过，已退回治理" : "复检通过，已自动关闭")
                 : persisted.resultMessage();
         var now = Instant.now();
-        if (repository.updateIssueAfterQualityResult(issue.id(), issue.tenantId(), issue.institutionId(),
+        if (issues.updateIssueAfterQualityResult(issue.id(), issue.tenantId(), issue.institutionId(),
                 targetStatus, note, action, now) == 1) {
-            var eventId = repository.insertEvent(issue.id(), action, note, "质量复检编排器", now);
+            var eventId = issues.insertEvent(issue.id(), action, note, "质量复检编排器", now);
             var event = new GovernanceIssueEvent(eventId, issue.id(), action, note, "质量复检编排器", now);
             notifications.enqueue(issue, event,
                     returned ? "质量复检未通过，问题已退回" : "质量复检通过，问题已自动关闭",
@@ -52,14 +56,14 @@ public class QualityRecheckEffects implements RunTerminalEffects<QualityRuleRun,
 
     @Override
     public void onSubmissionFailed(QualityRuleRun run, String status, String message) {
-        var issue = repository.findIssue(run.issueId(), run.tenantId(), run.institutionId()).orElse(null);
+        var issue = issues.findIssue(run.issueId(), run.tenantId(), run.institutionId()).orElse(null);
         if (issue == null) {
             return;
         }
         var now = Instant.now();
-        if (repository.updateIssueAfterQualityResult(issue.id(), run.tenantId(), run.institutionId(),
+        if (issues.updateIssueAfterQualityResult(issue.id(), run.tenantId(), run.institutionId(),
                 "RETURNED", "复检提交失败：" + message, "RECHECK_SUBMIT_FAILED", now) == 1) {
-            var eventId = repository.insertEvent(issue.id(), "RECHECK_SUBMIT_FAILED", message,
+            var eventId = issues.insertEvent(issue.id(), "RECHECK_SUBMIT_FAILED", message,
                     "质量复检编排器", now);
             var event = new GovernanceIssueEvent(eventId, issue.id(), "RECHECK_SUBMIT_FAILED", message,
                     "质量复检编排器", now);

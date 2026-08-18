@@ -11,9 +11,10 @@ import com.cywu.dataos.controlplane.api.ConflictException;
 import com.cywu.dataos.controlplane.api.InvalidRequestException;
 import com.cywu.dataos.controlplane.api.ResourceNotFoundException;
 import com.cywu.dataos.controlplane.governance.GovernanceIssue;
+import com.cywu.dataos.controlplane.governance.IssueRepository;
 import com.cywu.dataos.controlplane.governance.GovernanceIssueDetail;
 import com.cywu.dataos.controlplane.governance.GovernanceIssueEvent;
-import com.cywu.dataos.controlplane.governance.GovernanceRepository;
+import com.cywu.dataos.controlplane.governance.NotificationOutboxRepository;
 import com.cywu.dataos.controlplane.run.ExternalRunLifecycle;
 import com.cywu.dataos.controlplane.run.RunPolicy;
 import com.cywu.dataos.controlplane.run.StaleSubmissionPolicy;
@@ -35,7 +36,9 @@ public class QualityOutcomeService {
 
     private static final String FINDING_EXECUTOR = "QUALITY_FINDING";
 
-    private final GovernanceRepository repository;
+    private final IssueRepository issues;
+    private final QualityRunRepository runs;
+    private final NotificationOutboxRepository outbox;
     private final NotificationService notifications;
     private final TransactionTemplate transactions;
     private final String executorName;
@@ -44,7 +47,9 @@ public class QualityOutcomeService {
     private final TenantScope tenantScope;
     private final ExternalRunLifecycle<QualityRuleRun, QualityRuleExecutionRequest, QualityResultPayload> lifecycle;
 
-    public QualityOutcomeService(GovernanceRepository repository,
+    public QualityOutcomeService(IssueRepository issues,
+                                 QualityRunRepository runs,
+                                 NotificationOutboxRepository outbox,
                                  List<QualityRuleExecutor> executors,
                                  NotificationService notifications,
                                  PlatformTransactionManager transactionManager,
@@ -52,7 +57,9 @@ public class QualityOutcomeService {
                                  @Value("${data-os.quality.poll-interval-ms:30000}") long pollIntervalMs,
                                  @Value("${data-os.quality.submit-lease-ms:120000}") long submitLeaseMs,
                                  TenantScope tenantScope) {
-        this.repository = repository;
+        this.issues = issues;
+        this.runs = runs;
+        this.outbox = outbox;
         this.notifications = notifications;
         this.transactions = new TransactionTemplate(transactionManager);
         this.executorName = executorName == null ? "HTTP" : executorName.trim().toUpperCase(Locale.ROOT);
@@ -60,10 +67,10 @@ public class QualityOutcomeService {
         this.submitLeaseMs = submitLeaseMs;
         this.tenantScope = tenantScope;
         this.lifecycle = new ExternalRunLifecycle<>(
-                new QualityRunStore(repository, pollIntervalMs),
+                new QualityRunStore(runs, pollIntervalMs),
                 new QualityExecutorPort(executors),
-                new QualityRecheckEffects(repository, notifications),
-                QualityRunStore.recoveryCommandSource(repository),
+                new QualityRecheckEffects(issues, runs, notifications),
+                QualityRunStore.recoveryCommandSource(issues, runs),
                 qualityRecheckPolicy(pollIntervalMs, submitLeaseMs),
                 transactionManager);
     }
@@ -130,9 +137,9 @@ public class QualityOutcomeService {
         var scope = tenantScope.resolve(tenantId, institutionId);
         var resolvedTenant = scope.tenantId();
         var resolvedInstitution = scope.institutionId();
-        repository.findIssue(issueId, resolvedTenant, resolvedInstitution)
+        issues.findIssue(issueId, resolvedTenant, resolvedInstitution)
                 .orElseThrow(() -> new ResourceNotFoundException("未找到治理问题：" + issueId));
-        var run = repository.findQualityRun(runId, issueId, resolvedTenant, resolvedInstitution)
+        var run = runs.findQualityRun(runId, issueId, resolvedTenant, resolvedInstitution)
                 .orElseThrow(() -> new ResourceNotFoundException("未找到质量复检执行批次：" + runId));
         var now = Instant.now();
         if ("SUBMITTING".equals(run.status()) && run.nextPollAt() != null && run.nextPollAt().isAfter(now)) {
@@ -147,15 +154,15 @@ public class QualityOutcomeService {
         var scope = tenantScope.resolve(tenantId, institutionId);
         var resolvedTenant = scope.tenantId();
         var resolvedInstitution = scope.institutionId();
-        repository.findIssue(issueId, resolvedTenant, resolvedInstitution)
+        issues.findIssue(issueId, resolvedTenant, resolvedInstitution)
                 .orElseThrow(() -> new ResourceNotFoundException("未找到治理问题：" + issueId));
-        var run = repository.findQualityRun(runId, issueId, resolvedTenant, resolvedInstitution)
+        var run = runs.findQualityRun(runId, issueId, resolvedTenant, resolvedInstitution)
                 .orElseThrow(() -> new ResourceNotFoundException("未找到质量复检执行批次：" + runId));
         requireManualReconciliation(run);
-        if (repository.reopenQualityRunForReconciliation(run.id()) != 1) {
+        if (runs.reopenQualityRunForReconciliation(run.id()) != 1) {
             throw new ConflictException("质量执行批次状态已变化，请刷新后重试");
         }
-        repository.findQualityRun(run.id(), issueId, resolvedTenant, resolvedInstitution)
+        runs.findQualityRun(run.id(), issueId, resolvedTenant, resolvedInstitution)
                 .ifPresent(lifecycle::syncOne);
         return detail(issueId, resolvedTenant, resolvedInstitution);
     }
@@ -165,9 +172,9 @@ public class QualityOutcomeService {
         var scope = tenantScope.resolve(tenantId, institutionId);
         var resolvedTenant = scope.tenantId();
         var resolvedInstitution = scope.institutionId();
-        var issue = repository.findIssue(issueId, resolvedTenant, resolvedInstitution)
+        var issue = issues.findIssue(issueId, resolvedTenant, resolvedInstitution)
                 .orElseThrow(() -> new ResourceNotFoundException("未找到治理问题：" + issueId));
-        var run = repository.findQualityRun(runId, issueId, resolvedTenant, resolvedInstitution)
+        var run = runs.findQualityRun(runId, issueId, resolvedTenant, resolvedInstitution)
                 .orElseThrow(() -> new ResourceNotFoundException("未找到质量复检执行批次：" + runId));
         requireManualReconciliation(run);
         var message = "人工确认外部质量执行批次不存在，问题已退回复核队列";
@@ -175,16 +182,16 @@ public class QualityOutcomeService {
         // one transaction; otherwise a database failure between the two can
         // leave a terminal run attached to an issue still marked RECHECKING.
         transactions.execute(status -> {
-            if (repository.confirmQualityRunAbsent(run.id(), message) != 1) {
+            if (runs.confirmQualityRunAbsent(run.id(), message) != 1) {
                 throw new ConflictException("质量执行批次状态已变化，请刷新后重试");
             }
             var now = Instant.now();
-            if (repository.updateIssueAfterQualityResult(issue.id(), resolvedTenant, resolvedInstitution,
+            if (issues.updateIssueAfterQualityResult(issue.id(), resolvedTenant, resolvedInstitution,
                     "RETURNED", message, "RECHECK_CONFIRMED_ABSENT", now) != 1) {
                 throw new ConflictException("治理问题状态已变化，请刷新后重试");
             }
             {
-                var eventId = repository.insertEvent(issue.id(), "RECHECK_CONFIRMED_ABSENT",
+                var eventId = issues.insertEvent(issue.id(), "RECHECK_CONFIRMED_ABSENT",
                         message, "质量复检编排器", now);
                 var event = new GovernanceIssueEvent(eventId, issue.id(), "RECHECK_CONFIRMED_ABSENT",
                         message, "质量复检编排器", now);
@@ -206,7 +213,7 @@ public class QualityOutcomeService {
     }
 
     public void scanOverdue() {
-        for (var scope : repository.findSlaScopes(Instant.now())) {
+        for (var scope : issues.findSlaScopes(Instant.now())) {
             scanSlaScope(scope.tenantId(), scope.institutionId());
         }
     }
@@ -214,7 +221,7 @@ public class QualityOutcomeService {
     private RecheckClaim claimRecheck(String issueId, String tenantId, String institutionId, String note) {
         var tenant = tenantId;
         var institution = institutionId;
-        var issue = repository.findIssue(issueId, tenant, institution)
+        var issue = issues.findIssue(issueId, tenant, institution)
                 .orElseThrow(() -> new ResourceNotFoundException("未找到治理问题：" + issueId));
         if ("CLOSED".equals(issue.status())) {
             throw new ConflictException("已关闭的治理问题不能直接复检");
@@ -222,20 +229,20 @@ public class QualityOutcomeService {
         if ("RECHECKING".equals(issue.status())) {
             throw new ConflictException("治理问题已在复检中，请等待结果");
         }
-        var latest = repository.findLatestQualityRun(issueId, tenant, institution);
+        var latest = runs.findLatestQualityRun(issueId, tenant, institution);
         if (latest.isPresent() && !latest.get().terminal()) {
             throw new ConflictException("治理问题已有质量复检批次在执行中，请等待结果");
         }
         var now = Instant.now();
         var resolvedNote = note == null || note.isBlank() ? "已按原质量规则发起复检" : note.trim();
         var batchId = "qr-" + UUID.randomUUID();
-        if (repository.updateWorkflow(issueId, tenant, institution, "RECHECKING", resolvedNote, now,
+        if (issues.updateWorkflow(issueId, tenant, institution, "RECHECKING", resolvedNote, now,
                 "RECHECK_REQUESTED") != 1) {
             throw new ConflictException("治理问题状态已变更，请刷新后重试复检");
         }
-        var run = repository.createQualityRun(issueId, tenant, institution, issue.ruleId(), issue.datasetId(),
+        var run = runs.createQualityRun(issueId, tenant, institution, issue.ruleId(), issue.datasetId(),
                 executorName, batchId, now);
-        var eventId = repository.insertEvent(issueId, "RECHECK_REQUESTED", resolvedNote, "当前治理负责人", now);
+        var eventId = issues.insertEvent(issueId, "RECHECK_REQUESTED", resolvedNote, "当前治理负责人", now);
         var event = new GovernanceIssueEvent(eventId, issueId, "RECHECK_REQUESTED", resolvedNote, "当前治理负责人", now);
         notifications.enqueue(issue, event, "治理问题已进入质量复检",
                 "问题「" + issue.title() + "」已提交质量规则执行器，执行批次：" + batchId);
@@ -254,12 +261,12 @@ public class QualityOutcomeService {
     private GovernanceSlaScanResult scanSlaScope(String tenant, String institution) {
         var processed = 0;
         var notified = 0;
-        for (var issue : repository.findSlaCandidates(tenant, institution, Instant.now())) {
+        for (var issue : issues.findSlaCandidates(tenant, institution, Instant.now())) {
             var result = transactions.execute(status -> {
                 var now = Instant.now();
-                if (repository.markSlaOverdue(issue.id(), tenant, institution, now) != 1) return false;
+                if (issues.markSlaOverdue(issue.id(), tenant, institution, now) != 1) return false;
                 var note = "SLA 已逾期，截止时间：" + issue.dueAt();
-                var eventId = repository.insertEvent(issue.id(), "SLA_OVERDUE", note, "治理自动化", now);
+                var eventId = issues.insertEvent(issue.id(), "SLA_OVERDUE", note, "治理自动化", now);
                 var event = new GovernanceIssueEvent(eventId, issue.id(), "SLA_OVERDUE", note, "治理自动化", now);
                 notifications.enqueue(issue, event, "治理问题 SLA 已逾期",
                         "问题「" + issue.title() + "」已超过 SLA，请责任人处理。");
@@ -274,11 +281,11 @@ public class QualityOutcomeService {
     }
 
     private GovernanceIssueDetail detail(String issueId, String tenantId, String institutionId) {
-        var issue = repository.findIssue(issueId, tenantId, institutionId)
+        var issue = issues.findIssue(issueId, tenantId, institutionId)
                 .orElseThrow(() -> new ResourceNotFoundException("未找到治理问题：" + issueId));
-        return new GovernanceIssueDetail(issue, repository.findEvents(issueId),
-                repository.findLatestQualityRun(issueId, tenantId, institutionId).orElse(null),
-                repository.findQualityRuns(issueId, tenantId, institutionId), repository.findNotifications(issueId));
+        return new GovernanceIssueDetail(issue, issues.findEvents(issueId),
+                runs.findLatestQualityRun(issueId, tenantId, institutionId).orElse(null),
+                runs.findQualityRuns(issueId, tenantId, institutionId), outbox.findNotifications(issueId));
     }
 
     private record RecheckClaim(GovernanceIssue issue, String tenantId, String institutionId,
@@ -292,16 +299,16 @@ public class QualityOutcomeService {
                                                      String sourceSystem,
                                                      String severity,
                                                      String externalId) {
-        var existingRun = repository.findQualityRunByExternal(FINDING_EXECUTOR, externalId);
+        var existingRun = runs.findQualityRunByExternal(FINDING_EXECUTOR, externalId);
         if (existingRun.isPresent()) {
-            var existingIssue = repository.findIssue(existingRun.get().issueId(), tenant, institution).orElse(null);
+            var existingIssue = issues.findIssue(existingRun.get().issueId(), tenant, institution).orElse(null);
             return new QualityFindingResult(existingIssue == null ? null : existingIssue.id(),
                     existingIssue == null ? "IGNORED" : existingIssue.status(), false,
                     Boolean.TRUE.equals(existingRun.get().passed()), existingRun.get().executionBatchId(),
                     "相同执行批次已登记");
         }
 
-        var issue = repository.findIssueBySourceKey(issueSourceKey, tenant, institution).orElse(null);
+        var issue = issues.findIssueBySourceKey(issueSourceKey, tenant, institution).orElse(null);
         var now = Instant.now();
         var passed = Boolean.TRUE.equals(request.passed());
         var created = false;
@@ -321,10 +328,10 @@ public class QualityOutcomeService {
         } else {
             var targetStatus = passed ? "CLOSED" : ("CLOSED".equals(issue.status()) ? "RETURNED" : issue.status());
             if (!targetStatus.equals(issue.status()) || !passed) {
-                repository.updateIssueFromQualityFinding(issue.id(), tenant, institution, targetStatus, note,
+                issues.updateIssueFromQualityFinding(issue.id(), tenant, institution, targetStatus, note,
                         action, now);
             }
-            issue = repository.findIssue(issue.id(), tenant, institution).orElseThrow();
+            issue = issues.findIssue(issue.id(), tenant, institution).orElseThrow();
         }
 
         var runWrite = recordFindingRun(issue.id(), tenant, institution, request, externalId,
@@ -334,7 +341,7 @@ public class QualityOutcomeService {
             return new QualityFindingResult(issue.id(), issue.status(), false, passed,
                     run.executionBatchId(), "相同执行批次已登记");
         }
-        var eventId = repository.insertEvent(issue.id(), action, note, "质量规则执行器", now);
+        var eventId = issues.insertEvent(issue.id(), action, note, "质量规则执行器", now);
         var event = new GovernanceIssueEvent(eventId, issue.id(), action, note, "质量规则执行器", now);
         notifications.enqueue(issue, event,
                 passed ? "质量检查通过" : "发现新的数据质量问题",
@@ -349,26 +356,26 @@ public class QualityOutcomeService {
                                                Instant now) {
         var id = "DQ-" + UUID.randomUUID();
         try {
-            repository.insertQualityFindingIssue(id, tenant, institution, request, issueSourceKey, sourceSystem,
+            issues.insertQualityFindingIssue(id, tenant, institution, request, issueSourceKey, sourceSystem,
                     severity, now);
         } catch (DuplicateKeyException duplicate) {
             // NESTED rolls back only the conflicting insert savepoint; the
             // caller's outcome transaction remains usable for the winner.
         }
-        return repository.findIssueBySourceKey(issueSourceKey, tenant, institution)
+        return issues.findIssueBySourceKey(issueSourceKey, tenant, institution)
                 .orElseThrow(() -> new IllegalStateException("质量问题写入后无法读取"));
     }
 
-    private GovernanceRepository.QualityFindingRunWrite recordFindingRun(
+    private QualityRunRepository.QualityFindingRunWrite recordFindingRun(
             String issueId, String tenant, String institution, QualityFindingRequest request,
             String externalId, String status, Instant now) {
         try {
-            return repository.recordQualityFindingRun(issueId, tenant, institution, request, FINDING_EXECUTOR,
+            return runs.recordQualityFindingRun(issueId, tenant, institution, request, FINDING_EXECUTOR,
                     externalId, status, now);
         } catch (DuplicateKeyException duplicate) {
-            var existing = repository.findQualityRunByExternal(FINDING_EXECUTOR, externalId)
+            var existing = runs.findQualityRunByExternal(FINDING_EXECUTOR, externalId)
                     .orElseThrow(() -> duplicate);
-            return new GovernanceRepository.QualityFindingRunWrite(existing, false);
+            return new QualityRunRepository.QualityFindingRunWrite(existing, false);
         }
     }
 

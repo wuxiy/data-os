@@ -8,7 +8,8 @@ import java.util.Optional;
 
 import com.cywu.dataos.controlplane.governance.GovernanceIssue;
 import com.cywu.dataos.controlplane.governance.GovernanceIssueEvent;
-import com.cywu.dataos.controlplane.governance.GovernanceRepository;
+import com.cywu.dataos.controlplane.governance.IssueRepository;
+import com.cywu.dataos.controlplane.governance.NotificationOutboxRepository;
 import com.cywu.dataos.controlplane.security.AuthProperties;
 import com.cywu.dataos.controlplane.security.TenantScope;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -25,8 +26,9 @@ class QualityOutcomeServiceTest {
 
     @Test
     void rejectsSubmitLeaseOutsideOutcomePolicyBounds() {
-        var service = new QualityOutcomeService(null, List.of(), null, transactionManager(new ArrayList<>()),
-                "DEMO", 30_000, 4_999, new TenantScope(new AuthProperties()));
+        var service = new QualityOutcomeService(null, null, null, List.of(), null,
+                transactionManager(new ArrayList<>()), "DEMO", 30_000, 4_999,
+                new TenantScope(new AuthProperties()));
 
         assertThatThrownBy(service::validatePolicy)
                 .isInstanceOf(IllegalStateException.class)
@@ -39,14 +41,35 @@ class QualityOutcomeServiceTest {
         var issue = issue("RECHECKING");
         var running = run("RUNNING", null, null);
         var terminal = run("SUCCEEDED", true, "复检通过");
-        var repository = new GovernanceRepository(null, new ObjectMapper()) {
+        var issues = new IssueRepository(null) {
             private GovernanceIssue currentIssue = issue;
-            private QualityRuleRun currentRun = running;
 
             @Override
             public Optional<GovernanceIssue> findIssue(String id, String tenantId, String institutionId) {
                 return Optional.of(currentIssue);
             }
+
+            @Override
+            public int updateIssueAfterQualityResult(String issueId, String tenantId, String institutionId,
+                                                     String status, String note, String action, Instant actionAt) {
+                events.add("issue");
+                currentIssue = issue(status);
+                return 1;
+            }
+
+            @Override
+            public String insertEvent(String issueId, String eventType, String note, String actor, Instant createdAt) {
+                events.add("event");
+                return "event-1";
+            }
+
+            @Override
+            public List<GovernanceIssueEvent> findEvents(String issueId) {
+                return List.of();
+            }
+        };
+        var runs = new QualityRunRepository(null, new ObjectMapper()) {
+            private QualityRuleRun currentRun = running;
 
             @Override
             public Optional<QualityRuleRun> findQualityRun(String runId, String issueId,
@@ -74,25 +97,6 @@ class QualityOutcomeServiceTest {
             }
 
             @Override
-            public int updateIssueAfterQualityResult(String issueId, String tenantId, String institutionId,
-                                                     String status, String note, String action, Instant actionAt) {
-                events.add("issue");
-                currentIssue = issue(status);
-                return 1;
-            }
-
-            @Override
-            public String insertEvent(String issueId, String eventType, String note, String actor, Instant createdAt) {
-                events.add("event");
-                return "event-1";
-            }
-
-            @Override
-            public List<GovernanceIssueEvent> findEvents(String issueId) {
-                return List.of();
-            }
-
-            @Override
             public Optional<QualityRuleRun> findLatestQualityRun(String issueId, String tenantId,
                                                                  String institutionId) {
                 return Optional.of(currentRun);
@@ -102,13 +106,14 @@ class QualityOutcomeServiceTest {
             public List<QualityRuleRun> findQualityRuns(String issueId, String tenantId, String institutionId) {
                 return List.of(currentRun);
             }
-
+        };
+        var outbox = new NotificationOutboxRepository(null) {
             @Override
             public List<com.cywu.dataos.controlplane.governance.GovernanceNotification> findNotifications(String issueId) {
                 return List.of();
             }
         };
-        var notifications = new NotificationService(repository, List.of(), 5, 5_000) {
+        var notifications = new NotificationService(outbox, issues, List.of(), 5, 5_000) {
             @Override
             public com.cywu.dataos.controlplane.governance.GovernanceNotification enqueue(
                     GovernanceIssue issue, GovernanceIssueEvent event, String subject, String body) {
@@ -134,7 +139,7 @@ class QualityOutcomeServiceTest {
                         List.of(), null, Instant.now(), Instant.now());
             }
         };
-        var service = new QualityOutcomeService(repository, List.of(executor), notifications,
+        var service = new QualityOutcomeService(issues, runs, outbox, List.of(executor), notifications,
                 transactionManager(events), "DEMO", 30_000, 120_000,
                 new TenantScope(new AuthProperties()));
 

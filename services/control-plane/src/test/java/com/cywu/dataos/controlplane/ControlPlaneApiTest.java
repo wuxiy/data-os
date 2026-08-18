@@ -31,7 +31,8 @@ import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.client.RestClient;
 import com.cywu.dataos.controlplane.governance.GovernanceIssueEvent;
-import com.cywu.dataos.controlplane.governance.GovernanceRepository;
+import com.cywu.dataos.controlplane.governance.IssueRepository;
+import com.cywu.dataos.controlplane.quality.QualityRunRepository;
 import com.cywu.dataos.controlplane.quality.NotificationService;
 import com.cywu.dataos.controlplane.quality.WebhookNotificationChannel;
 import com.cywu.dataos.controlplane.quality.QualityOutcomeScheduler;
@@ -57,7 +58,11 @@ class ControlPlaneApiTest {
     private JdbcTemplate jdbc;
 
     @Autowired
-    private GovernanceRepository governanceRepository;
+    private IssueRepository issueRepository;
+    @Autowired
+    private QualityRunRepository qualityRunRepository;
+    @Autowired
+    private com.cywu.dataos.controlplane.governance.NotificationOutboxRepository notificationOutbox;
 
     @Autowired
     private QualityOutcomeScheduler qualityOutcomeScheduler;
@@ -429,7 +434,7 @@ class ControlPlaneApiTest {
     void rollsBackTerminalQualityOutcomeWhenNotificationCannotBeQueued() {
         insertIssue("DQ-TEST-004A", "质量闭环回滚", "rule-pass", "RECHECKING",
                 Instant.now().plusSeconds(3600));
-        var created = governanceRepository.createQualityRun("DQ-TEST-004A", "default", "demo-hospital",
+        var created = qualityRunRepository.createQualityRun("DQ-TEST-004A", "default", "demo-hospital",
                 "rule-pass", "asset-test", "ROLLBACK_TEST", "qr-rollback-004a", Instant.now());
         jdbc.update("""
                 UPDATE data_os.quality_rule_runs
@@ -453,7 +458,7 @@ class ControlPlaneApiTest {
                         List.of(), null, Instant.now(), Instant.now());
             }
         };
-        var failingNotifications = new NotificationService(governanceRepository, List.of(), 5, 5_000) {
+        var failingNotifications = new NotificationService(notificationOutbox, issueRepository, List.of(), 5, 5_000) {
             @Override
             public com.cywu.dataos.controlplane.governance.GovernanceNotification enqueue(
                     com.cywu.dataos.controlplane.governance.GovernanceIssue issue,
@@ -461,7 +466,8 @@ class ControlPlaneApiTest {
                 throw new IllegalStateException("模拟通知入队失败");
             }
         };
-        var outcomes = new QualityOutcomeService(governanceRepository, List.of(executor), failingNotifications,
+        var outcomes = new QualityOutcomeService(issueRepository, qualityRunRepository, notificationOutbox,
+                List.of(executor), failingNotifications,
                 transactionManager, "ROLLBACK_TEST", 30_000, 120_000,
                 new TenantScope(new AuthProperties()));
 
@@ -477,7 +483,7 @@ class ControlPlaneApiTest {
     @Test
     void exposesQualityUnknownReconciliationAndRequiresExplicitAbsenceConfirmation() throws Exception {
         insertIssue("DQ-TEST-004B", "质量执行对账", "rule-pass", "RECHECKING", Instant.now().plusSeconds(3600));
-        var run = governanceRepository.createQualityRun("DQ-TEST-004B", "default", "demo-hospital",
+        var run = qualityRunRepository.createQualityRun("DQ-TEST-004B", "default", "demo-hospital",
                 "rule-pass", "asset-test", "DEMO", "qr-unknown-004b", Instant.now());
         jdbc.update("""
                 UPDATE data_os.quality_rule_runs
@@ -594,13 +600,13 @@ class ControlPlaneApiTest {
     void submissionResultMustBeWrittenByCurrentLeaseOwner() {
         insertIssue("DQ-TEST-007C", "提交租约所有权", "rule-pass", "RECHECKING", Instant.now().plusSeconds(3600));
         var now = Instant.now();
-        var run = governanceRepository.createQualityRun("DQ-TEST-007C", "default", "demo-hospital",
+        var run = qualityRunRepository.createQualityRun("DQ-TEST-007C", "default", "demo-hospital",
                 "rule-pass", "asset-test", "DEMO", "qr-lease-007c", now);
-        org.assertj.core.api.Assertions.assertThat(governanceRepository.claimQualityRunForSubmission(
+        org.assertj.core.api.Assertions.assertThat(qualityRunRepository.claimQualityRunForSubmission(
                 run.id(), "worker-a", now.plusSeconds(120), now)).isEqualTo(1);
-        org.assertj.core.api.Assertions.assertThat(governanceRepository.markQualityRunSubmitted(
+        org.assertj.core.api.Assertions.assertThat(qualityRunRepository.markQualityRunSubmitted(
                 run.id(), "worker-b", "external-b", "错误 worker", now)).isEqualTo(0);
-        org.assertj.core.api.Assertions.assertThat(governanceRepository.markQualityRunSubmitted(
+        org.assertj.core.api.Assertions.assertThat(qualityRunRepository.markQualityRunSubmitted(
                 run.id(), "worker-a", "external-a", "当前 worker", now)).isEqualTo(1);
         org.assertj.core.api.Assertions.assertThat(jdbc.queryForObject(
                 "SELECT external_id FROM data_os.quality_rule_runs WHERE id = ?", String.class, run.id()))
@@ -610,9 +616,9 @@ class ControlPlaneApiTest {
     @Test
     void claimsNotificationOnceWhenManualAndScheduledDeliveryOverlap() throws Exception {
         insertIssue("DQ-TEST-008", "通知抢占边界", "rule-pass", "PENDING", Instant.now().plusSeconds(3600));
-        var issue = governanceRepository.findIssue("DQ-TEST-008", "default", "demo-hospital").orElseThrow();
+        var issue = issueRepository.findIssue("DQ-TEST-008", "default", "demo-hospital").orElseThrow();
         var now = Instant.now();
-        var eventId = governanceRepository.insertEvent(issue.id(), "TEST_NOTIFICATION", "并发测试", "测试", now);
+        var eventId = issueRepository.insertEvent(issue.id(), "TEST_NOTIFICATION", "并发测试", "测试", now);
         notificationService.enqueue(issue,
                 new GovernanceIssueEvent(eventId, issue.id(), "TEST_NOTIFICATION", "并发测试", "测试", now),
                 "并发通知", "验证数据库租约抢占");
@@ -669,12 +675,12 @@ class ControlPlaneApiTest {
         server.start();
         try {
             insertIssue("DQ-TEST-009", "Webhook 重试样例", "rule-pass", "PENDING", Instant.now().plusSeconds(3600));
-            var issue = governanceRepository.findIssue("DQ-TEST-009", "default", "demo-hospital").orElseThrow();
+            var issue = issueRepository.findIssue("DQ-TEST-009", "default", "demo-hospital").orElseThrow();
             var now = Instant.now();
-            var eventId = governanceRepository.insertEvent(issue.id(), "TEST_WEBHOOK", "重试测试", "测试", now);
+            var eventId = issueRepository.insertEvent(issue.id(), "TEST_WEBHOOK", "重试测试", "测试", now);
             var channel = new WebhookNotificationChannel(RestClient.builder(),
                     "http://127.0.0.1:" + server.getAddress().getPort() + "/notify");
-            var service = new NotificationService(governanceRepository, List.of(channel), 3, 60_000);
+            var service = new NotificationService(notificationOutbox, issueRepository, List.of(channel), 3, 60_000);
             var notification = service.enqueue(issue,
                     new GovernanceIssueEvent(eventId, issue.id(), "TEST_WEBHOOK", "重试测试", "测试", now),
                     "Webhook 重试", "验证失败后退避");

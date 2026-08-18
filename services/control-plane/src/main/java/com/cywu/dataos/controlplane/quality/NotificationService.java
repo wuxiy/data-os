@@ -10,7 +10,8 @@ import java.util.UUID;
 import com.cywu.dataos.controlplane.governance.GovernanceIssue;
 import com.cywu.dataos.controlplane.governance.GovernanceIssueEvent;
 import com.cywu.dataos.controlplane.governance.GovernanceNotification;
-import com.cywu.dataos.controlplane.governance.GovernanceRepository;
+import com.cywu.dataos.controlplane.governance.IssueRepository;
+import com.cywu.dataos.controlplane.governance.NotificationOutboxRepository;
 import com.cywu.dataos.controlplane.api.ConflictException;
 import com.cywu.dataos.controlplane.api.InvalidRequestException;
 import com.cywu.dataos.controlplane.api.ResourceNotFoundException;
@@ -22,17 +23,20 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class NotificationService {
 
-    private final GovernanceRepository repository;
+    private final NotificationOutboxRepository outbox;
+    private final IssueRepository issues;
     private final List<NotificationChannel> channels;
     private final long maxAttempts;
     private final long leaseMs;
     private final String workerId = "notification-worker-" + UUID.randomUUID();
 
-    public NotificationService(GovernanceRepository repository,
+    public NotificationService(NotificationOutboxRepository outbox,
+                               IssueRepository issues,
                                List<NotificationChannel> channels,
                                @Value("${data-os.notification.max-attempts:5}") long maxAttempts,
                                @Value("${data-os.notification.lease-ms:120000}") long leaseMs) {
-        this.repository = repository;
+        this.outbox = outbox;
+        this.issues = issues;
         this.channels = channels;
         this.maxAttempts = Math.max(1, maxAttempts);
         this.leaseMs = Math.max(5_000, leaseMs);
@@ -46,7 +50,7 @@ public class NotificationService {
 
     private GovernanceNotification enqueue(GovernanceIssue issue, GovernanceIssueEvent event,
                                            String subject, String body, String idempotencyKey) {
-        return repository.enqueueNotification(issue.id(), event.id(), "WEBHOOK", issue.tenantId(), issue.institutionId(),
+        return outbox.enqueueNotification(issue.id(), event.id(), "WEBHOOK", issue.tenantId(), issue.institutionId(),
                 issue.ownerName(), issue.ownerId(),
                 subject, body, idempotencyKey, Instant.now());
     }
@@ -57,7 +61,7 @@ public class NotificationService {
         var skipped = 0;
         var failed = 0;
         var now = Instant.now();
-        for (var notification : repository.claimPendingNotifications(now, now.plusMillis(leaseMs), workerId)) {
+        for (var notification : outbox.claimPendingNotifications(now, now.plusMillis(leaseMs), workerId)) {
             processed++;
             var result = deliverOne(notification);
             switch (result) {
@@ -79,7 +83,7 @@ public class NotificationService {
     private String deliverOne(GovernanceNotification notification) {
         var channel = channels.stream().filter(item -> item.supports(notification.channel())).findFirst().orElse(null);
         if (channel == null) {
-            repository.markNotificationSkipped(notification.id(), workerId,
+            outbox.markNotificationSkipped(notification.id(), workerId,
                     "暂不支持通知通道：" + notification.channel(), Instant.now());
             return "SKIPPED";
         }
@@ -91,20 +95,20 @@ public class NotificationService {
         }
         var now = Instant.now();
         if ("SENT".equals(result.status())) {
-            repository.markNotificationSent(notification.id(), workerId, now);
+            outbox.markNotificationSent(notification.id(), workerId, now);
             return "SENT";
         }
         if ("SKIPPED".equals(result.status())) {
-            repository.markNotificationSkipped(notification.id(), workerId, result.message(), now);
+            outbox.markNotificationSkipped(notification.id(), workerId, result.message(), now);
             return "SKIPPED";
         }
         if (notification.attemptCount() + 1 >= maxAttempts) {
-            repository.markNotificationSkipped(notification.id(), workerId,
+            outbox.markNotificationSkipped(notification.id(), workerId,
                     "已达到最大重试次数：" + result.message(), now);
             return "SKIPPED";
         }
         var backoffSeconds = Math.min(3600, 30L * (1L << Math.min(6, notification.attemptCount())));
-        repository.markNotificationFailed(notification.id(), workerId, result.message(),
+        outbox.markNotificationFailed(notification.id(), workerId, result.message(),
                 now.plus(Duration.ofSeconds(backoffSeconds)), now);
         return "FAILED";
     }
@@ -116,7 +120,7 @@ public class NotificationService {
     @Transactional
     public GovernanceNotification remind(String issueId, String tenantId, String institutionId,
                                          String requestIdempotencyKey) {
-        var issue = repository.findIssue(issueId, tenantId, institutionId)
+        var issue = issues.findIssue(issueId, tenantId, institutionId)
                 .orElseThrow(() -> new ResourceNotFoundException("未找到治理问题：" + issueId));
         if ("CLOSED".equals(issue.status())) {
             throw new ConflictException("已关闭的治理问题不需要提醒责任人");
@@ -128,7 +132,7 @@ public class NotificationService {
         var notificationKey = normalizedKey.isBlank() ? null
                 : issue.id() + ":RESPONSIBLE_REMINDER:" + normalizedKey;
         if (notificationKey != null) {
-            var existing = repository.findNotificationByIdempotencyKey(notificationKey);
+            var existing = outbox.findNotificationByIdempotencyKey(notificationKey);
             if (existing.isPresent()) return existing.get();
         }
         var now = Instant.now();
@@ -140,7 +144,7 @@ public class NotificationService {
                 notificationKey == null ? issue.id() + ":" + event.eventType() + ":" + event.id() : notificationKey);
         // 抢到幂等键的事务才有资格写事件；并发请求拿到已有通知时不重复生成事件。
         if (eventId.equals(notification.eventId())) {
-            repository.insertEvent(issue.id(), event.eventType(), event.note(), event.actor(), now);
+            issues.insertEvent(issue.id(), event.eventType(), event.note(), event.actor(), now);
         }
         return notification;
     }

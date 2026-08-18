@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import com.cywu.dataos.controlplane.governance.GovernanceRepository;
+import com.cywu.dataos.controlplane.governance.IssueRepository;
 import com.cywu.dataos.controlplane.run.RunCommandSource;
 import com.cywu.dataos.controlplane.run.RunStateStore;
 import com.cywu.dataos.controlplane.run.RunStatus;
@@ -17,22 +17,22 @@ import com.cywu.dataos.controlplane.run.RunStatus;
  */
 public class QualityRunStore implements RunStateStore<QualityRuleRun, QualityResultPayload> {
 
-    private final GovernanceRepository repository;
+    private final QualityRunRepository runs;
     private final long pollIntervalMs;
     private final String workerId = "quality-worker-" + UUID.randomUUID();
 
-    public QualityRunStore(GovernanceRepository repository, long pollIntervalMs) {
-        this.repository = repository;
+    public QualityRunStore(QualityRunRepository runs, long pollIntervalMs) {
+        this.runs = runs;
         this.pollIntervalMs = pollIntervalMs;
     }
 
     /** 恢复重投的命令源：所属治理问题已不存在时直接标记孤儿终态并放弃。 */
     public static RunCommandSource<QualityRuleRun, QualityRuleExecutionRequest> recoveryCommandSource(
-            GovernanceRepository repository) {
+            IssueRepository issues, QualityRunRepository runs) {
         return run -> {
-            var issue = repository.findIssue(run.issueId(), run.tenantId(), run.institutionId());
+            var issue = issues.findIssue(run.issueId(), run.tenantId(), run.institutionId());
             if (issue.isEmpty()) {
-                repository.markOrphanQualityRunSubmissionError(run.id(),
+                runs.markOrphanQualityRunSubmissionError(run.id(),
                         "治理问题已不存在，无法恢复质量复检投递", Instant.now());
                 return Optional.empty();
             }
@@ -45,32 +45,32 @@ public class QualityRunStore implements RunStateStore<QualityRuleRun, QualityRes
 
     @Override
     public boolean claimSubmissionLease(QualityRuleRun run, Instant leaseUntil) {
-        return repository.claimQualityRunForSubmission(run.id(), workerId, leaseUntil, Instant.now()) == 1;
+        return runs.claimQualityRunForSubmission(run.id(), workerId, leaseUntil, Instant.now()) == 1;
     }
 
     @Override
     public boolean completeSubmission(QualityRuleRun run, String status, String externalId, String message,
                                       Instant startedAt, Instant finishedAt) {
         if (RunStatus.SUBMITTED.name().equals(status)) {
-            return repository.markQualityRunSubmitted(run.id(), workerId, externalId, message,
+            return runs.markQualityRunSubmitted(run.id(), workerId, externalId, message,
                     Instant.now().plusMillis(pollIntervalMs)) == 1;
         }
-        return repository.markQualityRunSubmissionError(run.id(), workerId, message, null, status) == 1;
+        return runs.markQualityRunSubmissionError(run.id(), workerId, message, null, status) == 1;
     }
 
     @Override
     public void markSubmissionRetryable(QualityRuleRun run, String message, Instant retryAt) {
-        repository.markQualityRunSubmissionError(run.id(), workerId, message, retryAt);
+        runs.markQualityRunSubmissionError(run.id(), workerId, message, retryAt);
     }
 
     @Override
     public List<QualityRuleRun> findSyncCandidates(Instant now) {
-        return repository.findQualitySyncCandidates(now);
+        return runs.findQualitySyncCandidates(now);
     }
 
     @Override
     public boolean claimStatusPoll(QualityRuleRun run, Instant leaseUntil) {
-        return repository.claimQualityRunForStatus(run.id(), workerId + ":status", leaseUntil, Instant.now(),
+        return runs.claimQualityRunForStatus(run.id(), workerId + ":status", leaseUntil, Instant.now(),
                 run.status(), run.externalId()) == 1;
     }
 
@@ -78,10 +78,10 @@ public class QualityRunStore implements RunStateStore<QualityRuleRun, QualityRes
     public boolean applyStatus(QualityRuleRun run, String status, String message, Instant startedAt,
                                Instant finishedAt, QualityResultPayload payload, Instant nextPollAt) {
         if (payload == null && RunStatus.isTerminal(status)) {
-            return repository.markQualityRunError(run.id(), message, null, status,
+            return runs.markQualityRunError(run.id(), message, null, status,
                     run.status(), run.externalId(), workerId + ":status") == 1;
         }
-        return repository.updateQualityRunStatus(run.id(), status,
+        return runs.updateQualityRunStatus(run.id(), status,
                 payload == null ? null : payload.passed(),
                 payload == null ? null : payload.executionBatchId(),
                 message,
@@ -93,7 +93,7 @@ public class QualityRunStore implements RunStateStore<QualityRuleRun, QualityRes
 
     @Override
     public void markPollRetryable(QualityRuleRun run, String message, Instant nextPollAt) {
-        repository.markQualityRunError(run.id(), message, nextPollAt, null,
+        runs.markQualityRunError(run.id(), message, nextPollAt, null,
                 run.status(), run.externalId(), workerId + ":status");
     }
 
@@ -109,6 +109,6 @@ public class QualityRunStore implements RunStateStore<QualityRuleRun, QualityRes
 
     @Override
     public Optional<QualityRuleRun> reload(QualityRuleRun run) {
-        return repository.findQualityRun(run.id(), run.issueId(), run.tenantId(), run.institutionId());
+        return runs.findQualityRun(run.id(), run.issueId(), run.tenantId(), run.institutionId());
     }
 }

@@ -11,3 +11,7 @@
   - 采集侧转 `UNKNOWN` 走人工对账——外部写入（双重采集）不可重入，宁可疑；
   - 质量侧原地重投并退避——质量检查幂等（执行批次号即执行器主键），重投安全。
 - 对账（reconciliation）：外部运行结果不确定（`UNKNOWN`）时，按运行编号向执行器求证或由人工确认缺席（`confirmAbsent`）的过程。
+
+## 通知发件箱（Notification Outbox）
+
+治理问题的事件通知先落 `governance_notifications` 表（发件箱），以幂等键去重入队；`NotificationOutboxRepository` 以数据库租约抢占外发（同租约防并发重复外发），外发通道（Webhook 等）与重试/放弃策略由通知模块持有。终态回写与租约释放同事务。
