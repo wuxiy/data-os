@@ -148,6 +148,17 @@ public class MpiPersonService {
         return newPersonId;
     }
 
+    /** 人工路径建黄金人（复核确认同人且双方均无人时）。 */
+    public String createManualPerson(String tenantId, String institutionId, String name) {
+        return createPerson(tenantId, institutionId, name, null, "manual");
+    }
+
+    /** 人工路径把身份挂到黄金人（版本链语义同规则路径，决策源 MANUAL）。 */
+    public void linkManual(String tenantId, String institutionId, String personId,
+                           String identityGroup, String actor) {
+        insertLink(tenantId, institutionId, personId, identityGroup, "MANUAL", null, actor);
+    }
+
     private Optional<String> currentPersonOf(String tenantId, String identityGroup) {
         var found = pg.queryForList("""
                 SELECT person_id FROM data_os_mpi.mpi_person_link
