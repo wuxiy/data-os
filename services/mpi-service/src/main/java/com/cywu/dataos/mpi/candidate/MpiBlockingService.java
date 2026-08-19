@@ -66,6 +66,10 @@ public class MpiBlockingService {
             VALUES (?, ?, ?, ?, ?, ?)
             """;
 
+    /** 候选对每次全量重算：先清空本租户旧集合。覆盖写无法收缩旧集合——
+     *  规则收紧或源数据删除后，残留旧对会被当作活候选（已实证：7.6 万旧对残留）。 */
+    static final String CLEAR_PAIRS = "DELETE FROM dataos_mpi.mpi_candidate_pair WHERE tenant_id = ?";
+
     private static final int BATCH_SIZE = 500;
 
     private final JdbcTemplate doris;
@@ -81,6 +85,7 @@ public class MpiBlockingService {
     }
 
     public BlockingResult generate(String tenantId) {
+        doris.update(CLEAR_PAIRS, tenantId);
         // 跨规则去重：保留字典序最小的召回规则（B3 < B4 < B6）。
         Map<PairKey, String> deduped = new LinkedHashMap<>();
         for (var rule : List.of("B3", "B4", "B6")) {

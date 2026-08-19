@@ -135,6 +135,25 @@ class MpiLoadBlockingTests {
     }
 
     @Test
+    void blockingClearsStalePairsBeforeRegeneration() {
+        seedPrescriptions();
+        loader.load("default", "EP");
+        // 伪造上一轮遗留候选（规则收紧前的旧集合）：重算后必须被清除。
+        doris.update("""
+                INSERT INTO dataos_mpi.mpi_candidate_pair
+                  (pair_id, tenant_id, identity_a, identity_b, blocking_rule, generated_at)
+                VALUES (999999, 'default', 'EP|2', 'EP|6', 'B6', CURRENT_TIMESTAMP)
+                """);
+        blocking.generate("default");
+        var stale = doris.queryForObject(
+                "SELECT COUNT(*) FROM dataos_mpi.mpi_candidate_pair WHERE pair_id = 999999", Integer.class);
+        assertThat(stale).isZero();
+        var total = doris.queryForObject(
+                "SELECT COUNT(*) FROM dataos_mpi.mpi_candidate_pair", Integer.class);
+        assertThat(total).isEqualTo(4);
+    }
+
+    @Test
     void rebuildEndpointReturnsAggregatedStats() {
         seedPrescriptions();
         var entity = rest.postForEntity("/api/v1/mpi/rebuild", null, Map.class);
