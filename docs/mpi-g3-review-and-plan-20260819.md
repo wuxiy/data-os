@@ -123,7 +123,7 @@ services/mpi-service（新，Spring Boot 3 / Java 21，quality-runner 服务模�
 | H-ep1 | 历史人工确认 NO_MATCH 的身份对再次候选 | HARD_CONFLICT → NO_MATCH |
 | H-ep2 | 历史人工 Split 的身份对再次候选 | HARD_CONFLICT → NO_MATCH |
 
-Blocking（Doris SQL，候选对去重）：B3=机构+PATIENT_ID；B4=机构+卡号；B6'=姓名+性别（EP 无出生日期的替代召回）。年龄 HZNL 仅入 evidence 展示。
+Blocking（Doris SQL，候选对去重）：B3=机构+PATIENT_ID；B4=机构+卡号；B6'=同机构+姓名+性别+**联系方式哈希相同**（2026-08-19 实施修订：EP 合成数据 1433 身份仅 322 个姓名，裸「姓名+性别」召回产出 7.6 万对噪声，联系方式是数据内可用的最强佐证，实测 3 对；V2 引入出生日期/证件后放宽）。年龄 HZNL 仅入 evidence 展示。B3 在 EP 单源数据上恒 0 对（跨源就绪，H2 集成测试覆盖其逻辑）。
 
 ### 3. 数据流与 API
 

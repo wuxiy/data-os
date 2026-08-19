@@ -42,14 +42,20 @@ public class MpiBlockingService {
             WHERE a.tenant_id = ?
             """;
 
-    /** B6'：同名同性别（EP 无出生日期的替代召回；性别缺失 U 不召回，防同名噪声）。 */
+    /**
+     * B6'：EP 演示档的同名替代召回 = 同机构 + 姓名相同 + 性别相同 + 联系方式哈希相同。
+     * 方案原名「姓名+性别」，但 EP 合成数据 1433 身份仅 322 个姓名（auto05-9 单名
+     * 400 人），裸姓名召回产出 7.6 万对噪声——联系方式是数据内可用的最强佐证
+     * （实测 3 对）。V2 引入出生日期/证件后再放宽。
+     */
     static final String BLOCK_B6 = """
             SELECT CONCAT(a.source_system, '|', a.source_key), CONCAT(b.source_system, '|', b.source_key)
             FROM dataos_mpi.mpi_source_identity a
             JOIN dataos_mpi.mpi_source_identity b
-              ON a.tenant_id = b.tenant_id
+              ON a.tenant_id = b.tenant_id AND a.institution_code = b.institution_code
              AND a.name_norm = b.name_norm AND a.gender = b.gender
              AND a.gender IN ('M', 'F')
+             AND a.contact_hash IS NOT NULL AND a.contact_hash = b.contact_hash
              AND CONCAT(a.source_system, '|', a.source_key) < CONCAT(b.source_system, '|', b.source_key)
             WHERE a.tenant_id = ?
             """;

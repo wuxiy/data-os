@@ -1,7 +1,5 @@
 package com.cywu.dataos.mpi.storage;
 
-import javax.sql.DataSource;
-
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -12,7 +10,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
  * Doris 访问层（MySQL 协议）：与主数据源（PG，事务态）分离的批处理态通道。
- * 未配置 url 时不装配——服务可独立于 Doris 启动，rebuild 显式报 503。
+ * Doris 的 DataSource 由模板内部持有、不注册为容器 bean——容器必须始终
+ * 只有 PG 一个 DataSource 候选，否则 Flyway/JdbcTemplate 自动配置会歧义
+ * （曾把 Doris 误当迁移目标）。未配置 url 时不装配，服务可独立启动。
  */
 @Configuration
 @EnableConfigurationProperties(DorisAccessConfiguration.DorisProperties.class)
@@ -58,21 +58,16 @@ public class DorisAccessConfiguration {
         }
     }
 
-    @Bean(name = "dorisDataSource")
+    @Bean(name = "dorisJdbc")
     @ConditionalOnProperty(name = "data-os.mpi.doris.url", matchIfMissing = false)
-    DataSource dorisDataSource(DorisProperties properties) {
-        return DataSourceBuilder.create()
+    JdbcTemplate dorisJdbcTemplate(DorisProperties properties) {
+        var dataSource = DataSourceBuilder.create()
                 .url(properties.getUrl())
                 .username(properties.getUsername())
                 .password(properties.getPassword())
                 .build();
-    }
-
-    @Bean(name = "dorisJdbc")
-    @ConditionalOnProperty(name = "data-os.mpi.doris.url", matchIfMissing = false)
-    JdbcTemplate dorisJdbcTemplate(DataSource dorisDataSource) {
-        var template = new JdbcTemplate(dorisDataSource);
-        // 装载是批处理：放宽单语句行数限制（Blocking 自 JOIN 结果集全量拉取）。
+        var template = new JdbcTemplate(dataSource);
+        // 装载是批处理：Blocking 自 JOIN 结果集需要全量拉取。
         template.setMaxRows(0);
         return template;
     }
