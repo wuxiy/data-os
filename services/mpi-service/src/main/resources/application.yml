@@ -37,6 +37,15 @@ data-os:
     default-tenant-id: ${DATAOS_MPI_DEFAULT_TENANT_ID:default}
     default-institution-id: ${DATAOS_MPI_DEFAULT_INSTITUTION_ID:demo-hospital}
     allow-default-scope: ${DATAOS_MPI_DEFAULT_SCOPE_ENABLED:true}
+  mpi:
+    doris:
+      # url 仅由环境变量 DATAOS_MPI_DORIS_URL 提供：不设默认值，未设置时
+      # 属性即不存在，Doris 访问层（DataSource/装载/召回/rebuild）整体不装配，
+      # 服务照常启动、rebuild 返回 503。
+      username: ${DATAOS_MPI_DORIS_USERNAME:dataos_mpi}
+      password: ${DATAOS_MPI_DORIS_PASSWORD:}
+      # 敏感字段加盐哈希的盐值：仅存部署环境 .env，严禁入库/入日志。
+      hash-salt: ${DATAOS_MPI_HASH_SALT:}
 
 management:
   endpoints:

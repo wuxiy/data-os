@@ -2,7 +2,8 @@ spring:
   datasource:
     # DATABASE_TO_LOWER=TRUE：未加引号标识符小写化，与 PG 真实行为一致
     # （Flyway 以带引号形式建小写 schema，H2 默认大写化会导致迁移脚本找不到 schema）。
-    url: jdbc:h2:mem:mpi;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE
+    # DB_CLOSE_DELAY=-1：主池与 doris 池两个连接池共享同一 mem 库，禁止随连接回收销毁。
+    url: jdbc:h2:mem:mpi;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1
     username: sa
     password:
   sql:
@@ -16,3 +17,11 @@ spring:
 data-os:
   auth:
     mode: DISABLED
+  mpi:
+    doris:
+      # 测试以同一 H2 库模拟 Doris：SELECT/INSERT 逻辑真实执行，
+      # Doris UNIQUE KEY 覆盖语义由演示档「重跑重建」端到端验证。
+      url: jdbc:h2:mem:mpi;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1
+      username: sa
+      password:
+      hash-salt: unit-test-salt

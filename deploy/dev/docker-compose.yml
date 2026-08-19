@@ -218,6 +218,12 @@ services:
       DATAOS_MPI_DB_URL: ${DATAOS_MPI_DB_URL:-jdbc:postgresql://keycloak-db:5432/keycloak}
       DATAOS_MPI_DB_USERNAME: ${DATAOS_MPI_DB_USERNAME:-dataos_mpi}
       DATAOS_MPI_DB_PASSWORD: ${DATAOS_MPI_DB_PASSWORD:?请在远程 .env 中提供 DATAOS_MPI_DB_PASSWORD}
+      # Doris 批处理通道（读 ods_ep / 读写 dataos_mpi），未设置时服务可启动、rebuild 503。
+      DATAOS_MPI_DORIS_URL: ${DATAOS_MPI_DORIS_URL:-jdbc:mysql://172.16.66.8:9030/dataos_mpi?useSSL=false&characterEncoding=utf8&rewriteBatchedStatements=true}
+      DATAOS_MPI_DORIS_USERNAME: ${DATAOS_MPI_DORIS_USERNAME:-dataos_mpi}
+      DATAOS_MPI_DORIS_PASSWORD: ${DATAOS_MPI_DORIS_PASSWORD:-${DORIS_MPI_PASSWORD:?请在远程 .env 中提供 DORIS_MPI_PASSWORD}}
+      # 敏感字段加盐哈希盐值：仅存 .env。
+      DATAOS_MPI_HASH_SALT: ${DATAOS_MPI_HASH_SALT:?请在远程 .env 中提供 DATAOS_MPI_HASH_SALT}
     expose:
       - "8080"
     healthcheck:
