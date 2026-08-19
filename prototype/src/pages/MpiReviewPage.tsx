@@ -4,6 +4,8 @@ import { DemoDataBoundary } from '../components/ui/DemoDataBoundary'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Button, StatusTag } from '../components/ui/Primitives'
 import { mpiCandidates } from '../data/mock'
+import { frontendDemoMode } from '../data/runtimeMode'
+import { MpiReviewLive } from './MpiReviewLive'
 import styles from './Pages.module.css'
 
 const comparison = [
@@ -16,6 +18,20 @@ const comparison = [
 ]
 
 export function MpiReviewPage({ onNotice, onNavigate }: { onNotice: (message: string) => void; onNavigate: (route: 'ingestion' | 'governance' | 'quality') => void }) {
+  // 运行模式（CONTEXT.md）：演示构建保留静态样例供交互验收；
+  // 真实构建渲染 mpi-service 工作台（候选/证据/决策/黄金人拆分）。
+  if (!frontendDemoMode) {
+    return (
+      <div className={styles.page}>
+        <PageHeader title="主索引复核" eyebrow="主索引与主数据" compact />
+        <MpiReviewLive onNotice={onNotice} />
+      </div>
+    )
+  }
+  return <DemoMpiReviewPage onNotice={onNotice} onNavigate={onNavigate} />
+}
+
+function DemoMpiReviewPage({ onNotice, onNavigate }: { onNotice: (message: string) => void; onNavigate: (route: 'ingestion' | 'governance' | 'quality') => void }) {
   const [selectedId, setSelectedId] = useState(mpiCandidates[0].id)
   const [confirmed, setConfirmed] = useState(false)
   const [merged, setMerged] = useState(false)
