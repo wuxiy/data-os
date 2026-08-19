@@ -200,6 +200,32 @@ services:
         condition: service_completed_successfully
     restart: unless-stopped
 
+  mpi-service:
+    # 患者主索引独立服务（docs/mpi-g3-review-and-plan-20260819.md）。
+    # G3.1 脚手架：无存储依赖；G3.2 起接入 PG data_os_mpi 与 Doris dataos_mpi。
+    build:
+      context: ../..
+      dockerfile: services/mpi-service/Dockerfile
+    image: ${DATAOS_MPI_IMAGE:-medical-platform/data-os-mpi-service:0.1.0-dev}
+    environment:
+      SERVER_PORT: 8080
+      DATAOS_MPI_AUTH_MODE: ${DATAOS_MPI_AUTH_MODE:-DISABLED}
+      DATAOS_MPI_OIDC_ISSUER_URI: ${DATAOS_MPI_OIDC_ISSUER_URI:-${DATAOS_OIDC_ISSUER_URI:-}}
+      DATAOS_MPI_OIDC_AUDIENCE: ${DATAOS_MPI_OIDC_AUDIENCE:-data-os-mpi}
+      DATAOS_MPI_DEFAULT_TENANT_ID: ${DATAOS_DEFAULT_TENANT_ID:-default}
+      DATAOS_MPI_DEFAULT_INSTITUTION_ID: ${DATAOS_DEFAULT_INSTITUTION_ID:-demo-hospital}
+    expose:
+      - "8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/actuator/health/readiness | grep -q '\"status\":\"UP\"'"]
+      interval: 10s
+      timeout: 4s
+      start_period: 15s
+      retries: 12
+    networks:
+      - platform-net
+    restart: unless-stopped
+
   notification-receiver:
     build:
       context: ../..

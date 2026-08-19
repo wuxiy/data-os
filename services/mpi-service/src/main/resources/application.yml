@@ -1,0 +1,43 @@
+server:
+  port: ${SERVER_PORT:8080}
+  shutdown: graceful
+  forward-headers-strategy: framework
+
+spring:
+  application:
+    name: data-os-mpi
+
+data-os:
+  auth:
+    # fail closed：生产为默认，仅本地/开发部署显式选择 DISABLED。
+    mode: ${DATAOS_MPI_AUTH_MODE:ENFORCED}
+    issuer-uri: ${DATAOS_MPI_OIDC_ISSUER_URI:}
+    audience: ${DATAOS_MPI_OIDC_AUDIENCE:data-os-mpi}
+    clock-skew-seconds: ${DATAOS_MPI_OIDC_CLOCK_SKEW_SECONDS:60}
+    default-tenant-id: ${DATAOS_MPI_DEFAULT_TENANT_ID:default}
+    default-institution-id: ${DATAOS_MPI_DEFAULT_INSTITUTION_ID:demo-hospital}
+    allow-default-scope: ${DATAOS_MPI_DEFAULT_SCOPE_ENABLED:true}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+info:
+  app:
+    name: data-os mpi service
+    version: 0.1.0
