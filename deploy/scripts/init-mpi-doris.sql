@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS dataos_mpi.mpi_source_identity (
     loaded_at DATETIME NOT NULL,
     updated_at DATETIME NOT NULL
 ) ENGINE=OLAP
-UNIQUE KEY(tenant_id, source_system, source_key)
+UNIQUE KEY(tenant_id, institution_code, source_system, source_key)
 DISTRIBUTED BY HASH(source_key) BUCKETS 8
 PROPERTIES ("replication_num" = "1");
 

@@ -1,6 +1,8 @@
 spring:
   datasource:
-    url: jdbc:h2:mem:mpi;MODE=PostgreSQL
+    # DATABASE_TO_LOWER=TRUE：未加引号标识符小写化，与 PG 真实行为一致
+    # （Flyway 以带引号形式建小写 schema，H2 默认大写化会导致迁移脚本找不到 schema）。
+    url: jdbc:h2:mem:mpi;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE
     username: sa
     password:
   sql:

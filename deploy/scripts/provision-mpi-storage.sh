@@ -39,7 +39,7 @@ echo '== Doris: 库表 DDL + 独占账号三重授权（库级 + compute group +
 "${MYSQL[@]}" -u root -p"$DORIS_ROOT_PASSWORD" -e "
 CREATE USER IF NOT EXISTS 'dataos_mpi'@'%' IDENTIFIED BY '${DORIS_MPI_PASSWORD}';
 ALTER USER 'dataos_mpi'@'%' IDENTIFIED BY '${DORIS_MPI_PASSWORD}';
-GRANT ALL PRIVILEGES ON dataos_mpi.* TO 'dataos_mpi'@'%';
+GRANT ALL ON dataos_mpi.* TO 'dataos_mpi'@'%';
 GRANT USAGE_PRIV ON COMPUTE GROUP default_compute_group TO 'dataos_mpi'@'%';
 GRANT USAGE_PRIV ON STORAGE VAULT 's3_vault' TO 'dataos_mpi'@'%';
 "

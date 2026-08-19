@@ -1,7 +1,8 @@
--- MPI 事务态基线（schema 由 provision 以独占账号为 owner 预建；此处幂等兜底）。
+-- MPI 事务态基线。schema data_os_mpi 由 deploy/scripts/provision-mpi-storage.sh
+-- 以独占账号为 owner 预建（最小权限：账号无 database 级 CREATE），迁移只管表；
+-- 测试环境（H2）由 Flyway createSchemas 自动建 schema。
 -- 方言纪律与 control-plane 一致：VARCHAR(36) 应用生成 UUID、JSON 以 TEXT 存、
 -- 无 PG 特有扩展语法——保证 H2(PostgreSQL 模式) 迁移单测与生产同构。
-CREATE SCHEMA IF NOT EXISTS data_os_mpi;
 
 -- 黄金人：被判定为同一自然人的源身份集合的归一主体。
 CREATE TABLE IF NOT EXISTS data_os_mpi.mpi_person (
