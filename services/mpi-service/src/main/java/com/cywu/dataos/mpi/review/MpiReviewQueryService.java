@@ -86,20 +86,24 @@ public class MpiReviewQueryService {
                 "identityB", identityView(tenantId, String.valueOf(match.get("IDENTITY_B"))));
     }
 
-    /** 黄金人详情：属性 + 有效身份 + 操作历史（最近 20 条）。 */
+    /** 黄金人详情：属性 + 身份链接 + 操作历史（最近 20 条）。列名统一驼峰别名（前端契约）。 */
     public Map<String, Object> person(String tenantId, String personId) {
         var person = pg.queryForMap("""
                 SELECT id, golden_name, golden_gender, status, created_at, updated_at
                 FROM data_os_mpi.mpi_person WHERE tenant_id = ? AND id = ?
                 """, tenantId, personId);
         var links = pg.queryForList("""
-                SELECT source_identifier, decision_source, link_status, valid_from
+                SELECT source_identifier AS "sourceIdentifier",
+                       decision_source AS "decisionSource",
+                       link_status AS "linkStatus",
+                       valid_from AS "validFrom"
                 FROM data_os_mpi.mpi_person_link
                 WHERE tenant_id = ? AND person_id = ?
                 ORDER BY valid_from DESC
                 """, tenantId, personId);
         var history = pg.queryForList("""
-                SELECT action, actor, detail, created_at
+                SELECT action AS "action", actor AS "actor", detail AS "detail",
+                       created_at AS "createdAt"
                 FROM data_os_mpi.mpi_audit_event
                 WHERE tenant_id = ? AND (subject_id = ? OR detail LIKE ?)
                 ORDER BY created_at DESC LIMIT 20

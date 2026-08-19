@@ -54,17 +54,17 @@ export interface MpiRebuildResponse {
 }
 
 export interface MpiPersonLinkView {
-  SOURCE_IDENTIFIER: string
-  DECISION_SOURCE: string
-  LINK_STATUS: string
-  VALID_FROM: string
+  sourceIdentifier: string
+  decisionSource: string
+  linkStatus: string
+  validFrom: string
 }
 
 export interface MpiAuditHistoryItem {
-  ACTION: string
-  ACTOR: string
-  DETAIL: string
-  CREATED_AT: string
+  action: string
+  actor: string
+  detail: string
+  createdAt: string
 }
 
 export interface MpiPersonDetail {

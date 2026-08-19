@@ -307,11 +307,11 @@ function MpiPersonDrawer({ personId, onClose, onNotice, onSplit }: { personId: s
             <table className={styles.compareTable}>
               <thead><tr><th>源身份</th><th>决策源</th><th>操作</th></tr></thead>
               <tbody>
-                {person.links.filter((link) => link.LINK_STATUS === 'ACTIVE').map((link) => (
-                  <tr key={link.SOURCE_IDENTIFIER}>
-                    <td>{link.SOURCE_IDENTIFIER}</td>
-                    <td>{link.DECISION_SOURCE === 'MANUAL' ? '人工' : '规则'}</td>
-                    <td><Button onClick={() => splitIdentity(link.SOURCE_IDENTIFIER)} disabled={busy || person.links.filter((item) => item.LINK_STATUS === 'ACTIVE').length <= 1}>拆分</Button></td>
+                {person.links.filter((link) => link.linkStatus === 'ACTIVE').map((link) => (
+                  <tr key={link.sourceIdentifier}>
+                    <td>{link.sourceIdentifier}</td>
+                    <td>{link.decisionSource === 'MANUAL' ? '人工' : '规则'}</td>
+                    <td><Button onClick={() => splitIdentity(link.sourceIdentifier)} disabled={busy || person.links.filter((item) => item.linkStatus === 'ACTIVE').length <= 1}>拆分</Button></td>
                   </tr>
                 ))}
               </tbody>
@@ -321,7 +321,7 @@ function MpiPersonDrawer({ personId, onClose, onNotice, onSplit }: { personId: s
             <div className={styles.panelHeader}><div><h3>操作历史</h3><p>审计事件 · 最近 20 条</p></div><ShieldCheck size={18} /></div>
             <ul className={styles.checkList}>
               {person.history.map((event, index) => (
-                <li key={`${event.ACTION}-${event.CREATED_AT}-${index}`}>{event.ACTION} · {event.ACTOR} · {event.CREATED_AT}</li>
+                <li key={`${event.action}-${event.createdAt}-${index}`}>{event.action} · {event.actor} · {event.createdAt}</li>
               ))}
               {person.history.length === 0 ? <li>暂无历史事件</li> : null}
             </ul>
