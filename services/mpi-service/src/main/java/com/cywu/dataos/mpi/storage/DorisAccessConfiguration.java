@@ -58,6 +58,17 @@ public class DorisAccessConfiguration {
         }
     }
 
+    /**
+     * 主库（PG，事务态）模板。必须显式 @Primary：容器里存在第二个
+     * JdbcTemplate（dorisJdbc）时，Boot 的自动配置按「单候选」退位，
+     * 未限定注入的 PG 语义模板会歧义解析到 Doris——事务态绝不允许。
+     */
+    @Bean
+    @org.springframework.context.annotation.Primary
+    JdbcTemplate jdbcTemplate(javax.sql.DataSource dataSource) {
+        return new JdbcTemplate(dataSource);
+    }
+
     @Bean(name = "dorisJdbc")
     @ConditionalOnProperty(name = "data-os.mpi.doris.url", matchIfMissing = false)
     JdbcTemplate dorisJdbcTemplate(DorisProperties properties) {

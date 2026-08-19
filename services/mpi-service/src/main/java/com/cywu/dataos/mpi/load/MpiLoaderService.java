@@ -15,9 +15,10 @@ import com.cywu.dataos.mpi.storage.DorisAccessConfiguration;
 
 /**
  * 源身份装载：Doris ods_ep.ep_mz_cfzb 处方行 → 归一去重后的源身份，
- * 幂等写入 dataos_mpi.mpi_source_identity（UNIQUE KEY 覆盖）。
+ * 全量重算幂等（先清本租户本源旧集合，不依赖 UNIQUE KEY 隐式覆盖）。
  * 身份粒度 = 机构(YLJGDM) × 患者主键(PATIENT_ID)；属性取组内 MAX
  * （姓名/性别/卡号对同一登记稳定，年龄/联系方式仅展示与哈希证据）。
+ * 注意清空会重置 mpi_person_id 回写列——回写发生在装载之后的决策阶段，无损。
  */
 @Service
 @ConditionalOnProperty(name = "data-os.mpi.doris.url")
@@ -28,6 +29,11 @@ public class MpiLoaderService {
             SELECT YLJGDM, CAST(PATIENT_ID AS VARCHAR), MAX(HZXM), MAX(HZXB), MAX(KH), MAX(HZNL), MAX(LXFS)
             FROM ods_ep.ep_mz_cfzb
             GROUP BY YLJGDM, PATIENT_ID
+            """;
+
+    /** 全量重算纪律：先清本租户本源旧集合（与候选对/匹配结果同一纪律）。 */
+    static final String CLEAR_IDENTITIES = """
+            DELETE FROM dataos_mpi.mpi_source_identity WHERE tenant_id = ? AND source_system = ?
             """;
 
     static final String INSERT_IDENTITY = """
@@ -52,6 +58,7 @@ public class MpiLoaderService {
     }
 
     public LoadResult load(String tenantId, String sourceSystem) {
+        doris.update(CLEAR_IDENTITIES, tenantId, sourceSystem);
         var now = Timestamp.from(Instant.now());
         List<Object[]> batch = new ArrayList<>();
         int skipped = 0;

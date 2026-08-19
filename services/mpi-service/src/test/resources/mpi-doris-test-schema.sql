@@ -37,3 +37,15 @@ CREATE TABLE IF NOT EXISTS dataos_mpi.mpi_candidate_pair (
     blocking_rule VARCHAR(16),
     generated_at TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS dataos_mpi.mpi_match_result (
+    pair_id BIGINT,
+    tenant_id VARCHAR(64),
+    identity_a VARCHAR(128),
+    identity_b VARCHAR(128),
+    rule_id VARCHAR(16),
+    rule_version VARCHAR(32),
+    outcome VARCHAR(24),
+    evidence VARCHAR(4000),
+    decided_at TIMESTAMP
+);

@@ -36,7 +36,7 @@ public class MpiRebuildController {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Doris 批处理通道未配置");
         }
         var scope = tenantScope.current();
-        var result = service.rebuild(scope.tenantId());
+        var result = service.rebuild(scope.tenantId(), scope.institutionId(), scope.subject());
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("identitiesLoaded", result.identitiesLoaded());
         body.put("identitiesSkipped", result.identitiesSkipped());
@@ -46,6 +46,12 @@ public class MpiRebuildController {
         blocking.put("B4", result.blockingB4());
         blocking.put("B6", result.blockingB6());
         body.put("blocking", blocking);
+        Map<String, Integer> outcomes = new LinkedHashMap<>();
+        outcomes.put("autoMatch", result.autoMatches());
+        outcomes.put("review", result.reviewPairs());
+        outcomes.put("noMatch", result.noMatchPairs());
+        outcomes.put("hardConflict", result.hardConflicts());
+        body.put("outcomes", outcomes);
         return ResponseEntity.ok(body);
     }
 }
