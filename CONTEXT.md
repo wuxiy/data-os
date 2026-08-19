@@ -12,6 +12,19 @@
   - 质量侧原地重投并退避——质量检查幂等（执行批次号即执行器主键），重投安全。
 - 对账（reconciliation）：外部运行结果不确定（`UNKNOWN`）时，按运行编号向执行器求证或由人工确认缺席（`confirmAbsent`）的过程。
 
+## 患者主索引（MPI）
+
+跨源系统归一患者身份的独立域，由 `services/mpi-service` 独占持有（control-plane 不含 MPI 逻辑、不直连 MPI 数据；门户只经 nginx 调 MPI 服务）。方案见 `docs/mpi-g3-review-and-plan-20260819.md`。
+
+- **源身份（Source Identity）**：单一来源系统中的一个患者登记（机构 + 源主键/卡号 + 标准化属性），自 Doris ods 层装载，按源键幂等去重。
+- **黄金人（Golden Person）**：一组被判定为同一自然人的源身份的归一主体（`mpi_person`）；Merge/Split 改变其成员构成，全程留痕可逆。
+- **候选对（Candidate Pair）**：候选召回阶段产出的待判定身份对，跨召回规则按 pair 去重。
+- **候选召回（Blocking）**：用确定性键（机构+源主键、机构+卡号、姓名+性别）缩小候选集合的 SQL 阶段；只负责召回，判定交给规则层。
+- **硬冲突（Hard Conflict）**：人工已判 NO_MATCH 或已 Split 的身份对再次成为候选时，规则层强制 NO_MATCH——人工否决高于任何规则与分数。
+- **人工复核（Review）**：中间置信区间（如卡号复用）进入复核任务，由门户工作台确认同人/不同人/合并/拆分，决策全部落审计。
+
+三态口径：AUTO_MATCH（自动并入黄金人）/ REVIEW（人工）/ NO_MATCH。错误合并的临床风险高于漏合并：弱标识（卡号/手机号/姓名）不得单独硬合并，年龄等漂移属性仅作展示证据、不进规则。
+
 ## 通知发件箱（Notification Outbox）
 
 治理问题的事件通知先落 `governance_notifications` 表（发件箱），以幂等键去重入队；`NotificationOutboxRepository` 以数据库租约抢占外发（同租约防并发重复外发），外发通道（Webhook 等）与重试/放弃策略由通知模块持有。终态回写与租约释放同事务。
