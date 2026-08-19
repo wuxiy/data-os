@@ -23,7 +23,7 @@ public class MpiBlockingService {
 
     /** B3：同机构、同患者主键、跨源系统（EP 单源恒 0 对，规则为多源就绪）。 */
     static final String BLOCK_B3 = """
-            SELECT CONCAT(a.source_system, '|', a.source_key), CONCAT(b.source_system, '|', b.source_key)
+            SELECT CONCAT(a.institution_code, '|', a.source_system, '|', a.source_key), CONCAT(b.institution_code, '|', b.source_system, '|', b.source_key)
             FROM dataos_mpi.mpi_source_identity a
             JOIN dataos_mpi.mpi_source_identity b
               ON a.tenant_id = b.tenant_id AND a.institution_code = b.institution_code
@@ -33,12 +33,12 @@ public class MpiBlockingService {
 
     /** B4：同机构、归一卡号相同（卡号复用是 EP 真实形态，P-ep1 的召回来源）。 */
     static final String BLOCK_B4 = """
-            SELECT CONCAT(a.source_system, '|', a.source_key), CONCAT(b.source_system, '|', b.source_key)
+            SELECT CONCAT(a.institution_code, '|', a.source_system, '|', a.source_key), CONCAT(b.institution_code, '|', b.source_system, '|', b.source_key)
             FROM dataos_mpi.mpi_source_identity a
             JOIN dataos_mpi.mpi_source_identity b
               ON a.tenant_id = b.tenant_id AND a.institution_code = b.institution_code
              AND a.card_no_norm IS NOT NULL AND a.card_no_norm = b.card_no_norm
-             AND CONCAT(a.source_system, '|', a.source_key) < CONCAT(b.source_system, '|', b.source_key)
+             AND CONCAT(a.institution_code, '|', a.source_system, '|', a.source_key) < CONCAT(b.institution_code, '|', b.source_system, '|', b.source_key)
             WHERE a.tenant_id = ?
             """;
 
@@ -49,14 +49,14 @@ public class MpiBlockingService {
      * （实测 3 对）。V2 引入出生日期/证件后再放宽。
      */
     static final String BLOCK_B6 = """
-            SELECT CONCAT(a.source_system, '|', a.source_key), CONCAT(b.source_system, '|', b.source_key)
+            SELECT CONCAT(a.institution_code, '|', a.source_system, '|', a.source_key), CONCAT(b.institution_code, '|', b.source_system, '|', b.source_key)
             FROM dataos_mpi.mpi_source_identity a
             JOIN dataos_mpi.mpi_source_identity b
               ON a.tenant_id = b.tenant_id AND a.institution_code = b.institution_code
              AND a.name_norm = b.name_norm AND a.gender = b.gender
              AND a.gender IN ('M', 'F')
              AND a.contact_hash IS NOT NULL AND a.contact_hash = b.contact_hash
-             AND CONCAT(a.source_system, '|', a.source_key) < CONCAT(b.source_system, '|', b.source_key)
+             AND CONCAT(a.institution_code, '|', a.source_system, '|', a.source_key) < CONCAT(b.institution_code, '|', b.source_system, '|', b.source_key)
             WHERE a.tenant_id = ?
             """;
 

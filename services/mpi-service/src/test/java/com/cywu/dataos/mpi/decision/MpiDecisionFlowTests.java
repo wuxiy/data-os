@@ -153,7 +153,7 @@ class MpiDecisionFlowTests {
         // 人工判定 (EP|1,EP|2)（张三 vs 李四同卡）为不同人。
         long pairId = doris.queryForObject("""
                 SELECT pair_id FROM dataos_mpi.mpi_candidate_pair
-                WHERE identity_a = 'EP|1' AND identity_b = 'EP|2'
+                WHERE identity_a = 'H0001|EP|1' AND identity_b = 'H0001|EP|2'
                 """, Long.class);
         pg.update("""
                 UPDATE data_os_mpi.mpi_review_task
@@ -181,7 +181,7 @@ class MpiDecisionFlowTests {
         // 张三 person（EP|1+EP|7）：人工拆出 EP|7。
         var personId = pg.queryForObject(
                 "SELECT id FROM data_os_mpi.mpi_person", String.class);
-        persons.splitIdentity("default", "demo-hospital", personId, "EP|7", "reviewer", "挂号重复");
+        persons.splitIdentity("default", "demo-hospital", personId, "H0001|EP|7", "reviewer", "挂号重复");
 
         // 拆分后：原 person 只剩 EP|1，EP|7 获得独立 person。
         var activePersons = pg.queryForObject("""
@@ -201,7 +201,7 @@ class MpiDecisionFlowTests {
         var ruleId = doris.queryForObject("""
                 SELECT rule_id FROM dataos_mpi.mpi_match_result mr
                 JOIN dataos_mpi.mpi_candidate_pair cp ON cp.pair_id = mr.pair_id
-                WHERE cp.identity_a = 'EP|1' AND cp.identity_b = 'EP|7'
+                WHERE cp.identity_a = 'H0001|EP|1' AND cp.identity_b = 'H0001|EP|7'
                 """, String.class);
         assertThat(ruleId).isEqualTo("H-ep2");
     }

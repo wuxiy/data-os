@@ -121,15 +121,15 @@ class MpiLoadBlockingTests {
         var pairs = doris.queryForList(
                 "SELECT identity_a, identity_b, blocking_rule FROM dataos_mpi.mpi_candidate_pair");
         assertThat(pairs).anySatisfy(pair -> {
-            assertThat(pair.get("IDENTITY_A")).isEqualTo("EP|1");
-            assertThat(pair.get("IDENTITY_B")).isEqualTo("EP|2");
+            assertThat(pair.get("IDENTITY_A")).isEqualTo("H0001|EP|1");
+            assertThat(pair.get("IDENTITY_B")).isEqualTo("H0001|EP|2");
             assertThat(pair.get("BLOCKING_RULE")).isEqualTo("B4");
         });
         // pair_id 与 Java 确定性算法一致（跨表引用契约）。
-        var expectedId = MpiPairId.of("default", "EP|1", "EP|2");
+        var expectedId = MpiPairId.of("default", "H0001|EP|1", "H0001|EP|2");
         var storedId = doris.queryForObject("""
                 SELECT pair_id FROM dataos_mpi.mpi_candidate_pair
-                WHERE identity_a = 'EP|1' AND identity_b = 'EP|2'
+                WHERE identity_a = 'H0001|EP|1' AND identity_b = 'H0001|EP|2'
                 """, Long.class);
         assertThat(storedId).isEqualTo(expectedId);
     }
@@ -142,7 +142,7 @@ class MpiLoadBlockingTests {
         doris.update("""
                 INSERT INTO dataos_mpi.mpi_candidate_pair
                   (pair_id, tenant_id, identity_a, identity_b, blocking_rule, generated_at)
-                VALUES (999999, 'default', 'EP|2', 'EP|6', 'B6', CURRENT_TIMESTAMP)
+                VALUES (999999, 'default', 'H0001|EP|2', 'H0001|EP|6', 'B6', CURRENT_TIMESTAMP)
                 """);
         blocking.generate("default");
         var stale = doris.queryForObject(

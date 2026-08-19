@@ -19,7 +19,7 @@ import com.cywu.dataos.mpi.audit.MpiAuditService;
  * 传递闭包冲突检测（Cluster Guard 完整版）留 V2，此处以「弱标识不单独
  * 硬合并」的规则纪律兜底。link 为版本链（valid_to 关闭即失效），
  * Merge/Split 均可逆且留审计；身份标识以 source_identifier
- * （source_system|source_key）存储。
+ * （机构|源系统|源主键）存储。
  */
 @Service
 public class MpiPersonService {
@@ -128,7 +128,8 @@ public class MpiPersonService {
                 """, tenantId, personId, identityGroup);
         var name = doris.queryForObject("""
                 SELECT name_norm FROM dataos_mpi.mpi_source_identity
-                WHERE tenant_id = ? AND CONCAT(source_system, '|', source_key) = ?
+                WHERE tenant_id = ?
+                  AND CONCAT(institution_code, '|', source_system, '|', source_key) = ?
                 """, String.class, tenantId, identityGroup);
         var newPersonId = createPerson(tenantId, institutionId, name, null, actor);
         insertLink(tenantId, institutionId, newPersonId, identityGroup, "MANUAL", null, actor);
@@ -177,7 +178,7 @@ public class MpiPersonService {
                 SET valid_to = CURRENT_TIMESTAMP
                 WHERE tenant_id = ? AND source_identifier = ? AND valid_to IS NULL
                 """, tenantId, identityGroup);
-        var sourceSystem = identityGroup.split("\\|", 2)[0];
+        var sourceSystem = identityGroup.split("\\|", -1)[1];
         pg.update("""
                 INSERT INTO data_os_mpi.mpi_person_link
                   (id, tenant_id, institution_id, person_id, source_system, source_identifier,
@@ -201,7 +202,8 @@ public class MpiPersonService {
             doris.update("""
                     UPDATE dataos_mpi.mpi_source_identity
                     SET mpi_person_id = ?
-                    WHERE tenant_id = ? AND CONCAT(source_system, '|', source_key) = ?
+                    WHERE tenant_id = ?
+                      AND CONCAT(institution_code, '|', source_system, '|', source_key) = ?
                     """, personId, tenantId, group);
         }
     }
