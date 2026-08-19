@@ -214,6 +214,10 @@ services:
       DATAOS_MPI_OIDC_AUDIENCE: ${DATAOS_MPI_OIDC_AUDIENCE:-data-os-mpi}
       DATAOS_MPI_DEFAULT_TENANT_ID: ${DATAOS_DEFAULT_TENANT_ID:-default}
       DATAOS_MPI_DEFAULT_INSTITUTION_ID: ${DATAOS_DEFAULT_INSTITUTION_ID:-demo-hospital}
+      # 独占账号连同一 PG 实例的 keycloak 库，schema data_os_mpi 由服务 Flyway 迁移。
+      DATAOS_MPI_DB_URL: ${DATAOS_MPI_DB_URL:-jdbc:postgresql://keycloak-db:5432/keycloak}
+      DATAOS_MPI_DB_USERNAME: ${DATAOS_MPI_DB_USERNAME:-dataos_mpi}
+      DATAOS_MPI_DB_PASSWORD: ${DATAOS_MPI_DB_PASSWORD:?请在远程 .env 中提供 DATAOS_MPI_DB_PASSWORD}
     expose:
       - "8080"
     healthcheck:

@@ -6,6 +6,26 @@ server:
 spring:
   application:
     name: data-os-mpi
+  datasource:
+    url: ${DATAOS_MPI_DB_URL:jdbc:postgresql://localhost:5432/keycloak}
+    username: ${DATAOS_MPI_DB_USERNAME:dataos_mpi}
+    # 开发/生产运行时必须显式注入，避免把默认口令带入部署环境。
+    password: ${DATAOS_MPI_DB_PASSWORD:}
+    hikari:
+      maximum-pool-size: ${DATAOS_MPI_DB_POOL_SIZE:8}
+      connection-timeout: 3000
+  sql:
+    init:
+      mode: never
+      continue-on-error: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    # 迁移历史表放在 MPI 独占 schema 内，与同库其他服务的 Flyway 历史隔离。
+    schemas: data_os_mpi
+    validate-on-migrate: true
+    baseline-on-migrate: false
+    clean-disabled: true
 
 data-os:
   auth:

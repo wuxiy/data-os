@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.test.context.ActiveProfiles;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -13,9 +14,9 @@ import static org.assertj.core.api.Assertions.assertThat;
  * 脚手架代理链路契约：/api/v1/mpi/metrics 必须返回五项指标键。
  * 数值占位为零，键名是对外契约（G3.5 填真后本测试不改）。
  */
-// 测试环境无 Keycloak：以 DISABLED 档启动（与 dev compose 的开发口径一致）。
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-        properties = "data-os.auth.mode=DISABLED")
+// test profile：H2(PostgreSQL 模式) + DISABLED 认证（与 dev 口径一致）。
+@ActiveProfiles("test")
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class MpiMetricsControllerTests {
 
     @Autowired
