@@ -144,6 +144,10 @@ class MpiDecisionFlowTests {
         assertThat(pg.queryForObject(
                 "SELECT COUNT(*) FROM data_os_mpi.mpi_audit_event WHERE action = 'AUTO_MATCH'",
                 Integer.class)).isEqualTo(1);
+        // 装载重装会重置回写列，幂等早退必须补投影回写（张三两身份仍指向黄金人）。
+        assertThat(doris.queryForObject(
+                "SELECT COUNT(*) FROM dataos_mpi.mpi_source_identity WHERE mpi_person_id IS NOT NULL",
+                Integer.class)).isEqualTo(2);
     }
 
     @Test

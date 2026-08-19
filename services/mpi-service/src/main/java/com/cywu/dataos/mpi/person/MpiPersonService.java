@@ -43,7 +43,10 @@ public class MpiPersonService {
         var personA = currentPersonOf(tenantId, identityA);
         var personB = currentPersonOf(tenantId, identityB);
         if (personA.isPresent() && personA.equals(personB)) {
-            return; // 已同人：rebuild 幂等路径
+            // 已同人：rebuild 幂等路径。装载阶段全量重装会重置回写列，
+            // 此处必须补投影回写（identity→person 的缓存视图随时可重建）。
+            writeBackPersonId(tenantId, personA.get(), identityA, identityB);
+            return;
         }
         String personId;
         if (personA.isEmpty() && personB.isEmpty()) {
