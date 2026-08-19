@@ -1,14 +1,18 @@
 # data-os（医数中枢）
 
-医疗数据采集、治理、运营的统一门户。**改代码前先读 [CONTEXT.md](CONTEXT.md)**——领域词汇表（外部运行、通知发件箱、质量引擎、运行模式），评审与设计讨论以其术语为准。
+医疗数据采集、治理、运营的统一门户。**改代码前先读 [CONTEXT.md](CONTEXT.md)**——领域词汇表（外部运行、通知发件箱、质量引擎、运行模式、患者主索引），评审与设计讨论以其术语为准。
 
-三个子工程：`prototype/`（React 19 + Vite 门户）、`services/control-plane/`（Java 21 / Spring Boot，Maven）、`services/quality-runner/`（Python 3.12 / FastAPI + dbt）。部署覆盖在 `deploy/`，架构与验收文档在 `docs/`。
+四个子工程：`prototype/`（React 19 + Vite 门户）、`services/control-plane/`（Java 21 / Spring Boot，Maven）、`services/mpi-service/`（Java 21 / Spring Boot，患者主索引独立服务）、`services/quality-runner/`（Python 3.12 / FastAPI + dbt）。部署覆盖在 `deploy/`，架构与验收文档在 `docs/`。
 
 ## 命令
 
 ```bash
 # Java：默认 JDK 是 8，必须显式指 JDK 21，否则报「无效的目标发行版: 21」
 cd services/control-plane
+JAVA_HOME=$(/usr/libexec/java_home -v 21) mvn test
+
+# mpi-service 同为 Java 21 / Maven（MPI 域术语见 CONTEXT.md「患者主索引」）
+cd services/mpi-service
 JAVA_HOME=$(/usr/libexec/java_home -v 21) mvn test
 
 # Python：测试用项目内 .venv（pytest / pytest-asyncio / sqlalchemy / PyYAML）
