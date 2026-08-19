@@ -98,7 +98,7 @@ public class MpiReviewQueryService {
                        link_status AS "linkStatus",
                        valid_from AS "validFrom"
                 FROM data_os_mpi.mpi_person_link
-                WHERE tenant_id = ? AND person_id = ?
+                WHERE tenant_id = ? AND person_id = ? AND valid_to IS NULL
                 ORDER BY valid_from DESC
                 """, tenantId, personId);
         var history = pg.queryForList("""
