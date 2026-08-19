@@ -199,6 +199,7 @@ quality_result_id
 | 数据明细、标准层、主题层、指标结果 | Apache Doris | dbt 和质量执行器在 Doris 上计算，不把明细复制到治理库 |
 | 调度依赖与执行历史 | DolphinScheduler | 调用 SeaTunnel、dbt 和治理校验；门户接收归一后的状态事件 |
 | 问题单、责任流转、验收证据 | 平台控制库（PostgreSQL） | 与 OpenMetadata 质量结果关联，不在 dbt 中实现人工流程 |
+| 患者主索引（黄金人、源身份链接、匹配证据、合并/拆分审计） | 独立 MPI 服务（自研，Java + PG/Doris，2026-08-19 定案） | 门户经平台接口消费；HAPI FHIR MDM 仅作可切换引擎与 FHIR 适配选项，不作主引擎 |
 
 统一门户只依赖平台的治理模块接口，例如“发布标准版本、验证映射、构建模型、校验数据合同、关闭治理问题”。dbt CLI、OpenMetadata 实体和 Doris SQL 都隐藏在实现内，避免前端分别理解三个系统的内部对象。
 
@@ -215,7 +216,7 @@ dbt 可行，并推荐作为 SQL 转换和模型工程的默认实现，但不�
 | 面向业务人员的持续质量监控与问题闭环 | 否 | 使用 OpenMetadata/平台质量模块，dbt 结果作为输入 |
 | CDC 搬运、亚秒级流式转换 | 否 | 使用 SeaTunnel、Doris 实时能力；dbt 负责批量或微批模型 |
 | 资产目录、术语、审批、责任人、SLA | 否 | 使用 OpenMetadata 与平台治理流程 |
-| MPI、黄金记录、合并拆分 | 否 | 使用 HAPI FHIR MDM 与平台主数据模块 |
+| MPI、黄金记录、合并拆分 | 否 | 使用独立 MPI 服务（自研混合引擎：V1 确定性规则为安全底座，V2 起引入 Fellegi-Sunter 概率匹配）与平台主数据模块；HAPI FHIR MDM 仅作可切换适配 |
 
 质量规则采用“双入口、单身份”：开发人员在 dbt 中维护与模型构建强相关的门禁规则；治理人员在门户维护持续监控规则。每条规则拥有全局 `quality_rule_id` 和唯一执行模式，dbt 的 `run_results.json` 汇入 OpenMetadata，禁止在两个入口重复维护同一规则。
 
