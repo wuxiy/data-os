@@ -95,6 +95,8 @@ public class OidcSecurityConfiguration {
                         .hasAnyRole("platform-admin", "tenant-admin", "data-governance")
                         .requestMatchers(HttpMethod.GET, "/api/v1/sources/**", "/api/v1/jobs/**")
                         .hasAnyRole("platform-admin", "tenant-admin", "data-engineer", "data-governance", "data-analyst", "viewer")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/assets/**", "/api/v1/lineage/**")
+                        .hasAnyRole("platform-admin", "tenant-admin", "data-engineer", "data-governance", "data-analyst", "viewer")
                         .requestMatchers("/api/v1/sources/**", "/api/v1/jobs/**")
                         .hasAnyRole("platform-admin", "tenant-admin", "data-engineer")
                         .requestMatchers("/api/**").authenticated()

@@ -51,6 +51,15 @@ data-os:
   seatunnel:
     base-url: ${SEATUNNEL_BASE_URL:}
     time-zone: ${DATAOS_SEATUNNEL_TIME_ZONE:UTC}
+  openmetadata:
+    # 血缘/资产读链（G1 锚点 → G2 BFF）：不配置则整链不装配，血缘 API 返回 503。
+    base-url: ${DATAOS_OPENMETADATA_BASE_URL:}
+    token-uri: ${DATAOS_OPENMETADATA_TOKEN_URI:}
+    client-id: ${DATAOS_OPENMETADATA_CLIENT_ID:}
+    client-secret: ${DATAOS_OPENMETADATA_CLIENT_SECRET:}
+    service-name: ${DATAOS_OPENMETADATA_SERVICE_NAME:doris-dataos}
+    dashboard-service-name: ${DATAOS_OPENMETADATA_DASHBOARD_SERVICE_NAME:superset-dataos}
+    database-segment: ${DATAOS_OPENMETADATA_DATABASE_SEGMENT:default}
   platform:
     # These URLs are for server-side probes and browser entrypoints only.
     # Credentials and internal service addresses are never returned by the API.
