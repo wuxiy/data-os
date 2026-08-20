@@ -77,8 +77,11 @@ public final class ClinicalWorkflowCatalog {
         if (edgeSource) {
             requireText(source, "path", "边缘中转工作流 source.path 不能为空");
             requireText(source, "bucket", "边缘中转工作流 source.bucket 不能为空");
+            if (!String.valueOf(source.get("bucket")).trim().startsWith("s3a://")) {
+                throw new InvalidRequestException("边缘中转工作流 source.bucket 必须以 s3a:// 开头（S3A 实现的选中条件）");
+            }
             requireText(source, "fs.s3a.endpoint", "边缘中转工作流 source.fs.s3a.endpoint 不能为空");
-            requireText(source, "format", "边缘中转工作流 source.format 不能为空");
+            requireText(source, "file_format_type", "边缘中转工作流 source.file_format_type 不能为空");
         } else if (httpSource) {
             requireText(source, "url", "临床工作流 source.url 不能为空");
             requireText(source, "method", "LIS HTTP 工作流的 source.method 不能为空");
@@ -140,15 +143,23 @@ public final class ClinicalWorkflowCatalog {
                                                   String database, String table) {
         var source = Map.<String, Object>ofEntries(
                 Map.entry("plugin_name", "S3File"),
-                Map.entry("path", "s3a://<replace-with-relay-bucket>/<table-prefix>"),
-                Map.entry("bucket", "<replace-with-relay-bucket>"),
+                // SeaTunnel 2.3.13 S3File 语义（已对 RustFS 实测）：bucket 携带
+                // s3a:// 前缀才会走 S3A 实现；path 必须是桶内绝对路径；格式
+                // 选项是 file_format_type；附加 hadoop 属性走 hadoop_s3_properties。
+                Map.entry("path", "/<replace-with-table-prefix>/"),
+                Map.entry("bucket", "s3a://<replace-with-relay-bucket>"),
                 Map.entry("fs.s3a.endpoint", "http://<replace-with-rustfs-host>:9000"),
-                Map.entry("fs.s3a.path.style.access", true),
-                Map.entry("format", "json"),
+                // 内层引号是必须的：控制面按 JSON 提交，枚举值需以带引号字面量
+                // 抵达 SeaTunnel 的 HOCON 解析（实测无引号会被当裸 token 拒绝）。
+                Map.entry("fs.s3a.aws.credentials.provider", "\"SimpleAWSCredentialsProvider\""),
+                Map.entry("hadoop_s3_properties", Map.of(
+                        "fs.s3a.path.style.access", "true",
+                        "fs.s3a.connection.ssl.enabled", "false")),
+                Map.entry("file_format_type", "json"),
                 // The credential service stores the relay bucket key pair; the
-                // fs.s3a.access.key / fs.s3a.secret.key entries it resolves are
-                // merged into this map only in memory at submission time, so
-                // persisted job configurations keep holding references alone.
+                // access_key / secret_key entries it resolves are merged into
+                // this map only in memory at submission time, so persisted job
+                // configurations keep holding references alone.
                 Map.entry("credentialRef", "<replace-with-edge-relay-credential-id>"));
         return new ClinicalWorkflowTemplate(key, VERSION, displayName, systemType, "S3", "SEATUNNEL",
                 "BATCH", description, List.of(credentialRole, "doris-ods-writer"),
