@@ -5,3 +5,35 @@ sources:
     schema: "{{ env_var('DORIS_DATABASE', 'dataos_quality_acceptance') }}"
     tables:
       - name: quality_sample
+
+  # 电子处方边缘链路（G5 前置机模拟）：EP_EDGE_S3_TO_DORIS 模板写入的
+  # UNIQUE KEY(ID) 增量表。schema 独立于质量验收库，规则只列非 PHI 列。
+  - name: ep_edge
+    schema: "{{ env_var('DORIS_EP_DATABASE', 'ods_ep') }}"
+    tables:
+      - name: ep_mz_cfzb_edge
+        columns:
+          - name: ID
+            description: 处方主表业务主键
+            data_tests:
+              - unique:
+                  name: quality_ep_edge_cfzb_id_unique
+              - not_null:
+                  name: quality_ep_edge_cfzb_id_not_null
+          - name: CFPTZT
+            description: 处方平台状态（实测值域见规则注册表）
+            data_tests:
+              - accepted_values:
+                  name: quality_ep_edge_cfzb_cfptzt_values
+                  arguments:
+                    values: [-1, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20]
+      - name: ep_mz_ypcfmx_edge
+        columns:
+          - name: CFZID
+            description: 处方组 ID（业务外键，指向主表 CFZID）
+            data_tests:
+              - relationships:
+                  name: quality_ep_edge_ypcfmx_cfzid_fk
+                  arguments:
+                    to: source('ep_edge', 'ep_mz_cfzb_edge')
+                    field: CFZID

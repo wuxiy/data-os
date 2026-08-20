@@ -71,3 +71,52 @@ rules:
         - {name: record_id, classification: IDENTIFIER}
         - {name: patient_id, classification: IDENTIFIER}
         - {name: status, classification: CATEGORY}
+  # 电子处方边缘链路（G5 前置机模拟）：MiNiFi→RustFS→SeaTunnel 写入的
+  # ods_ep 边缘增量表（UNIQUE KEY(ID) 幂等）。主键唯一/非空是在册常态
+  # 守卫——UNIQUE KEY 表天然无法驻留重复主键，失败场景以值域与外键违规
+  # 实证（见 gate-hospital-edge L3）。证据列只列非 PHI 列。
+  - rule_id: quality.ep.edge.cfzb-id-not-null
+    selector: quality_ep_edge_cfzb_id_not_null
+    dataset_id: asset-ep-prescription-edge
+    evidence:
+      kind: not_null
+      table: ods_ep.ep_mz_cfzb_edge
+      column: ID
+      columns:
+        - {name: ID, classification: IDENTIFIER}
+        - {name: CFPTZT, classification: CATEGORY}
+        - {name: KFRQ, classification: SAFE}
+  - rule_id: quality.ep.edge.cfzb-id-unique
+    selector: quality_ep_edge_cfzb_id_unique
+    dataset_id: asset-ep-prescription-edge
+    evidence:
+      kind: unique
+      table: ods_ep.ep_mz_cfzb_edge
+      column: ID
+      columns:
+        - {name: ID, classification: IDENTIFIER}
+        - {name: CFPTZT, classification: CATEGORY}
+        - {name: KFRQ, classification: SAFE}
+  - rule_id: quality.ep.edge.cfzb-cfptzt-values
+    selector: quality_ep_edge_cfzb_cfptzt_values
+    dataset_id: asset-ep-prescription-edge
+    evidence:
+      kind: accepted_values
+      table: ods_ep.ep_mz_cfzb_edge
+      column: CFPTZT
+      values: [-1, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20]
+      columns:
+        - {name: ID, classification: IDENTIFIER}
+        - {name: CFPTZT, classification: CATEGORY}
+        - {name: KFRQ, classification: SAFE}
+  - rule_id: quality.ep.edge.ypcfmx-cfzid-fk
+    selector: quality_ep_edge_ypcfmx_cfzid_fk
+    dataset_id: asset-ep-prescription-edge
+    evidence:
+      kind: relationships
+      table: ods_ep.ep_mz_ypcfmx_edge
+      column: CFZID
+      columns:
+        - {name: ID, classification: IDENTIFIER}
+        - {name: CFZID, classification: IDENTIFIER}
+        - {name: YPSL, classification: CATEGORY}
