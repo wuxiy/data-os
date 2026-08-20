@@ -109,4 +109,4 @@ PROPERTIES (
 );
 
 -- 质量执行器的 dbt 账号需要读取边缘表以运行 EP 规则包。
-GRANT SELECT_PRIV ON DATABASE ods_ep TO USER dataos_quality_dbt;
+GRANT SELECT_PRIV ON ods_ep.* TO 'dataos_quality_dbt'@'%';
