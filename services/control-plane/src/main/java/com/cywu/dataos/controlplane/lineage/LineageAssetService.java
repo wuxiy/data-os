@@ -50,13 +50,42 @@ public class LineageAssetService {
                 instant(table.get("updatedAt")));
     }
 
-    /** 血缘视图：以表为根，上游（消费链：仪表盘/数据模型）与下游分列。 */
+    /** 血缘视图：以表为根，按边方向分列上游（来源）与下游（产出/消费）。 */
     public AssetLineage getLineage(String fullyQualifiedName) {
-        var upstreams = client.getLineageNodes(fullyQualifiedName, "upstream", 3).stream()
-                .map(this::toLineageNode).toList();
-        var downstreams = client.getLineageNodes(fullyQualifiedName, "downstream", 3).stream()
-                .map(this::toLineageNode).toList();
-        return new AssetLineage(fullyQualifiedName, upstreams, downstreams);
+        var graph = client.getLineageGraph(fullyQualifiedName, 3);
+        var nodesById = new java.util.HashMap<String, Map<String, Object>>();
+        if (graph.get("nodes") instanceof List<?> list) {
+            for (var node : list) {
+                if (node instanceof Map<?, ?> map && map.get("id") != null) {
+                    nodesById.put(text(map.get("id")), cast(node));
+                }
+            }
+        }
+        var entityId = text(((Map<?, ?>) graph.getOrDefault("entity", Map.of())).get("id"));
+        var upstreams = new ArrayList<LineageNode>();
+        var downstreams = new ArrayList<LineageNode>();
+        collectEdgeNodes(graph.get("upstreamEdges"), entityId, nodesById, upstreams);
+        collectEdgeNodes(graph.get("downstreamEdges"), entityId, nodesById, downstreams);
+        return new AssetLineage(fullyQualifiedName, List.copyOf(upstreams), List.copyOf(downstreams));
+    }
+
+    /** 边方向换算：上游取 from、下游取 to（对根实体本身去重）。 */
+    private void collectEdgeNodes(Object edges, String rootId, Map<String, Map<String, Object>> nodesById,
+                                  List<LineageNode> collected) {
+        if (!(edges instanceof List<?> list)) return;
+        for (var edge : list) {
+            if (!(edge instanceof Map<?, ?> edgeMap)) continue;
+            var from = text(edgeMap.get("fromEntity"));
+            var to = text(edgeMap.get("toEntity"));
+            var peer = from.equals(rootId) ? to : from;
+            if (peer.equals(rootId) || peer.isBlank()) continue;
+            var node = nodesById.get(peer);
+            if (node == null) continue;
+            var candidate = toLineageNode(node);
+            if (collected.stream().noneMatch(existing -> existing.fullyQualifiedName().equals(candidate.fullyQualifiedName()))) {
+                collected.add(candidate);
+            }
+        }
     }
 
     /** 摘要：库表列规模 + 仪表盘消费面（驾驶舱指标数据面）。 */
@@ -69,7 +98,7 @@ public class LineageAssetService {
                 .map(dashboard -> new DashboardSummary(
                         text(dashboard.get("fullyQualifiedName")),
                         text(dashboard.get("displayName")),
-                        text(dashboard.get("updatedAt"))))
+                        instant(dashboard.get("updatedAt"))))
                 .toList();
         return new LineageSummary(properties.getServiceName(), tables.size(), columnCount,
                 properties.getDashboardServiceName(), dashboardSummaries);
@@ -77,11 +106,12 @@ public class LineageAssetService {
 
     private LineageNode toLineageNode(Map<String, Object> node) {
         var fqn = text(node.get("fullyQualifiedName"));
-        var type = text(node.get("entityType"));
+        var type = text(node.get("type"));
         var name = text(node.get("name"));
-        // 展示名直接用全限定名：服务前缀（superset-dataos.）交代来源，短名无歧义截断交给前端。
-        var display = fqn.isBlank() ? name : fqn;
-        return new LineageNode(display, normalizeType(type), display);
+        var display = text(node.get("displayName"));
+        // 展示名：优先实体的 displayName；无则回退全限定名（服务前缀交代来源）。
+        var shown = display.isBlank() ? (fqn.isBlank() ? name : fqn) : display;
+        return new LineageNode(fqn.isBlank() ? name : fqn, normalizeType(type), shown);
     }
 
     private String normalizeType(String entityType) {
@@ -92,6 +122,11 @@ public class LineageAssetService {
             case "chart" -> "chart";
             default -> entityType.isBlank() ? "unknown" : entityType;
         };
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> cast(Object node) {
+        return (Map<String, Object>) node;
     }
 
     @SuppressWarnings("unchecked")

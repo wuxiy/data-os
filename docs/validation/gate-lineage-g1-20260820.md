@@ -1,8 +1,20 @@
-# G1 血缘锚点验收报告（OpenMetadata 摄取 ods_ep）— 2026-08-20
+# G1 血缘锚点 + G2 血缘 BFF 验收报告（OpenMetadata 摄取 ods_ep / 门户接真）— 2026-08-20
 
-对照清单：`docs/lineage-g1-g2-review-and-plan-20260820.md` §四（A1-A6，映射 gate-hospital-edge L5.1-L5.4）。全部结论基于开发机 172.16.65.59 实测。
+对照清单：`docs/lineage-g1-g2-review-and-plan-20260820.md` §三（G1/G2 步骤）、§四（A1-A6，映射 gate-hospital-edge L5.1-L5.4）。全部结论基于开发机 172.16.65.59 实测。
 
-## 结果：6/6 通过
+## G2 结果（门户血缘真实化）：5/5 步骤通过
+
+| # | 步骤 | 结果 | 证据 |
+| --- | --- | --- | --- |
+| G2.1 | OpenMetadataClient（服务身份签发/缓存/降级） | ✅ | 复用 `OidcClientCredentialsTokenProvider`（client_credentials + 30s 提前续签）；失败统一 `AdapterUnavailableException`；契约测试覆盖签发与 Bearer 附带（`bearerTokenIsAttachedWhenServiceIdentityConfigured`） |
+| G2.2 | LineageApi 四个读 API | ✅ | `GET /api/v1/assets`、`/assets/{fqn}`、`/assets/{fqn}/lineage`、`/lineage/summary`；未配置 503（中文提示）、OM 不可达 503、资产不存在 404；投影只含展示字段（测试断言不含 password/connection/hostPort）；viewer 及以上可读（与 sources/jobs GET 同集） |
+| G2.3 | 门户接真 | ✅ | `lineageApi.ts` + `AssetCatalogLive`/`AssetTechnicalLive`；runtimeMode 分流与 MPI 先例一致（demo 构建静态页零改动）；tsc/vitest 9/9/mock-audit/portal-interactions-smoke/build 全绿 |
+| G2.4 | 远端联调 | ✅ | control-plane `0.1.0-lineage-g2-20260820b` + portal-dist 部署；`/api/v1/assets` 返回 3 表（53/53/36 列）、summary 3 表 142 列 1 仪表盘（与 G1 对账一致）、lineage 下游=dataModel；浏览器截图 `portal-assets-live-20260820.png`、`portal-technical-live-20260820.png` |
+| G2.5 | 文档口径 | ✅ | CONTEXT.md 增「血缘锚点」术语段（资产/血缘/摄取/BFF/服务身份五术语 + 方向口径） |
+
+**血缘方向修正（实施发现）**：OM 1.5 lineage API 的 nodes 永远返回全图且无方向；方向由 `upstreamEdges`/`downstreamEdges`（from/to 为实体 id）决定。BFF 最终实现为一次组合查询 + 边分类，实测 `ep_mz_cfzb` 下游 = `superset-dataos.model.2`（数据模型，displayName=ep_mz_cfzb），与 G1 UI 截图一致。列级血缘（columnsLineage）在边响应中可用，本轮不投影（延后）。
+
+## G1 结果：6/6 通过（原报告正文如下）
 
 | # | 项目 | 结果 | 证据 |
 | --- | --- | --- | --- |

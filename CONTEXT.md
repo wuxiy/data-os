@@ -25,6 +25,16 @@
 
 三态口径：AUTO_MATCH（自动并入黄金人）/ REVIEW（人工）/ NO_MATCH。错误合并的临床风险高于漏合并：弱标识（卡号/手机号/姓名）不得单独硬合并，年龄等漂移属性仅作展示证据、不进规则。
 
+## 血缘锚点（Lineage Anchor）
+
+资产与血缘的元数据由 OpenMetadata 单一持有，门户只读不直连：
+
+- **资产（Asset）**：OM 摄取的结构元数据实体（`doris-dataos` 服务下的 Doris 表，全限定名四段 `服务.default.库.表`）；口径是「结构元数据已摄取」，不含数据采样。
+- **血缘（Lineage）**：OM 中的实体间产出边；方向口径为**上游=数据来源、下游=产出与消费**（Superset 摄取建立的「表→数据模型→仪表盘」属下游产出链）。
+- **摄取（Ingestion）**：一次性容器执行的幂等工作流（结构元数据 + Superset 仪表盘），连接配置保存在 OM 服务实体内，脚本与模板零口令入 Git。
+- **血缘 BFF（Lineage BFF）**：control-plane 的只读适配层（`/api/v1/assets/**`、`/api/v1/lineage/**`）；未配置 `data-os.openmetadata.base-url` 时整链不装配、端点 503——门户据此显示「待接入」而非静态样例。
+- **服务身份（Service Identity）**：BFF/摄取访问 OM 的专用 Keycloak client（`dataos-om-ingest`，claim=ingestion-bot）；令牌现用现签，secret 只存部署机 0600 文件。
+
 ## 通知发件箱（Notification Outbox）
 
 治理问题的事件通知先落 `governance_notifications` 表（发件箱），以幂等键去重入队；`NotificationOutboxRepository` 以数据库租约抢占外发（同租约防并发重复外发），外发通道（Webhook 等）与重试/放弃策略由通知模块持有。终态回写与租约释放同事务。

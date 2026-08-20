@@ -60,16 +60,21 @@ class LineageAssetServiceTest {
                          "columns":[{"name":"YLJGDM","dataType":"VARCHAR","dataTypeDisplay":"varchar(20)","description":"机构代码"}]}
                         """;
             } else if (path.contains("/lineage/table/name/")) {
-                if (query.startsWith("upstreamDepth")) {
-                    response = """
-                            {"nodes":[
-                              {"id":"m1","entityType":"dashboardDataModel","fullyQualifiedName":"superset-dataos.model.2"},
-                              {"id":"d1","entityType":"dashboard","fullyQualifiedName":"superset-dataos.2"}
-                            ],"edges":[]}
-                            """;
-                } else {
-                    response = "{\"nodes\":[],\"edges\":[]}";
-                }
+                response = """
+                        {"entity":{"id":"root-1","type":"table","name":"ep_mz_cfzb",
+                                   "fullyQualifiedName":"doris-dataos.default.ods_ep.ep_mz_cfzb"},
+                         "nodes":[
+                           {"id":"m1","type":"dashboardDataModel","name":"2",
+                            "fullyQualifiedName":"superset-dataos.model.2","displayName":"ep_mz_cfzb"},
+                           {"id":"d1","type":"dashboard","name":"2",
+                            "fullyQualifiedName":"superset-dataos.2","displayName":"电子处方嵌入验证"}
+                         ],
+                         "upstreamEdges":[],
+                         "downstreamEdges":[
+                           {"fromEntity":"root-1","toEntity":"m1"},
+                           {"fromEntity":"m1","toEntity":"d1"}
+                         ]}
+                        """;
             } else if (path.endsWith("/dashboards")) {
                 response = """
                         {"data":[{"fullyQualifiedName":"superset-dataos.2","displayName":"电子处方嵌入验证",
@@ -128,17 +133,15 @@ class LineageAssetServiceTest {
     }
 
     @Test
-    void lineageSplitsDirectionAndNormalizesTypes() {
+    void lineageSplitsDirectionByEdgesAndNormalizesTypes() {
         var lineage = service.getLineage("doris-dataos.default.ods_ep.ep_mz_cfzb");
 
         assertThat(lineage.root()).isEqualTo("doris-dataos.default.ods_ep.ep_mz_cfzb");
-        assertThat(lineage.upstreams()).hasSize(2);
-        assertThat(lineage.upstreams()).anySatisfy(node -> {
-            assertThat(node.fullyQualifiedName()).isEqualTo("superset-dataos.model.2");
-            assertThat(node.type()).isEqualTo("dataModel");
-            assertThat(node.displayName()).isEqualTo("superset-dataos.model.2");
-        });
-        assertThat(lineage.downstreams()).isEmpty();
+        assertThat(lineage.upstreams()).isEmpty();
+        assertThat(lineage.downstreams()).hasSize(1);
+        assertThat(lineage.downstreams().get(0).fullyQualifiedName()).isEqualTo("superset-dataos.model.2");
+        assertThat(lineage.downstreams().get(0).type()).isEqualTo("dataModel");
+        assertThat(lineage.downstreams().get(0).displayName()).isEqualTo("ep_mz_cfzb");
     }
 
     @Test

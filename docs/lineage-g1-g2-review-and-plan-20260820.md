@@ -1,5 +1,11 @@
 # 血缘真实化方案（G1 OpenMetadata 摄取 + G2 血缘 BFF 与门户接真）— 2026-08-20
 
+> **实施状态（2026-08-20）**：G1.1-G1.6 与 G2.1-G2.5 已全部完成（验收见
+> `docs/validation/gate-lineage-g1-20260820.md`，G1 6/6 + G2 5/5）。
+> 实施中的三处发现已回写本文口径：OM 表全限定名四段（§一.2 同）、血缘
+> 方向由 upstreamEdges/downstreamEdges 决定（nodes 无方向）、spike 仪表盘
+> 无布局已补挂图表。延后清单不变。
+
 目标：把门户「数据资产/血缘」从静态演示改为真实链路——OpenMetadata 摄取 Doris `ods_ep`（G1，组件侧锚点，对应 gate-hospital-edge L5.1/L5.2/L5.3），control-plane 提供 OpenMetadata 适配 BFF，门户资产页接真（G2）。G4（嵌入式 Superset 分析页）另案实施，本文只留接口。
 
 ## 一、现状事实（2026-08-20 全部实测）

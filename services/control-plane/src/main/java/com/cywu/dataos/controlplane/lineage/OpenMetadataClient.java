@@ -45,13 +45,10 @@ public class OpenMetadataClient {
         return get("/tables/name/" + encode(fullyQualifiedName) + "?fields=columns");
     }
 
-    /** 血缘节点：direction 为 upstream/downstream，方向由两次查询区分（不依赖 edges 响应）。 */
-    @SuppressWarnings("unchecked")
-    public List<Map<String, Object>> getLineageNodes(String fullyQualifiedName, String direction, int depth) {
-        var response = get("/lineage/table/name/" + encode(fullyQualifiedName)
-                + "?" + direction + "Depth=" + depth);
-        var nodes = response.get("nodes");
-        return nodes instanceof List<?> list ? (List<Map<String, Object>>) list : List.of();
+    /** 血缘全图（nodes + upstreamEdges/downstreamEdges，一次组合查询；方向由边决定）。 */
+    public Map<String, Object> getLineageGraph(String fullyQualifiedName, int depth) {
+        return get("/lineage/table/name/" + encode(fullyQualifiedName)
+                + "?upstreamDepth=" + depth + "&downstreamDepth=" + depth);
     }
 
     /** 仪表盘实体列表（Superset 摄取产物）。 */

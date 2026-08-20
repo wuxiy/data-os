@@ -181,7 +181,7 @@ export function AssetCatalogLive({ onNotice }: { onNotice: (message: string) => 
             {lineage ? (
               <section className={styles.lineageCanvas} aria-label="血缘与影响">
                 <div className={styles.lineageSummary}>
-                  <div><h3>血缘与消费</h3><span>来自 OpenMetadata：上游为消费链（仪表盘 / 数据模型），下游为加工产出</span></div>
+                  <div><h3>血缘与消费</h3><span>来自 OpenMetadata：上游为数据来源，下游为产出与消费（数据模型 / 仪表盘）</span></div>
                   <StatusTag tone="healthy">{lineage.upstreams.length + lineage.downstreams.length} 个关联节点</StatusTag>
                 </div>
                 <div className={styles.lineageRow}>
@@ -218,9 +218,9 @@ export function AssetCatalogLive({ onNotice }: { onNotice: (message: string) => 
                   <div className={styles.lineageImpact}><div className={styles.impactItem}><span>血缘关联</span><strong>暂无已登记的上下游（单源资产，消费链待建立）</strong></div></div>
                 ) : (
                   <div className={styles.lineageImpact}>
-                    <div className={styles.impactItem}><span>上游消费链</span><strong>{lineage.upstreams.length} 个对象（{summarizeTypes(lineage.upstreams)}）</strong></div>
-                    <div className={styles.impactItem}><span>下游影响</span><strong>{lineage.downstreams.length} 个对象</strong></div>
-                    <div className={styles.impactItem}><span>消费仪表盘</span><strong>{lineage.upstreams.filter((node) => node.type === 'dashboard').length} 个</strong></div>
+                    <div className={styles.impactItem}><span>上游来源</span><strong>{lineage.upstreams.length} 个对象{lineage.upstreams.length ? `（${summarizeTypes(lineage.upstreams)}）` : ''}</strong></div>
+                    <div className={styles.impactItem}><span>下游产出</span><strong>{lineage.downstreams.length} 个对象{lineage.downstreams.length ? `（${summarizeTypes(lineage.downstreams)}）` : ''}</strong></div>
+                    <div className={styles.impactItem}><span>消费仪表盘</span><strong>{lineage.downstreams.filter((node) => node.type === 'dashboard' || node.type === 'dataModel').length} 个关联</strong></div>
                   </div>
                 )}
               </section>
