@@ -51,6 +51,15 @@ data-os:
   seatunnel:
     base-url: ${SEATUNNEL_BASE_URL:}
     time-zone: ${DATAOS_SEATUNNEL_TIME_ZONE:UTC}
+  analytics:
+    superset:
+      # 嵌入式分析访客令牌链（G4）：不配置则整链不装配，分析 API 返回 503。
+      base-url: ${DATAOS_SUPERSET_BASE_URL:}
+      username: ${DATAOS_SUPERSET_USERNAME:}
+      password: ${DATAOS_SUPERSET_PASSWORD:}
+      guest-role: ${DATAOS_SUPERSET_GUEST_ROLE:Viewer}
+      guest-token-ttl-seconds: ${DATAOS_SUPERSET_GUEST_TOKEN_TTL_SECONDS:300}
+      allowed-dashboards: ${DATAOS_SUPERSET_ALLOWED_DASHBOARDS:2}
   openmetadata:
     # 血缘/资产读链（G1 锚点 → G2 BFF）：不配置则整链不装配，血缘 API 返回 503。
     base-url: ${DATAOS_OPENMETADATA_BASE_URL:}
