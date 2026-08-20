@@ -146,6 +146,10 @@ def main() -> None:
                     "Schema Access Strategy": "inherit-record-schema",
                     "Schema Write Strategy": "no-schema",
                     "Timestamp Format": "yyyy-MM-dd HH:mm:ss",
+                    # 直接输出 JSON 行（SeaTunnel json 源按行解析；数组形态
+                    # 会 FILE-08 失败，故不走 ReplaceText 转换链）。
+                    "Output Grouping": "output-oneline",
+                    "Pretty Print JSON": "false",
                 }),
     ]
 
@@ -153,8 +157,12 @@ def main() -> None:
     connections: list[dict] = []
     for index, spec in enumerate(TABLES):
         suffix = str(index)
-        gtf_seq, sql_seq, put_seq = f"0000000002{suffix}0", f"0000000002{suffix}1", f"0000000002{suffix}2"
-        x = 120.0 + index * 40.0
+        gtf_seq = f"0000000002{suffix}0"
+        sql_seq = f"0000000002{suffix}1"
+        put_seq = f"0000000002{suffix}2"
+        requeue_sql_seq = f"0000000002{suffix}3"
+        requeue_put_seq = f"0000000002{suffix}4"
+        x = 120.0 + index * 60.0
 
         processors.append(processor(
             gtf_seq, f"fetch-{spec['prefix']}-incremental",
@@ -164,15 +172,20 @@ def main() -> None:
             {
                 "Database Connection Pooling Service": dbcp_id,
                 "Table Name": spec["table"],
-                "Column Name": "UPDATE_TIME",
-                "Max Rows Per Flow File": "0",
+                # NiFi 2.x 增量列属性的 name() 是 "Maximum-value Columns"
+                # （displayName 是 Max-Value Columns；flow.json 按内部名匹配，
+                # 写 displayName 或 1.x 的 "Column Name" 都会被静默忽略）。
+                "Maximum-value Columns": "UPDATE_TIME",
             },
-            ["success"], [], scheduling_period=poll))
+            # NiFi 2.x 的 GenerateTableFetch 实际带 failure 关系（声明缺失会被
+            # 按真实关系集校验为未连接）。失败不推进增量位点，下一轮轮询按
+            # UPDATE_TIME 窗口自愈，故 auto-terminate 安全。
+            ["success", "failure"], ["failure"], scheduling_period=poll))
 
         processors.append(processor(
             sql_seq, f"read-{spec['prefix']}-as-json",
             "org.apache.nifi.processors.standard.ExecuteSQLRecord", "nifi-standard-nar",
-            "执行增量 SQL 并输出 JSON 行（时间戳格式 yyyy-MM-dd HH:mm:ss）",
+            "执行增量 SQL 并输出 JSON 行（One Line Per Object，时间戳 yyyy-MM-dd HH:mm:ss）",
             {"x": x, "y": 260.0},
             {
                 "Database Connection Pooling Service": dbcp_id,
@@ -189,7 +202,8 @@ def main() -> None:
             "断网期间 FlowFile 驻留本地 content repository）",
             {"x": x, "y": 420.0},
             {
-                "Object Key": f"{spec['prefix']}/${{now():format('yyyyMMddHHmmss')}}-${{uuid()}}.json",
+                # uuid 是 FlowFile 属性（非 EL 函数）：重试环回时对象键稳定，天然幂等。
+                "Object Key": f"{spec['prefix']}/${{now():format('yyyyMMddHHmmss')}}-${{uuid}}.json",
                 "Bucket": s3_bucket,
                 "Endpoint Override URL": s3_endpoint,
                 "Region": s3_region,
@@ -198,10 +212,26 @@ def main() -> None:
             },
             ["success", "failure"], ["success"], scheduling_period="0 sec"))
 
+        for requeue_seq, target_seq, comments in (
+                (requeue_sql_seq, sql_seq, f"SQL 失败经处罚期后重排队（重执行同一增量窗口）"),
+                (requeue_put_seq, put_seq, f"投递失败经处罚期后重排队（断网期间数据驻留本地）")):
+            # MiNiFi 的 UpdateAttribute 在独立 minifi-update-attribute-nar，且类在
+            # processors.attributes 包（nifi-standard-nar 是裁子集，引用错会退化 Ghost）。
+            processors.append(processor(
+                requeue_seq, f"requeue-{spec['prefix']}-{'sql' if target_seq == sql_seq else 'put'}",
+                "org.apache.nifi.processors.attributes.UpdateAttribute", "minifi-update-attribute-nar",
+                comments,
+                {"x": x + 250.0, "y": 260.0 if target_seq == sql_seq else 420.0},
+                {"retrying": "true"},
+                ["success"], [], scheduling_period="0 sec"))
+
         connections.append(connection(f"0000000003{suffix}0", gtf_seq, sql_seq, ["success"]))
         connections.append(connection(f"0000000003{suffix}1", sql_seq, put_seq, ["success"]))
-        connections.append(connection(f"0000000003{suffix}2", sql_seq, sql_seq, ["failure"]))
-        connections.append(connection(f"0000000003{suffix}3", put_seq, put_seq, ["failure"]))
+        connections.append(connection(f"0000000003{suffix}2", sql_seq, requeue_sql_seq, ["failure"]))
+        connections.append(connection(f"0000000003{suffix}3", requeue_sql_seq, sql_seq, ["success"]))
+        connections.append(connection(f"0000000003{suffix}4", put_seq, requeue_put_seq, ["failure"]))
+        connections.append(connection(f"0000000003{suffix}5", requeue_put_seq, put_seq, ["success"]))
+
 
     flow = {
         "encodingVersion": {"majorVersion": 2, "minorVersion": 0},
