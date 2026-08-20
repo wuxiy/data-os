@@ -26,7 +26,7 @@ sources:
               - accepted_values:
                   name: quality_ep_edge_cfzb_cfptzt_values
                   arguments:
-                    values: [-1, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20]
+                    values: [-1, 1, 3, 4, 5, 6, 7, 8, 9, 10, 12, 13, 15, 16, 18, 20, 35]
       - name: ep_mz_ypcfmx_edge
         columns:
           - name: CFZID
