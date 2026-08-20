@@ -1772,3 +1772,21 @@
     max-width: 90%;
   }
 }
+
+/* 嵌入式 Superset 仪表盘画布（G4）：SDK 挂载点，iframe 撑满主区。 */
+.embedCanvas {
+  min-height: 640px;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line-soft, rgba(15, 23, 42, 0.08));
+  border-radius: 10px;
+  background: var(--panel-bg, #fff);
+  overflow: hidden;
+}
+
+.embedCanvas iframe {
+  border: 0;
+  flex: 1;
+  min-height: 640px;
+  width: 100%;
+}

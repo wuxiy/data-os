@@ -35,6 +35,15 @@
 - **血缘 BFF（Lineage BFF）**：control-plane 的只读适配层（`/api/v1/assets/**`、`/api/v1/lineage/**`）；未配置 `data-os.openmetadata.base-url` 时整链不装配、端点 503——门户据此显示「待接入」而非静态样例。
 - **服务身份（Service Identity）**：BFF/摄取访问 OM 的专用 Keycloak client（`dataos-om-ingest`，claim=ingestion-bot）；令牌现用现签，secret 只存部署机 0600 文件。
 
+## 嵌入式分析（Embedded Analytics）
+
+分析看板的呈现与授权链：
+
+- **访客令牌（Guest Token）**：控制面 BFF 以服务账号向 Superset 签发的浏览器侧短时效凭证（Viewer 角色、限白名单仪表盘、空 RLS）；管理员凭据不出 BFF。
+- **嵌入通道（Embed Channel）**：门户 nginx 专用监听端口（默认 18084）全量代理 Superset——SDK 以该 origin 拼接 `/embedded/{uuid}` 与 Superset 顶层路由，避免与门户 `/api`、静态命名空间冲突；浏览器全程 HTTP，不受网关自签证书影响。
+- **嵌入白名单（Embed Allowlist）**：仪表盘级 `allowed_domains` 经 Referer 校验（非门户来源 403）；控制面另有仪表盘 id 白名单（白名单外 404）。
+- **分析资产**：仪表盘/图表由 Superset 持有并同步进 OpenMetadata（`superset-dataos` 服务），口径与源表经「数据资产 · 血缘」追溯。
+
 ## 通知发件箱（Notification Outbox）
 
 治理问题的事件通知先落 `governance_notifications` 表（发件箱），以幂等键去重入队；`NotificationOutboxRepository` 以数据库租约抢占外发（同租约防并发重复外发），外发通道（Webhook 等）与重试/放弃策略由通知模块持有。终态回写与租约释放同事务。

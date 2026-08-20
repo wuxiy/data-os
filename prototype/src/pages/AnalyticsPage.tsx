@@ -5,9 +5,20 @@ import { TrendChart } from '../components/charts/TrendChart'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Button, StatusTag } from '../components/ui/Primitives'
 import { dashboards } from '../data/integrations'
+import { frontendDemoMode } from '../data/runtimeMode'
+import { AnalyticsLive } from './AnalyticsLive'
 import styles from './IntegrationPages.module.css'
 
 export function AnalyticsPage({ onNotice, onNavigate }: { onNotice: (message: string) => void; onNavigate: (route: 'ingestion' | 'governance' | 'quality') => void }) {
+  // 运行模式（CONTEXT.md）：演示构建保留静态样例供交互验收；
+  // 真实构建渲染嵌入式 Superset（访客令牌 + 专用嵌入端口）。
+  if (!frontendDemoMode) {
+    return <AnalyticsLive onNotice={onNotice} />
+  }
+  return <DemoAnalyticsPage onNotice={onNotice} onNavigate={onNavigate} />
+}
+
+function DemoAnalyticsPage({ onNotice, onNavigate }: { onNotice: (message: string) => void; onNavigate: (route: 'ingestion' | 'governance' | 'quality') => void }) {
   const [selectedId, setSelectedId] = useState(dashboards[0].id)
   const [query, setQuery] = useState('')
   const selected = dashboards.find((item) => item.id === selectedId) ?? dashboards[0]

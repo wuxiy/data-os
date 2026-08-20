@@ -42,8 +42,8 @@ public class SupersetGuestTokenService {
                         "last_name", "Guest"),
                 "role", properties.getGuestRole(),
                 "resources", List.of(Map.of("type", "dashboard", "id", dashboardId)),
-                "rls_rules", List.of()),
-                adminToken());
+                "rls", List.of()),
+                adminToken(), csrfHeaders(adminToken()));
         var value = String.valueOf(token.getOrDefault("token", ""));
         if (value.isBlank()) {
             throw new AdapterUnavailableException("Superset 访客令牌响应缺少 token");
@@ -75,14 +75,98 @@ public class SupersetGuestTokenService {
         }
     }
 
+    /**
+     * Superset 写操作要求 flask-wtf 双提交 CSRF：GET csrf_token 取令牌，
+     * 同名 cookie + X-CSRFToken 头成对携带（Referer 亦为校验项）。
+     */
+    private Map<String, String> csrfHeaders(String bearer) {
+        try {
+            var entity = restClient.get()
+                    .uri("/api/v1/security/csrf_token/")
+                    .accept(MediaType.APPLICATION_JSON)
+                    .headers(headers -> headers.setBearerAuth(bearer))
+                    .retrieve()
+                    .toEntity(Map.class);
+            var body = entity.getBody() == null ? Map.of() : entity.getBody();
+            var token = String.valueOf(body.getOrDefault("result", ""));
+            var cookie = entity.getHeaders().get("Set-Cookie").stream()
+                    .filter(value -> value.startsWith("session="))
+                    .map(value -> value.split(";", 2)[0])
+                    .findFirst().orElse("");
+            if (token.isBlank() || cookie.isBlank()) {
+                throw new AdapterUnavailableException("Superset CSRF 令牌不完整");
+            }
+            return Map.of(
+                    "X-CSRFToken", token,
+                    "Cookie", cookie,
+                    "Referer", properties.getBaseUrl() + "/");
+        } catch (AdapterUnavailableException exception) {
+            throw exception;
+        } catch (RuntimeException exception) {
+            var cause = exception.getCause() == null ? exception : exception.getCause();
+            throw new AdapterUnavailableException("Superset CSRF 获取失败：" + cause.getMessage());
+        }
+    }
+
+    /** 白名单仪表盘清单（标题 + 嵌入 uuid），供门户目录渲染。 */
+    public List<EmbeddableDashboard> listDashboards() {
+        var token = adminToken();
+        return properties.getAllowedDashboards().stream()
+                .map(dashboardId -> {
+                    var dashboard = resultOf(get("/api/v1/dashboard/" + dashboardId, token));
+                    var embedded = get("/api/v1/dashboard/" + dashboardId + "/embedded", token);
+                    Map<?, ?> embeddedResult = resultOf(embedded);
+                    if (embedded.get("result") instanceof Map<?, ?> result) {
+                        embeddedResult = result;
+                    }
+                    var titleValue = dashboard.get("dashboard_title");
+                    var uuidValue = embeddedResult.get("uuid");
+                    var title = titleValue == null || String.valueOf(titleValue).isBlank()
+                            ? dashboardId.trim() : String.valueOf(titleValue);
+                    var uuid = uuidValue == null ? "" : String.valueOf(uuidValue);
+                    return new EmbeddableDashboard(dashboardId.trim(), title, uuid);
+                })
+                .toList();
+    }
+
+    /** Superset API 单体响应统一包在 result 字段内。 */
+    private static Map<?, ?> resultOf(Map<String, Object> response) {
+        return response.get("result") instanceof Map<?, ?> result ? result : Map.of();
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> get(String path, String bearer) {
+        try {
+            var response = restClient.get()
+                    .uri(path)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .headers(headers -> headers.setBearerAuth(bearer))
+                    .retrieve();
+            Map<String, Object> parsed = response.body(Map.class);
+            return parsed == null ? Map.of() : parsed;
+        } catch (AdapterUnavailableException | IllegalStateException exception) {
+            throw exception;
+        } catch (RuntimeException exception) {
+            var cause = exception.getCause() == null ? exception : exception.getCause();
+            throw new AdapterUnavailableException("Superset 暂时不可用：" + cause.getMessage());
+        }
+    }
+
     @SuppressWarnings("unchecked")
     private Map<String, Object> post(String path, Map<String, Object> body, String bearer) {
+        return post(path, body, bearer, Map.of());
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> post(String path, Map<String, Object> body, String bearer,
+                                     Map<String, String> extraHeaders) {
         try {
             var response = restClient.post()
                     .uri(path)
                     .contentType(MediaType.APPLICATION_JSON)
                     .headers(headers -> {
                         if (bearer != null) headers.setBearerAuth(bearer);
+                        extraHeaders.forEach(headers::set);
                     })
                     .body(body)
                     .retrieve();
@@ -97,5 +181,8 @@ public class SupersetGuestTokenService {
     }
 
     public record GuestToken(String token, String dashboardId, int expiresInSeconds) {
+    }
+
+    public record EmbeddableDashboard(String id, String title, String embeddedUuid) {
     }
 }

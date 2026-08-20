@@ -23,6 +23,8 @@ class SupersetGuestTokenServiceTest {
     private final AtomicReference<String> loginBody = new AtomicReference<>();
     private final AtomicReference<String> guestBody = new AtomicReference<>();
     private final AtomicReference<String> guestAuth = new AtomicReference<>();
+    private final AtomicReference<String> guestCsrf = new AtomicReference<>();
+    private final AtomicReference<String> guestCookie = new AtomicReference<>();
 
     @BeforeEach
     void startStub() throws IOException {
@@ -31,9 +33,20 @@ class SupersetGuestTokenServiceTest {
             loginBody.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
             respond(exchange, "{\"access_token\":\"admin-jwt\"}");
         });
+        server.createContext("/api/v1/security/csrf_token/", exchange -> {
+            exchange.getResponseHeaders().add("Content-Type", "application/json");
+            exchange.getResponseHeaders().add("Set-Cookie", "session=session-cookie-value; Path=/; HttpOnly");
+            var bytes = "{\"result\":\"csrf-token-value\"}".getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, bytes.length);
+            try (var output = exchange.getResponseBody()) {
+                output.write(bytes);
+            }
+        });
         server.createContext("/api/v1/security/guest_token/", exchange -> {
             guestBody.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
             guestAuth.set(exchange.getRequestHeaders().getFirst("Authorization"));
+            guestCsrf.set(exchange.getRequestHeaders().getFirst("X-CSRFToken"));
+            guestCookie.set(exchange.getRequestHeaders().getFirst("Cookie"));
             respond(exchange, "{\"token\":\"guest-token-xyz\"}");
         });
         server.start();
@@ -67,10 +80,12 @@ class SupersetGuestTokenServiceTest {
         assertThat(token.dashboardId()).isEqualTo("2");
         assertThat(token.expiresInSeconds()).isEqualTo(300);
         assertThat(guestAuth.get()).isEqualTo("Bearer admin-jwt");
+        assertThat(guestCsrf.get()).isEqualTo("csrf-token-value");
+        assertThat(guestCookie.get()).contains("session=session-cookie-value");
         assertThat(loginBody.get()).contains("dataos-spike").contains("spike-secret");
         assertThat(guestBody.get()).contains("\"role\":\"Viewer\"");
         assertThat(guestBody.get()).contains("\"id\":\"2\"");
-        assertThat(guestBody.get()).contains("portal-guest");
+        assertThat(guestBody.get()).contains("portal-guest").contains("\"rls\":[]");
     }
 
     @Test
