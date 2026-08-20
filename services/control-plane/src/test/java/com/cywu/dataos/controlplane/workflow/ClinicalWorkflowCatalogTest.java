@@ -18,7 +18,60 @@ class ClinicalWorkflowCatalogTest {
         var keys = catalog.list().stream().map(ClinicalWorkflowTemplate::key).toList();
         org.assertj.core.api.Assertions.assertThat(keys)
                 .containsExactlyInAnyOrder("LIS_JDBC_TO_DORIS", "LIS_HTTP_TO_DORIS",
-                        "EMR_JDBC_TO_DORIS", "SURGERY_JDBC_TO_DORIS", "EP_JDBC_TO_DORIS");
+                        "EMR_JDBC_TO_DORIS", "SURGERY_JDBC_TO_DORIS", "EP_JDBC_TO_DORIS",
+                        "EP_EDGE_S3_TO_DORIS");
+    }
+
+    @Test
+    void edgeContractTargetsS3RelaySourceAndDorisEdgeTable() {
+        var template = catalog.require(ClinicalWorkflowCatalog.EP_EDGE_S3_TO_DORIS, 1);
+        var source = (Map<?, ?>) ((List<?>) template.sampleConfig().get("source")).get(0);
+        var sink = (Map<?, ?>) ((List<?>) template.sampleConfig().get("sink")).get(0);
+
+        org.assertj.core.api.Assertions.assertThat(template.protocol()).isEqualTo("S3");
+        org.assertj.core.api.Assertions.assertThat(source.get("plugin_name")).isEqualTo("S3File");
+        org.assertj.core.api.Assertions.assertThat(sink.get("database")).isEqualTo("ods_ep");
+        org.assertj.core.api.Assertions.assertThat(sink.get("table")).isEqualTo("ep_mz_cfzb_edge");
+        org.assertj.core.api.Assertions.assertThat(sink.get("sink.label-prefix"))
+                .isEqualTo("dataos_ep_edge_s3_to_doris");
+
+        var valid = Map.<String, Object>of(
+                "env", Map.of("job.mode", "BATCH"),
+                "source", List.of(Map.of("plugin_name", "S3File", "credentialRef", "ep-edge-s3-relay",
+                        "path", "s3a://dataos-edge-relay/ep_mz_cfzb",
+                        "bucket", "dataos-edge-relay",
+                        "fs.s3a.endpoint", "http://rustfs:9000",
+                        "fs.s3a.path.style.access", true,
+                        "format", "json")),
+                "sink", List.of(Map.of("plugin_name", "Doris", "credentialRef", "doris-ods-writer",
+                        "fenodes", "172.16.66.8:8030", "database", "ods_ep", "table", "ep_mz_cfzb_edge",
+                        "sink.label-prefix", "dataos_ep_edge_s3_to_doris", "sink.enable-2pc", false,
+                        "schema_save_mode", "CREATE_SCHEMA_WHEN_NOT_EXIST", "data_save_mode", "APPEND_DATA",
+                        "doris.config", Map.of("format", "json", "read_json_by_line", "true"))));
+
+        assertDoesNotThrow(() -> catalog.validateConfig(ClinicalWorkflowCatalog.EP_EDGE_S3_TO_DORIS, 1, valid));
+        assertThrows(InvalidRequestException.class, () -> catalog.validateConfig(ClinicalWorkflowCatalog.EP_EDGE_S3_TO_DORIS, 1,
+                withoutSourceEntry(valid, "fs.s3a.endpoint")));
+        assertThrows(InvalidRequestException.class, () -> catalog.validateConfig(ClinicalWorkflowCatalog.EP_EDGE_S3_TO_DORIS, 1,
+                Map.of("env", Map.of("job.mode", "BATCH"),
+                        "source", List.of(Map.of("plugin_name", "Jdbc", "credentialRef", "ep-edge-s3-relay",
+                                "path", "s3a://dataos-edge-relay/ep_mz_cfzb", "bucket", "dataos-edge-relay",
+                                "fs.s3a.endpoint", "http://rustfs:9000", "format", "json")),
+                        "sink", List.of(Map.of("plugin_name", "Doris", "credentialRef", "doris-ods-writer",
+                                "fenodes", "172.16.66.8:8030", "database", "ods_ep", "table", "ep_mz_cfzb_edge",
+                                "sink.label-prefix", "dataos_ep_edge_s3_to_doris", "sink.enable-2pc", false,
+                                "schema_save_mode", "CREATE_SCHEMA_WHEN_NOT_EXIST", "data_save_mode", "APPEND_DATA",
+                                "doris.config", Map.of("format", "json", "read_json_by_line", "true"))))));
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> withoutSourceEntry(Map<String, Object> config, String key) {
+        var source = (Map<String, Object>) ((List<?>) config.get("source")).get(0);
+        var trimmed = new java.util.LinkedHashMap<String, Object>(source);
+        trimmed.remove(key);
+        return Map.of("env", config.get("env"),
+                "source", List.of(trimmed),
+                "sink", config.get("sink"));
     }
 
     @Test

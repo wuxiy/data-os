@@ -20,6 +20,7 @@ public final class ClinicalWorkflowCatalog {
     public static final String EMR_JDBC_TO_DORIS = "EMR_JDBC_TO_DORIS";
     public static final String SURGERY_JDBC_TO_DORIS = "SURGERY_JDBC_TO_DORIS";
     public static final String EP_JDBC_TO_DORIS = "EP_JDBC_TO_DORIS";
+    public static final String EP_EDGE_S3_TO_DORIS = "EP_EDGE_S3_TO_DORIS";
     public static final int VERSION = 1;
 
     private final List<ClinicalWorkflowTemplate> templates = List.of(
@@ -37,7 +38,10 @@ public final class ClinicalWorkflowCatalog {
                 "surgery-clinical-readonly", "ods_surgery", "operation_record"),
         template(EP_JDBC_TO_DORIS, "电子处方入仓", "EP",
                 "门诊处方主表与药品处方明细按更新时间批量或增量采集到 ODS/EP。",
-                "ep-dm-readonly", "ods_ep", "ep_mz_cfzb"));
+                "ep-dm-readonly", "ods_ep", "ep_mz_cfzb"),
+        edgeTemplate(EP_EDGE_S3_TO_DORIS, "电子处方边缘中转入仓", "EP",
+                "前置机投递到对象存储中转桶的电子处方增量文件，按 JSON 行入仓到 ODS/EP 边缘表（UNIQUE KEY 幂等重放）。",
+                "ep-edge-s3-relay", "ods_ep", "ep_mz_cfzb_edge"));
 
     public List<ClinicalWorkflowTemplate> list() {
         return templates;
@@ -59,20 +63,28 @@ public final class ClinicalWorkflowCatalog {
     public void validateConfig(String key, Integer version, Map<String, Object> config) {
         if (!supports(key)) return;
         require(key, version);
+        var edgeSource = EP_EDGE_S3_TO_DORIS.equalsIgnoreCase(key);
         var httpSource = LIS_HTTP_TO_DORIS.equalsIgnoreCase(key);
-        requirePlugin(config, "source", httpSource ? "Http" : "Jdbc",
-                httpSource ? "LIS HTTP 工作流的 source 必须使用 Http 连接器"
+        requirePlugin(config, "source", edgeSource ? "S3File" : httpSource ? "Http" : "Jdbc",
+                edgeSource ? "边缘中转工作流的 source 必须使用 S3File 连接器"
+                        : httpSource ? "LIS HTTP 工作流的 source 必须使用 Http 连接器"
                         : "临床工作流的 source 必须使用 Jdbc 连接器");
         requirePlugin(config, "sink", "Doris", "临床工作流的 sink 必须使用 Doris 连接器");
         requireCredentialRef(config, "source");
         requireCredentialRef(config, "sink");
         var source = firstPlugin(config, "source");
         var sink = firstPlugin(config, "sink");
-        requireText(source, "url", "临床工作流 source.url 不能为空");
-        if (httpSource) {
-            requireText(source, "method", "LIS HTTP 工作流 source.method 不能为空");
-            requireText(source, "format", "LIS HTTP 工作流 source.format 不能为空");
+        if (edgeSource) {
+            requireText(source, "path", "边缘中转工作流 source.path 不能为空");
+            requireText(source, "bucket", "边缘中转工作流 source.bucket 不能为空");
+            requireText(source, "fs.s3a.endpoint", "边缘中转工作流 source.fs.s3a.endpoint 不能为空");
+            requireText(source, "format", "边缘中转工作流 source.format 不能为空");
+        } else if (httpSource) {
+            requireText(source, "url", "临床工作流 source.url 不能为空");
+            requireText(source, "method", "LIS HTTP 工作流的 source.method 不能为空");
+            requireText(source, "format", "LIS HTTP 工作流的 source.format 不能为空");
         } else {
+            requireText(source, "url", "临床工作流 source.url 不能为空");
             requireText(source, "driver", "临床工作流 source.driver 不能为空");
             requireText(source, "query", "临床工作流 source.query 不能为空");
         }
@@ -102,25 +114,10 @@ public final class ClinicalWorkflowCatalog {
                 "driver", "<replace-with-jdbc-driver>",
                 "query", "SELECT * FROM <replace-with-source-table> WHERE update_time >= '${last_success_time}' AND update_time < '${run_start_time}'",
                 "credentialRef", "<replace-with-source-credential-id>");
-        var sink = Map.<String, Object>ofEntries(
-                Map.entry("plugin_name", "Doris"),
-                Map.entry("fenodes", "<replace-with-doris-fe-host>:8030"),
-                Map.entry("database", database),
-                Map.entry("table", table),
-                // SeaTunnel 2.3.x requires a stream-load label prefix and
-                // doris.config map. The target table's UNIQUE KEY model, not
-                // an invented save_mode property, provides the UPSERT
-                // semantics for reruns.
-                Map.entry("sink.label-prefix", "dataos_" + key.toLowerCase(Locale.ROOT)),
-                Map.entry("sink.enable-2pc", false),
-                Map.entry("schema_save_mode", "CREATE_SCHEMA_WHEN_NOT_EXIST"),
-                Map.entry("data_save_mode", "APPEND_DATA"),
-                Map.entry("doris.config", Map.of("format", "json", "read_json_by_line", "true")),
-                Map.entry("credentialRef", "<replace-with-target-credential-id>"));
         return new ClinicalWorkflowTemplate(key, VERSION, displayName, systemType, "JDBC", "SEATUNNEL",
                 "BATCH", description, List.of(credentialRole, "doris-ods-writer"),
                 Map.of("env", Map.of("job.mode", "BATCH", "parallelism", 1),
-                        "source", List.of(source), "transform", List.of(), "sink", List.of(sink)));
+                        "source", List.of(source), "transform", List.of(), "sink", List.of(dorisSink(key, database, table))));
     }
 
     private ClinicalWorkflowTemplate httpTemplate(String key, String displayName, String systemType,
@@ -132,7 +129,39 @@ public final class ClinicalWorkflowCatalog {
                 "method", "GET",
                 "format", "JSON",
                 "credentialRef", "<replace-with-source-credential-id>");
-        var sink = Map.<String, Object>ofEntries(
+        return new ClinicalWorkflowTemplate(key, VERSION, displayName, systemType, "HTTP", "SEATUNNEL",
+                "BATCH", description, List.of(credentialRole, "doris-ods-writer"),
+                Map.of("env", Map.of("job.mode", "BATCH", "parallelism", 1),
+                        "source", List.of(source), "transform", List.of(), "sink", List.of(dorisSink(key, database, table))));
+    }
+
+    private ClinicalWorkflowTemplate edgeTemplate(String key, String displayName, String systemType,
+                                                  String description, String credentialRole,
+                                                  String database, String table) {
+        var source = Map.<String, Object>ofEntries(
+                Map.entry("plugin_name", "S3File"),
+                Map.entry("path", "s3a://<replace-with-relay-bucket>/<table-prefix>"),
+                Map.entry("bucket", "<replace-with-relay-bucket>"),
+                Map.entry("fs.s3a.endpoint", "http://<replace-with-rustfs-host>:9000"),
+                Map.entry("fs.s3a.path.style.access", true),
+                Map.entry("format", "json"),
+                // The credential service stores the relay bucket key pair; the
+                // fs.s3a.access.key / fs.s3a.secret.key entries it resolves are
+                // merged into this map only in memory at submission time, so
+                // persisted job configurations keep holding references alone.
+                Map.entry("credentialRef", "<replace-with-edge-relay-credential-id>"));
+        return new ClinicalWorkflowTemplate(key, VERSION, displayName, systemType, "S3", "SEATUNNEL",
+                "BATCH", description, List.of(credentialRole, "doris-ods-writer"),
+                Map.of("env", Map.of("job.mode", "BATCH", "parallelism", 1),
+                        "source", List.of(source), "transform", List.of(), "sink", List.of(dorisSink(key, database, table))));
+    }
+
+    private Map<String, Object> dorisSink(String key, String database, String table) {
+        // SeaTunnel 2.3.x requires a stream-load label prefix and
+        // doris.config map. The target table's UNIQUE KEY model, not
+        // an invented save_mode property, provides the UPSERT
+        // semantics for reruns.
+        return Map.<String, Object>ofEntries(
                 Map.entry("plugin_name", "Doris"),
                 Map.entry("fenodes", "<replace-with-doris-fe-host>:8030"),
                 Map.entry("database", database),
@@ -143,10 +172,6 @@ public final class ClinicalWorkflowCatalog {
                 Map.entry("data_save_mode", "APPEND_DATA"),
                 Map.entry("doris.config", Map.of("format", "json", "read_json_by_line", "true")),
                 Map.entry("credentialRef", "<replace-with-target-credential-id>"));
-        return new ClinicalWorkflowTemplate(key, VERSION, displayName, systemType, "HTTP", "SEATUNNEL",
-                "BATCH", description, List.of(credentialRole, "doris-ods-writer"),
-                Map.of("env", Map.of("job.mode", "BATCH", "parallelism", 1),
-                        "source", List.of(source), "transform", List.of(), "sink", List.of(sink)));
     }
 
     private void requirePlugin(Map<String, Object> config, String section, String expected, String message) {
