@@ -21,9 +21,32 @@ import os
 import sys
 
 NIFI_VERSION = "2.10.0"
+CFZB_COLUMNS = ["ID", "YLJGDM", "KH", "KLX", "JZLSH", "CFZID", "CFDL", "CFLX", "JZKSDM",
+    "JZKSMC", "KFYSGH", "KFYSXM", "KFRQ", "YYMZH", "HZXM", "HZXB", "HZNL", "LCZD", "LXFS",
+    "CFPTZT", "BZ", "PATIENT_ID", "YLJGMC", "CREATE_TIME", "UPDATE_TIME", "LCZDLX", "LCZDZY",
+    "HZZY", "HZSG", "HZTZ", "HZABO", "HZRH", "HZHY", "HZHYZT", "HZZS", "HZXBS", "HZJWS",
+    "HZGMS", "HZGRS", "HZYJS", "HZHYS", "HZJZS", "HZJZHS", "HZTGJC", "HZFZJC", "HZZKJC",
+    "HZZF", "CFYXQ", "CFYZID", "BIZ_NO", "SFYSGH", "SFYSXM", "HZNLDW"]
+MX_COLUMNS = ["ID", "YLJGDM", "KH", "KLX", "JZLSH", "CFZID", "CFMXID", "ZLXMLBBM", "YPBM",
+    "YPTYM", "YPBWM", "YPPZWH", "YPFLBM", "XMFLMC", "JXDM", "YPGG", "SCQY", "YF", "SYPC",
+    "SYCJL", "SJYLDW", "SYZL", "SYZLDW", "YPSL", "YPDW", "YYTS", "ZYJZF", "BZ", "EP_ID",
+    "CODE", "NUM", "AMOUNT", "CREATE_TIME", "UPDATE_TIME", "SKIN_TEST_RESULT_CODE",
+    "SKIN_TEST_RESULT"]
+# TIMESTAMP 列在 SQL 里 TO_CHAR 成字符串：JsonRecordSetWriter 的 Timestamp
+# Format 属性在 MiNiFi 简化加载器下不生效（输出 epoch 毫秒，Doris datetime
+# 列解析为 NULL），转换收口在 SQL 侧最可控。
+TS_COLUMNS = {"CREATE_TIME", "UPDATE_TIME"}
+
+
+def select_list(columns):
+    return ", ".join(
+        f"TO_CHAR({c}, 'YYYY-MM-DD HH24:MI:SS') AS {c}" if c in TS_COLUMNS else c
+        for c in columns)
+
+
 TABLES = [
-    {"table": "EP_MZ_CFZB", "prefix": "ep_mz_cfzb"},
-    {"table": "EP_MZ_YPCFMX", "prefix": "ep_mz_ypcfmx"},
+    {"table": "EP_MZ_CFZB", "prefix": "ep_mz_cfzb", "columns": CFZB_COLUMNS},
+    {"table": "EP_MZ_YPCFMX", "prefix": "ep_mz_ypcfmx", "columns": MX_COLUMNS},
 ]
 
 
@@ -189,7 +212,14 @@ def main() -> None:
             {"x": x, "y": 260.0},
             {
                 "Database Connection Pooling Service": dbcp_id,
-                "SQL select query": f"SELECT * FROM {spec['table']}",
+                # GTF 产出的增量窗口经 FlowFile 属性传递（whereClause/limit/
+                # offset），ExecuteSQLRecord 的 SQL 属性支持 EL——静态 SQL 会
+                # 在每次命中增量时拉全表。
+                "SQL select query": (
+                    f"SELECT {select_list(spec['columns'])} FROM {spec['table']} "
+                    "${generatetablefetch.whereClause:prepend('WHERE '):replaceNull('WHERE 1=1')} "
+                    "${generatetablefetch.limit:prepend('LIMIT '):replaceNull('')} "
+                    "${generatetablefetch.offset:prepend('OFFSET '):replaceNull('')}"),
                 "Record Writer": writer_id,
                 "Output Batch Size": "0",
             },
