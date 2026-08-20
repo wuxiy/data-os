@@ -1,6 +1,6 @@
 # 院内采集全流程模拟验收清单（前置机隔离 / 实时采集 / 治理 / MPI / 血缘 / Superset）— 2026-08-19
 
-状态：**顺延——先完成门户功能迭代（MPI/血缘/分析三页真实化），迭代完成后按门户口径修订本清单再执行**（2026-08-19 决策：演示导向、受控外链仅面向技术用户不作为甲方口径）。L4/L5/L6 的组件侧锚点（OpenMetadata 摄取 ods_ep、Superset 建图、Doris 匹配实验）纳入迭代 G1 先行完成；L1/L2/L3（前置机隔离/断网/质量）维持原样。
+状态：**执行中（门户口径修订版，2026-08-20）**。原「顺延」条件已满足——门户功能迭代完成：G3（MPI 服务+门户页真实化）、G1-G2（OpenMetadata 摄取 ods_ep+血缘 BFF+资产/技术页接真）、G4（嵌入式 Superset 分析页）。**L4/L5/L6 已由上述迭代交付并通过各自 gate 验收**（见各节修订注记），本轮执行 E1-E6 工程改动与 L1/L2/L3 场景（方案见 [hospital-edge-g5-review-and-plan-20260820](../hospital-edge-g5-review-and-plan-20260820.md)）。
 
 ## 0. 目标拓扑与已实测现状
 
@@ -24,7 +24,7 @@ minifi-edge（MiNiFi 2.10 Java，前置机）──出站投递──▶ RustFS 
 | 1 | `minifi-edge` 容器在运行（`apache/nifi-minifi:2.10.0`，`minifi_minifi-net` 172.22.0.0/16，挂载 `/root/medical-platform/deploy/minifi/conf`，flow 为 flow.json.gz）；**容器→DM 5236 实测连通**，含 curl/JRE |
 | 2 | DM `EP_TEST` 权限：CREATE SESSION / RESOURCE / PUBLIC；**可建表可插数**（探针表建删成功）→ 可模拟新增处方数据；无 V$/SYSOBJECTS/归档权限 |
 | 3 | **日志 CDC 不可用**（上条权限结论 + SeaTunnel 2.3.13 官方 CDC 源仅 MySQL/Oracle/SQLServer/PostgreSQL/MongoDB 等，无达梦）→ 按「源库若支持 CDC」的条件分支，本轮以轮询增量替代并出具正式结论 |
-| 4 | 门户 MPI/血缘/分析页为**静态演示**（`MpiReviewPage` 引 `data/mock`，无 controlPlane API；无任何 Superset 集成）；OpenMetadata（网关 8445）/ Superset（网关 8444）/ RustFS（19000）在 dev 环境运行健康 |
+| 4 | ~~门户 MPI/血缘/分析页为静态演示~~ **（2026-08-20 修订：三页均已真实化——G3 MPI 复核、G2 资产/技术页、G4 分析页）**；OpenMetadata（网关 8445）/ Superset（网关 8444）/ RustFS（19000）在 dev 环境运行健康 |
 | 5 | 质量规则机制：`quality/dbt` 工程 + `services/quality-runner/rules.yml` + 镜像内置 + PostgreSQL 注册表；现有规则只指向合成验收表，**EP 规则需开发** |
 | 6 | Doris `dataos_quality_ro` 仅可读质量库；EP 直连链路（上一轮 Gate）可作为隔离前对照组 |
 
@@ -81,6 +81,8 @@ minifi-edge（MiNiFi 2.10 Java，前置机）──出站投递──▶ RustFS 
 
 ## L4. MPI 主索引场景（范围按 D-4；映射蓝图 8.1 可达子集）
 
+> **2026-08-20 修订：本节由 G3 交付覆盖，验收记录见 [gate-mpi-g3-20260819.md](gate-mpi-g3-20260819.md)**——范围超出原「Doris 层匹配实验」：mpi-service 独立服务全链（三段身份键、判定流、复核任务页真实化、B6 联系方式收紧、全量重算纪律）。匹配三态统计与保守策略以该报告为准；L4.4 边界标注仍适用（新生儿/急诊未知样本不声称覆盖）。
+
 | # | 项目 | 通过标准 |
 | --- | --- | --- |
 | L4.1 | 字段标准化+Blocking+确定性匹配 | 在 EP 患者字段（PATIENT_ID/KH/HZXM/HZXB/HZNL）上执行，产出 MATCH / POSSIBLE_MATCH / NO_MATCH 三态统计 |
@@ -90,6 +92,8 @@ minifi-edge（MiNiFi 2.10 Java，前置机）──出站投递──▶ RustFS 
 
 ## L5. 数据血缘场景（OpenMetadata）
 
+> **2026-08-20 修订：本节由 G1+G2 交付覆盖，验收记录见 [gate-lineage-g1-20260820.md](gate-lineage-g1-20260820.md)**——OM 摄取 ods_ep 3 表 142 列零差异、Superset 血缘链（图表→数据集→ods_ep）、门户资产目录/技术档案页接真（BFF 四端点）。原 L5.4「门户血缘页保持静态演示」的边界不再适用。
+
 | # | 项目 | 通过标准 |
 | --- | --- | --- |
 | L5.1 | 资产摄取 | OpenMetadata 配置 Doris 连接，摄取 `ods_ep` 成功（表/列元数据入库） |
@@ -98,6 +102,8 @@ minifi-edge（MiNiFi 2.10 Java，前置机）──出站投递──▶ RustFS 
 | L5.4 | 入口留证 | 经网关 8445 访问成功，截图留证；门户血缘页保持静态演示的边界如实标注 |
 
 ## L6. Superset 图表场景（映射蓝图 12.1「图表能追到指标口径和源数据集」）
+
+> **2026-08-20 修订：本节由 G4 交付覆盖，验收记录见 [gate-analytics-g4-20260820.md](gate-analytics-g4-20260820.md)**——图表×3（趋势/TOP10/状态分布）挂入可嵌入仪表盘、门户分析页 guest-token 嵌入、L6.3 数值对账零误差（总量 11,373）、网关留证。
 
 | # | 项目 | 通过标准 |
 | --- | --- | --- |
@@ -112,7 +118,7 @@ minifi-edge（MiNiFi 2.10 Java，前置机）──出站投递──▶ RustFS 
 | --- | --- |
 | 12.1 数据库全量后切换增量/CDC，记录数可核对 | ✅（上轮全量 + 本轮前置机增量；CDC 出不可用结论） |
 | 12.1 质量规则失败生成工单，修复后重跑并关闭 | ✅ L3 |
-| 12.1 MPI 确定匹配/可能匹配/拒绝…全流程 | ◐ L4（Doris 层匹配实验；合并/拆分/撤销 UI 不在本轮） |
+| 12.1 MPI 确定匹配/可能匹配/拒绝…全流程 | ✅（2026-08-20 修订：G3 交付 mpi-service 全链+复核页，超出原 Doris 层实验口径） |
 | 12.1 Superset 图表追到口径和源数据集 | ✅ L6 |
 | 12.2 中心断网、前置节点重启、恢复补传 | ✅ L2（20 分钟缩比，非 72h） |
 | 12.2 SeaTunnel 任务失败后从检查点恢复 | ◐ 复用上轮 retry/对账证据 + 本轮 L2.4 |
