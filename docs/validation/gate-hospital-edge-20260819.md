@@ -1,6 +1,6 @@
 # 院内采集全流程模拟验收清单（前置机隔离 / 实时采集 / 治理 / MPI / 血缘 / Superset）— 2026-08-19
 
-状态：**执行中（门户口径修订版，2026-08-20）**。原「顺延」条件已满足——门户功能迭代完成：G3（MPI 服务+门户页真实化）、G1-G2（OpenMetadata 摄取 ods_ep+血缘 BFF+资产/技术页接真）、G4（嵌入式 Superset 分析页）。**L4/L5/L6 已由上述迭代交付并通过各自 gate 验收**（见各节修订注记），本轮执行 E1-E6 工程改动与 L1/L2/L3 场景（方案见 [hospital-edge-g5-review-and-plan-20260820](../hospital-edge-g5-review-and-plan-20260820.md)）。
+状态：**已完成（2026-08-21 验收通过）**——E1-E6 与 L1/L2/L3 全项通过、EP 直连零回归、双侧清理零残留，验收报告见 [gate-hospital-edge-g5-20260820.md](gate-hospital-edge-g5-20260820.md)。原「顺延」条件已满足——门户功能迭代完成：G3（MPI 服务+门户页真实化）、G1-G2（OpenMetadata 摄取 ods_ep+血缘 BFF+资产/技术页接真）、G4（嵌入式 Superset 分析页）。**L4/L5/L6 已由上述迭代交付并通过各自 gate 验收**（见各节修订注记），本轮执行 E1-E6 工程改动与 L1/L2/L3 场景（方案见 [hospital-edge-g5-review-and-plan-20260820](../hospital-edge-g5-review-and-plan-20260820.md)）。
 
 ## 0. 目标拓扑与已实测现状
 

@@ -55,3 +55,7 @@
 ## 运行模式（Runtime Mode）
 
 门户的演示/真实呈现差异由运行模式模块（`prototype/src/data/runtimeMode.ts`）单一持有：构建期演示开关（`VITE_DATAOS_DEMO_MODE`）与后端报告的 DEMO 模式在此合一；静态样例可见性、演示（FakeSource）模板目录与守卫、快照文案全部由它派生，页面消费语义谓词而不散布布尔分支。生产路由表独立于演示数据（`data/routes.ts`）。
+
+## 前置机边缘链路（Hospital Edge Relay）
+
+院内隔离网段的数据经前置机（MiNiFi）采集后投递中心的对象中转桶，再由中心任务（SeaTunnel S3File 源）入仓到边缘增量表（Doris UNIQUE KEY(ID)，重放/重复投递天然幂等）。位点（增量游标）持久化在前置机本地（断电/重启不重不漏）；断网期间数据驻留前置机 FlowFile/content 仓库，恢复后自动补传。控制面以 `EP_EDGE_S3_TO_DORIS` 模板登记此类任务；中转桶凭据经凭据服务注入，落库配置只含 credentialRef。DELETE 不在增量链语义内——源侧删除需以数据修复动作双侧执行并留证。
