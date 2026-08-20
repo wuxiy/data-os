@@ -5,9 +5,20 @@ import { PageHeader } from '../components/ui/PageHeader'
 import { Button, StatusTag } from '../components/ui/Primitives'
 import { assets, type AssetItem } from '../data/integrations'
 import { routePaths } from '../data/routes'
+import { frontendDemoMode } from '../data/runtimeMode'
+import { AssetTechnicalLive } from './AssetTechnicalLive'
 import styles from './IntegrationPages.module.css'
 
 export function AssetTechnicalPage({ onNotice }: { onNotice: (message: string) => void }) {
+  // 运行模式（CONTEXT.md）：演示构建保留静态样例；真实构建渲染
+  // OpenMetadata 技术视图（字段结构 + 消费链证据）。
+  if (!frontendDemoMode) {
+    return <AssetTechnicalLive onNotice={onNotice} />
+  }
+  return <DemoAssetTechnicalPage onNotice={onNotice} />
+}
+
+function DemoAssetTechnicalPage({ onNotice }: { onNotice: (message: string) => void }) {
   const asset = useMemo(() => {
     const requestedId = new URLSearchParams(window.location.search).get('asset')
     return assets.find((item) => item.id === requestedId) ?? assets[0]

@@ -5,6 +5,8 @@ import { PageHeader } from '../components/ui/PageHeader'
 import { Button, StatusTag } from '../components/ui/Primitives'
 import { assets, type AssetItem } from '../data/integrations'
 import { routePaths } from '../data/routes'
+import { frontendDemoMode } from '../data/runtimeMode'
+import { AssetCatalogLive } from './AssetCatalogLive'
 import styles from './IntegrationPages.module.css'
 
 type AssetTab = 'overview' | 'lineage' | 'quality'
@@ -17,6 +19,15 @@ const lineageIcons = {
 }
 
 export function AssetCatalogPage({ onNotice, onNavigate }: { onNotice: (message: string) => void; onNavigate: (route: 'ingestion' | 'governance' | 'quality') => void }) {
+  // 运行模式（CONTEXT.md）：演示构建保留静态样例供交互验收；
+  // 真实构建渲染 OpenMetadata 资产目录（结构/血缘/消费链）。
+  if (!frontendDemoMode) {
+    return <AssetCatalogLive onNotice={onNotice} />
+  }
+  return <DemoAssetCatalogPage onNotice={onNotice} onNavigate={onNavigate} />
+}
+
+function DemoAssetCatalogPage({ onNotice, onNavigate }: { onNotice: (message: string) => void; onNavigate: (route: 'ingestion' | 'governance' | 'quality') => void }) {
   const [selectedId, setSelectedId] = useState(() => {
     const requestedId = new URLSearchParams(window.location.search).get('asset')
     return assets.some((asset) => asset.id === requestedId) ? requestedId! : assets[0].id
