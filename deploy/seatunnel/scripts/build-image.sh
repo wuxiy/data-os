@@ -52,7 +52,8 @@ cp "$seatunnel_dir/Dockerfile" "$seatunnel_dir/plugin_config" "$seatunnel_dir/se
 for artifact in \
   "apache-seatunnel-${SEATUNNEL_VERSION}-bin.tar.gz" \
   "connector-jdbc-${CONNECTOR_JDBC_VERSION}.jar" \
-  "connector-doris-${CONNECTOR_DORIS_VERSION}.jar"; do
+  "connector-doris-${CONNECTOR_DORIS_VERSION}.jar" \
+  "connector-file-s3-${CONNECTOR_FILE_S3_VERSION}.jar"; do
   if [ -s "$connector_dir/$artifact" ]; then
     cp "$connector_dir/$artifact" "$context/connector-cache/$artifact"
   elif [ "$offline_build" = true ]; then
@@ -100,6 +101,8 @@ docker buildx build \
   --build-arg "CONNECTOR_JDBC_SHA256=$CONNECTOR_JDBC_SHA256" \
   --build-arg "CONNECTOR_DORIS_VERSION=$CONNECTOR_DORIS_VERSION" \
   --build-arg "CONNECTOR_DORIS_SHA256=$CONNECTOR_DORIS_SHA256" \
+  --build-arg "CONNECTOR_FILE_S3_VERSION=$CONNECTOR_FILE_S3_VERSION" \
+  --build-arg "CONNECTOR_FILE_S3_SHA256=$CONNECTOR_FILE_S3_SHA256" \
   --build-arg "OFFLINE_BUILD=$offline_build" \
   --tag "$image_tag" \
   --load \
