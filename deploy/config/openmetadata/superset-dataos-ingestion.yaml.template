@@ -1,0 +1,29 @@
+# OpenMetadata Superset 摄取配置（superset-dataos，见
+# docs/lineage-g1-g2-review-and-plan-20260820.md 决策 D5：只摄取嵌入试点
+# 仪表盘，血缘显式指向 doris-dataos 服务）。
+#
+# 由 deploy/scripts/om-ingest-superset.sh 渲染执行：__OM_JWT__ 为运行时
+# 签发令牌。Superset 连接（账号/口令/hostPort）保存在 OM 服务实体内
+# （provision 步骤写入），本文件不含任何口令，可安全进 Git。
+source:
+  type: Superset
+  serviceName: superset-dataos
+  sourceConfig:
+    config:
+      type: DashboardMetadata
+      includeDataModels: true
+      dashboardFilterPattern:
+        includes:
+          - 电子处方嵌入验证
+      lineageInformation:
+        dbServiceNames:
+          - doris-dataos
+sink:
+  type: metadata-rest
+  config: {}
+workflowConfig:
+  openMetadataServerConfig:
+    hostPort: http://openmetadata:8585/api
+    authProvider: openmetadata
+    securityConfig:
+      jwtToken: __OM_JWT__
