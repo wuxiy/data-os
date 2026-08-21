@@ -7,7 +7,8 @@
 
 CREATE USER IF NOT EXISTS 'dataos_om_ro'@'%'
   IDENTIFIED BY '__OM_RO_PASSWORD__';
-SET PASSWORD FOR 'dataos_om_ro'@'%' = '__OM_RO_PASSWORD__';
+-- Doris 语法：SET PASSWORD 右侧须 PASSWORD('明文')，裸字符串会被当作 hash。
+SET PASSWORD FOR 'dataos_om_ro'@'%' = PASSWORD('__OM_RO_PASSWORD__');
 
 GRANT SELECT_PRIV ON ods_ep.* TO 'dataos_om_ro'@'%';
 GRANT SELECT_PRIV ON dataos_quality_acceptance.* TO 'dataos_om_ro'@'%';
