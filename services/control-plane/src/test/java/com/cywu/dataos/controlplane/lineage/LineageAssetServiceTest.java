@@ -65,17 +65,22 @@ class LineageAssetServiceTest {
                         """;
             } else if (path.contains("/lineage/table/name/")) {
                 response = """
-                        {"entity":{"id":"root-1","type":"table","name":"ep_mz_cfzb",
-                                   "fullyQualifiedName":"doris-dataos.default.ods_ep.ep_mz_cfzb"},
+                        {"entity":{"id":"root-1","type":"table","name":"mpi_source_identity",
+                                   "fullyQualifiedName":"doris-dataos.default.dataos_mpi.mpi_source_identity"},
                          "nodes":[
-                           {"id":"m1","type":"dashboardDataModel","name":"2",
-                            "fullyQualifiedName":"superset-dataos.model.2","displayName":"ep_mz_cfzb"},
+                           {"id":"m1","type":"table","name":"mpi_candidate_pair",
+                            "fullyQualifiedName":"doris-dataos.default.dataos_mpi.mpi_candidate_pair","displayName":"候选对"},
                            {"id":"d1","type":"dashboard","name":"2",
                             "fullyQualifiedName":"superset-dataos.2","displayName":"电子处方嵌入验证"}
                          ],
                          "upstreamEdges":[],
                          "downstreamEdges":[
-                           {"fromEntity":"root-1","toEntity":"m1"},
+                           {"fromEntity":"root-1","toEntity":"m1",
+                            "lineageDetails":{"columnsLineage":[
+                              {"fromColumns":["doris-dataos.default.dataos_mpi.mpi_source_identity.source_key"],
+                               "toColumn":"doris-dataos.default.dataos_mpi.mpi_candidate_pair.identity_a"},
+                              {"fromColumns":["doris-dataos.default.dataos_mpi.mpi_source_identity.source_key"],
+                               "toColumn":"doris-dataos.default.dataos_mpi.mpi_candidate_pair.identity_b"}]}},
                            {"fromEntity":"m1","toEntity":"d1"}
                          ]}
                         """;
@@ -138,14 +143,21 @@ class LineageAssetServiceTest {
 
     @Test
     void lineageSplitsDirectionByEdgesAndNormalizesTypes() {
-        var lineage = service.getLineage("doris-dataos.default.ods_ep.ep_mz_cfzb");
+        var lineage = service.getLineage("doris-dataos.default.dataos_mpi.mpi_source_identity");
 
-        assertThat(lineage.root()).isEqualTo("doris-dataos.default.ods_ep.ep_mz_cfzb");
+        assertThat(lineage.root()).isEqualTo("doris-dataos.default.dataos_mpi.mpi_source_identity");
         assertThat(lineage.upstreams()).isEmpty();
+        // 一跳直接邻居（root->m1）；二跳（m1->d1 仪表盘）不在直接边收集范围。
         assertThat(lineage.downstreams()).hasSize(1);
-        assertThat(lineage.downstreams().get(0).fullyQualifiedName()).isEqualTo("superset-dataos.model.2");
-        assertThat(lineage.downstreams().get(0).type()).isEqualTo("dataModel");
-        assertThat(lineage.downstreams().get(0).displayName()).isEqualTo("ep_mz_cfzb");
+        var first = lineage.downstreams().get(0);
+        assertThat(first.fullyQualifiedName()).isEqualTo("doris-dataos.default.dataos_mpi.mpi_candidate_pair");
+        assertThat(first.type()).isEqualTo("table");
+        assertThat(first.displayName()).isEqualTo("候选对");
+        // 列级映射投影为短列名（G7 声明式血缘）。
+        assertThat(first.columnMappings()).hasSize(2);
+        assertThat(first.columnMappings().get(0).fromColumns()).containsExactly("source_key");
+        assertThat(first.columnMappings().get(0).toColumn()).isEqualTo("identity_a");
+        assertThat(first.columnMappings().get(1).toColumn()).isEqualTo("identity_b");
     }
 
     @Test

@@ -86,6 +86,12 @@ data-os:
     tenant-code: ${DATAOS_DOLPHINSCHEDULER_TENANT_CODE:}
   quality:
     executor: ${DATAOS_QUALITY_EXECUTOR:HTTP}
+    # 逻辑数据集（rules.yml 的 dataset_id）-> OM 表全限定名映射（G7-5）。
+    # 库.表 形态的 dataset_id 不需要映射（按 fqn 段直接匹配）。
+    dataset-tables:
+      asset-ep-prescription-edge:
+        - doris-dataos.default.ods_ep.ep_mz_cfzb_edge
+        - doris-dataos.default.ods_ep.ep_mz_ypcfmx_edge
     base-url: ${DATAOS_QUALITY_EXECUTOR_BASE_URL:}
     demo-enabled: ${DATAOS_QUALITY_DEMO_ENABLED:false}
     oidc:
