@@ -1,10 +1,11 @@
-# OpenMetadata 摄取配置（doris-dataos → ods_ep 结构元数据，见
-# docs/lineage-g1-g2-review-and-plan-20260820.md 决策 D2/D3：只摄取 ods_ep、
-# 只读结构元数据、不跑 profiler/采样）。
+# OpenMetadata 摄取配置（doris-dataos → data-os 自有三库结构元数据，见
+# docs/lineage-g1-g2-review-and-plan-20260820.md 决策 D2/D3 与
+# docs/om-assets-g6-review-and-plan-20260821.md 决策 G6-2/G6-3：三库
+# （ods_ep / 质量验收 / MPI）、只读结构元数据、不跑 profiler/采样）。
 #
-# 由 deploy/scripts/om-ingest-ods-ep.sh 渲染后执行：__OM_JWT__ 为运行时
-# 签发的 ingestion-bot 令牌；数据库连接保存在 OM 服务实体内（provision
-# 步骤写入），本文件不含任何口令，可安全进 Git。
+# 由 deploy/scripts/om-ingest-doris-assets.sh 渲染后执行：__OM_JWT__ 为
+# 运行时签发的 ingestion-bot 令牌；数据库连接保存在 OM 服务实体内
+# （provision 步骤写入），本文件不含任何口令，可安全进 Git。
 source:
   type: Doris
   serviceName: doris-dataos
@@ -14,6 +15,8 @@ source:
       schemaFilterPattern:
         includes:
           - ods_ep
+          - dataos_quality_acceptance
+          - dataos_mpi
 sink:
   type: metadata-rest
   config: {}
