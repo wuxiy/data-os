@@ -29,9 +29,9 @@
 
 资产与血缘的元数据由 OpenMetadata 单一持有，门户只读不直连：
 
-- **资产（Asset）**：OM 摄取的结构元数据实体（`doris-dataos` 服务下的 Doris 表，全限定名四段 `服务.default.库.表`）；口径是「结构元数据已摄取」，不含数据采样。
+- **资产（Asset）**：OM 摄取的结构元数据实体（`doris-dataos` 服务下的 Doris 表，全限定名四段 `服务.default.库.表`），覆盖 data-os 自有三库：电子处方 ODS（`ods_ep`）、质量验收库（`dataos_quality_acceptance`）、患者主索引库（`dataos_mpi`）；口径是「结构元数据已摄取」，不含数据采样。data-ops 遗留库与空审计库不纳入。
 - **血缘（Lineage）**：OM 中的实体间产出边；方向口径为**上游=数据来源、下游=产出与消费**（Superset 摄取建立的「表→数据模型→仪表盘」属下游产出链）。
-- **摄取（Ingestion）**：一次性容器执行的幂等工作流（结构元数据 + Superset 仪表盘），连接配置保存在 OM 服务实体内，脚本与模板零口令入 Git。
+- **摄取（Ingestion）**：一次性容器执行的幂等工作流（结构元数据 + Superset 仪表盘），连接配置保存在 OM 服务实体内（**更新连接必须走 PATCH——PUT 会静默忽略 connection 字段**），脚本与模板零口令入 Git。Doris 侧用专用只读账号 `dataos_om_ro`（三库 SELECT + compute group USAGE；业务账号 `dataos_quality_ro`/`dataos_mpi` 与元数据可见性分层）。
 - **血缘 BFF（Lineage BFF）**：control-plane 的只读适配层（`/api/v1/assets/**`、`/api/v1/lineage/**`）；未配置 `data-os.openmetadata.base-url` 时整链不装配、端点 503——门户据此显示「待接入」而非静态样例。
 - **服务身份（Service Identity）**：BFF/摄取访问 OM 的专用 Keycloak client（`dataos-om-ingest`，claim=ingestion-bot）；令牌现用现签，secret 只存部署机 0600 文件。
 
