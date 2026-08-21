@@ -31,6 +31,9 @@
 
 - **资产（Asset）**：OM 摄取的结构元数据实体（`doris-dataos` 服务下的 Doris 表，全限定名四段 `服务.default.库.表`），覆盖 data-os 自有三库：电子处方 ODS（`ods_ep`）、质量验收库（`dataos_quality_acceptance`）、患者主索引库（`dataos_mpi`）；口径是「结构元数据已摄取」，不含数据采样。data-ops 遗留库与空审计库不纳入。
 - **血缘（Lineage）**：OM 中的实体间产出边；方向口径为**上游=数据来源、下游=产出与消费**（Superset 摄取建立的「表→数据模型→仪表盘」属下游产出链）。
+- **登记式血缘（Declared Lineage）**：非工具自动摄取、按声明清单（`mpi-declared-lineage.json`，含列映射与依据注释，进 Git 可评审）经 addLineage API 登记的血缘；口径如实标注来源（如 MPI 匹配链依据 mpi-service 装载语义）。
+- **列级血缘（Column-level Lineage）**：边上的 `columnsLineage`（fromColumns→toColumn，全限定列名）；BFF 投影为短列名挂到血缘节点，门户在节点内平铺展示（上游方向镜像）。
+- **质量测试面（Asset Quality Tests）**：资产详情的质量规则与最近结论；数据源是**控制面自有质量域**（规则注册表 `data_os.quality_rule_registry` + 运行表 `quality_rule_runs`），dataset 解析 = 表 fqn 的「库.表」段匹配 + 逻辑数据集配置映射（如 `asset-ep-prescription-edge`→edge 两表）。OM TestCase 同步延后（工具链死点见 G7 验收报告）。
 - **摄取（Ingestion）**：一次性容器执行的幂等工作流（结构元数据 + Superset 仪表盘），连接配置保存在 OM 服务实体内（**更新连接必须走 PATCH——PUT 会静默忽略 connection 字段**），脚本与模板零口令入 Git。Doris 侧用专用只读账号 `dataos_om_ro`（三库 SELECT + compute group USAGE；业务账号 `dataos_quality_ro`/`dataos_mpi` 与元数据可见性分层）。
 - **血缘 BFF（Lineage BFF）**：control-plane 的只读适配层（`/api/v1/assets/**`、`/api/v1/lineage/**`）；未配置 `data-os.openmetadata.base-url` 时整链不装配、端点 503——门户据此显示「待接入」而非静态样例。
 - **服务身份（Service Identity）**：BFF/摄取访问 OM 的专用 Keycloak client（`dataos-om-ingest`，claim=ingestion-bot）；令牌现用现签，secret 只存部署机 0600 文件。
