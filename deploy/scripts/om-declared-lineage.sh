@@ -52,9 +52,23 @@ def call(method, path, body=None):
     req.add_header("Authorization", f"Bearer {jwt}")
     if data:
         req.add_header("Content-Type", "application/json")
-    with urllib.request.urlopen(req, context=ctx) as resp:
-        text = resp.read().decode()
-    return json.loads(text) if text else {}
+    try:
+        with urllib.request.urlopen(req, context=ctx) as resp:
+            text = resp.read().decode()
+        return json.loads(text) if text else {}
+    except urllib.error.HTTPError as err:
+        text = err.read().decode()
+        try:
+            return json.loads(text)
+        except ValueError:
+            raise
+
+def table_id(fqn):
+    """解析表实体 id（addLineage 边端点只认 UUID，不认 fqn）。"""
+    entity = call("GET", f"/tables/name/{fqn}?fields=")
+    if "id" not in entity:
+        raise RuntimeError(f"表实体不存在：{fqn}")
+    return entity["id"]
 
 doc = json.load(open(sys.argv[1]))
 service = doc["service"]
@@ -67,10 +81,12 @@ for edge in doc["edges"]:
     to_fqn = f'{service}.{segment}.{edge["to"]["schema"]}.{edge["to"]["table"]}'
     columns = edge.get("columns", [])
     if not check_only:
+        from_id = table_id(from_fqn)
+        to_id = table_id(to_fqn)
         body = {
             "edge": {
-                "fromEntity": {"type": "table", "fullyQualifiedName": from_fqn},
-                "toEntity": {"type": "table", "fullyQualifiedName": to_fqn},
+                "fromEntity": {"id": from_id, "type": "table"},
+                "toEntity": {"id": to_id, "type": "table"},
                 "lineageDetails": {
                     "description": f'{doc["description"]} 依据：{edge.get("sqlHint", "")}',
                     "columnsLineage": [
@@ -83,32 +99,33 @@ for edge in doc["edges"]:
                 },
             }
         }
-        call("POST", "/lineage", body)
+        # OM 1.5 的 addLineage 端点是 PUT /lineage（POST 会 405/500）
+        call("PUT", "/lineage", body)
     print(f"  [{'CHECK' if check_only else 'OK'}] {from_fqn} -> {to_fqn}（列级 {len(columns)} 条）")
 
-print("== 3/3 校验：读回边与列级映射 ==")
-root = doc["edges"][0]["from"]
-root_fqn = f'{service}.{segment}.{root["schema"]}.{root["table"]}'
-graph = call("GET", f"/lineage/table/name/{root_fqn}?upstreamDepth=0&downstreamDepth=1")
-edges = graph.get("downstreamEdges", [])
-print(f"{root_fqn} 下游边数：{len(edges)}")
-declared_pairs = {(e["from"]["table"], e["to"]["table"]) for e in doc["edges"]}
-seen_pairs = set()
-for edge in edges:
-    details = edge.get("lineageDetails") or {}
-    cols = details.get("columnsLineage") or []
-    to_id = edge.get("toEntity")
+print("== 3/3 校验：逐边读回并核对列级映射 ==")
+missing = []
+for edge in doc["edges"]:
+    from_fqn = f'{service}.{segment}.{edge["from"]["schema"]}.{edge["from"]["table"]}'
+    to_table = edge["to"]["table"]
+    graph = call("GET", f"/lineage/table/name/{from_fqn}?upstreamDepth=0&downstreamDepth=1")
     nodes = {n["id"]: n for n in graph.get("nodes", [])}
-    to_name = nodes.get(to_id, {}).get("name", to_id)
-    from_name = nodes.get(edge.get("fromEntity"), {}).get("name", edge.get("fromEntity"))
-    seen_pairs.add((from_name, to_name))
-    print(f"  边 {from_name} -> {to_name} 列级映射 {len(cols)} 条")
+    found = None
+    for le in graph.get("downstreamEdges", []):
+        if nodes.get(le.get("toEntity"), {}).get("name") == to_table:
+            found = le
+            break
+    if not found:
+        missing.append((edge["from"]["table"], to_table))
+        print(f"  [MISS] {edge['from']['table']} -> {to_table}")
+        continue
+    cols = (found.get("lineageDetails") or {}).get("columnsLineage") or []
+    print(f"  [SEEN] {edge['from']['table']} -> {to_table} 列级映射 {len(cols)} 条")
     for mapping in cols:
         fr = "+".join(c.split(".")[-1] for c in mapping.get("fromColumns", []))
         to = (mapping.get("toColumn") or "").split(".")[-1]
         print(f"    {fr} -> {to}")
 
-missing = declared_pairs - seen_pairs
 if missing:
     print(f"校验 FAIL：未见声明的边 {missing}")
     sys.exit(1)

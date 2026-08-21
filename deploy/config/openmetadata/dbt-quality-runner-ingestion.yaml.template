@@ -1,23 +1,22 @@
-# OpenMetadata dbt 摄取配置（dbt-quality-runner 服务 → 质量测试 TestCase），
+# OpenMetadata dbt 摄取配置（挂在 doris-dataos 服务上：质量测试 TestCase），
 # 见 docs/dbt-lineage-g7-review-and-plan-20260822.md 决策 G7-1/G7-2。
 #
-# 由 deploy/scripts/om-dbt-ingest.sh 渲染后执行。manifest/catalog/run_results
-# 由脚本先在 quality-runner 容器生成并挂载到 /opt/dbt-artifacts（本模板不含
-# 口令，可安全进 Git；文件路径是 ingestion 容器内挂载点）。
+# 由 deploy/scripts/om-dbt-ingest.sh 渲染后执行。OM 1.5 的 dbt 摄取不需要
+# 独立服务实体：sourceConfig.config.type=DBT，dbt 配置（DbtLocalConfig）随
+# workflow 提供；TestCase/DataModel 挂到 serviceName 所指服务的表。
+# manifest/catalog/run_results 由脚本先在 quality-runner 容器生成并挂载到
+# /opt/dbt-artifacts（本模板不含口令，可安全进 Git）。
 source:
-  type: Dbt
-  serviceName: dbt-quality-runner
-  sourceConnection:
+  type: dbt
+  serviceName: doris-dataos
+  sourceConfig:
     config:
-      type: Dbt
+      type: DBT
       dbtConfigSource:
-        dbtConfigType: Local
+        dbtConfigType: local
         dbtManifestFilePath: /opt/dbt-artifacts/manifest.json
         dbtCatalogFilePath: /opt/dbt-artifacts/catalog.json
 __DBT_RUN_RESULTS_LINE__
-  sourceConfig:
-    config:
-      type: DatabaseMetadata
 sink:
   type: metadata-rest
   config: {}

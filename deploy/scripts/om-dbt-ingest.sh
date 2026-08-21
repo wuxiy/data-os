@@ -1,11 +1,16 @@
 #!/usr/bin/env bash
-# G7-1/G7-2 质量测试资产化（幂等）：在 quality-runner 容器生成 dbt
-# manifest/catalog(/run_results)，建/更 OM Dbt 服务实体（dbt-quality-runner）
-# 并摄取——dbt 测试转为 OM TestCase、source 表挂 DataModel。
-# 详见 docs/dbt-lineage-g7-review-and-plan-20260822.md。
+# G7-1/G7-2 质量测试资产化（幂等）：生成 OM 1.5.11 兼容的 dbt 产物并以
+# OM Dbt workflow（挂在 doris-dataos 服务上）摄取——dbt 测试转为 OM
+# TestCase、source 表挂 DataModel。详见 docs/dbt-lineage-g7-review-and-plan-20260822.md。
+#
+# 产物版本兼容（载荷性，实测）：OM 1.5.11 的 dbt_artifacts_parser 只吃到
+# manifest v11 / run-results v5；quality-runner 镜像的 dbt 1.10 产 v12/v6。
+# 策略分源生成——manifest/catalog 用临时容器 dbt-core 1.7（dbt-mysql 连
+# Doris，工程 yml 副本经 dbt-compat-yml-downgrade.py 降级），run_results 用
+# runner 原生 dbt 1.10 跑（真实结果）再经 dbt-compat-rr-downgrade.py 转 v5。
 #
 # 用法（部署机上）：
-#   bash om-dbt-ingest.sh                 # 全流程（生成产物 + provision + 摄取 + 对账）
+#   bash om-dbt-ingest.sh                 # 全流程（生成产物 + 摄取 + 对账）
 #   SKIP_TESTS=1 bash om-dbt-ingest.sh    # 不跑 dbt test（无 run_results，TestCase 无最近结果）
 #   CHECK_ONLY=1 bash om-dbt-ingest.sh    # 只对账，不生成不写 OM
 # 口令来源同 om-ingest-doris-assets.sh。产物宿主目录：DBT_ARTIFACTS_DIR。
@@ -30,7 +35,7 @@ RUNNER_CONTAINER="${RUNNER_CONTAINER:-data-os-dev-quality-runner-1}"
 DBT_PROJECT_DIR="${DBT_PROJECT_DIR:-/opt/dataos/quality/dbt}"
 DBT_TARGET="${DBT_TARGET:-quality}"
 DBT_ARTIFACTS_DIR="${DBT_ARTIFACTS_DIR:-/root/om-g7/artifacts}"
-SERVICE_NAME="dbt-quality-runner"
+DBT17_IMAGE="${DBT17_IMAGE:-python:3.12.8-slim}"
 
 om_api() {
   local method=$1 path=$2 body=${3:-}
@@ -42,87 +47,92 @@ om_api() {
   fi
 }
 
-dbt_exec() { # dbt_exec ARGS...（容器内 target-path 固定 /tmp/om-g7-target）
+dbt_exec() { # dbt_exec ARGS...（runner 容器内 target-path 固定 /tmp/om-g7-target）
   docker exec -w "$DBT_PROJECT_DIR" "$RUNNER_CONTAINER" \
     dbt "$@" --profiles-dir "$DBT_PROJECT_DIR" --target "$DBT_TARGET" \
     --target-path /tmp/om-g7-target --no-use-colors
 }
 
-echo '== 1/5 签发 ingestion-bot 令牌 =='
-OM_JWT=$(curl -s -X POST "$KEYCLOAK_TOKEN_URL" \
-  -d grant_type=client_credentials -d client_id=dataos-om-ingest \
-  -d client_secret="$OM_SECRET" |
-  python3 -c 'import sys,json;print(json.load(sys.stdin)["access_token"])')
+# 从 runner 容器提取 dbt 账号环境（生成容器与 runner 同库同账号）。
+DBT_ENV_ARGS=( )
+for VAR in DORIS_FE_HOST DORIS_FE_PORT DORIS_DBT_USER DORIS_DBT_PASSWORD DORIS_DATABASE DORIS_EP_DATABASE; do
+  VAL=$(docker inspect "$RUNNER_CONTAINER" --format "{{range .Config.Env}}{{println .}}{{end}}" |
+    grep "^${VAR}=" | cut -d= -f2- || true)
+  DBT_ENV_ARGS+=(-e "$VAR=$VAL")
+done
+
+issue_jwt() {
+  curl -s -X POST "$KEYCLOAK_TOKEN_URL" \
+    -d grant_type=client_credentials -d client_id=dataos-om-ingest \
+    -d client_secret="$OM_SECRET" |
+    python3 -c 'import sys,json;print(json.load(sys.stdin)["access_token"])'
+}
+
+echo '== 1/4 签发 ingestion-bot 令牌 =='
+OM_JWT=$(issue_jwt)
 [ ${#OM_JWT} -gt 100 ] || { echo '令牌签发失败' >&2; exit 1; }
 echo "token-len=${#OM_JWT}"
 
 if [ "${CHECK_ONLY:-0}" != "1" ]; then
-  echo '== 2/5 生成 dbt 产物（quality-runner 容器）=='
-  # parse 不连库（manifest）；docs generate 只读连库（catalog）；
-  # test 提供最近结果（不带 --store-failures，不写审计库）。
-  dbt_exec parse | tail -2
-  dbt_exec docs generate | tail -2
+  echo '== 2/4 生成 OM 兼容 dbt 产物（分源）=='
+  mkdir -p "$DBT_ARTIFACTS_DIR"
+
+  # (a) 临时容器 dbt-core 1.7 + dbt-mysql：manifest v11（parse 不连库）+
+  #     catalog v1（docs generate 只读连库；Doris 兼容 MySQL 协议）。
+  #     工程 yml 副本先降级（data_tests->tests、arguments 平铺）。
+  rm -rf /tmp/om-g7-project /tmp/om-g17-target && mkdir -p /tmp/om-g17-target
+  docker cp "$RUNNER_CONTAINER:$DBT_PROJECT_DIR" /tmp/om-g7-project
+  docker run --rm --network "$OM_NETWORK" "${DBT_ENV_ARGS[@]}" \
+    -e DATAOS_TEST_NAMESPACE=om-g7 \
+    -v /tmp/om-g7-project:/work:ro \
+    -v "$SCRIPT_DIR/dbt-compat-yml-downgrade.py":/downgrade.py:ro \
+    -v /tmp/om-g17-target:/tmp/t \
+    "$DBT17_IMAGE" sh -c '
+      pip -q install "dbt-mysql==1.7.0" "pyyaml" >/dev/null 2>&1
+      mkdir -p /gen && cp -r /work/models /work/macros /work/dbt_project.yml /gen/
+      python3 /downgrade.py /gen
+      printf "dataos_quality:\n  target: quality\n  outputs:\n    quality:\n      type: mysql\n      server: \"%s\"\n      port: %s\n      username: \"%s\"\n      password: \"%s\"\n      schema: \"%s\"\n      threads: 1\n" \
+        "$DORIS_FE_HOST" "${DORIS_FE_PORT:-9030}" "$DORIS_DBT_USER" "$DORIS_DBT_PASSWORD" "${DORIS_DATABASE:-dataos_quality_acceptance}" > /tmp/profiles.yml
+      cd /gen
+      dbt parse --profiles-dir /tmp --target quality --target-path /tmp/t 2>&1 | tail -1
+      dbt docs generate --profiles-dir /tmp --target quality --target-path /tmp/t 2>&1 | tail -1
+    '
+  cp /tmp/om-g17-target/manifest.json "$DBT_ARTIFACTS_DIR/manifest.json"
+  cp /tmp/om-g17-target/catalog.json "$DBT_ARTIFACTS_DIR/catalog.json"
+  rm -rf /tmp/om-g7-project /tmp/om-g17-target
+
+  # (b) runner 原生 dbt 1.10 跑真实测试（连库，产出 v6），再降维 v5。
   RUN_RESULTS_LINE=""
   if [ "${SKIP_TESTS:-0}" != "1" ]; then
+    docker exec "$RUNNER_CONTAINER" sh -c "rm -rf /tmp/om-g7-target" 2>/dev/null || true
     if dbt_exec test; then :; fi
+    docker cp "$RUNNER_CONTAINER:/tmp/om-g7-target/run_results.json" "$DBT_ARTIFACTS_DIR/run_results.json"
+    python3 "$SCRIPT_DIR/dbt-compat-rr-downgrade.py" "$DBT_ARTIFACTS_DIR/run_results.json"
     RUN_RESULTS_LINE="        dbtRunResultsFilePath: /opt/dbt-artifacts/run_results.json"
   fi
-  mkdir -p "$DBT_ARTIFACTS_DIR"
-  docker exec "$RUNNER_CONTAINER" sh -c 'ls /tmp/om-g7-target/*.json' | sed 's|.*/||' | while read -r F; do
-    docker cp "$RUNNER_CONTAINER:/tmp/om-g7-target/$F" "$DBT_ARTIFACTS_DIR/$F"
-  done
+
   ls -la "$DBT_ARTIFACTS_DIR"
   for REQUIRED in manifest.json catalog.json; do
     [ -s "$DBT_ARTIFACTS_DIR/$REQUIRED" ] || { echo "缺少产物 $REQUIRED" >&2; exit 1; }
   done
 
-  echo '== 3/5 服务 provision（幂等 upsert Dbt 服务实体）=='
-  # Dbt 服务的 connection 是文件路径（ingestion 容器挂载点），无口令。
-  CONNECTION=$(python3 - "$([ -s "$DBT_ARTIFACTS_DIR/run_results.json" ] && echo yes || echo no)" <<'PY'
-import json, sys
-config = {
-    "type": "Dbt",
-    "dbtConfigSource": {
-        "dbtConfigType": "Local",
-        "dbtManifestFilePath": "/opt/dbt-artifacts/manifest.json",
-        "dbtCatalogFilePath": "/opt/dbt-artifacts/catalog.json",
-    },
-}
-if sys.argv[1] == "yes":
-    config["dbtConfigSource"]["dbtRunResultsFilePath"] = "/opt/dbt-artifacts/run_results.json"
-print(json.dumps(config))
-PY
-)
-  EXISTING=$(om_api GET "/services/databaseServices/name/$SERVICE_NAME")
-  if echo "$EXISTING" | grep -q '"code":404'; then
-    om_api POST /services/databaseServices "$(python3 -c "
-import json,sys
-print(json.dumps({'name':'$SERVICE_NAME','serviceType':'Dbt',
- 'description':'quality-runner dbt 工程（质量测试资产化，G7）；产物由 om-dbt-ingest.sh 生成',
- 'connection':{'config':json.loads(sys.argv[1])}}))" "$CONNECTION")" | head -c 200
-    echo; echo "服务已创建：$SERVICE_NAME"
-  else
-    SERVICE_ID=$(echo "$EXISTING" | python3 -c 'import sys,json;print(json.load(sys.stdin)["id"])')
-    curl -sk -X PATCH -H "Authorization: Bearer $OM_JWT" \
-      -H 'Content-Type: application/json-patch+json' \
-      -d "$(python3 -c "
-import json,sys
-print(json.dumps([{'op':'replace','path':'/connection/config',
- 'value':json.loads(sys.argv[1])}]))" "$CONNECTION")" \
-      "$OM_API_BASE/services/databaseServices/$SERVICE_ID" >/dev/null
-    echo "服务已更新：$SERVICE_NAME"
-  fi
-
-  echo '== 4/5 摄取（Dbt connector → TestCase/DataModel）=='
+  echo '== 3/4 摄取（Dbt connector → TestCase/DataModel）=='
+  # 产物生成含 pip install 与多轮降维迭代，耗时可能超过 token TTL
+  # （实测 Expired token!），摄取前重签。
+  OM_JWT=$(issue_jwt)
+  [ ${#OM_JWT} -gt 100 ] || { echo '令牌重签失败' >&2; exit 1; }
+  # OM 1.5 的 dbt 摄取不需要独立服务实体：workflow 挂在 doris-dataos 上，
+  # dbt 配置（DbtLocalConfig，文件路径为 ingestion 容器挂载点）随 yaml 提供。
   YAML=$(mktemp /tmp/om-dbt-XXXXXX.yaml)
-  trap 'rm -f "$YAML"' EXIT
+  # 留存最近一次渲染结果（排障用；600 权限，含令牌）
+  trap 'cp "$YAML" /tmp/om-g7-last-rendered.yaml 2>/dev/null; chmod 600 /tmp/om-g7-last-rendered.yaml; rm -f "$YAML"' EXIT
   chmod 600 "$YAML"
   # 渲染令牌与可选的 run_results 行（缩进敏感：RUN_RESULTS_LINE 已含 8 空格前导）。
   python3 - "$SCRIPT_DIR/../config/openmetadata/dbt-quality-runner-ingestion.yaml.template" \
     "$OM_JWT" "$RUN_RESULTS_LINE" "$YAML" <<'PY'
 import sys
 template, jwt, run_results_line, out = sys.argv[1:5]
-text = template.replace("__OM_JWT__", jwt)
+text = open(template).read().replace("__OM_JWT__", jwt)
 text = text.replace("__DBT_RUN_RESULTS_LINE__", run_results_line)
 open(out, "w").write(text)
 PY
@@ -131,7 +141,7 @@ PY
     --entrypoint python3 "$INGESTION_IMAGE" -m metadata ingest -c /opt/ingest.yaml 2>&1 | tail -25
 fi
 
-echo '== 5/5 对账：dbt 测试数 vs OM TestCase =='
+echo '== 4/4 对账：dbt 测试数 vs OM TestCase =='
 MANIFEST_TESTS=$(python3 -c '
 import json
 doc = json.load(open("'"$DBT_ARTIFACTS_DIR"'/manifest.json"))
