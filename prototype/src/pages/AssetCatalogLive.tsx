@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Button, StatusTag } from '../components/ui/Primitives'
 import {
+  fetchAssetQualityTests,
   fetchLineageAsset,
   fetchLineageCatalog,
   fetchLineageGraph,
@@ -10,6 +11,7 @@ import {
   lineageNodeKindLabel,
   lineageSchemaLabel,
   shortNodeName,
+  type AssetQualityTest,
   type LineageAssetCatalog,
   type LineageAssetDetail,
   type LineageAssetLineage,
@@ -81,6 +83,7 @@ export function AssetCatalogLive({ onNotice }: { onNotice: (message: string) => 
 
   const [detail, setDetail] = useState<LineageAssetDetail | null>(null)
   const [lineage, setLineage] = useState<LineageAssetLineage | null>(null)
+  const [qualityTests, setQualityTests] = useState<AssetQualityTest[]>([])
   const [detailState, setDetailState] = useState<'loading' | 'ready' | 'error'>('loading')
   useEffect(() => {
     if (!effectiveFqn) return
@@ -88,13 +91,16 @@ export function AssetCatalogLive({ onNotice }: { onNotice: (message: string) => 
     setDetailState('loading')
     setDetail(null)
     setLineage(null)
+    setQualityTests([])
     Promise.all([
       fetchLineageAsset(effectiveFqn, controller.signal),
       fetchLineageGraph(effectiveFqn, controller.signal),
+      fetchAssetQualityTests(effectiveFqn, controller.signal).catch(() => []),
     ])
-      .then(([detailResponse, lineageResponse]) => {
+      .then(([detailResponse, lineageResponse, testsResponse]) => {
         setDetail(detailResponse)
         setLineage(lineageResponse)
+        setQualityTests(testsResponse)
         setDetailState('ready')
       })
       .catch(() => {
@@ -206,6 +212,33 @@ export function AssetCatalogLive({ onNotice }: { onNotice: (message: string) => 
                 </div>
               </section>
             ) : null}
+            {qualityTests.length > 0 ? (
+              <section className={styles.contentPanel}>
+                <div className={styles.contentPanelHeader}>
+                  <h3>质量测试</h3>
+                  <span>{qualityTests.length} 条规则 · 来自控制面质量域（规则注册表 + 最近运行）</span>
+                </div>
+                <div className={styles.horizontalScroll}>
+                  <table className={styles.fieldTable}>
+                    <thead><tr><th>规则</th><th>数据集</th><th>最近结论</th><th>完成时间</th></tr></thead>
+                    <tbody>
+                      {qualityTests.map((test) => (
+                        <tr key={test.ruleId}>
+                          <td>{test.ruleId}</td>
+                          <td>{test.datasetId}</td>
+                          <td>
+                            <StatusTag tone={test.lastRun ? (test.lastRun.passed ? 'healthy' : 'warning') : 'neutral'}>
+                              {test.lastRun ? (test.lastRun.passed ? '通过' : '未通过') : '未运行'}
+                            </StatusTag>
+                          </td>
+                          <td>{test.lastRun?.finishedAt ? new Date(test.lastRun.finishedAt).toLocaleString('zh-CN') : '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            ) : null}
             {lineage ? (
               <section className={styles.lineageCanvas} aria-label="血缘与影响">
                 <div className={styles.lineageSummary}>
@@ -221,6 +254,7 @@ export function AssetCatalogLive({ onNotice }: { onNotice: (message: string) => 
                         <span>{lineageNodeKindLabel[node.type]}</span>
                         <strong>{shortNodeName(node)}</strong>
                         <small>{node.fullyQualifiedName.split('.')[0]}</small>
+                        {renderColumnMappings(node, false)}
                       </article>
                     )
                   })}
@@ -238,6 +272,7 @@ export function AssetCatalogLive({ onNotice }: { onNotice: (message: string) => 
                         <span>{lineageNodeKindLabel[node.type]}</span>
                         <strong>{shortNodeName(node)}</strong>
                         <small>{node.fullyQualifiedName.split('.')[0]}</small>
+                        {renderColumnMappings(node, true)}
                       </article>
                     )
                   })}
@@ -284,4 +319,35 @@ function summarizeTypes(nodes: { type: string }[]): string {
   const counts = new Map<string, number>()
   for (const node of nodes) counts.set(node.type, (counts.get(node.type) ?? 0) + 1)
   return [...counts.entries()].map(([type, count]) => `${lineageNodeKindLabel[type as keyof typeof lineageNodeKindLabel] ?? type}×${count}`).join('、')
+}
+
+type NodeWithMappings = {
+  fullyQualifiedName: string
+  columnMappings: { fromColumns: string[]; toColumn: string }[]
+}
+
+/** 血缘节点的列级映射展开（G7 声明式血缘）：上游方向镜像 from/to。 */
+function renderColumnMappings(node: NodeWithMappings, downstream: boolean) {
+  const mappings = node.columnMappings ?? []
+  if (!mappings.length) return null
+  return (
+    <div className={styles.columnMappings}>
+      <div className={styles.columnMappingsMeta}>
+        列级映射 ×{mappings.length}
+      </div>
+      <ul className={styles.columnMappingList}>
+        {mappings.map((mapping) => {
+          const left = downstream ? mapping.fromColumns : [mapping.toColumn]
+          const right = downstream ? [mapping.toColumn] : mapping.fromColumns
+          return (
+            <li key={`${mapping.fromColumns.join('+')}->${mapping.toColumn}`}>
+              <em>{left.join('+')}</em>
+              <span>→</span>
+              <code>{right.join('+')}</code>
+            </li>
+          )
+        })}
+      </ul>
+    </div>
+  )
 }

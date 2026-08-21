@@ -38,10 +38,17 @@ export interface LineageAssetDetail {
   updatedAt: string
 }
 
+export interface LineageColumnMapping {
+  fromColumns: string[]
+  toColumn: string
+}
+
 export interface LineageNodeView {
   fullyQualifiedName: string
   type: 'table' | 'dataModel' | 'dashboard' | 'chart' | 'unknown'
   displayName: string
+  /** 声明式列级血缘（G7）：边的 columnsLineage 短列名投影；无映射为空数组。 */
+  columnMappings: LineageColumnMapping[]
 }
 
 export interface LineageAssetLineage {
@@ -121,6 +128,25 @@ export async function fetchLineageGraph(fullyQualifiedName: string, signal?: Abo
 
 export async function fetchLineageSummary(signal?: AbortSignal): Promise<LineageSummaryView> {
   return parseOrThrow(await lineageFetch('/v1/lineage/summary', signal), '血缘摘要读取失败') as Promise<LineageSummaryView>
+}
+
+/** 资产的质量测试与最近结论（G7：控制面自有质量域，非 OM）。 */
+export interface AssetQualityTest {
+  ruleId: string
+  datasetId: string
+  selector: string
+  lastRun: { status: string; passed: boolean; finishedAt: string | null } | null
+}
+
+export async function fetchAssetQualityTests(
+  fullyQualifiedName: string,
+  signal?: AbortSignal,
+): Promise<AssetQualityTest[]> {
+  const payload = await parseOrThrow(
+    await lineageFetch(`/v1/assets/${encodeURIComponent(fullyQualifiedName)}/quality-tests`, signal),
+    '质量测试读取失败',
+  ) as { tests?: AssetQualityTest[] }
+  return payload.tests ?? []
 }
 
 /** 展示名：全限定名去掉服务前缀（superset-dataos.model.2 → model.2）。 */

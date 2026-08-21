@@ -115,6 +115,48 @@
   border-color: var(--jade);
 }
 
+/* 血缘节点的列级映射（G7 声明式血缘投影） */
+.columnMappings {
+  width: 100%;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--line);
+}
+
+.columnMappingsMeta {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.columnMappingList {
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 2px;
+}
+
+.columnMappingList li {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 11px;
+}
+
+.columnMappingList em {
+  font-style: normal;
+  color: var(--ink-muted);
+}
+
+.columnMappingList span {
+  color: var(--jade);
+}
+
+.columnMappingList code {
+  font-family: var(--font-number);
+  font-size: 11px;
+}
+
 .railLabel {
   margin: 16px 16px 7px;
   color: var(--muted);
