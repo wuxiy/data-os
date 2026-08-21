@@ -1,5 +1,7 @@
 package com.cywu.dataos.controlplane.lineage;
 
+import java.util.List;
+
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
@@ -25,6 +27,18 @@ public class OpenMetadataLineageProperties {
 
     /** OM 表全限定名中 Doris 侧的 database 段（Doris 无独立库层，恒为 default）。 */
     private String databaseSegment = "default";
+
+    /** 资产目录覆盖的库清单（G6 三库口径；summary 聚合与前端库切换的数据源）。 */
+    private List<String> schemas = List.of(
+            "ods_ep", "dataos_quality_acceptance", "dataos_mpi");
+
+    public List<String> getSchemas() {
+        return schemas;
+    }
+
+    public void setSchemas(List<String> schemas) {
+        this.schemas = schemas == null ? List.of() : schemas;
+    }
 
     public String getBaseUrl() {
         return baseUrl;

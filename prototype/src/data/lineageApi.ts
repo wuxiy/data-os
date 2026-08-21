@@ -58,6 +58,7 @@ export interface LineageDashboardSummary {
 
 export interface LineageSummaryView {
   service: string
+  schemas: string[]
   tableCount: number
   columnCount: number
   dashboardService: string
@@ -135,4 +136,15 @@ export const lineageNodeKindLabel: Record<LineageNodeView['type'], string> = {
   dashboard: '仪表盘',
   chart: '图表',
   unknown: '对象',
+}
+
+/** 资产目录库的中文口径（G6 三库；未登记的库回退物理库名）。 */
+const knownSchemaLabels: Record<string, string> = {
+  ods_ep: '电子处方 ODS',
+  dataos_quality_acceptance: '质量验收库',
+  dataos_mpi: '患者主索引库',
+}
+
+export function lineageSchemaLabel(schema: string): string {
+  return knownSchemaLabels[schema] ?? schema
 }

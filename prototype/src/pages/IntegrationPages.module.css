@@ -85,6 +85,36 @@
   outline-offset: 1px;
 }
 
+/* 资产目录库切换（G6 三库）：紧贴 railHeader 下的一排小 tab */
+.schemaTabs {
+  display: flex;
+  gap: 6px;
+  margin: 10px 12px 0;
+  flex-wrap: wrap;
+}
+
+.schemaTab {
+  padding: 4px 9px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.schemaTab:hover {
+  color: var(--ink);
+}
+
+.schemaTabActive,
+.schemaTabActive:hover {
+  color: #fff;
+  background: var(--jade);
+  border-color: var(--jade);
+}
+
 .railLabel {
   margin: 16px 16px 7px;
   color: var(--muted);

@@ -21,6 +21,7 @@ class LineageAssetServiceTest {
     private HttpServer server;
     private LineageAssetService service;
     private final AtomicReference<String> lastPath = new AtomicReference<>();
+    private final java.util.List<String> queriedDatabases = new java.util.concurrent.CopyOnWriteArrayList<>();
 
     @BeforeEach
     void startStub() throws IOException {
@@ -31,6 +32,9 @@ class LineageAssetServiceTest {
             var path = exchange.getRequestURI().getPath();
             var query = exchange.getRequestURI().getQuery() == null ? "" : exchange.getRequestURI().getQuery();
             if (path.endsWith("/tables") && query.contains("database=")) {
+                for (var pair : query.split("&")) {
+                    if (pair.startsWith("database=")) queriedDatabases.add(pair.substring("database=".length()));
+                }
                 response = """
                         {"data":[
                           {"name":"ep_mz_cfzb","fullyQualifiedName":"doris-dataos.default.ods_ep.ep_mz_cfzb",
@@ -145,14 +149,36 @@ class LineageAssetServiceTest {
     }
 
     @Test
-    void summaryCountsTablesColumnsAndDashboards() {
+    void summaryAggregatesAcrossConfiguredSchemas() {
         var summary = service.summary();
 
+        // 默认三库口径；stub 对每个 database= 查询都返回同一份两表数据。
+        assertThat(summary.schemas()).containsExactly(
+                "ods_ep", "dataos_quality_acceptance", "dataos_mpi");
         assertThat(summary.service()).isEqualTo("doris-dataos");
-        assertThat(summary.tableCount()).isEqualTo(2);
-        assertThat(summary.columnCount()).isEqualTo(4);
+        assertThat(summary.tableCount()).isEqualTo(6);
+        assertThat(summary.columnCount()).isEqualTo(12);
         assertThat(summary.dashboards()).hasSize(1);
         assertThat(summary.dashboards().get(0).displayName()).isEqualTo("电子处方嵌入验证");
+        assertThat(queriedDatabases).containsExactly(
+                "doris-dataos.default.ods_ep",
+                "doris-dataos.default.dataos_quality_acceptance",
+                "doris-dataos.default.dataos_mpi");
+    }
+
+    @Test
+    void summaryHonorsSingleSchemaConfiguration() {
+        var properties = new OpenMetadataLineageProperties();
+        properties.setBaseUrl("http://127.0.0.1:" + server.getAddress().getPort() + "/api/v1");
+        properties.setSchemas(java.util.List.of("ods_ep"));
+        var single = new LineageAssetService(
+                new OpenMetadataClient(RestClient.builder(), properties), properties);
+
+        var summary = single.summary();
+
+        assertThat(summary.schemas()).containsExactly("ods_ep");
+        assertThat(summary.tableCount()).isEqualTo(2);
+        assertThat(summary.columnCount()).isEqualTo(4);
     }
 
     @Test

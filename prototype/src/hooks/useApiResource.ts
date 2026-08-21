@@ -11,12 +11,15 @@ interface ApiResourceOptions<T> {
   onUnavailable?: () => void
   /** 连接超时（毫秒），超时按不可用处理；不设则仅等待失败。 */
   timeoutMs?: number
+  /** 变化即中止旧请求并重取；不传则挂载加载一次。 */
+  reloadKey?: unknown
 }
 
 /**
  * 控制面资源的加载三态机：loading -> live / unavailable。
  * AbortController、超时与失败收敛在此——各页面曾逐字复制这套效应。
- * 挂载即加载一次；回调经 ref 取最新值，效应不随渲染重启。
+ * 挂载即加载一次（或随 reloadKey 变化重取）；回调经 ref 取最新值，
+ * 效应不随渲染重启。
  */
 export function useApiResource<T>(options: ApiResourceOptions<T>): ApiState {
   const [state, setState] = useState<ApiState>('loading')
@@ -25,7 +28,7 @@ export function useApiResource<T>(options: ApiResourceOptions<T>): ApiState {
 
   useEffect(() => {
     const controller = new AbortController()
-    // 区分两种中止：自身超时按不可用处理；组件卸载的中止静默忽略。
+    // 区分两种中止：自身超时按不可用处理；组件卸载/重取的中止静默忽略。
     let timedOut = false
     const timeoutMs = latest.current.timeoutMs
     const timeout = timeoutMs === undefined
@@ -52,7 +55,7 @@ export function useApiResource<T>(options: ApiResourceOptions<T>): ApiState {
       if (timeout !== null) window.clearTimeout(timeout)
       controller.abort()
     }
-  }, [])
+  }, [options.reloadKey])
 
   return state
 }

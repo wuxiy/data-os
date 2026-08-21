@@ -8,6 +8,7 @@ import {
   fetchLineageGraph,
   fetchLineageSummary,
   lineageNodeKindLabel,
+  lineageSchemaLabel,
   shortNodeName,
   type LineageAssetCatalog,
   type LineageAssetDetail,
@@ -34,14 +35,19 @@ export function AssetCatalogLive({ onNotice }: { onNotice: (message: string) => 
   const [catalog, setCatalog] = useState<LineageAssetCatalog | null>(null)
   const [summary, setSummary] = useState<LineageSummaryView | null>(null)
   const [query, setQuery] = useState('')
+  const [activeSchema, setActiveSchema] = useState(() => {
+    const requested = new URLSearchParams(window.location.search).get('db')
+    return requested || 'ods_ep'
+  })
   const [selectedFqn, setSelectedFqn] = useState(() => {
     const requested = new URLSearchParams(window.location.search).get('asset')
     return requested && requested.includes('.') ? requested : ''
   })
   const catalogState = useApiResource({
+    reloadKey: activeSchema,
     load: async (signal) => {
       const [catalogResponse, summaryResponse] = await Promise.all([
-        fetchLineageCatalog(undefined, signal),
+        fetchLineageCatalog(activeSchema, signal),
         fetchLineageSummary(signal),
       ])
       return { catalogResponse, summaryResponse }
@@ -54,7 +60,14 @@ export function AssetCatalogLive({ onNotice }: { onNotice: (message: string) => 
     timeoutMs: 15000,
   })
 
+  const schemas = summary?.schemas ?? [activeSchema]
   const assets = catalog?.assets ?? []
+
+  function switchSchema(schema: string) {
+    if (schema === activeSchema) return
+    setActiveSchema(schema)
+    setSelectedFqn('')
+  }
   const effectiveFqn = useMemo(() => {
     if (selectedFqn && assets.some((asset) => asset.fullyQualifiedName === selectedFqn)) return selectedFqn
     return assets[0]?.fullyQualifiedName ?? ''
@@ -108,8 +121,23 @@ export function AssetCatalogLive({ onNotice }: { onNotice: (message: string) => 
       <PageHeader title="数据资产" eyebrow="资产目录与影响分析" subtitle="从业务定义进入字段、质量、血缘和消费证据，不暴露底层元数据控制台" compact />
       <div className={styles.integrationWorkspace}>
         <aside className={styles.catalogRail} aria-label="数据资产目录">
+          {schemas.length > 1 ? (
+            <div className={styles.schemaTabs} role="tablist" aria-label="资产库切换">
+              {schemas.map((schema) => (
+                <button
+                  key={schema}
+                  role="tab"
+                  aria-selected={schema === activeSchema}
+                  className={`${styles.schemaTab} ${schema === activeSchema ? styles.schemaTabActive : ''}`}
+                  onClick={() => switchSchema(schema)}
+                >
+                  {lineageSchemaLabel(schema)}
+                </button>
+              ))}
+            </div>
+          ) : null}
           <div className={styles.railHeader}>
-            <h2>{catalog.service} · {catalog.schema}</h2>
+            <h2>{catalog.service} · {lineageSchemaLabel(catalog.schema)}</h2>
             <span className={styles.railCount}>{visible.length} 项</span>
           </div>
           <label className={styles.railSearch}>
@@ -233,7 +261,7 @@ export function AssetCatalogLive({ onNotice }: { onNotice: (message: string) => 
           <div className={styles.evidenceBody}>
             <dl className={styles.evidenceDefinition}>
               <div><dt>元数据服务</dt><dd>{catalog.service}</dd></div>
-              <div><dt>摄取范围</dt><dd>{catalog.schema}（只读结构元数据，无数据采样）</dd></div>
+              <div><dt>摄取范围</dt><dd>{schemas.map(lineageSchemaLabel).join('、')}（只读结构元数据，无数据采样）</dd></div>
               <div><dt>资产数量</dt><dd>{summary?.tableCount ?? assets.length} 表 · {summary?.columnCount ?? 0} 列</dd></div>
               <div><dt>读取时间</dt><dd>{catalog.fetchedAt ? new Date(catalog.fetchedAt).toLocaleString('zh-CN') : '—'}</dd></div>
             </dl>

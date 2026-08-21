@@ -88,11 +88,16 @@ public class LineageAssetService {
         }
     }
 
-    /** 摘要：库表列规模 + 仪表盘消费面（驾驶舱指标数据面）。 */
+    /** 摘要：库清单内全部表的列规模 + 仪表盘消费面（驾驶舱指标数据面）。 */
     public LineageSummary summary() {
-        var tables = client.listTables(
-                properties.getServiceName(), properties.getDatabaseSegment(), "ods_ep");
-        var columnCount = tables.stream().mapToInt(table -> columns(table).size()).sum();
+        int tableCount = 0;
+        int columnCount = 0;
+        for (String schema : properties.getSchemas()) {
+            var tables = client.listTables(
+                    properties.getServiceName(), properties.getDatabaseSegment(), schema);
+            tableCount += tables.size();
+            columnCount += tables.stream().mapToInt(table -> columns(table).size()).sum();
+        }
         var dashboards = client.listDashboards(properties.getDashboardServiceName());
         var dashboardSummaries = dashboards.stream()
                 .map(dashboard -> new DashboardSummary(
@@ -100,7 +105,8 @@ public class LineageAssetService {
                         text(dashboard.get("displayName")),
                         instant(dashboard.get("updatedAt"))))
                 .toList();
-        return new LineageSummary(properties.getServiceName(), tables.size(), columnCount,
+        return new LineageSummary(properties.getServiceName(), properties.getSchemas(),
+                tableCount, columnCount,
                 properties.getDashboardServiceName(), dashboardSummaries);
     }
 
@@ -174,7 +180,7 @@ public class LineageAssetService {
     }
 
     public record LineageSummary(
-            String service, int tableCount, int columnCount,
+            String service, List<String> schemas, int tableCount, int columnCount,
             String dashboardService, List<DashboardSummary> dashboards) {
     }
 }
