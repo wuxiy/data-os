@@ -1,0 +1,28 @@
+{
+  "service": "doris-dataos",
+  "databaseSegment": "default",
+  "description": "登记式血缘（declared lineage）：依据 mpi-service 匹配链（G3 交付，docs/mpi-g3-review-and-plan-20260819.md）的加工语义登记，非工具自动摄取。列映射以 deploy/scripts/init-mpi-doris.sql 与 mpi-service 装载 SQL 为据。",
+  "edges": [
+    {
+      "from": { "schema": "dataos_mpi", "table": "mpi_source_identity" },
+      "to": { "schema": "dataos_mpi", "table": "mpi_candidate_pair" },
+      "sqlHint": "Blocking（B3/B4/B6）从源身份切候选对：pair_id = hash(tenant|identityA|identityB)，identity_a/b 为源身份键字典序两侧",
+      "columns": [
+        { "from": ["source_key"], "to": "identity_a" },
+        { "from": ["source_key"], "to": "identity_b" },
+        { "from": ["tenant_id"], "to": "tenant_id" }
+      ]
+    },
+    {
+      "from": { "schema": "dataos_mpi", "table": "mpi_candidate_pair" },
+      "to": { "schema": "dataos_mpi", "table": "mpi_match_result" },
+      "sqlHint": "规则打分（M-ep1 等）消费候选对：pair 维度回填三态结论与逐字段证据",
+      "columns": [
+        { "from": ["pair_id"], "to": "pair_id" },
+        { "from": ["tenant_id"], "to": "tenant_id" },
+        { "from": ["identity_a"], "to": "identity_a" },
+        { "from": ["identity_b"], "to": "identity_b" }
+      ]
+    }
+  ]
+}
