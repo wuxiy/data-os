@@ -14,5 +14,10 @@ GRANT SELECT_PRIV ON ods_ep.* TO 'dataos_om_ro'@'%';
 GRANT SELECT_PRIV ON dataos_quality_acceptance.* TO 'dataos_om_ro'@'%';
 GRANT SELECT_PRIV ON dataos_mpi.* TO 'dataos_om_ro'@'%';
 
+-- OM Doris connector 经 information_schema 枚举库表，Doris 3.x 要求账号
+-- 具备 compute group USAGE，否则查询报 CURRENT_USER_NO_AUTH_TO_USE_ANY_
+-- COMPUTE_GROUP、目标库表静默缺位（G1 的 dataos_quality_ro 历史上已具备）。
+GRANT USAGE_PRIV ON COMPUTE GROUP default_compute_group TO 'dataos_om_ro'@'%';
+
 -- 留证：授权面自检（执行后应只出现三库 SELECT）
 SHOW GRANTS FOR 'dataos_om_ro'@'%';

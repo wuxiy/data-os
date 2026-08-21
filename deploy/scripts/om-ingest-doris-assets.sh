@@ -93,12 +93,23 @@ print(json.dumps({'name':'$SERVICE_NAME','serviceType':'Doris',
  'connection':{'config':json.loads(sys.argv[1])}}))" "$CONNECTION")" | head -c 200
     echo; echo "服务已创建：$SERVICE_NAME"
   else
-    om_api PUT "/services/databaseServices" "$(python3 -c "
+    # 连接更新必须走 PATCH：PUT /services/databaseServices 会静默忽略
+    # connection 字段（G6 实测：PUT 后服务实体仍持旧账号，导致 workflow
+    # 按旧账号枚举库、目标库整体缺位且无任何报错）。
+    SERVICE_ID=$(echo "$EXISTING" | python3 -c 'import sys,json;print(json.load(sys.stdin)["id"])')
+    curl -sk -X PATCH -H "Authorization: Bearer $OM_JWT" \
+      -H 'Content-Type: application/json-patch+json' \
+      -d "$(python3 -c "
 import json,sys
-e=json.loads(sys.argv[1]); e['connection']={'config':json.loads(sys.argv[2])}
-print(json.dumps(e))" "$EXISTING" "$CONNECTION")" >/dev/null
-    echo "服务已更新：$SERVICE_NAME"
+print(json.dumps([{'op':'replace','path':'/connection/config',
+ 'value':json.loads(sys.argv[1])}]))" "$CONNECTION")" \
+      "$OM_API_BASE/services/databaseServices/$SERVICE_ID" >/dev/null
+    ACTUAL=$(om_api GET "/services/databaseServices/name/$SERVICE_NAME" |
+      python3 -c 'import sys,json;print(json.load(sys.stdin)["connection"]["config"]["username"])')
+    [ "$ACTUAL" = "$DORIS_USER" ] || { echo "服务连接更新未生效（username=$ACTUAL）" >&2; exit 1; }
+    echo "服务已更新：$SERVICE_NAME（连接账号 $ACTUAL）"
   fi
+
 
   echo '== 3/4 摄取三库（结构元数据，无 profiler）=='
   YAML=$(mktemp /tmp/om-ingest-XXXXXX.yaml)
@@ -126,10 +137,19 @@ for t in json.load(sys.stdin).get("data", []):
   while read -r T; do
     [ -n "$T" ] || continue
     "${MYSQL[@]}" -N -e "SHOW COLUMNS FROM $DB.$T;" | awk '{print $1}' | sort > /tmp/doris-cols.txt
-    om_api GET "/tables/name/$SERVICE_NAME.default.$DB.$T?fields=columns" |
-      python3 -c 'import sys,json
+    fetch_om_cols() {
+      om_api GET "/tables/name/$SERVICE_NAME.default.$DB.$T?fields=columns" |
+        python3 -c 'import sys,json
 cols=json.load(sys.stdin).get("columns",[])
 print("\n".join(c["name"] for c in cols))' | sort > /tmp/om-cols.txt
+    }
+    fetch_om_cols
+    # OM 1.5 的 fields=columns 懒加载偶发空响应（实测与实体写入窗口相关）：
+    # Doris 侧非空而 OM 侧为空时重取一次，仍空才判 FAIL。
+    if [ ! -s /tmp/om-cols.txt ] && [ -s /tmp/doris-cols.txt ]; then
+      sleep 2
+      fetch_om_cols
+    fi
     if diff -q /tmp/doris-cols.txt /tmp/om-cols.txt >/dev/null; then
       echo "  [PASS] $T 列一致（$(wc -l < /tmp/om-cols.txt | tr -d " ") 列）"
     else
