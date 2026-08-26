@@ -169,3 +169,10 @@ CREATE TABLE IF NOT EXISTS data_os.ai_recipe_registry (
 | 4 | P4 上开发机部署验证 + 截图归档 | ✅ 确认执行 |
 
 > **执行条件已满足：审核点 1–4 全部 ✅，P1 可开工。**
+---
+
+## 十、验收结论（2026-08-27）
+
+G8 验收 **8/8 通过**，证据见 `docs/validation/gate-ai-ready-g8-20260827.md`。
+P2-P4 实施与本方案的三处偏差（f2b5948 编译坏点先行修复、写角色集、详情同路由渲染）
+已在验收报告 §三如实记录。G9（Engine MVP）按总计划继续。
