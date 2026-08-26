@@ -13,3 +13,4 @@ services/**/target/
 # 本地环境登记单可能包含密码/Token，只允许保存在受控机器，不提交 Git
 docs/*-local.md
 .venv/
+.alma-snapshots
