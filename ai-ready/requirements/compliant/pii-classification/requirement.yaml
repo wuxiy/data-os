@@ -1,0 +1,22 @@
+id: pii_classification
+title: PII 分类覆盖（MPI 敏感列 PersonalData 标签）
+dimension: compliant
+severity: critical
+applicable_profiles:
+- medical-rag
+- medical-training
+diagnostic: 敏感列缺少 PersonalData 分类标签——合规审计不可证明
+check:
+  type: om_probe
+  probe: pii_tag_coverage
+  service: doris-dataos
+  table: doris-dataos.default.dataos_mpi.mpi_source_identity
+  columns:
+  - name_norm
+  - card_no_norm
+  - contact_hash
+  - id_card_hash
+  tag: PersonalData
+  direction: higher_better
+  pass: 1.0
+  warn: 0.75

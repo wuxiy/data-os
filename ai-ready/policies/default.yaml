@@ -1,0 +1,11 @@
+id: default
+gate:
+  fail_below: 0.7
+  review_below: 0.85
+critical_veto:
+  enabled: true
+  description: severity=critical 的 FAIL 无论总分一律阻断认证（BLOCKED）
+status_scores:
+  PASS: 1.0
+  WARN: 0.5
+  FAIL: 0.0

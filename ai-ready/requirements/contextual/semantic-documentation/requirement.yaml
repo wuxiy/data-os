@@ -1,0 +1,20 @@
+id: semantic_documentation
+title: 语义文档覆盖（OM 表描述非空占比）
+dimension: contextual
+severity: minor
+applicable_profiles:
+- medical-rag
+- medical-training
+diagnostic: OM 表描述覆盖率不足——业务语义未登记，AI 消费侧缺少上下文
+check:
+  type: om_probe
+  probe: table_description_coverage
+  service: doris-dataos
+  database: default
+  schemas:
+  - ods_ep
+  - dataos_quality_acceptance
+  - dataos_mpi
+  direction: higher_better
+  pass: 0.8
+  warn: 0.5

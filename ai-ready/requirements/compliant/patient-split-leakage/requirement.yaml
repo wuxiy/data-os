@@ -1,0 +1,17 @@
+id: patient_split_leakage
+title: 训练/评测患者切分无泄漏
+dimension: compliant
+severity: critical
+applicable_profiles:
+- medical-rag
+- medical-training
+diagnostic: 同一患者跨训练/评测集——评测结论不可信
+check:
+  type: doris_metric
+  requires_table: dataos_ai.patient_split
+  sql_file: null
+  metric: leakage_ratio
+  direction: lower_better
+  pass: 0.0
+  warn: 0.0
+  not_applicable_reason: 训练/评测切分表由 medical-training 数据工厂产生（G12 后）；表 dataos_ai.patient_split 存在后本项自动生效

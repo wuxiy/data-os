@@ -1,0 +1,17 @@
+id: lineage_completeness
+title: 血缘完备（MPI 匹配链声明式列级血缘在册）
+dimension: correlated
+severity: major
+applicable_profiles:
+- medical-rag
+- medical-training
+diagnostic: MPI 匹配链血缘边缺失——影响分析不可达
+check:
+  type: om_probe
+  probe: lineage_edge_coverage
+  service: doris-dataos
+  root: doris-dataos.default.dataos_mpi.mpi_source_identity
+  expected_edges: 2
+  direction: higher_better
+  pass: 1.0
+  warn: 0.5

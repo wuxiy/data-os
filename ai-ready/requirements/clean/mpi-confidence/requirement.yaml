@@ -1,0 +1,15 @@
+id: mpi_confidence
+title: MPI 匹配结果可信面（AUTO_MATCH+REVIEW 占比）
+dimension: clean
+severity: major
+applicable_profiles:
+- medical-rag
+- medical-training
+diagnostic: NO_MATCH/HARD_CONFLICT 占比偏高——Blocking 规则召回或匹配阈值需复核
+check:
+  type: doris_metric
+  sql_file: doris/check.sql
+  metric: trusted_ratio
+  direction: higher_better
+  pass: 0.85
+  warn: 0.7

@@ -1,0 +1,17 @@
+id: chunk_source_attribution
+title: Chunk 溯源完备（每 chunk 可回指文档与位置）
+dimension: consumable
+severity: major
+applicable_profiles:
+- medical-rag
+- medical-training
+diagnostic: chunk 无法回指来源文档/位置——RAG 引用可信度受损
+check:
+  type: doris_metric
+  requires_table: dataos_ai.chunks
+  sql_file: null
+  metric: unattributed_ratio
+  direction: lower_better
+  pass: 0.0
+  warn: 0.01
+  not_applicable_reason: chunk 产物由 G10 RAG 数据集工厂生成；表 dataos_ai.chunks 存在后本项自动生效

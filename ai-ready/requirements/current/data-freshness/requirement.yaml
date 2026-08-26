@@ -1,0 +1,15 @@
+id: data_freshness
+title: 数据新鲜度（边缘表更新延迟小时数）
+dimension: current
+severity: major
+applicable_profiles:
+- medical-rag
+- medical-training
+diagnostic: 边缘增量表距最近更新超过 SLA——采集链路（MiNiFi/SeaTunnel）可能停滞
+check:
+  type: doris_metric
+  sql_file: doris/check.sql
+  metric: hours_since_update
+  direction: lower_better
+  pass: 48
+  warn: 168

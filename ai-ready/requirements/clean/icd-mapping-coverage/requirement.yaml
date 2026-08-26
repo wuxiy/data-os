@@ -1,0 +1,15 @@
+id: icd_mapping_coverage
+title: 编码映射覆盖率（药品编码非空代理口径）
+dimension: clean
+severity: major
+applicable_profiles:
+- medical-rag
+- medical-training
+diagnostic: 药品/诊断编码映射列覆盖不足——上游字典映射或采集列配置缺失
+check:
+  type: doris_metric
+  sql_file: doris/check.sql
+  metric: coverage_ratio
+  direction: higher_better
+  pass: 0.98
+  warn: 0.95

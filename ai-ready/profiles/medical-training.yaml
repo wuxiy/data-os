@@ -1,0 +1,16 @@
+id: medical-training
+name: 医疗训练数据工作负载
+requirements:
+  data_completeness: 1.2
+  data_freshness: 0.6
+  mpi_confidence: 1.0
+  icd_mapping_coverage: 1.0
+  semantic_documentation: 0.8
+  chunk_source_attribution: 0.5
+  lineage_completeness: 1.0
+  pii_classification: 1.5
+  deidentification: 1.5
+  patient_split_leakage: 1.5
+thresholds:
+  fail_below: 0.7
+  review_below: 0.85

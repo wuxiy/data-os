@@ -1,0 +1,15 @@
+id: data_completeness
+title: 数据完整度（处方关键列非空率）
+dimension: clean
+severity: major
+applicable_profiles:
+- medical-rag
+- medical-training
+diagnostic: 关键列（YLJGDM/PATIENT_ID/KFRQ/CFPTZT）为空的行占比超过阈值
+check:
+  type: doris_metric
+  sql_file: doris/check.sql
+  metric: null_ratio
+  direction: lower_better
+  pass: 0.02
+  warn: 0.05

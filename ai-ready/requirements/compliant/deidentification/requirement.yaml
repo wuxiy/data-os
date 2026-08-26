@@ -1,0 +1,15 @@
+id: deidentification
+title: 脱敏有效性（哈希列明文模式零命中）
+dimension: compliant
+severity: critical
+applicable_profiles:
+- medical-rag
+- medical-training
+diagnostic: 哈希列命中明文模式——脱敏管道存在泄漏风险
+check:
+  type: doris_metric
+  sql_file: doris/check.sql
+  metric: plaintext_hit_ratio
+  direction: lower_better
+  pass: 0.0
+  warn: 0.001
