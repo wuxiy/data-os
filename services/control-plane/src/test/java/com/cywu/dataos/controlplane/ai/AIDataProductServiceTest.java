@@ -22,6 +22,12 @@ class AIDataProductServiceTest {
     private AIDataProductService service;
 
     @Autowired
+    private AIDataProductRepository repository;
+
+    @Autowired
+    private com.cywu.dataos.controlplane.security.TenantScope tenantScope;
+
+    @Autowired
     private JdbcTemplate jdbc;
 
     private CreateAIDataProductRequest request(String name) {
@@ -68,6 +74,36 @@ class AIDataProductServiceTest {
         assertThatThrownBy(() -> service.build(product.id(), null))
                 .isInstanceOf(EngineNotConfiguredException.class)
                 .hasMessageContaining("G9");
+    }
+
+    @Test
+    void buildWritesReadinessToCurrentVersionWhenEngineConfigured() {
+        var product = service.create(request("svc-build-ok-" + UUID.randomUUID()));
+        AIReadyEnginePort stubEngine = (candidate, recipe) -> AIReadyAssessment.from(java.util.Map.of(
+                "product", candidate.name(), "version", candidate.currentVersion(),
+                "profile", "medical-rag", "overall", 0.92,
+                "assessedAt", "2026-08-27T10:00:00+00:00",
+                "gate", java.util.Map.of("certification", "CANDIDATE")));
+        org.springframework.beans.factory.ObjectProvider<AIReadyEnginePort> provider =
+                new org.springframework.beans.factory.ObjectProvider<>() {
+                    @Override
+                    public AIReadyEnginePort getObject() {
+                        return stubEngine;
+                    }
+
+                    @Override
+                    public AIReadyEnginePort getIfAvailable() {
+                        return stubEngine;
+                    }
+                };
+        var wired = new AIDataProductService(repository, tenantScope, provider);
+
+        var assessment = wired.build(product.id(), "recipes/medical-rag-v1.yaml");
+
+        org.junit.jupiter.api.Assertions.assertEquals(0.92, assessment.overall());
+        var version = service.detail(product.id()).versions().get(0);
+        org.junit.jupiter.api.Assertions.assertEquals("SUCCEEDED", version.buildStatus());
+        org.junit.jupiter.api.Assertions.assertTrue(version.readinessJson().contains("CANDIDATE"));
     }
 
     @Test

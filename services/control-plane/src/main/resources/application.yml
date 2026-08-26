@@ -84,6 +84,13 @@ data-os:
     password: ${DATAOS_DOLPHINSCHEDULER_PASSWORD:}
     time-zone: ${DATAOS_DOLPHINSCHEDULER_TIME_ZONE:Asia/Shanghai}
     tenant-code: ${DATAOS_DOLPHINSCHEDULER_TENANT_CODE:}
+  ai-ready:
+    # AI Ready 引擎（G9）：不配置则 build 维持 503 守护语义
+    base-url: ${DATAOS_AI_READY_BASE_URL:}
+    token-uri: ${DATAOS_AI_READY_OIDC_TOKEN_URI:}
+    client-id: ${DATAOS_AI_READY_OIDC_CLIENT_ID:}
+    client-secret: ${DATAOS_AI_READY_OIDC_CLIENT_SECRET:}
+    api-token: ${DATAOS_AI_READY_API_TOKEN:}
   quality:
     executor: ${DATAOS_QUALITY_EXECUTOR:HTTP}
     # 逻辑数据集（rules.yml 的 dataset_id）-> OM 表全限定名映射（G7-5）。

@@ -10,10 +10,18 @@ import {
 } from '../data/aiDataApi'
 import styles from './IntegrationPages.module.css'
 
-/**
- * AI Data Product 详情（G8）：版本历史 + 生命周期操作 + build 守护提示。
- * 引擎未装配（G9 前）时 build 返回 503，本页常驻说明而非伪造构建成功。
- */
+function readinessOf(version: { readinessJson: string | null }): { overall: number; certification: string } | null {
+  if (!version.readinessJson) return null
+  try {
+    const payload = JSON.parse(version.readinessJson) as { overall?: number; gate?: { certification?: string } }
+    if (typeof payload.overall !== 'number') return null
+    return { overall: payload.overall, certification: payload.gate?.certification ?? '' }
+  } catch {
+    return null
+  }
+}
+
+/** AI Data Product 详情（G8/G9）：版本历史 + 生命周期操作 + build 守护提示。 */
 export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, onBuild }: {
   productId: string
   onNotice: (message: string) => void
@@ -96,26 +104,35 @@ export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, 
           </div>
           <div className={styles.horizontalScroll}>
             <table className={styles.fieldTable}>
-              <thead><tr><th>版本</th><th>构建状态</th><th>Recipe</th><th>Git Commit</th><th>快照日期</th><th>创建时间</th></tr></thead>
+              <thead><tr><th>版本</th><th>构建状态</th><th>就绪度</th><th>Recipe</th><th>Git Commit</th><th>创建时间</th></tr></thead>
               <tbody>
-                {versions.map((version) => (
-                  <tr key={version.id}>
-                    <td>{version.versionSn}</td>
-                    <td><StatusTag tone={version.buildStatus === 'REGISTERED' ? 'neutral' : 'healthy'}>{version.buildStatus}</StatusTag></td>
-                    <td>{version.recipeRef ?? '—'}</td>
-                    <td>{version.gitCommit ?? '—'}</td>
-                    <td>{version.snapshotAt ?? '—'}</td>
-                    <td>{new Date(version.createdAt).toLocaleString('zh-CN')}</td>
-                  </tr>
-                ))}
+                {versions.map((version) => {
+                  const readiness = readinessOf(version)
+                  return (
+                    <tr key={version.id}>
+                      <td>{version.versionSn}</td>
+                      <td><StatusTag tone={version.buildStatus === 'REGISTERED' ? 'neutral' : 'healthy'}>{version.buildStatus}</StatusTag></td>
+                      <td>
+                        {readiness
+                          ? <StatusTag tone={readiness.certification === 'BLOCKED' ? 'danger' : readiness.certification === 'CANDIDATE' ? 'healthy' : 'warning'}>
+                              {readiness.overall.toFixed(2)} · {readiness.certification}
+                            </StatusTag>
+                          : <span>—</span>}
+                      </td>
+                      <td>{version.recipeRef ?? '—'}</td>
+                      <td>{version.gitCommit ?? '—'}</td>
+                      <td>{new Date(version.createdAt).toLocaleString('zh-CN')}</td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
         </section>
 
         <section className={styles.technicalNotice} role="status">
-          <StatusTag tone="warning">评估引擎待接入</StatusTag>
-          <span>G8 交付域基础（清单 / 版本 / 生命周期）；就绪度评估与真实构建在 G9 引擎装配后开放，build 当前返回明确的「未装配」而不伪造成功。</span>
+          <StatusTag tone="warning">评估引擎</StatusTag>
+          <span>构建/评估委托 AI Ready 引擎（G9）执行：结论回写当前版本的就绪度列；引擎未配置时 build 返回明确的 503 而不伪造成功。</span>
         </section>
       </div>
     </>

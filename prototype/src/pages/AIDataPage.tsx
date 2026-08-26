@@ -119,11 +119,15 @@ function AIDataLive({ onNotice }: { onNotice: (message: string) => void }) {
 
   async function build(product: AIDataProduct) {
     try {
-      await buildAIDataProduct(product.id)
-      onNotice('构建已登记')
+      const summary = await buildAIDataProduct(product.id)
+      onNotice(`评估完成：Overall ${summary.overall?.toFixed?.(2) ?? '—'} · ${summary.certification ?? ''}（已回写 ${product.currentVersion}）`)
+      setSelectedId(product.id)
+      refresh()
     } catch (error) {
       if (error instanceof AIDataError && error.code === 'AI_READY_ENGINE_NOT_CONFIGURED') {
-        onNotice('评估引擎待接入（G9）：当前阶段仅登记域对象，build 不伪造成功')
+        onNotice('评估引擎未配置（data-os.ai-ready.base-url）：build 不伪造成功')
+      } else if (error instanceof AIDataError && error.status === 503) {
+        onNotice('评估引擎暂不可达，请稍后重试')
       } else {
         onNotice(error instanceof Error ? error.message : '构建失败')
       }

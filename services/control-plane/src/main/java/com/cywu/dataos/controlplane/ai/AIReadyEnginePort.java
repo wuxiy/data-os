@@ -8,6 +8,6 @@ package com.cywu.dataos.controlplane.ai;
  */
 public interface AIReadyEnginePort {
 
-    /** 对指定产品版本执行构建登记与就绪度评估，返回引擎侧运行标识。 */
-    String build(AIDataProduct product, String recipeRef);
+    /** 对指定产品的当前版本执行就绪度评估，返回结论投影（含完整报告）。 */
+    AIReadyAssessment build(AIDataProduct product, String recipeRef);
 }

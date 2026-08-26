@@ -133,14 +133,24 @@ export async function transitionAIDataProduct(id: string, target: AIDataProductL
   ) as Promise<AIDataProduct>
 }
 
-export async function buildAIDataProduct(id: string, recipeRef?: string): Promise<{ runId: string }> {
+/** build 返回评估摘要（G9：完整报告在版本 readiness_json）。 */
+export interface AIReadyBuildSummary {
+  product: string
+  version: string
+  profile: string
+  overall: number
+  certification: string
+  assessedAt: string
+}
+
+export async function buildAIDataProduct(id: string, recipeRef?: string): Promise<AIReadyBuildSummary> {
   return parseOrThrow(
     await aiFetch(`/v1/ai-data-products/${encodeURIComponent(id)}/build`, {
       method: 'POST',
       body: JSON.stringify({ recipeRef: recipeRef ?? null }),
     }),
-    '构建登记失败',
-  ) as Promise<{ runId: string }>
+    '评估执行失败',
+  ) as Promise<AIReadyBuildSummary>
 }
 
 /** 生命周期主链：DRAFT → CURATED → ASSESSED → CERTIFIED → SERVING（终态 DEPRECATED 另算）。 */

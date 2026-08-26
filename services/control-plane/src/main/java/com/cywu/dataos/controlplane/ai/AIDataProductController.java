@@ -53,9 +53,16 @@ public class AIDataProductController {
 
     @PostMapping("/{id}/build")
     public Object build(@PathVariable String id, @RequestBody(required = false) BuildRequest request) {
-        // 引擎未装配时此处不会到达（Service 抛 EngineNotConfiguredException -> 503）。
-        var runId = service.build(id, request == null ? null : request.recipeRef());
-        return java.util.Map.of("runId", runId);
+        // 引擎未装配（503 AI_READY_ENGINE_NOT_CONFIGURED）或不可达（503）由此冒泡；
+        // 成功时返回评估摘要（完整报告在版本 readiness_json）。
+        var assessment = service.build(id, request == null ? null : request.recipeRef());
+        return java.util.Map.of(
+                "product", assessment.product(),
+                "version", assessment.version(),
+                "profile", assessment.profile(),
+                "overall", assessment.overall(),
+                "certification", assessment.certification(),
+                "assessedAt", assessment.assessedAt());
     }
 
     public record AIDataProductListResponse(List<AIDataProduct> items, int total) {

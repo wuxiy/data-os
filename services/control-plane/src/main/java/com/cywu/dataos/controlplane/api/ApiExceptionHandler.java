@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import com.cywu.dataos.controlplane.ai.EngineNotConfiguredException;
+import com.cywu.dataos.controlplane.executor.AdapterUnavailableException;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
@@ -20,6 +21,11 @@ public class ApiExceptionHandler {
         var detail = problem(HttpStatus.SERVICE_UNAVAILABLE, "AI_READY_ENGINE_NOT_CONFIGURED",
                 exception.getMessage());
         return detail;
+    }
+
+    @ExceptionHandler(AdapterUnavailableException.class)
+    ProblemDetail adapterUnavailable(AdapterUnavailableException exception) {
+        return problem(HttpStatus.SERVICE_UNAVAILABLE, "ADAPTER_UNAVAILABLE", exception.getMessage());
     }
 
     @ExceptionHandler(ResourceNotFoundException.class)

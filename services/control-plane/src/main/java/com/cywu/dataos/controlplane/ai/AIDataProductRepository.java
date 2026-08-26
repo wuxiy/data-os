@@ -89,6 +89,16 @@ public class AIDataProductRepository {
                 """, this::mapVersion, productId);
     }
 
+    /** 评估结论回写当前版本（G9-6）：readiness_json + build_status。 */
+    public int updateVersionReadiness(String productId, String versionSn,
+                                      String readinessJson, String buildStatus) {
+        return jdbc.update("""
+                UPDATE data_os.ai_data_product_version
+                SET readiness_json = ?, build_status = ?
+                WHERE product_id = ? AND version_sn = ?
+                """, readinessJson, buildStatus, productId, versionSn);
+    }
+
     private AIDataProduct mapProduct(java.sql.ResultSet rs, int rowNumber) throws java.sql.SQLException {
         return new AIDataProduct(
                 rs.getString("id"),

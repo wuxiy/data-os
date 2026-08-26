@@ -22,6 +22,7 @@ public class AIDataProductService {
 
     static final String INITIAL_VERSION = "v0.1.0";
     static final String BUILD_STATUS_REGISTERED = "REGISTERED";
+    static final String BUILD_STATUS_SUCCEEDED = "SUCCEEDED";
 
     private final AIDataProductRepository repository;
     private final TenantScope tenantScope;
@@ -90,16 +91,28 @@ public class AIDataProductService {
     }
 
     /**
-     * build 守护（G8）：引擎未装配时明确失败——不把「登记请求」冒充「构建成功」。
-     * G9 引擎装配后经 {@link AIReadyEnginePort} 委托真实构建。
+     * build（G9）：经 {@link AIReadyEnginePort} 执行就绪度评估并把结论回写
+     * 当前版本（readiness_json + build_status）。引擎未装配仍走 G8 的
+     * 503 守护；引擎装配但不可达由 advice 映射 503。
      */
-    public String build(String id, String recipeRef) {
-        require(id);
+    @Transactional
+    public AIReadyAssessment build(String id, String recipeRef) {
+        var product = require(id);
         var engine = enginePort.getIfAvailable();
         if (engine == null) {
             throw new EngineNotConfiguredException();
         }
-        return engine.build(require(id), recipeRef);
+        var assessment = engine.build(product, recipeRef);
+        var objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        String readinessJson;
+        try {
+            readinessJson = objectMapper.writeValueAsString(assessment.rawJson());
+        } catch (com.fasterxml.jackson.core.JsonProcessingException exception) {
+            throw new IllegalStateException("评估报告序列化失败", exception);
+        }
+        repository.updateVersionReadiness(product.id(), product.currentVersion(),
+                readinessJson, BUILD_STATUS_SUCCEEDED);
+        return assessment;
     }
 
     /** 登记新版本（G9 build 消费；唯一性由 (product_id, version_sn) 约束保证）。 */
