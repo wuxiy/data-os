@@ -8,6 +8,7 @@ import { routePaths } from './data/routes'
 import { DataStandardsPage } from './pages/DataStandardsPage'
 import { DataIngestionPage } from './pages/DataIngestionPage'
 import { AnalyticsPage } from './pages/AnalyticsPage'
+import { AIDataPage } from './pages/AIDataPage'
 import { AssetCatalogPage } from './pages/AssetCatalogPage'
 import { AssetTechnicalPage } from './pages/AssetTechnicalPage'
 import { AssistantPage } from './pages/AssistantPage'
@@ -113,6 +114,9 @@ export function App() {
       break
     case 'analytics':
       page = <AnalyticsPage onNotice={setNotice} onNavigate={navigate} />
+      break
+    case 'aiData':
+      page = <AIDataPage onNotice={setNotice} />
       break
     case 'assistant':
       page = <AssistantPage onNotice={setNotice} onNavigate={navigate} />

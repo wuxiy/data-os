@@ -1,5 +1,6 @@
 import {
   Boxes,
+  BrainCircuit,
   Cable,
   ChartNoAxesCombined,
   Database,
@@ -38,6 +39,7 @@ const navItems: NavItem[] = [
   { label: '主索引与主数据', icon: Fingerprint, route: 'mpi' },
   { label: '数据服务', icon: Boxes },
   { label: '分析看板', icon: ChartNoAxesCombined, route: 'analytics' },
+  { label: 'AI Data', icon: BrainCircuit, route: 'aiData' },
   { label: '智能问数', icon: MessageSquareText, route: 'assistant' },
   { label: '运营中心', icon: Workflow },
   { label: '交付中心', icon: PackageCheck },

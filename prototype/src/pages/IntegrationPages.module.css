@@ -157,6 +157,41 @@
   font-size: 11px;
 }
 
+/* AI Data 创建表单（G8）：目录侧栏内的紧凑录入区 */
+.createForm {
+  display: grid;
+  gap: 8px;
+  margin: 10px 12px;
+  padding: 12px;
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+}
+
+.createForm label {
+  display: grid;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.createForm input,
+.createForm select {
+  padding: 6px 8px;
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  font-size: 12px;
+  outline: 0;
+}
+
+.createForm input:focus-visible,
+.createForm select:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
 .railLabel {
   margin: 16px 16px 7px;
   color: var(--muted);

@@ -12,6 +12,7 @@ export const routePaths = {
   assets: '/assets',
   assetTechnical: '/assets/technical',
   analytics: '/analysis',
+  aiData: '/ai-data',
   assistant: '/assistant',
   assistantWorkspace: '/assistant/workspace',
   operations: '/operations',
