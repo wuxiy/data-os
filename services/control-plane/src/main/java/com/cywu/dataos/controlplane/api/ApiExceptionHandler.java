@@ -10,8 +10,17 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import com.cywu.dataos.controlplane.ai.EngineNotConfiguredException;
+
 @RestControllerAdvice
 public class ApiExceptionHandler {
+
+    @ExceptionHandler(EngineNotConfiguredException.class)
+    ProblemDetail engineNotConfigured(EngineNotConfiguredException exception) {
+        var detail = problem(HttpStatus.SERVICE_UNAVAILABLE, "AI_READY_ENGINE_NOT_CONFIGURED",
+                exception.getMessage());
+        return detail;
+    }
 
     @ExceptionHandler(ResourceNotFoundException.class)
     ProblemDetail notFound(ResourceNotFoundException exception) {
