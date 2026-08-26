@@ -50,7 +50,7 @@ public class LineageAssetService {
                 instant(table.get("updatedAt")));
     }
 
-    /** 血缘视图：以表为根，按边方向分列上游（来源）与下游（产出/消费）。 */
+    /** 血缘视图：以表为根，按边方向分列上游（来源）与下游（产出/消费）；边带列级映射时投影短列名。 */
     public AssetLineage getLineage(String fullyQualifiedName) {
         var graph = client.getLineageGraph(fullyQualifiedName, 3);
         var nodesById = new java.util.HashMap<String, Map<String, Object>>();
@@ -64,14 +64,18 @@ public class LineageAssetService {
         var entityId = text(((Map<?, ?>) graph.getOrDefault("entity", Map.of())).get("id"));
         var upstreams = new ArrayList<LineageNode>();
         var downstreams = new ArrayList<LineageNode>();
-        collectEdgeNodes(graph.get("upstreamEdges"), entityId, nodesById, upstreams);
-        collectEdgeNodes(graph.get("downstreamEdges"), entityId, nodesById, downstreams);
+        collectEdgeNodes(graph.get("upstreamEdges"), entityId, nodesById, upstreams, true);
+        collectEdgeNodes(graph.get("downstreamEdges"), entityId, nodesById, downstreams, false);
         return new AssetLineage(fullyQualifiedName, List.copyOf(upstreams), List.copyOf(downstreams));
     }
 
-    /** 边方向换算：上游取 from、下游取 to（对根实体本身去重）。 */
+    /**
+     * 边方向换算：上游取 from、下游取 to（对根实体本身去重）。
+     * 列级映射（lineageDetails.columnsLineage）挂在边上：下游方向按声明原样
+     * （fromColumns -> toColumn），上游方向镜像（根为下游侧）。
+     */
     private void collectEdgeNodes(Object edges, String rootId, Map<String, Map<String, Object>> nodesById,
-                                  List<LineageNode> collected) {
+                                  List<LineageNode> collected, boolean upstream) {
         if (!(edges instanceof List<?> list)) return;
         for (var edge : list) {
             if (!(edge instanceof Map<?, ?> edgeMap)) continue;
@@ -81,11 +85,39 @@ public class LineageAssetService {
             if (peer.equals(rootId) || peer.isBlank()) continue;
             var node = nodesById.get(peer);
             if (node == null) continue;
-            var candidate = toLineageNode(node);
+            var candidate = toLineageNode(node, columnMappings(edgeMap));
             if (collected.stream().noneMatch(existing -> existing.fullyQualifiedName().equals(candidate.fullyQualifiedName()))) {
                 collected.add(candidate);
             }
         }
+    }
+
+    /** 边的列级映射投影：全限定列名收敛为短列名（展示口径）。 */
+    private List<ColumnMapping> columnMappings(Map<?, ?> edgeMap) {
+        var details = edgeMap.get("lineageDetails");
+        if (!(details instanceof Map<?, ?> detailsMap)) return List.of();
+        if (!(detailsMap.get("columnsLineage") instanceof List<?> mappings)) return List.of();
+        var result = new ArrayList<ColumnMapping>();
+        for (var mapping : mappings) {
+            if (!(mapping instanceof Map<?, ?> mappingMap)) continue;
+            var fromColumns = new ArrayList<String>();
+            if (mappingMap.get("fromColumns") instanceof List<?> froms) {
+                for (var column : froms) {
+                    var name = text(column);
+                    if (!name.isBlank()) fromColumns.add(shortColumn(name));
+                }
+            }
+            var toColumn = shortColumn(text(mappingMap.get("toColumn")));
+            if (!fromColumns.isEmpty() && !toColumn.isBlank()) {
+                result.add(new ColumnMapping(List.copyOf(fromColumns), toColumn));
+            }
+        }
+        return List.copyOf(result);
+    }
+
+    private static String shortColumn(String qualified) {
+        var parts = qualified.split("\\.");
+        return parts.length == 0 ? qualified : parts[parts.length - 1];
     }
 
     /** 摘要：库清单内全部表的列规模 + 仪表盘消费面（驾驶舱指标数据面）。 */
@@ -110,14 +142,14 @@ public class LineageAssetService {
                 properties.getDashboardServiceName(), dashboardSummaries);
     }
 
-    private LineageNode toLineageNode(Map<String, Object> node) {
+    private LineageNode toLineageNode(Map<String, Object> node, List<ColumnMapping> columnMappings) {
         var fqn = text(node.get("fullyQualifiedName"));
         var type = text(node.get("type"));
         var name = text(node.get("name"));
         var display = text(node.get("displayName"));
         // 展示名：优先实体的 displayName；无则回退全限定名（服务前缀交代来源）。
         var shown = display.isBlank() ? (fqn.isBlank() ? name : fqn) : display;
-        return new LineageNode(fqn.isBlank() ? name : fqn, normalizeType(type), shown);
+        return new LineageNode(fqn.isBlank() ? name : fqn, normalizeType(type), shown, columnMappings);
     }
 
     private String normalizeType(String entityType) {
@@ -169,7 +201,12 @@ public class LineageAssetService {
             String description, List<AssetColumn> columns, String updatedAt) {
     }
 
-    public record LineageNode(String fullyQualifiedName, String type, String displayName) {
+    /** 列级映射：fromColumns（短列名）汇聚产出 toColumn（G7 声明式血缘的投影口径）。 */
+    public record ColumnMapping(List<String> fromColumns, String toColumn) {
+    }
+
+    public record LineageNode(String fullyQualifiedName, String type, String displayName,
+                              List<ColumnMapping> columnMappings) {
     }
 
     public record AssetLineage(
