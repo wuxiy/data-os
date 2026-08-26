@@ -48,6 +48,8 @@ services:
       DATAOS_DOLPHINSCHEDULER_PASSWORD: ${DATAOS_DOLPHINSCHEDULER_PASSWORD:-}
       DATAOS_DOLPHINSCHEDULER_TIME_ZONE: ${DATAOS_DOLPHINSCHEDULER_TIME_ZONE:-Asia/Shanghai}
       DATAOS_DOLPHINSCHEDULER_TENANT_CODE: ${DATAOS_DOLPHINSCHEDULER_TENANT_CODE:-dataos-dev}
+      DATAOS_AI_READY_BASE_URL: ${DATAOS_AI_READY_BASE_URL:-http://ai-ready-service:8080}
+      DATAOS_AI_READY_API_TOKEN: ${DATAOS_AI_READY_API_TOKEN:-}
       DATAOS_QUALITY_EXECUTOR: ${DATAOS_QUALITY_EXECUTOR:-HTTP}
       DATAOS_QUALITY_EXECUTOR_BASE_URL: ${DATAOS_QUALITY_EXECUTOR_BASE_URL:-http://quality-runner:8080}
       DATAOS_QUALITY_DEMO_ENABLED: ${DATAOS_QUALITY_DEMO_ENABLED:-false}
@@ -114,6 +116,28 @@ services:
       timeout: 5s
       start_period: 20s
       retries: 12
+    networks:
+      - platform-net
+    restart: unless-stopped
+
+  ai-ready-service:
+    # G9 AI Ready 评估引擎：声明仓库随镜像内置（ai-ready/），无库无状态；
+    # Doris 只读检查（dataos_om_ro）+ OM 只读探针（ingestion-bot 身份）。
+    build:
+      context: ../..
+      dockerfile: services/ai-ready-service/Dockerfile
+    image: ${DATAOS_AI_READY_IMAGE:-medical-platform/data-os-ai-ready-service:0.1.0-dev}
+    environment:
+      AI_READY_REPO_DIR: /opt/dataos/ai-ready
+      DORIS_FE_HOST: ${DATAOS_AI_READY_DORIS_FE_HOST:-172.16.66.8}
+      DORIS_FE_PORT: "9030"
+      DORIS_USER: dataos_om_ro
+      DORIS_PASSWORD: ${DORIS_OM_PASSWORD:?请在远程 .env 中提供 DORIS_OM_PASSWORD}
+      AI_READY_OM_BASE_URL: http://openmetadata:8585/api/v1
+      AI_READY_OM_TOKEN_URI: ${DATAOS_AI_READY_OM_TOKEN_URI:-http://keycloak:8080/auth/realms/data-platform/protocol/openid-connect/token}
+      AI_READY_OM_CLIENT_ID: dataos-om-ingest
+      AI_READY_OM_CLIENT_SECRET: ${DATAOS_OM_INGEST_CLIENT_SECRET:?请在远程 .env 中提供 DATAOS_OM_INGEST_CLIENT_SECRET}
+      AI_READY_API_TOKEN: ${DATAOS_AI_READY_API_TOKEN:?请在远程 .env 中提供 DATAOS_AI_READY_API_TOKEN}
     networks:
       - platform-net
     restart: unless-stopped
