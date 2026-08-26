@@ -184,10 +184,6 @@ public class LineageAssetService {
         return "";
     }
 
-    /** 列级映射：`fromColumns` → `toColumn`，列名已投影为短名。 */
-    public record ColumnMapping(List<String> fromColumns, String toColumn) {
-    }
-
     public record AssetSummary(
             String name, String fullyQualifiedName, String displayName,
             int columnCount, String updatedAt, String updatedBy) {
