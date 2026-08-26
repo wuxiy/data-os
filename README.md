@@ -14,6 +14,8 @@
 - `docs/environment-access-reference.md`：开发环境主机、访问入口、组件账号角色及密码/Token 的受保护查询位置（脱敏，不提交秘密值）。
 - `tasks/`：执行计划与结果复盘（`todo.md`）、经验教训（`lessons.md`）。
 - `docs/mock-production-readiness.md`：mock/真实运行模式边界、落地使用方式与验收清单。
+- `docs/architecture/ai-ready-data.md`：AI Ready Data 架构方案 v1.0——AI Data Plane、6C 模型、Workload Profile、AI Data Product 生命周期、Recipe/Manifest/版本化、评测与数据飞轮（待 G8 评审批准）。
+- `docs/ai-ready-iteration-plan-20260826.md`：AI Ready 迭代计划（G8–G12）——现状盘点、Gate 规划、验收清单、里程碑与风险。
 
 ## 当前状态
 

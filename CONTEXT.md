@@ -62,3 +62,17 @@
 ## 前置机边缘链路（Hospital Edge Relay）
 
 院内隔离网段的数据经前置机（MiNiFi）采集后投递中心的对象中转桶，再由中心任务（SeaTunnel S3File 源）入仓到边缘增量表（Doris UNIQUE KEY(ID)，重放/重复投递天然幂等）。位点（增量游标）持久化在前置机本地（断电/重启不重不漏）；断网期间数据驻留前置机 FlowFile/content 仓库，恢复后自动补传。控制面以 `EP_EDGE_S3_TO_DORIS` 模板登记此类任务；中转桶凭据经凭据服务注入，落库配置只含 credentialRef。DELETE 不在增量链语义内——源侧删除需以数据修复动作双侧执行并留证。
+
+## AI Ready Data（AI 就绪数据）
+
+面向 AI Workload 的数据产品域，方案见 `docs/architecture/ai-ready-data.md`，实施节奏见 `docs/ai-ready-iteration-plan-20260826.md`。
+
+- **AI Data Product**：针对明确 AI Workload（RAG / Agent / Training / Evaluation）构建、评估并认证的数据产品，一等域对象；生命周期 `DRAFT → CURATED → ASSESSED → CERTIFIED → SERVING → DEPRECATED`。类型含 RAGCorpus / TrainingDataset / AgentContextProduct / EvaluationDataset 等。
+- **AI Ready**：非绝对状态，而是「Data Quality × Semantic Context × AI Consumability × Workload Fit × Governance × Evaluation」的组合判定；由 Workload Profile 决定要求、权重与阈值。
+- **6C 模型**：Clean / Contextual / Consumable / Current / Correlated / Compliant 六个评估维度，评估结果按维度产出 0–1 分值并加权为 Overall。
+- **Workload Profile**：一组 Requirement + 权重 + 阈值 + Policy 的声明（YAML，Git 管理）；首批 `medical-rag` / `medical-training`。
+- **AI Ready Engine（ai-ready-service）**：执行读扫描—评估—诊断—修复建议—复评—认证的引擎；每项 Requirement 输出 PASS/WARN/FAIL/NOT_APPLICABLE。评估结果按产品/版本持久化并回写 OpenMetadata。
+- **AI Dataset Recipe**：AI 数据集构建过程的声明式 Recipe（解析、去重、PII 检测、脱敏、语义分块、元数据富化）；Git 版本化、幂等可复现，输入 Trusted Data、输出 AI Data Product 版本。
+- **Dataset Version**：AI 数据不可变版本（semver）；一个版本必须能回答 source 快照、Recipe、Git Commit、Operator 版本、嵌入模型、标签版本、质量分、评估分与评测结果；生产版本不可覆盖。
+- **Certification Gate**：认证门——Overall < 0.70 FAIL、0.70–0.85 REVIEW、≥ 0.85 进入认证候选；Critical Requirement（脱敏失败、权限缺失、来源不可追溯、Train/Test 患者泄漏、Evidence 丢失、用途不允许）一票否决；自动检查 + 人工审批。
+- **AI Data Flywheel**：AI 应用评测的失败样本反馈为 Recipe / Rule / Label 更新，产出 Dataset 新版本并重评，遵循 Production Plane / Learning Plane 分离——AI 输出不自动修改生产治理规则，变更须经评估与审核。

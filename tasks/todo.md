@@ -797,3 +797,14 @@ Secret 卷托管。新增文档链接已放入根 README 和 `deploy/dev/README.
 - 新增唯一 `OperationalFacts` 判定与线程安全 registry；运行状态 API、平台运维 API、React 横幅/页面和 `platformctl smoke` 共用 `READY / DEGRADED / UNKNOWN` 语义。配置只决定是否可探测，未经真实成功探测保持 `UNKNOWN`，可选外部组件仍只保留明细状态。
 - 双轴审查识别并修复了默认复检备注仍在控制器、未跟踪新文件可能漏暂存、配置被误判为就绪、调度器持有提交租约规则四项风险；最终提交前显式核对完整暂存内容。
 - 验证通过：控制面 96 个测试、前端生产构建与 mock QA、CLI 语法/Operational Facts 契约测试及 dry-run status/smoke、`git diff --check`。
+
+# 2026-08-26 AI Ready（G8+）迭代登记
+
+- 架构方案落盘：`docs/architecture/ai-ready-data.md`（v1.0，待 G8 评审批准）
+- 迭代计划落盘：`docs/ai-ready-iteration-plan-20260826.md`（规划稿）
+- 待确认：执行节奏 / ai-ready-service 技术栈（默认 Python）/ RAG 验收数据形态 / Label Studio 引入时点
+- [ ] G8 AI Ready 域基础（Model/Manifest/Lifecycle + API + 门户占位）
+- [ ] G9 AI Ready Engine MVP（ai-ready-service + medical-rag/medical-training Profile + 10 Requirements）
+- [ ] G10 RAG 数据集工厂（Docling + Data-Juicer + Recipe + 第一条 RAG Corpus）
+- [ ] G11 评测与认证闭环（RAG Eval + Certification Gate + 回写 OpenMetadata）
+- [ ] G12 数据飞轮与门户收口（Feedback Loop + AI Data 工作台 + Dashboard）
