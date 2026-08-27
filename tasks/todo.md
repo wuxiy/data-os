@@ -803,7 +803,7 @@ Secret 卷托管。新增文档链接已放入根 README 和 `deploy/dev/README.
 - 架构方案落盘：`docs/architecture/ai-ready-data.md`（v1.0，G8 评审已批准）
 - 迭代计划落盘：`docs/ai-ready-iteration-plan-20260826.md`（2026-08-26 四项决策拍板：连续执行 / Python 栈 / 合成医疗文档验收 / Label Studio 延后）
 - [x] G8 AI Ready 域基础（Model/Manifest/Lifecycle + API + 门户）— ✅ 2026-08-27 验收 8/8（gate-ai-ready-g8-20260827.md；840d6c2/0fd6633/7bd269f + 修复 f2b5948 编译坏点 d5f5e16；镜像 0.1.0-ai-ready-g8-20260827）
-- [ ] G9 AI Ready Engine MVP（ai-ready-service + medical-rag/medical-training Profile + 10 Requirements）
+- [x] G9 AI Ready Engine MVP — ✅ 2026-08-27 验收 8/8（gate-ai-ready-g9-20260827.md；首次真实评估 0.8385/REVIEW_REQUIRED；h2c body 丢失等 5 项偏差实录）
 - [ ] G10 RAG 数据集工厂（Docling + Data-Juicer + Recipe + 第一条 RAG Corpus）
 - [ ] G11 评测与认证闭环（RAG Eval + Certification Gate + 回写 OpenMetadata）
 - [ ] G12 数据飞轮与门户收口（Feedback Loop + AI Data 工作台 + Dashboard）

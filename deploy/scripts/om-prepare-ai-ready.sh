@@ -45,24 +45,19 @@ def call(method, path, body=None):
         text = resp.read().decode()
     return json.loads(text) if text else {}
 
-# 1) PersonalData 分类存在性（内置一般已存在），取其 fqn
-classifications = call("GET", "/classifications?limit=50").get("data", [])
-personal = next((c for c in classifications if c["name"] == "PersonalData"), None)
-if personal is None:
-    personal = call("POST", "/classifications", {
-        "name": "PersonalData", "description": "个人数据分类（G9 评估数据准备）"})
-    print("created classification PersonalData")
-PERSONAL_FQN = personal["fullyQualifiedName"]
+# 1) 使用内置标签 PersonalData.Personal（OM 1.5 需要分类下的具体标签实例）
+PERSONAL_FQN = "PersonalData.Personal"
 
 # 2) mpi_source_identity 敏感列打标签（幂等：PATCH tags 以全量清单提交）
 TABLE = "doris-dataos.default.dataos_mpi.mpi_source_identity"
 PII_COLUMNS = ["name_norm", "card_no_norm", "contact_hash", "id_card_hash"]
 table = call("GET", f"/tables/name/{TABLE}?fields=columns,tags")
 table_id = table["id"]
+# OM 的 JSON-Patch 对列数组按索引定位（列名会被误解析为数字 -> 500）
 patch = []
-for column in table.get("columns", []):
+for index, column in enumerate(table.get("columns", [])):
     if column["name"] in PII_COLUMNS:
-        patch.append({"op": "add", "path": f"/columns/{column['name']}/tags",
+        patch.append({"op": "add", "path": f"/columns/{index}/tags",
                       "value": [{"tagFQN": PERSONAL_FQN}]})
 if patch:
     call("PATCH", f"/tables/{table_id}", patch)

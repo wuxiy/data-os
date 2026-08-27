@@ -16,7 +16,7 @@ check:
   - card_no_norm
   - contact_hash
   - id_card_hash
-  tag: PersonalData
+  tag: PersonalData.Personal
   direction: higher_better
   pass: 1.0
   warn: 0.75

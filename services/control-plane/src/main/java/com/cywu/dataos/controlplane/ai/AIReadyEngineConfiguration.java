@@ -6,6 +6,7 @@ import java.util.Map;
 import com.cywu.dataos.controlplane.executor.AdapterUnavailableException;
 import com.cywu.dataos.controlplane.quality.OidcClientCredentialsTokenProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.MediaType;
@@ -17,11 +18,15 @@ import org.springframework.web.client.RestClient;
  */
 @Configuration
 @ConditionalOnExpression("!'${data-os.ai-ready.base-url:}'.isBlank()")
+@EnableConfigurationProperties(AIReadyProperties.class)
 public class AIReadyEngineConfiguration {
 
     @Bean
     public AIReadyEnginePort aiReadyEnginePort(AIReadyProperties properties, RestClient.Builder builder) {
-        var client = builder.baseUrl(properties.getBaseUrl()).build();
+        // 强制 HTTP/1.1：默认 JDK HttpClient 会发 h2c Upgrade，uvicorn 拒绝升级后
+        // POST body 被丢弃（实测 422 body missing + "Unsupported upgrade request"）。
+        var factory = new org.springframework.http.client.SimpleClientHttpRequestFactory();
+        var client = builder.requestFactory(factory).baseUrl(properties.getBaseUrl()).build();
         var tokenProvider = properties.getTokenUri().isBlank()
                 ? null
                 : new OidcClientCredentialsTokenProvider(builder, properties.getTokenUri(),
@@ -32,15 +37,16 @@ public class AIReadyEngineConfiguration {
     private AIReadyAssessment assess(RestClient client, OidcClientCredentialsTokenProvider tokenProvider,
                                      AIReadyProperties properties, AIDataProduct product, String recipeRef) {
         var profile = profileOf(product);
-        var body = Map.of(
-                "product", product.name(),
-                "version", product.currentVersion(),
-                "profile", profile,
-                "recipeRef", recipeRef == null ? "" : recipeRef);
+        // 显式 JSON 字符串：实测部分服务端（uvicorn）对 Map 编码的分块体判为缺 body。
+        var body = String.format(
+                "{\"product\":%s,\"version\":%s,\"profile\":%s,\"recipeRef\":%s}",
+                quote(product.name()), quote(product.currentVersion()),
+                quote(profile), quote(recipeRef == null ? "" : recipeRef));
         try {
             var payload = client.post()
                     .uri("/assess")
                     .accept(MediaType.APPLICATION_JSON)
+                    .contentType(MediaType.APPLICATION_JSON)
                     .headers(headers -> {
                         if (tokenProvider != null) {
                             var token = tokenProvider.current();
@@ -62,6 +68,10 @@ public class AIReadyEngineConfiguration {
             var cause = exception.getCause() == null ? exception : exception.getCause();
             throw new AdapterUnavailableException("AI Ready 引擎暂时不可用：" + cause.getMessage());
         }
+    }
+
+    private static String quote(String value) {
+        return "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
     }
 
     /** workflowType（MEDICAL_RAG 等）-> profile id（medical-rag）。 */

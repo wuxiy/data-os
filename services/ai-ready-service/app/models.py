@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 Status = Literal["PASS", "WARN", "FAIL", "NOT_APPLICABLE"]
 Dimension = Literal["clean", "contextual", "consumable", "current", "correlated", "compliant"]
@@ -46,32 +46,38 @@ class ProfileDef(BaseModel):
     thresholds: dict[str, float]
 
 
+CAMEL = ConfigDict(populate_by_name=True)
+
+
 class RequirementResult(BaseModel):
+    model_config = CAMEL
     id: str
     title: str
     dimension: Dimension
     severity: str
     status: Status
     metric: float | None = None
-    metric_name: str | None = None
+    metric_name: str | None = Field(default=None, alias="metricName")
     thresholds: dict[str, Any] = Field(default_factory=dict)
     diagnostic: str = ""
     note: str = ""
 
 
 class GateResult(BaseModel):
+    model_config = CAMEL
     overall: float
     result: Literal["PASS", "REVIEW", "FAIL"]
     certification: Literal["CANDIDATE", "REVIEW_REQUIRED", "FAIL", "BLOCKED"]
-    critical_failures: list[str] = Field(default_factory=list)
+    critical_failures: list[str] = Field(default_factory=list, alias="criticalFailures")
 
 
 class AssessmentReport(BaseModel):
+    model_config = CAMEL
     product: str
     version: str
     profile: str
-    assessed_at: str
-    engine_version: str = "0.1.0"
+    assessed_at: str = Field(alias="assessedAt")
+    engine_version: str = Field(default="0.1.0", alias="engineVersion")
     requirements: list[RequirementResult]
     dimensions: dict[str, float]
     overall: float

@@ -31,7 +31,7 @@ class AssessRequest(BaseModel):
 def assess(request: AssessRequest, authorization: str | None = Header(default=None)) -> dict:
     _authenticator.require(authorization)
     report = _engine.assess(request.product, request.version, request.profile)
-    return report.model_dump()
+    return report.model_dump(by_alias=True)
 
 
 @router.get("/readiness")
@@ -39,4 +39,4 @@ def readiness(product: str, version: str = "v0.1.0", profile: str = "medical-rag
               authorization: str | None = Header(default=None)) -> dict:
     _authenticator.require(authorization)
     report = _engine.assess(product, version, profile)
-    return report.model_dump()
+    return report.model_dump(by_alias=True)
