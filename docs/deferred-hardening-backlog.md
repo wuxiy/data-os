@@ -17,13 +17,13 @@
 
 | # | 事项 | 现状与来源 | 建议批次 |
 | --- | --- | --- | --- |
-| S1 | 口令轮换批：Doris root（会话/脚本中出现过明文）、OM demo 与 ingestion-bot、Superset spike 管理员、RustFS AK/SK（单 AK 长期使用） | G1/G4/G5 验收报告延后项；凭据目前仅存远端 0600 文件与凭据服务，但均未轮换过 | 安全收敛批 |
-| S2 | `deploy/.env` 的 `DORIS_PASSWORD` 实为 Doris root 口令（键名语义漂移；引用面为三个未部署占位服务 + dbt 说明，无活跃消费者） | G6 实施发现（对账 Access denied 才暴露）；清理或改语义需与 S1 一并做 | 安全收敛批 |
-| S3 | Superset 嵌入面 CSP 收紧（Talisman / 显式 frame-ancestors）；当前依赖同源嵌入 + Referer 白名单 | G4 决策 D5：开 Talisman 曾阻断嵌入，dev 口径暂关 | 安全收敛批 |
-| S4 | 认证开启后的 guest token 缓存/限流重设计（按用户+仪表盘短窗）；AUTH DISABLED 口径下用户维度不存在 | G4 延后项 | 认证批次 |
-| S5 | 网络隔离规则（DOCKER-USER 链、前置机网段 DROP）持久化与变更审计；当前为手工 iptables，宿主重启即失效 | G5 L1 演练手工配置 | 生产化批 |
+| S1 | 口令轮换批 — **部分完成 2026-08-27**：OM bot secret/OM demo/Superset spike/Doris root ✅（各闭环验证）；**RustFS AK/SK 残留**：被 SeaTunnel 运行中作业定义+双服务引用，需停机窗口 | 安全收敛批报告 | 维护窗口 |
+| S2 | .env root 口令清理 — **完成 2026-08-27**：DORIS_PASSWORD 复位 quality_ro（重建隐患消除）、root 移 0600 文件、零残留复检 | 安全收敛批报告 | 完成 |
+| S3 | Superset CSP 收紧 — **评估延后**：同源嵌入+Referer 白名单+allowed_domains 三层在位；显式 frame-ancestors 待生产域名定稿（G4 前鉴） | 安全收敛批报告 | 生产化批 |
+| S4 | guest-token 缓存/限流 — **限流完成 2026-08-27**（nginx 10r/m burst5，200→503 实测）；按用户维度重设计仍待认证批次 | 安全收敛批报告 | 认证批次（余项） |
+| S5 | 网络隔离持久化 — **完成 2026-08-27**：edge-isolation-rules.sh 幂等 + systemd 自启 | 安全收敛批报告 | 完成 |
 | S6 | 源库凭据面收敛复查：DM EP_TEST（可写测试账号）、各服务账号授权最小化复核 | G3/G5 已按分层授权交付（dataos_om_ro 等），未做全面审计 | 生产化批 |
-| S7 | ai-ready-service 服务间认证由静态共享令牌切换为 OIDC/JWKS（quality-runner 同模式；OIDC 代码已内置，issuer 配置即启用） | G9 偏差 #4：dev 口径静态令牌上线 | 生产化批 |
+| S7 | ai-ready 服务间 OIDC — **完成 2026-08-27**：client+audience mapper+issuer 网关对齐；JWKS 容自签为 dev 口径（生产化换 truststore） | 安全收敛批报告 | 完成（truststore 项归生产化） |
 
 ## 二、生产加固类
 
@@ -50,3 +50,4 @@
 - 2026-08-27：G9 交付新增 S7（ai-ready 服务间认证切 OIDC）；无其他新增。
 - 2026-08-27（G11）：P3 OM 实例缺陷证据增补（glossaryTerms 引用解析/端点面），升级评估优先级上调。
 - 2026-08-27（安全收敛批·A）：P3 诊断定案——容器重建排除运行态损坏，OM 升级为唯一修复路径；重建后全功能面复验零回归（三库对账 PASS）。
+- 2026-08-27（安全收敛批·收尾）：S2/S4/S5/S7 完成、S1 部分（RustFS 残留需停机窗口）、S3 评估延后；**运维须知：OM bot secret 轮换须同时更新两个 env 键（DATAOS_OPENMETADATA_CLIENT_SECRET / DATAOS_OM_INGEST_CLIENT_SECRET）+ 0600 文件**（本轮漏键曾致 BFF 断链）。
