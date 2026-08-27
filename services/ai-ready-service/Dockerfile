@@ -4,7 +4,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PYTHONPATH=/opt/dataos/ai-ready-service/app \
-    AI_READY_REPO_DIR=/opt/dataos/ai-ready
+    AI_READY_REPO_DIR=/opt/dataos/ai-ready \
+    AI_DATA_DIR=/opt/dataos/ai-data
 
 RUN groupadd --system dataos && useradd --system --gid dataos --home-dir /opt/dataos dataos \
     && mkdir -p /opt/dataos/ai-ready /opt/dataos/ai-ready-service \
@@ -15,7 +16,8 @@ COPY services/ai-ready-service/pyproject.toml ./
 COPY services/ai-ready-service/app ./app
 RUN pip install --no-cache-dir .
 COPY ai-ready /opt/dataos/ai-ready
-RUN chown -R dataos:dataos /opt/dataos/ai-ready /opt/dataos/ai-ready-service
+COPY ai-data /opt/dataos/ai-data
+RUN chown -R dataos:dataos /opt/dataos/ai-ready /opt/dataos/ai-data /opt/dataos/ai-ready-service
 
 USER dataos
 EXPOSE 8080

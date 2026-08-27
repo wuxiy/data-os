@@ -21,4 +21,13 @@ PROPERTIES ("replication_num" = "1");
 
 GRANT SELECT_PRIV ON dataos_ai.* TO 'dataos_om_ro'@'%';
 
+-- 构建写入专用账号（最小面：仅 dataos_ai 库 LOAD；口令由部署机生成）
+CREATE USER IF NOT EXISTS 'dataos_ai_writer'@'%'
+  IDENTIFIED BY '__AI_WRITER_PASSWORD__';
+SET PASSWORD FOR 'dataos_ai_writer'@'%' = PASSWORD('__AI_WRITER_PASSWORD__');
+GRANT LOAD_PRIV ON dataos_ai.* TO 'dataos_ai_writer'@'%';
+-- Doris 3.x：任何执行路径都要求 compute group USAGE（G6 同坑）
+GRANT USAGE_PRIV ON COMPUTE GROUP default_compute_group TO 'dataos_ai_writer'@'%';
+
+SHOW GRANTS FOR 'dataos_ai_writer'@'%';
 SHOW TABLES FROM dataos_ai;

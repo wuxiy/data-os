@@ -24,6 +24,9 @@ class Settings:
     doris_user: str = field(default_factory=lambda: _env("DORIS_USER", "dataos_om_ro"))
     doris_password: str = field(default_factory=lambda: _env("DORIS_PASSWORD"))
     doris_connect_timeout_s: float = field(default_factory=lambda: float(_env("DORIS_CONNECT_TIMEOUT_S", "5")))
+    # 构建写入面（G10）：与评估只读面分离，仅 dataos_ai 库写权
+    doris_writer_user: str = field(default_factory=lambda: _env("DORIS_WRITER_USER", "dataos_ai_writer"))
+    doris_writer_password: str = field(default_factory=lambda: _env("DORIS_WRITER_PASSWORD"))
 
     # OpenMetadata 读取面（client credentials 自签令牌）
     om_base_url: str = field(default_factory=lambda: _env("AI_READY_OM_BASE_URL"))

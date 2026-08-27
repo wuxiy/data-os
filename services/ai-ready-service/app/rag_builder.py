@@ -358,7 +358,11 @@ def main(argv: list[str] | None = None) -> int:
     if not args.skip_doris:
         from adapters import DorisAdapter
         from settings import settings
-        written = write_doris(chunks, DorisAdapter(settings), output["doris_table"])
+        # 写入走专用账号（仅 dataos_ai 库写权），与评估只读面分离
+        writer_settings = type(settings)(
+            **{**settings.__dict__, "doris_user": settings.doris_writer_user,
+               "doris_password": settings.doris_writer_password})
+        written = write_doris(chunks, DorisAdapter(writer_settings), output["doris_table"])
         print(f"doris chunks written: {written}")
     if not args.skip_rustfs:
         import boto3
@@ -369,6 +373,10 @@ def main(argv: list[str] | None = None) -> int:
                           aws_secret_access_key=os.environ.get("DATAOS_RUSTFS_SECRET_KEY", ""),
                           region_name="us-east-1")
         bucket = args.bucket or os.environ.get("DATAOS_AI_BUCKET", "dataos-ai-data")
+        try:
+            s3.head_bucket(Bucket=bucket)
+        except Exception:
+            s3.create_bucket(Bucket=bucket)
         version = next_version(s3, bucket, prefix)
         base = write_rustfs(s3, bucket, prefix, version, chunks, artifacts)
         print(f"rustfs artifact: s3://{bucket}/{base} (version {version})")
