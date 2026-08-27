@@ -190,6 +190,12 @@ class AIDataProductServiceTest {
                 .isInstanceOf(ConflictException.class)
                 .hasMessageContaining("尚未评估");
         assessCurrent(product);
+        // 已评估但未流转 ASSESSED：状态守卫
+        assertThatThrownBy(() -> service.submitCertification(product.id()))
+                .isInstanceOf(ConflictException.class)
+                .hasMessageContaining("仅「已评估」");
+        service.transition(product.id(), "CURATED");
+        service.transition(product.id(), "ASSESSED");
         var request = service.submitCertification(product.id());
         assertThat(request.decision()).isEqualTo("PENDING");
         assertThat(request.certification()).isEqualTo("CANDIDATE");

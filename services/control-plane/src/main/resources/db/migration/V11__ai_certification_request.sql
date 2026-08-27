@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS data_os.ai_certification_request (
     id                VARCHAR(36)  PRIMARY KEY,
     product_id        VARCHAR(36)  NOT NULL,
     version_sn        VARCHAR(32)  NOT NULL,
-    readiness_overall DOUBLE       NOT NULL,
+    readiness_overall DOUBLE PRECISION NOT NULL,
     certification     VARCHAR(24)  NOT NULL,
     decision          VARCHAR(16)  NOT NULL DEFAULT 'PENDING',
     decision_note     VARCHAR(500),

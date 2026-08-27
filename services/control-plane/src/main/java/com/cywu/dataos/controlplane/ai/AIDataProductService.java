@@ -144,6 +144,10 @@ public class AIDataProductService {
         if (!"CANDIDATE".equals(snapshot.certification())) {
             throw new ConflictException("仅 CANDIDATE（自动检查通过）可提交认证审批，当前：" + snapshot.certification());
         }
+        // 已评估且 CANDIDATE：状态须为 ASSESSED（CERTIFIED/SERVING 等不得重复发起）
+        if (product.lifecycle() != AIDataProductLifecycle.ASSESSED) {
+            throw new ConflictException("仅「已评估」状态可提交认证审批，当前：" + product.lifecycle());
+        }
         var scope = tenantScope.current();
         return certificationRepository.save(new AICertificationRequest(
                 AICertificationRepository.newId(), product.id(), product.currentVersion(),

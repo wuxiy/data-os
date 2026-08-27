@@ -805,5 +805,5 @@ Secret 卷托管。新增文档链接已放入根 README 和 `deploy/dev/README.
 - [x] G8 AI Ready 域基础（Model/Manifest/Lifecycle + API + 门户）— ✅ 2026-08-27 验收 8/8（gate-ai-ready-g8-20260827.md；840d6c2/0fd6633/7bd269f + 修复 f2b5948 编译坏点 d5f5e16；镜像 0.1.0-ai-ready-g8-20260827）
 - [x] G9 AI Ready Engine MVP — ✅ 2026-08-27 验收 8/8（gate-ai-ready-g9-20260827.md；首次真实评估 0.8385/REVIEW_REQUIRED；h2c body 丢失等 5 项偏差实录）
 - [x] G10 RAG 数据集工厂 — ✅ 2026-08-27 验收 8/8（gate-ai-ready-g10-20260827.md；工具降级规范不降级，7 chunks 双落 Doris/RustFS，产品 0.8654/CANDIDATE）
-- [ ] G11 评测与认证闭环（RAG Eval + Certification Gate + 回写 OpenMetadata）
+- [x] G11 评测与认证闭环 — ✅ 2026-08-27 验收 5/6+1 部分（gate-ai-ready-g11-20260827.md；评测可复现、审批全流程 CERTIFIED、直通守卫；OM term 受实例缺陷阻断归档 P3）
 - [ ] G12 数据飞轮与门户收口（Feedback Loop + AI Data 工作台 + Dashboard）

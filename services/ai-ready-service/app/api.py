@@ -46,7 +46,7 @@ class EvaluateRequest(BaseModel):
 def evaluate(request: EvaluateRequest, authorization: str | None = Header(default=None)) -> dict:
     _authenticator.require(authorization)
     rows = DorisAdapter(settings).query(
-        "SELECT chunk_id, document_id, section, content FROM data_os_ai.chunks", ())
+        "SELECT chunk_id, document_id, section, content FROM dataos_ai.chunks", ())
     chunks = [
         {"chunk_id": row[0], "document_id": row[1], "section": row[2] or "", "content": row[3]}
         for row in rows
