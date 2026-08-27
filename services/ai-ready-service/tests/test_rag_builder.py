@@ -36,8 +36,8 @@ def test_html_structure_preserved():
 
 def test_deduplicate_drops_duplicate_document(built):
     chunks, artifacts, stats = built
-    assert stats.documents_in == 8  # 8 篇 HTML（含 1 篇重复；sidecar json 不计）
-    assert stats.documents_unique == 7
+    assert stats.documents_in == 9  # 9 篇 HTML（含 1 篇重复 + G12 飞轮补强篇；sidecar 不计）
+    assert stats.documents_unique == 8
     assert stats.duplicates_dropped == 1
     names = artifacts["manifest"]["spec"]["source"]["documents"]
     assert "hypertension-guideline-duplicate.html" not in names
