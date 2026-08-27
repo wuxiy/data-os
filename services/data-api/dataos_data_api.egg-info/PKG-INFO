@@ -1,0 +1,13 @@
+Metadata-Version: 2.2
+Name: dataos-data-api
+Version: 0.1.0
+Summary: DataOS ToB Data API Gateway (parameterized query over published services)
+Requires-Python: <3.13,>=3.12
+Requires-Dist: fastapi==0.115.6
+Requires-Dist: uvicorn[standard]==0.34.0
+Requires-Dist: pymysql==1.1.1
+Requires-Dist: httpx==0.28.1
+Requires-Dist: PyJWT[crypto]==2.10.1
+Provides-Extra: test
+Requires-Dist: pytest==8.3.4; extra == "test"
+Requires-Dist: httpx==0.28.1; extra == "test"

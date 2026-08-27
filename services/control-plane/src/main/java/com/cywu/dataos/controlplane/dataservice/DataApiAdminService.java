@@ -169,6 +169,8 @@ public class DataApiAdminService {
         return Map.of(
                 "services", services.stream().map(definition -> Map.<String, Object>of(
                         "code", definition.code(),
+                        "name", definition.name(),
+                        "description", definition.description(),
                         "version", definition.versionSn(),
                         "sqlTemplate", definition.sqlTemplate(),
                         "parameters", definition.parametersJson(),

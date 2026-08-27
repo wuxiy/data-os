@@ -1,0 +1,14 @@
+pyproject.toml
+app/__init__.py
+app/api.py
+app/controlplane.py
+app/executor.py
+app/main.py
+app/settings.py
+dataos_data_api.egg-info/PKG-INFO
+dataos_data_api.egg-info/SOURCES.txt
+dataos_data_api.egg-info/dependency_links.txt
+dataos_data_api.egg-info/requires.txt
+dataos_data_api.egg-info/top_level.txt
+tests/test_api.py
+tests/test_executor.py

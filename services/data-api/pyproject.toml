@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=69,<76"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dataos-data-api"
+version = "0.1.0"
+description = "DataOS ToB Data API Gateway (parameterized query over published services)"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "fastapi==0.115.6",
+  "uvicorn[standard]==0.34.0",
+  "pymysql==1.1.1",
+  "httpx==0.28.1",
+  "PyJWT[crypto]==2.10.1",
+]
+
+[project.optional-dependencies]
+test = ["pytest==8.3.4", "httpx==0.28.1"]
+
+[tool.pytest.ini_options]
+pythonpath = ["app", "tests"]
