@@ -15,6 +15,7 @@ dependencies = [
   "prometheus-client==0.21.1",
   "PyYAML==6.0.2",
   "PyJWT[crypto]==2.10.1",
+  "boto3==1.36.20",
 ]
 
 [project.optional-dependencies]

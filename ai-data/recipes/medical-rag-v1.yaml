@@ -1,0 +1,42 @@
+apiVersion: data-os/v1
+kind: AIDatasetRecipe
+
+metadata:
+  name: medical-rag-v1
+  version: 1.0.0
+  owner: data-team
+
+spec:
+  source:
+    # 合成医疗文档集（用户拍板口径：合成/脱敏文档先行）
+    dataset: ai-data/documents
+    format: html
+
+  workload:
+    type: medical-rag
+
+  pipeline:
+    - document_parse
+    - text_normalization
+    - template_removal
+    - deduplicate
+    - pii_detection
+    - deidentification
+    - semantic_chunk
+    - chunk_quality_score
+    - metadata_enrichment
+
+  parameters:
+    chunk:
+      target_chars: 900
+      min_chars: 200
+      max_chars: 1500
+    pii:
+      phone_placeholder: "<PHONE>"
+      id_card_placeholder: "<IDCARD>"
+
+  output:
+    format: jsonl
+    dataset: medical-rag-corpus
+    doris_table: dataos_ai.chunks
+    object_prefix: ai-data/medical-rag-guideline

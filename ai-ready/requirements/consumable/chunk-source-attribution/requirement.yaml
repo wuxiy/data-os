@@ -9,7 +9,7 @@ diagnostic: chunk 无法回指来源文档/位置——RAG 引用可信度受损
 check:
   type: doris_metric
   requires_table: dataos_ai.chunks
-  sql_file: null
+  sql_file: doris/check.sql
   metric: unattributed_ratio
   direction: lower_better
   pass: 0.0

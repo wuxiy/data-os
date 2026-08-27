@@ -1,7 +1,8 @@
 """共享测试件：Stub 探针与全 PASS 基线指标。"""
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[3] / "ai-ready"
+REPO_ROOT = Path(__file__).resolve().parents[3]
+REPO = REPO_ROOT / "ai-ready"
 
 
 def all_pass_metrics() -> dict[str, float]:
