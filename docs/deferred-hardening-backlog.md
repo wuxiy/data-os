@@ -24,6 +24,7 @@
 | S5 | 网络隔离持久化 — **完成 2026-08-27**：edge-isolation-rules.sh 幂等 + systemd 自启 | 安全收敛批报告 | 完成 |
 | S6 | 源库凭据面收敛复查：DM EP_TEST（可写测试账号）、各服务账号授权最小化复核 | G3/G5 已按分层授权交付（dataos_om_ro 等），未做全面审计 | 生产化批 |
 | S7 | ai-ready 服务间 OIDC — **完成 2026-08-27**：client+audience mapper+issuer 网关对齐；JWKS 容自签为 dev 口径（生产化换 truststore） | 安全收敛批报告 | 完成（truststore 项归生产化） |
+| S8 | data-api `/internal/**` 强制 OIDC 服务 token — dev control-plane 为 DISABLED 直通（与 /api 同水平）；切 ENFORCED 时建 Keycloak client `dataos-data-api` + audience mapper（S7 模式，compose 键位已预留） | G13 验收报告 | 认证批次 |
 
 ## 二、生产加固类
 
@@ -34,6 +35,8 @@
 | P3 | **OM 1.5.11 testDefinitions/glossaryTerms 端点缺陷（诊断定案 2026-08-27）**：DB seed 完好（35 定义）、ES 健康、**容器重建（全新 JVM）后症状不变**——排除运行态，为版本级缺陷（升级才修）。修复路径：OM ≥1.6 升级 + 数据卷迁移重放（或全新卷重建）；升压前置：Keycloak/Superset 联动面检查。关联受阻项：G7 TestCase registrar、G11 term 回写（脚本 best-effort 段就绪） | G7/G11 偏差 + 本批诊断实录 | 生产化批（升级窗口） |
 | P4 | 遗留服务 `doris-medical` 的 root 连接收敛（data-ops 遗留资产处置） | G1 延后项 | 生产化批 |
 | P5 | 断网缓冲容量上限与中转桶生命周期策略（演示验证至 10 分钟缩比，未测长时间大缓冲与桶清理） | G5 L2 缩比口径 | 生产化批 |
+| P7 | 数据 API 大结果集异步导出至对象存储 + 下载 URL（§5.8 完整形态；当前 maxRows 截断挡住） | G13 方案 §九 | 生产化批 |
+| P8 | 数据 API 网关级全局限流/熔断、审计回写失败持久化缓冲、调用方自助门户、合同变更通知 | G13 方案 §九 | 生产化批 |
 
 ## 三、深度测试类
 
@@ -50,4 +53,5 @@
 - 2026-08-27：G9 交付新增 S7（ai-ready 服务间认证切 OIDC）；无其他新增。
 - 2026-08-27（G11）：P3 OM 实例缺陷证据增补（glossaryTerms 引用解析/端点面），升级评估优先级上调。
 - 2026-08-27（安全收敛批·A）：P3 诊断定案——容器重建排除运行态损坏，OM 升级为唯一修复路径；重建后全功能面复验零回归（三库对账 PASS）。
+- 2026-08-27（G13）：新增 P7（异步导出）、P8（网关级限流等）、S8（/internal OIDC 化）；交付面见 docs/validation/gate-tob-data-api-g13-20260827.md。
 - 2026-08-27（安全收敛批·收尾）：S2/S4/S5/S7 完成、S1 部分（RustFS 残留需停机窗口）、S3 评估延后；**运维须知：OM bot secret 轮换须同时更新两个 env 键（DATAOS_OPENMETADATA_CLIENT_SECRET / DATAOS_OM_INGEST_CLIENT_SECRET）+ 0600 文件**（本轮漏键曾致 BFF 断链）。

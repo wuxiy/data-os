@@ -210,3 +210,14 @@ POST /v1/services/{code}/query                 # { "parameters": {...} }
 - 审计回写失败环形缓冲的持久化落盘（当前内存重试）
 - ToB 调用方门户自助门户（当前控制面代发 Key）
 - 数据合同变更 diff 告警通知订阅方
+
+---
+
+## 十、验收结论（2026-08-27）
+
+**16/16 全过，G13 交付。** 证据与实施偏差详见
+`docs/validation/gate-tob-data-api-g13-20260827.md`。要点：真实处方数据
+ToB 闭环（11 日行 52ms）、PHI 守卫字段级验证、429/403/400/401 稳定错误码、
+审计全量回写、data-api 进程隔离性成立。OIDC client（dataos-data-api）
+因 dev control-plane 为 DISABLED 本批未建，切 ENFORCED 时按 S7 模式补
+（compose 键位已预留）。
