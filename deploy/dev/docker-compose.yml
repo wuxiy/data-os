@@ -137,7 +137,10 @@ services:
       AI_READY_OM_TOKEN_URI: ${DATAOS_AI_READY_OM_TOKEN_URI:-http://keycloak:8080/auth/realms/data-platform/protocol/openid-connect/token}
       AI_READY_OM_CLIENT_ID: dataos-om-ingest
       AI_READY_OM_CLIENT_SECRET: ${DATAOS_OM_INGEST_CLIENT_SECRET:?请在远程 .env 中提供 DATAOS_OM_INGEST_CLIENT_SECRET}
-      AI_READY_API_TOKEN: ${DATAOS_AI_READY_API_TOKEN:?请在远程 .env 中提供 DATAOS_AI_READY_API_TOKEN}
+      # S7：OIDC 优先（issuer 非空启用 JWKS 验签）；静态令牌仅作回退（生产化后移除）
+      AI_READY_API_TOKEN: ${DATAOS_AI_READY_API_TOKEN:-}
+      AI_READY_OIDC_ISSUER: ${DATAOS_AI_READY_OIDC_ISSUER:-https://172.16.65.59:8443/auth/realms/data-platform}
+      AI_READY_OIDC_AUDIENCE: ${DATAOS_AI_READY_OIDC_AUDIENCE:-dataos-ai-ready}
       DATAOS_RUSTFS_ENDPOINT: http://rustfs:9000
       DATAOS_RUSTFS_ACCESS_KEY: ${DATAOS_RUSTFS_ACCESS_KEY:?请在远程 .env 中提供 DATAOS_RUSTFS_ACCESS_KEY}
       DATAOS_RUSTFS_SECRET_KEY: ${DATAOS_RUSTFS_SECRET_KEY:?请在远程 .env 中提供 DATAOS_RUSTFS_SECRET_KEY}

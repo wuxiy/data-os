@@ -52,7 +52,8 @@ class Authenticator:
         if self._jwks and self._jwks_expires_at > time.time():
             return self._jwks
         discovery = self._settings.oidc_issuer.rstrip("/") + "/.well-known/openid-configuration"
-        with httpx.Client(timeout=3.0) as client:
+        # 内网 dev 口径：Keycloak 经网关自签证书暴露 discovery/JWKS（生产化换 truststore，备忘）
+        with httpx.Client(timeout=3.0, verify=False) as client:
             config = client.get(discovery).raise_for_status().json()
             self._jwks = client.get(config["jwks_uri"]).raise_for_status().json()
         self._jwks_expires_at = time.time() + 300
