@@ -133,6 +133,67 @@ export async function transitionAIDataProduct(id: string, target: AIDataProductL
   ) as Promise<AIDataProduct>
 }
 
+/** 工作台概览（G12 Dashboard 首批指标）。 */
+export interface AIOverview {
+  products: number
+  certified: number
+  serving: number
+  averageOverall: number
+  latestMrr: number
+  openFeedback: number
+}
+
+export async function fetchAIOverview(signal?: AbortSignal): Promise<AIOverview> {
+  return parseOrThrow(
+    await aiFetch('/v1/ai-data-products/overview', {}, signal),
+    '工作台概览读取失败',
+  ) as Promise<AIOverview>
+}
+
+export interface AIEvaluationFeedbackItem {
+  id: string
+  productId: string
+  versionSn: string
+  question: string
+  metric: string
+  outcome: string
+  feedbackType: string
+  detail: string | null
+  status: 'CREATED' | 'CONSUMED' | 'DISMISSED'
+  resolution: string | null
+  createdBy: string
+  resolvedBy: string | null
+  createdAt: string
+}
+
+export async function fetchFeedback(id: string, signal?: AbortSignal): Promise<AIEvaluationFeedbackItem[]> {
+  const payload = await parseOrThrow(
+    await aiFetch(`/v1/ai-data-products/${encodeURIComponent(id)}/feedback`, {}, signal),
+    '反馈队列读取失败',
+  )
+  return Array.isArray(payload) ? payload : []
+}
+
+export async function submitFeedback(id: string, body: {
+  question: string; metric?: string; outcome?: string; feedbackType?: string; detail?: string
+}): Promise<AIEvaluationFeedbackItem> {
+  return parseOrThrow(
+    await aiFetch(`/v1/ai-data-products/${encodeURIComponent(id)}/feedback`, {
+      method: 'POST', body: JSON.stringify(body),
+    }),
+    '反馈提交失败',
+  ) as Promise<AIEvaluationFeedbackItem>
+}
+
+export async function resolveFeedback(feedbackId: string, consume: boolean, resolution: string): Promise<AIEvaluationFeedbackItem> {
+  return parseOrThrow(
+    await aiFetch(`/v1/ai-data-products/feedback/${encodeURIComponent(feedbackId)}/resolve`, {
+      method: 'POST', body: JSON.stringify({ consume, resolution }),
+    }),
+    '反馈处置失败',
+  ) as Promise<AIEvaluationFeedbackItem>
+}
+
 /** RAG 评测报告（G11：五指标）。 */
 export interface AIReadyEvaluationReport {
   product: string

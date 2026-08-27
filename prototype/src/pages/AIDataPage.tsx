@@ -5,6 +5,7 @@ import { Button, StatusTag } from '../components/ui/Primitives'
 import {
   createAIDataProduct,
   evaluateAIDataProduct,
+  fetchAIOverview,
   fetchAIDataProducts,
   lifecycleLabel,
   nextLifecycleTarget,
@@ -17,6 +18,7 @@ import {
 } from '../data/aiDataApi'
 import { frontendDemoMode } from '../data/runtimeMode'
 import { useApiResource } from '../hooks/useApiResource'
+import type { AIOverview } from '../data/aiDataApi'
 import { AIDataDetailPage } from './AIDataDetailPage'
 import styles from './IntegrationPages.module.css'
 
@@ -44,6 +46,7 @@ export function AIDataPage({ onNotice }: { onNotice: (message: string) => void }
 
 function AIDataLive({ onNotice }: { onNotice: (message: string) => void }) {
   const [products, setProducts] = useState<AIDataProduct[]>([])
+  const [overview, setOverview] = useState<AIOverview | null>(null)
   const [selectedId, setSelectedId] = useState('')
   const [refreshTick, setRefreshTick] = useState(0)
   const [creating, setCreating] = useState(false)
@@ -57,8 +60,15 @@ function AIDataLive({ onNotice }: { onNotice: (message: string) => void }) {
 
   const listState = useApiResource({
     reloadKey: refreshTick,
-    load: (signal) => fetchAIDataProducts(signal),
-    onData: (items) => {
+    load: async (signal) => {
+      const [items, overviewResponse] = await Promise.all([
+        fetchAIDataProducts(signal),
+        fetchAIOverview(signal).catch(() => null),
+      ])
+      return { items, overviewResponse }
+    },
+    onData: ({ items, overviewResponse }) => {
+      setOverview(overviewResponse)
       setProducts(items)
       setSelectedId((current) => (current && items.some((item) => item.id === current) ? current : items[0]?.id ?? ''))
     },
@@ -163,6 +173,15 @@ function AIDataLive({ onNotice }: { onNotice: (message: string) => void }) {
   return (
     <div className={styles.integrationPage}>
       <PageHeader title="AI Data" eyebrow="AI Ready Data" subtitle="AI 数据产品的清单、版本与生命周期工作台" compact />
+      {overview ? (
+        <div className={styles.lineageImpact} role="status" aria-label="AI Ready 概览">
+          <div className={styles.impactItem}><span>AI Data 产品</span><strong>{overview.products}</strong></div>
+          <div className={styles.impactItem}><span>已认证 / 服务中</span><strong>{overview.certified} / {overview.serving}</strong></div>
+          <div className={styles.impactItem}><span>平均就绪度</span><strong>{overview.averageOverall.toFixed(2)}</strong></div>
+          <div className={styles.impactItem}><span>最新评测 MRR</span><strong>{overview.latestMrr.toFixed(2)}</strong></div>
+          <div className={styles.impactItem}><span>待处理反馈</span><strong>{overview.openFeedback}</strong></div>
+        </div>
+      ) : null}
       <div className={styles.integrationWorkspace}>
         <aside className={styles.catalogRail} aria-label="AI Data 产品目录">
           <div className={styles.railHeader}>

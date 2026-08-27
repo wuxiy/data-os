@@ -5,12 +5,16 @@ import {
   decideCertification,
   fetchAIDataProduct,
   fetchCertificationRequests,
+  fetchFeedback,
+  resolveFeedback,
   submitCertification,
+  submitFeedback,
   lifecycleLabel,
   nextLifecycleTarget,
   productTypeLabel,
   type AICertificationRequest,
   type AIDataProductDetail,
+  type AIEvaluationFeedbackItem,
 } from '../data/aiDataApi'
 import styles from './IntegrationPages.module.css'
 
@@ -38,6 +42,7 @@ function readinessOf(version: { readinessJson: string | null }): { overall: numb
 export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, onBuild, onChanged }: Props) {
   const [detail, setDetail] = useState<AIDataProductDetail | null>(null)
   const [certifications, setCertifications] = useState<AICertificationRequest[]>([])
+  const [feedback, setFeedback] = useState<AIEvaluationFeedbackItem[]>([])
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading')
 
   useEffect(() => {
@@ -45,13 +50,16 @@ export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, 
     setState('loading')
     setDetail(null)
     setCertifications([])
+    setFeedback([])
     Promise.all([
       fetchAIDataProduct(productId, controller.signal),
       fetchCertificationRequests(productId, controller.signal).catch(() => []),
+      fetchFeedback(productId, controller.signal).catch(() => []),
     ])
-      .then(([response, requests]) => {
+      .then(([response, requests, feedbackItems]) => {
         setDetail(response)
         setCertifications(requests)
+        setFeedback(feedbackItems)
         setState('ready')
       })
       .catch(() => {
@@ -65,6 +73,30 @@ export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, 
     try {
       await submitCertification(productId)
       onNotice('认证审批已提交（等待审批）')
+      onChanged?.()
+    } catch (error) {
+      onNotice(error instanceof Error ? error.message : '提交失败')
+    }
+  }
+
+  async function handleResolveFeedback(feedbackId: string, consume: boolean) {
+    try {
+      await resolveFeedback(feedbackId, consume, consume ? '已吸收进下一版本改进' : '证据不足驳回')
+      onNotice(consume ? '反馈已标记吸收（由人工触发新版本与语料调整）' : '反馈已驳回')
+      onChanged?.()
+    } catch (error) {
+      onNotice(error instanceof Error ? error.message : '处置失败')
+    }
+  }
+
+  async function handleSubmitFeedback() {
+    try {
+      await submitFeedback(productId, {
+        question: window.prompt('失败样本问题（评测明细中的问题）') ?? '',
+        metric: 'faithfulness',
+        feedbackType: 'CHUNK_QUALITY',
+      })
+      onNotice('反馈已提交（进入 Learning Plane 队列）')
       onChanged?.()
     } catch (error) {
       onNotice(error instanceof Error ? error.message : '提交失败')
@@ -119,6 +151,7 @@ export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, 
             <Button onClick={onDeprecate}>弃用</Button>
           ) : null}
           <Button onClick={onBuild}>构建 / 评估</Button>
+          <Button onClick={() => void handleSubmitFeedback()}>反馈失败样本</Button>
         </div>
       </div>
 
@@ -195,6 +228,84 @@ export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, 
             </section>
           )
         })()}
+
+        {(() => {
+          // 版本对比（G12 飞轮呈现面）：相邻版本的 Overall/MRR/Faithfulness 变化
+          const rows = detail.versions.map((version) => {
+            if (!version.readinessJson) return null
+            try {
+              const payload = JSON.parse(version.readinessJson) as {
+                overall?: number
+                evaluation?: { mrr?: number; faithfulness?: number }
+              }
+              return { versionSn: version.versionSn, overall: payload.overall ?? null,
+                       mrr: payload.evaluation?.mrr ?? null, faith: payload.evaluation?.faithfulness ?? null }
+            } catch {
+              return null
+            }
+          }).filter(Boolean) as { versionSn: string; overall: number | null; mrr: number | null; faith: number | null }[]
+          if (rows.length < 2) return null
+          return (
+            <section className={styles.contentPanel}>
+              <div className={styles.contentPanelHeader}>
+                <h3>版本对比（数据飞轮）</h3>
+                <span>就绪度与评测指标随版本演进</span>
+              </div>
+              <div className={styles.horizontalScroll}>
+                <table className={styles.fieldTable}>
+                  <thead><tr><th>版本</th><th>Overall</th><th>MRR</th><th>忠实度</th></tr></thead>
+                  <tbody>
+                    {rows.map((row) => (
+                      <tr key={row.versionSn}>
+                        <td>{row.versionSn}</td>
+                        <td>{row.overall?.toFixed(4) ?? '—'}</td>
+                        <td>{row.mrr?.toFixed(2) ?? '—'}</td>
+                        <td>{row.faith?.toFixed(2) ?? '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )
+        })()}
+
+        {feedback.length > 0 ? (
+          <section className={styles.contentPanel}>
+            <div className={styles.contentPanelHeader}>
+              <h3>评测反馈（数据飞轮 · Learning Plane）</h3>
+              <span>失败样本驱动版本改进；处置只改状态，候选不自动上线</span>
+            </div>
+            <div className={styles.horizontalScroll}>
+              <table className={styles.fieldTable}>
+                <thead><tr><th>问题</th><th>指标</th><th>类型</th><th>状态</th><th>处置说明</th><th>操作</th></tr></thead>
+                <tbody>
+                  {feedback.map((item) => (
+                    <tr key={item.id}>
+                      <td>{item.question}</td>
+                      <td>{item.metric || '—'}</td>
+                      <td>{item.feedbackType}</td>
+                      <td>
+                        <StatusTag tone={item.status === 'CREATED' ? 'warning' : item.status === 'CONSUMED' ? 'healthy' : 'neutral'}>
+                          {item.status === 'CREATED' ? '待处置' : item.status === 'CONSUMED' ? '已吸收' : '已驳回'}
+                        </StatusTag>
+                      </td>
+                      <td>{item.resolution ?? item.detail ?? '—'}</td>
+                      <td>
+                        {item.status === 'CREATED' ? (
+                          <span className={styles.toolbarActions}>
+                            <Button onClick={() => void handleResolveFeedback(item.id, true)}>吸收</Button>
+                            <Button onClick={() => void handleResolveFeedback(item.id, false)}>驳回</Button>
+                          </span>
+                        ) : (item.resolvedBy ?? '—')}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        ) : null}
 
         {certifications.length > 0 ? (
           <section className={styles.contentPanel}>

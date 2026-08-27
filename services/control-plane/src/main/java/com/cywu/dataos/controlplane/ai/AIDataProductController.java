@@ -51,6 +51,14 @@ public class AIDataProductController {
         return service.transition(id, request.target());
     }
 
+    @PostMapping("/{id}/versions")
+    public ResponseEntity<AIDataProductVersion> registerVersion(@PathVariable String id,
+                                                                 @RequestBody VersionRegistrationRequest request) {
+        var version = service.registerAndAdvance(id, request.versionSn(), request.recipeRef(), request.gitCommit());
+        return ResponseEntity.created(URI.create("/api/v1/ai-data-products/" + id + "/versions/" + version.id()))
+                .body(version);
+    }
+
     @PostMapping("/{id}/build")
     public Object build(@PathVariable String id, @RequestBody(required = false) BuildRequest request) {
         // 引擎未装配（503 AI_READY_ENGINE_NOT_CONFIGURED）或不可达（503）由此冒泡；
@@ -63,6 +71,31 @@ public class AIDataProductController {
                 "overall", assessment.overall(),
                 "certification", assessment.certification(),
                 "assessedAt", assessment.assessedAt());
+    }
+
+    @GetMapping("/overview")
+    public java.util.Map<String, Object> overview() {
+        return service.overview();
+    }
+
+    @PostMapping("/{id}/feedback")
+    public ResponseEntity<AIEvaluationFeedback> submitFeedback(@PathVariable String id,
+                                                                @RequestBody FeedbackRequest request) {
+        var feedback = service.submitFeedback(id, request.question(), request.metric(),
+                request.outcome(), request.feedbackType(), request.detail());
+        return ResponseEntity.created(URI.create("/api/v1/ai-data-products/" + id + "/feedback/" + feedback.id()))
+                .body(feedback);
+    }
+
+    @GetMapping("/{id}/feedback")
+    public java.util.List<AIEvaluationFeedback> feedback(@PathVariable String id) {
+        return service.feedback(id);
+    }
+
+    @PostMapping("/feedback/{feedbackId}/resolve")
+    public AIEvaluationFeedback resolveFeedback(@PathVariable String feedbackId,
+                                                 @RequestBody FeedbackResolutionRequest request) {
+        return service.resolveFeedback(feedbackId, request.consume(), request.resolution());
     }
 
     @PostMapping("/{id}/certification-requests")
@@ -94,6 +127,16 @@ public class AIDataProductController {
     }
 
     public record CertificationDecisionRequest(boolean approve, String note) {
+    }
+
+    public record FeedbackRequest(String question, String metric, String outcome,
+                                   String feedbackType, String detail) {
+    }
+
+    public record VersionRegistrationRequest(String versionSn, String recipeRef, String gitCommit) {
+    }
+
+    public record FeedbackResolutionRequest(boolean consume, String resolution) {
     }
 
     public record LifecycleTransitionRequest(String target) {

@@ -28,6 +28,9 @@ class AIDataProductServiceTest {
     private AICertificationRepository certificationRepository;
 
     @Autowired
+    private AIEvaluationFeedbackRepository feedbackRepository;
+
+    @Autowired
     private com.cywu.dataos.controlplane.security.TenantScope tenantScope;
 
     @Autowired
@@ -109,7 +112,7 @@ class AIDataProductServiceTest {
                         return stubEngine;
                     }
                 };
-        var wired = new AIDataProductService(repository, certificationRepository, tenantScope, provider);
+        var wired = new AIDataProductService(repository, certificationRepository, feedbackRepository, tenantScope, provider);
 
         var assessment = wired.build(product.id(), "recipes/medical-rag-v1.yaml");
 
@@ -179,7 +182,7 @@ class AIDataProductServiceTest {
                     @Override public AIReadyEnginePort getObject() { return stub; }
                     @Override public AIReadyEnginePort getIfAvailable() { return stub; }
                 };
-        new AIDataProductService(repository, certificationRepository, tenantScope, provider)
+        new AIDataProductService(repository, certificationRepository, feedbackRepository, tenantScope, provider)
                 .build(product.id(), null);
     }
 
@@ -260,10 +263,71 @@ class AIDataProductServiceTest {
                     @Override public AIReadyEnginePort getObject() { return stub; }
                     @Override public AIReadyEnginePort getIfAvailable() { return stub; }
                 };
-        var report = new AIDataProductService(repository, certificationRepository, tenantScope, provider)
+        var report = new AIDataProductService(repository, certificationRepository, feedbackRepository, tenantScope, provider)
                 .evaluate(product.id());
         assertThat(report).containsEntry("mrr", 0.75);
         var readiness = service.detail(product.id()).versions().get(0).readinessJson();
         assertThat(readiness).contains("evaluation").contains("0.75").doesNotContain("details");
+    }
+
+    // ---- G12 飞轮与发布守卫 ----
+
+    @Test
+    void feedbackLifecycleCreatedToConsumedOrDismissed() {
+        var product = service.create(request("fb-life-" + UUID.randomUUID()));
+        var feedback = service.submitFeedback(product.id(), "高血压阈值检索失败", "faithfulness",
+                "0", "CHUNK_QUALITY", "golden 句未在 top1 片段");
+        assertThat(feedback.status()).isEqualTo("CREATED");
+        // CREATED 才可处置；二次处置被拒
+        var consumed = service.resolveFeedback(feedback.id(), true, "v0.2.0 chunk 参数调整吸收");
+        assertThat(consumed.status()).isEqualTo("CONSUMED");
+        assertThat(consumed.resolvedBy()).isNotBlank();
+        assertThatThrownBy(() -> service.resolveFeedback(feedback.id(), false, "再处置"))
+                .isInstanceOf(ConflictException.class)
+                .hasMessageContaining("已处置");
+    }
+
+    @Test
+    void feedbackTypeIsValidated() {
+        var product = service.create(request("fb-type-" + UUID.randomUUID()));
+        assertThatThrownBy(() -> service.submitFeedback(product.id(), "q", "mrr", "0", "NOT_A_TYPE", null))
+                .isInstanceOf(com.cywu.dataos.controlplane.api.InvalidRequestException.class);
+    }
+
+    @Test
+    void servingRequiresApprovedCertification() {
+        var product = service.create(request("srv-guard-" + UUID.randomUUID()));
+        // 推到 CERTIFIED（走完整审批链）
+        service.transition(product.id(), "CURATED");
+        service.transition(product.id(), "ASSESSED");
+        assessCurrent(product);
+        var request = service.submitCertification(product.id());
+        var certified = service.decideCertification(request.id(), true, "同意");
+        assertThat(certified.lifecycle()).isEqualTo(AIDataProductLifecycle.CERTIFIED);
+        // 有 APPROVED -> SERVING 成功
+        assertThat(service.transition(product.id(), "SERVING").lifecycle())
+                .isEqualTo(AIDataProductLifecycle.SERVING);
+    }
+
+    @Test
+    void servingRejectedWithoutApprovedRecord() {
+        // 另一产品直接把 DB 状态推到 CERTIFIED（绕过审批模拟脏数据），SERVING 仍须审批记录
+        var product = service.create(request("srv-none-" + UUID.randomUUID()));
+        service.transition(product.id(), "CURATED");
+        service.transition(product.id(), "ASSESSED");
+        new AIDataProductRepository(jdbc).updateLifecycle(product.id(), product.tenantId(),
+                AIDataProductLifecycle.CERTIFIED, java.time.Instant.now());
+        assertThatThrownBy(() -> service.transition(product.id(), "SERVING"))
+                .isInstanceOf(ConflictException.class)
+                .hasMessageContaining("已批准的认证记录");
+    }
+
+    @Test
+    void overviewAggregatesFromTables() {
+        var before = service.overview();
+        var product = service.create(request("ov-" + UUID.randomUUID()));
+        var after = service.overview();
+        assertThat(after.get("products")).isEqualTo(((Number) before.get("products")).intValue() + 1);
+        assertThat(after).containsKeys("certified", "averageOverall", "latestMrr", "openFeedback");
     }
 }

@@ -89,6 +89,15 @@ public class AIDataProductRepository {
                 """, this::mapVersion, productId);
     }
 
+    /** 推进当前版本指针（G12 飞轮：新版本登记后指向）。 */
+    public int updateCurrentVersion(String id, String tenantId, String versionSn, Instant updatedAt) {
+        return jdbc.update("""
+                UPDATE data_os.ai_data_product
+                SET current_version = ?, updated_at = ?
+                WHERE id = ? AND tenant_id = ?
+                """, versionSn, Timestamp.from(updatedAt), id, tenantId);
+    }
+
     /** 评估结论回写当前版本（G9-6）：readiness_json + build_status。 */
     public int updateVersionReadiness(String productId, String versionSn,
                                       String readinessJson, String buildStatus) {

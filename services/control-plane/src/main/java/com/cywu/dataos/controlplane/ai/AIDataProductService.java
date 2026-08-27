@@ -26,15 +26,18 @@ public class AIDataProductService {
 
     private final AIDataProductRepository repository;
     private final AICertificationRepository certificationRepository;
+    private final AIEvaluationFeedbackRepository feedbackRepository;
     private final TenantScope tenantScope;
     private final ObjectProvider<AIReadyEnginePort> enginePort;
 
     public AIDataProductService(AIDataProductRepository repository,
                                 AICertificationRepository certificationRepository,
+                                AIEvaluationFeedbackRepository feedbackRepository,
                                 TenantScope tenantScope,
                                 ObjectProvider<AIReadyEnginePort> enginePort) {
         this.repository = repository;
         this.certificationRepository = certificationRepository;
+        this.feedbackRepository = feedbackRepository;
         this.tenantScope = tenantScope;
         this.enginePort = enginePort;
     }
@@ -80,8 +83,9 @@ public class AIDataProductService {
     @Transactional
     public AIDataProduct transition(String id, String target) {
         var product = require(id);
+        var normalized = target == null ? "" : target.trim().toUpperCase();
         // G11：CERTIFIED 只能经认证审批流转（架构 §27 人工审批不可绕过）
-        if ("CERTIFIED".equalsIgnoreCase(target == null ? "" : target.trim())) {
+        if ("CERTIFIED".equals(normalized)) {
             throw new ConflictException("认证必须经审批流转：提交 POST /ai-data-products/" + id + "/certification-requests");
         }
         AIDataProductLifecycle next;
@@ -90,6 +94,15 @@ public class AIDataProductService {
         } catch (IllegalArgumentException exception) {
             // 状态机的非法流转对 API 面是业务冲突（409），不是服务器错误。
             throw new ConflictException(exception.getMessage());
+        }
+        // G12：SERVING 发布须有已批准的认证记录（状态机合法后才校验——非法流转
+        // 的诊断优先）
+        if (next == AIDataProductLifecycle.SERVING) {
+            var approved = certificationRepository.findByProduct(product.id()).stream()
+                    .anyMatch(request -> "APPROVED".equals(request.decision()));
+            if (!approved) {
+                throw new ConflictException("发布（SERVING）需要已批准的认证记录：先完成认证审批");
+            }
         }
         var updated = repository.updateLifecycle(product.id(), product.tenantId(), next, Instant.now());
         if (updated == 0) {
@@ -214,6 +227,103 @@ public class AIDataProductService {
             throw new IllegalStateException("评测报告写回失败", exception);
         }
         return report;
+    }
+
+    /** 登记新版本并推进当前指针（G12 飞轮：人工触发，候选不自动上线）。 */
+    @Transactional
+    public AIDataProductVersion registerAndAdvance(String id, String versionSn, String recipeRef, String gitCommit) {
+        var product = require(id);
+        var version = registerVersion(id, versionSn, recipeRef, gitCommit);
+        var updated = repository.updateCurrentVersion(product.id(), product.tenantId(),
+                version.versionSn(), Instant.now());
+        if (updated == 0) {
+            throw new ConflictException("当前版本指针推进失败，请重试");
+        }
+        return version;
+    }
+
+    /** 提交评测反馈（G12 飞轮 / Learning Plane）。 */
+    public AIEvaluationFeedback submitFeedback(String productId, String question, String metric,
+                                               String outcome, String feedbackType, String detail) {
+        var product = require(productId);
+        if (question == null || question.isBlank()) {
+            throw new InvalidRequestException("question 不能为空");
+        }
+        var type = feedbackType == null || feedbackType.isBlank() ? "OTHER" : feedbackType.trim().toUpperCase();
+        var allowed = java.util.Set.of("CHUNK_QUALITY", "MISSING_DOC", "DEID_OVERREACH", "LABEL_ERROR", "OTHER");
+        if (!allowed.contains(type)) {
+            throw new InvalidRequestException("未知反馈类型：" + type);
+        }
+        var scope = tenantScope.current();
+        return feedbackRepository.save(new AIEvaluationFeedback(
+                AIEvaluationFeedbackRepository.newId(), product.id(), product.currentVersion(),
+                question.trim(), metric == null ? "" : metric.trim(),
+                outcome == null ? "" : outcome.trim(), type,
+                detail == null ? null : detail.trim(),
+                AIEvaluationFeedback.STATUS_CREATED, null, scope.subject(), null, null, Instant.now()));
+    }
+
+    public java.util.List<AIEvaluationFeedback> feedback(String productId) {
+        return feedbackRepository.findByProduct(require(productId).id());
+    }
+
+    /** 处置反馈：CONSUMED（已吸收进版本改进）/ DISMISSED（驳回）。只改状态——
+     * 候选不自动上线，新版本与语料变更均由人工触发。 */
+    public AIEvaluationFeedback resolveFeedback(String feedbackId, boolean consume, String resolution) {
+        var feedback = feedbackRepository.findById(feedbackId)
+                .orElseThrow(() -> new ResourceNotFoundException("未找到反馈：" + feedbackId));
+        if (!AIEvaluationFeedback.STATUS_CREATED.equals(feedback.status())) {
+            throw new ConflictException("该反馈已处置：" + feedback.status());
+        }
+        var scope = tenantScope.current();
+        var updated = feedbackRepository.resolve(feedbackId,
+                consume ? AIEvaluationFeedback.STATUS_CONSUMED : AIEvaluationFeedback.STATUS_DISMISSED,
+                resolution, scope.subject(), Instant.now());
+        if (updated == 0) {
+            throw new ConflictException("反馈处置未生效，请刷新重试");
+        }
+        return feedbackRepository.findById(feedbackId).orElseThrow();
+    }
+
+    /** 工作台概览（G12 Dashboard 首批指标，聚合自现有表）。 */
+    public java.util.Map<String, Object> overview() {
+        var scope = tenantScope.resolve(null, null);
+        var products = repository.findAll(scope.tenantId());
+        int certified = 0;
+        double overallSum = 0;
+        int assessed = 0;
+        double latestMrr = 0;
+        int servingCount = 0;
+        for (var product : products) {
+            if (product.lifecycle() == AIDataProductLifecycle.CERTIFIED) certified++;
+            if (product.lifecycle() == AIDataProductLifecycle.SERVING) servingCount++;
+            var version = repository.findVersions(product.id()).stream()
+                    .filter(item -> item.versionSn().equals(product.currentVersion()))
+                    .findFirst().orElse(null);
+            if (version != null && version.readinessJson() != null && !version.readinessJson().isBlank()) {
+                var snapshot = AICertificationRepository.snapshotOf(version.readinessJson());
+                if (snapshot != null) {
+                    overallSum += snapshot.overall();
+                    assessed++;
+                }
+                try {
+                    var root = new com.fasterxml.jackson.databind.ObjectMapper()
+                            .readTree(version.readinessJson());
+                    if (root.has("evaluation") && root.path("evaluation").has("mrr")) {
+                        latestMrr = root.path("evaluation").path("mrr").asDouble(latestMrr);
+                    }
+                } catch (com.fasterxml.jackson.core.JsonProcessingException ignored) {
+                    // 概览对单条脏数据零容忍：跳过
+                }
+            }
+        }
+        return java.util.Map.of(
+                "products", products.size(),
+                "certified", certified,
+                "serving", servingCount,
+                "averageOverall", assessed == 0 ? 0.0 : Math.round(overallSum / assessed * 10000) / 10000.0,
+                "latestMrr", latestMrr,
+                "openFeedback", feedbackRepository.countOpen());
     }
 
     /** 登记新版本（G9 build 消费；唯一性由 (product_id, version_sn) 约束保证）。 */
