@@ -79,6 +79,8 @@ public class OidcSecurityConfiguration {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/actuator/health/**", "/actuator/prometheus", "/healthz", "/error").permitAll()
+                        // G13 执行面内部端点：仅服务 token（audience=data-os 的 Keycloak client）
+                        .requestMatchers("/internal/data-api/**").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/v1/auth/me").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/v1/system/status").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/v1/platform-operations/**")
@@ -103,6 +105,10 @@ public class OidcSecurityConfiguration {
                                 "/api/v1/ai-data-products/feedback/*/resolve")
                         .hasAnyRole("platform-admin", "tenant-admin")
                         .requestMatchers("/api/v1/ai-data-products/**")
+                        .hasAnyRole("platform-admin", "tenant-admin", "data-engineer")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/data-services/**")
+                        .hasAnyRole("platform-admin", "tenant-admin", "data-engineer", "data-governance", "data-analyst", "viewer")
+                        .requestMatchers("/api/v1/data-services/**")
                         .hasAnyRole("platform-admin", "tenant-admin", "data-engineer")
                         .requestMatchers(HttpMethod.POST, "/api/v1/analytics/guest-token")
                         .hasAnyRole("platform-admin", "tenant-admin", "data-engineer", "data-governance", "data-analyst", "viewer")
