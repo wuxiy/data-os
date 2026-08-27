@@ -33,6 +33,8 @@ const FIELD_LABELS: Record<string, string> = {
   name: '姓名',
   gender: '性别',
   contact: '联系方式',
+  // G14 影子评分：valueA=分数(bit)、valueB=V2 三态；「一致/不一致」= V2 与规则层结论是否一致。
+  v2Score: 'V2 影子评分',
 }
 
 interface EvidenceItem {

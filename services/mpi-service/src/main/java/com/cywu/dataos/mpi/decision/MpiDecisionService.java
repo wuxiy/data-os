@@ -3,19 +3,22 @@ package com.cywu.dataos.mpi.decision;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.ToDoubleFunction;
 
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 import com.cywu.dataos.mpi.audit.MpiAuditService;
 import com.cywu.dataos.mpi.matcher.MpiRuleMatcher;
+import com.cywu.dataos.mpi.matcher.MpiScoreMatcher;
+import com.cywu.dataos.mpi.matcher.MpiWeights;
 import com.cywu.dataos.mpi.person.MpiPersonService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -112,6 +115,11 @@ public class MpiDecisionService {
         int noMatch = 0;
         int hard = 0;
         var matcher = new MpiRuleMatcher();
+        // G14 影子评分：决策权仍在规则层（评测结论：加性 FS 自动化率低于合取
+        // 规则，见 docs/validation/gate-mpi-g14-*.md）；V2 分数与三态作为证据
+        // 落库，供复核排序与后续策略裁决，不改变本表 outcome。
+        var scoreMatcher = new MpiScoreMatcher(
+                MpiWeights.packaged().withNameUFrequency(loadNameFrequency(tenantId)));
         for (var pair : pairs) {
             MpiRuleMatcher.RuleDecision decision;
             if (audit.rejectedAsDifferentPerson(tenantId, pair.pairId())) {
@@ -127,6 +135,13 @@ public class MpiDecisionService {
             } else {
                 decision = matcher.evaluate(pair.toAttributes());
             }
+            var shadow = scoreMatcher.evaluate(new MpiScoreMatcher.ScorePair(
+                    pair.cardA(), pair.nameA(), pair.genderA(), pair.contactHashA(),
+                    pair.cardB(), pair.nameB(), pair.genderB(), pair.contactHashB()));
+            List<MpiRuleMatcher.EvidenceItem> evidence = new ArrayList<>(decision.evidence());
+            evidence.add(new MpiRuleMatcher.EvidenceItem("v2Score",
+                    String.valueOf(shadow.score()), shadow.outcome().name(),
+                    shadow.outcome() == decision.outcome()));
             switch (decision.outcome()) {
                 case AUTO_MATCH -> {
                     auto++;
@@ -146,12 +161,34 @@ public class MpiDecisionService {
             }
             resultBatch.add(new Object[] {pair.pairId(), tenantId, pair.identityA(), pair.identityB(),
                     decision.ruleId(), MpiRuleMatcher.RULE_VERSION,
-                    decision.outcome().name(), writeEvidence(decision.evidence()), now});
+                    decision.outcome().name(), writeEvidence(evidence), now});
         }
         if (!resultBatch.isEmpty()) {
             doris.batchUpdate(INSERT_RESULT, resultBatch);
         }
         return new DecisionStats(auto, review, noMatch, hard);
+    }
+
+    /** 姓名频率 u 细化（运行时从身份表实时计算；未见姓名退回全局 u）。 */
+    private ToDoubleFunction<String> loadNameFrequency(String tenantId) {
+        var counts = new HashMap<String, Double>();
+        long[] total = {0};
+        doris.query("""
+                SELECT name_norm, COUNT(*) FROM dataos_mpi.mpi_source_identity
+                WHERE tenant_id = ? AND name_norm IS NOT NULL AND name_norm <> ''
+                GROUP BY name_norm
+                """, (rs, row) -> {
+            counts.put(rs.getString(1), (double) rs.getLong(2));
+            total[0] += rs.getLong(2);
+            return null;
+        }, tenantId);
+        if (total[0] == 0) {
+            return name -> MpiWeights.packaged().name().uAgree();
+        }
+        double denominator = total[0];
+        double fallback = counts.values().stream().mapToDouble(Double::doubleValue).average()
+                .orElse(MpiWeights.packaged().name().uAgree()) / denominator;
+        return name -> counts.getOrDefault(name, fallback) / denominator;
     }
 
     private String writeEvidence(Object evidence) {
