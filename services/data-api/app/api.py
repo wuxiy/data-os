@@ -25,7 +25,7 @@ def bind(control_plane: ControlPlaneClient, settings: Any) -> None:
 
 
 class QueryRequest(BaseModel):
-    parameters: dict[str, str] = Field(default_factory=dict)
+    parameters: dict[str, Any] = Field(default_factory=dict)
 
 
 class Context:

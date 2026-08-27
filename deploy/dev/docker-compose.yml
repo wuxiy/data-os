@@ -151,6 +151,30 @@ services:
       - platform-net
     restart: unless-stopped
 
+  data-api:
+    # G13 ToB 数据 API 网关：无库，registry 回源控制面（OIDC client dataos-data-api）；
+    # Doris 只读专用账号 dataos_api_ro；30s registry 缓存，配额与审计归控制面。
+    build:
+      context: ../..
+      dockerfile: services/data-api/Dockerfile
+    image: ${DATAOS_DATA_API_IMAGE:-medical-platform/data-os-data-api:0.1.0-dev}
+    environment:
+      CONTROL_PLANE_BASE_URL: http://control-plane:8080
+      # dev：control-plane 为 AUTH_MODE=DISABLED，/internal/** 直通——用静态内部令牌满足
+      # 启动校验即可；生产切 ENFORCED 后改配 OIDC client dataos-data-api（S7 模式）
+      DATA_API_INTERNAL_TOKEN: ${DATAOS_DATA_API_INTERNAL_TOKEN:-dev-internal-data-api}
+      DATA_API_OIDC_TOKEN_URI: http://keycloak:8080/auth/realms/data-platform/protocol/openid-connect/token
+      DATA_API_OIDC_CLIENT_ID: ${DATAOS_DATA_API_OIDC_CLIENT_ID:-}
+      DATA_API_OIDC_CLIENT_SECRET: ${DATAOS_DATA_API_CLIENT_SECRET:-}
+      DORIS_HOST: ${DATAOS_DATA_API_DORIS_FE_HOST:-172.16.66.8}
+      DORIS_PORT: "9030"
+      DORIS_USER: dataos_api_ro
+      DORIS_PASSWORD: ${DORIS_API_PASSWORD:?请在远程 .env 中提供 DORIS_API_PASSWORD}
+      REGISTRY_TTL_S: "30"
+    networks:
+      - platform-net
+    restart: unless-stopped
+
   rustfs-init:
     # Reuse the quality-runner Python image for a one-shot, idempotent bucket
     # bootstrap. No MinIO client or additional runtime is introduced.
