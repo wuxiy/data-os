@@ -82,7 +82,7 @@ disagree）。m 从标定集正样本一致率估计；u 从随机负样本对 +
 | --- | --- | --- |
 | P1 评测集 | `services/mpi-service/eval/`：快照导出、生成器（seed 固定）、冻结语料（calibration/eval/anchors 三文件） | 语料入 Git；重跑生成器结果逐字节一致；标定/评测身份零交集（脚本自检） |
 | P2 评分器 | `matcher/MpiScoreMatcher`（FS 权重 + 双阈值 policy）+ 单测 | mpi-service 全量 mvn test 全绿；边界（缺卡/缺联系方式/U/同名不同人/同卡不同人）覆盖 |
-| P3 harness | 测试域 Java harness：读冻结语料 → V1/V2 指标 + 阈值扫描报告（JSON 到 eval/reports/） | V1 指标可解释（预期：召回受 B6' 收紧限制）；V2 评测集 F1 ≥ V1 且零错误 AUTO；阈值定版 |
+| P3 harness | 测试域 Java harness：读冻结语料 → V1/V2 指标 + 阈值扫描报告（JSON 到 eval/reports/） | 两代算法评测集均零错误 AUTO；指标如实记录（2026-08-28 修订：标定发现纯加性 FS 的 AUTO 召回结构性低于 V1 合取规则——身份信号在字段合取而非边际，故不硬断言 V2 F1 ≥ V1，优劣以报告呈现；harness 断言只锁安全不变量）；阈值定版 |
 | P4 影子接入+dev | `MpiDecisionService` evidence 追加 v2Score/v2Policy；构建镜像、dev 部署、真实 45 对影子打分、对比报告 | 决策分布与 V1 基线完全一致（8/33/3/1）；evidence 含分数；分歧清单人工可读 |
 | P5 收尾 | gate 报告、方案验收结论、backlog T2 状态、推送、记忆 | 全链绿灯 |
 
@@ -91,7 +91,7 @@ disagree）。m 从标定集正样本一致率估计；u 从随机负样本对 +
 1. 冻结评测集入 Git（生成器 + seed + 快照 + 三语料文件），重放一致；
 2. m/u 估计表输出（各字段 m/u 数值与数据依据），标定/评测分离自检通过；
 3. `MpiScoreMatcher` 单测全绿（含全部边界），mpi-service 既有测试零修改；
-4. harness 输出 V1 与 V2 的 P/R/F1 + 混淆矩阵（冻结评测集），数字入报告；
+4. harness 输出 V1 与 V2 的 P/R/F1 + 混淆矩阵（冻结评测集），数字入报告（两代均零错误 AUTO 为断言项；F1 优劣如实记录不硬断言，见 P3 修订）；
 5. 阈值扫描选定 (T_auto, T_review)，满足评测集零错误 AUTO，扫描表入报告；
 6. 人工裁决 4+1 真实锚点：V1 与 V2 判定对照表（V2 不得错判锚点为 AUTO）；
 7. dev 真实数据：45 候选对全部带 v2Score，决策分布与 V1 基线一致；

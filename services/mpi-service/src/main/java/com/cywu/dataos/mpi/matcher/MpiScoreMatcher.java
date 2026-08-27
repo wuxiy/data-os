@@ -65,16 +65,7 @@ public final class MpiScoreMatcher {
     }
 
     private FieldScore nameScore(String a, String b) {
-        Level level;
-        if (a == null || a.isBlank() || b == null || b.isBlank()) {
-            level = Level.MISSING;
-        } else if (a.equals(b)) {
-            level = Level.AGREE;
-        } else if (JaroWinkler.isVariant(a, b)) {
-            level = Level.VARIANT;
-        } else {
-            level = Level.DISAGREE;
-        }
+        Level level = nameLevel(a, b);
         if (level == Level.AGREE || level == Level.VARIANT) {
             // 姓名频率细化：u 随具体姓名取值（322 姓名池，常用名证据更弱）。
             double u = weights.uNameOf(a);
@@ -85,13 +76,20 @@ public final class MpiScoreMatcher {
         return fieldScore("name", level, weights.name());
     }
 
+    /** 姓名比较级：缺失 / 精确一致 / JW 变体 / 不一致（harness 标定复用）。 */
+    static Level nameLevel(String a, String b) {
+        if (a == null || a.isBlank() || b == null || b.isBlank()) return Level.MISSING;
+        if (a.equals(b)) return Level.AGREE;
+        return JaroWinkler.isVariant(a, b) ? Level.VARIANT : Level.DISAGREE;
+    }
+
     /** 缺失感知比较：一侧空 = MISSING；双侧非空相等 = AGREE；否则 DISAGREE。 */
-    private static Level level(String a, String b) {
+    static Level level(String a, String b) {
         if (a == null || b == null) return Level.MISSING;
         return a.equals(b) ? Level.AGREE : Level.DISAGREE;
     }
 
-    private static Level genderLevel(String a, String b) {
+    static Level genderLevel(String a, String b) {
         if (a == null || b == null || "U".equals(a) || "U".equals(b)) return Level.MISSING;
         return a.equals(b) ? Level.AGREE : Level.DISAGREE;
     }

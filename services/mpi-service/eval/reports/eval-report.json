@@ -1,0 +1,79 @@
+{
+  "corpus" : "eval/corpus/evalset.jsonl (seed 20260828)",
+  "v1" : {
+    "engine" : "V1 规则",
+    "autoTp" : 314,
+    "autoFalse" : 0,
+    "matchSentToReview" : 403,
+    "matchLostNoMatch" : 0,
+    "nonMatchSentToReview" : 1027,
+    "nonMatchNoMatch" : 398,
+    "autoPrecision" : 1.0,
+    "autoRecall" : 0.44,
+    "f1" : 0.61
+  },
+  "v2" : {
+    "engine" : "V2 评分",
+    "autoTp" : 12,
+    "autoFalse" : 0,
+    "matchSentToReview" : 700,
+    "matchLostNoMatch" : 5,
+    "nonMatchSentToReview" : 226,
+    "nonMatchNoMatch" : 1199,
+    "autoPrecision" : 1.0,
+    "autoRecall" : 0.02,
+    "f1" : 0.03
+  },
+  "positivesBlockingReachable" : 522,
+  "positives" : 717,
+  "anchors" : [ {
+    "id" : "anchor--7038355502812523134",
+    "human" : "DIFFERENT_PERSON",
+    "v1" : "REVIEW",
+    "v2" : "NO_MATCH"
+  }, {
+    "id" : "anchor-1229825018448571591",
+    "human" : "SAME_PERSON",
+    "v1" : "REVIEW",
+    "v2" : "REVIEW"
+  }, {
+    "id" : "anchor-1702694137377099771",
+    "human" : "DIFFERENT_PERSON",
+    "v1" : "REVIEW",
+    "v2" : "NO_MATCH"
+  }, {
+    "id" : "anchor-4606071343511278169",
+    "human" : "SAME_PERSON",
+    "v1" : "REVIEW",
+    "v2" : "REVIEW"
+  } ],
+  "thresholds" : {
+    "tAuto" : 16.54,
+    "tReview" : 0.62
+  },
+  "tAutoSensitivity" : [ {
+    "allowedFalseAuto" : 0,
+    "tAuto" : 16.54,
+    "matchAuto" : 12,
+    "matchReview" : 700,
+    "autoRecall" : 0.02
+  }, {
+    "allowedFalseAuto" : 1,
+    "tAuto" : 15.89,
+    "matchAuto" : 67,
+    "matchReview" : 645,
+    "autoRecall" : 0.09
+  }, {
+    "allowedFalseAuto" : 2,
+    "tAuto" : 10.91,
+    "matchAuto" : 128,
+    "matchReview" : 584,
+    "autoRecall" : 0.18
+  }, {
+    "allowedFalseAuto" : 5,
+    "tAuto" : 10.91,
+    "matchAuto" : 128,
+    "matchReview" : 584,
+    "autoRecall" : 0.18
+  } ]
+}

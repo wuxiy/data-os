@@ -25,18 +25,21 @@ public record MpiWeights(FieldWeights card, FieldWeights name, FieldWeights gend
     }
 
     /**
-     * 打包权重。下方数值在 P2 为占位值——P3 标定后由 harness 断言锁定
-     * （MpiScoreMatcherTests 重估语料并断言逐值相等，占位值会被测试拦下）。
-     * 阈值 T_AUTO / T_REVIEW 同理由 P3 阈值扫描定版：约束 = 评测集零错误
-     * AUTO 下最大化 F1。
+     * 打包权重（2026-08-28 标定定版）：m/u 逐比较级估计自冻结标定集
+     * （决策层配比：卡复用 0.60 / 同名孪生 0.12 / 随机对 0.28——锚定真实
+     * 45 候选中 B4 占 93% 的构成）。T_AUTO = 零错误 AUTO 约束（max 非同人
+     * 分 + 0.01）；T_REVIEW = 同人分数第 1 百分位（复核安全网）。
+     * 标定结论（gate 报告详述）：决策层总体上卡号无边际区分度（m≈u），
+     * 身份信号在字段合取——纯加性 FS 的 AUTO 召回结构性低于 V1 合取规则，
+     * V2 价值在复核排序/负担削减/可解释，决策权保持 V1（影子模式）。
      */
     public static MpiWeights packaged() {
         return new MpiWeights(
-                new FieldWeights(0.55, 0.30, 0.20, 0.48, 0.25, 0.22),
-                new FieldWeights(1.00, 0.40, 0.00, 0.28, 0.00, 0.10),
-                new FieldWeights(0.92, 0.50, 0.00, 0.50, 0.08, 0.00),
-                new FieldWeights(0.50, 0.03, 0.30, 0.55, 0.20, 0.42),
-                10.0, 2.0,
+                new FieldWeights(0.5265, 0.5965, 0.3673, 0.3656, 0.1061, 0.0379),
+                new FieldWeights(1.0000, 0.1249, 0.0000, 0.7453, 0.0000, 0.0000),
+                new FieldWeights(0.8366, 0.5277, 0.0000, 0.3116, 0.1634, 0.1607),
+                new FieldWeights(0.5028, 0.0084, 0.3953, 0.9081, 0.1020, 0.0835),
+                16.54, 0.62,
                 null);
     }
 
