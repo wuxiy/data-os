@@ -31,7 +31,7 @@
 | --- | --- | --- | --- |
 | P1 | MiNiFi 生产化三收敛：部署完全脚本化、黑盒监控（位点滞后 / 桶断流 / 队列深度告警，补静默失败）、版本冻结 | G5 复盘结论：架构选型对、实现体验差；保留但设条件 | 生产化批 |
 | P2 | OM 摄取 / dbt 摄取 / 声明式血缘登记编排进控制面「外部运行」统一状态机（现为脚本触发） | G1 延后项，G6/G7 沿用脚本（om-ingest-doris-assets.sh 等） | 生产化批 |
-| P3 | OM 实例缺陷跟踪：testDefinitions 端点损坏（GET/POST 500，内置定义 0 条）、`/system/config/health` 500；OM ≥1.6 升级评估（解锁 TestCase/DataModel，registrar 已留档待启用） | G7 偏差实录 | 生产化批 |
+| P3 | OM 实例缺陷跟踪（证据累积）：① testDefinitions 端点损坏（GET/POST 500）；② `/system/config/health` 500；③ glossaryTerms 按 glossary id 引用解析失败（POST 报 glossary instance not found）+ PATCH 405（G11 OM 回写 term 受阻）；OM ≥1.6 升级评估优先级上调 | G7/G11 偏差实录 | 生产化批 |
 | P4 | 遗留服务 `doris-medical` 的 root 连接收敛（data-ops 遗留资产处置） | G1 延后项 | 生产化批 |
 | P5 | 断网缓冲容量上限与中转桶生命周期策略（演示验证至 10 分钟缩比，未测长时间大缓冲与桶清理） | G5 L2 缩比口径 | 生产化批 |
 
@@ -48,3 +48,4 @@
 
 - 2026-08-22：建立台账，归口 G1-G7 各验收报告延后项为首批条目（S1-S6 / P1-P5 / T1-T4）。
 - 2026-08-27：G9 交付新增 S7（ai-ready 服务间认证切 OIDC）；无其他新增。
+- 2026-08-27（G11）：P3 OM 实例缺陷证据增补（glossaryTerms 引用解析/端点面），升级评估优先级上调。
