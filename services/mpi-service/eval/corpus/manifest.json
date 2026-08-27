@@ -1,0 +1,54 @@
+{
+  "seed": 20260828,
+  "perturbation": {
+    "card": {
+      "agree": 0.55,
+      "missing": 0.25,
+      "disagree": 0.2
+    },
+    "contact": {
+      "agree": 0.5,
+      "missing": 0.2,
+      "disagree": 0.3
+    },
+    "genderU": 0.08
+  },
+  "negativeMix": {
+    "same-name-hard": 0.4,
+    "card-reuse": 0.3,
+    "random": 0.3
+  },
+  "negativesPerPositive": 2.0,
+  "counts": {
+    "calibration": {
+      "total": 2144,
+      "labels": {
+        "MATCH": 716,
+        "NON_MATCH": 1428
+      },
+      "kinds": {
+        "synthetic-variant": 716,
+        "same-name-hard": 558,
+        "card-reuse": 427,
+        "random": 443
+      },
+      "positivesBlockingReachable": 529,
+      "positives": 716
+    },
+    "eval": {
+      "total": 2146,
+      "labels": {
+        "MATCH": 717,
+        "NON_MATCH": 1429
+      },
+      "kinds": {
+        "synthetic-variant": 717,
+        "same-name-hard": 563,
+        "card-reuse": 425,
+        "random": 441
+      },
+      "positivesBlockingReachable": 558,
+      "positives": 717
+    }
+  }
+}
