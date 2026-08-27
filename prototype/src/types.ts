@@ -10,6 +10,7 @@ export type RouteKey =
   | 'assetTechnical'
   | 'analytics'
   | 'aiData'
+  | 'dataServices'
   | 'assistant'
   | 'assistantWorkspace'
   | 'operations'

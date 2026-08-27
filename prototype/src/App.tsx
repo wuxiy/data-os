@@ -9,6 +9,7 @@ import { DataStandardsPage } from './pages/DataStandardsPage'
 import { DataIngestionPage } from './pages/DataIngestionPage'
 import { AnalyticsPage } from './pages/AnalyticsPage'
 import { AIDataPage } from './pages/AIDataPage'
+import { DataServicesPage } from './pages/DataServicesPage'
 import { AssetCatalogPage } from './pages/AssetCatalogPage'
 import { AssetTechnicalPage } from './pages/AssetTechnicalPage'
 import { AssistantPage } from './pages/AssistantPage'
@@ -117,6 +118,9 @@ export function App() {
       break
     case 'aiData':
       page = <AIDataPage onNotice={setNotice} />
+      break
+    case 'dataServices':
+      page = <DataServicesPage onNotice={setNotice} />
       break
     case 'assistant':
       page = <AssistantPage onNotice={setNotice} onNavigate={navigate} />

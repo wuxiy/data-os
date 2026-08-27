@@ -37,7 +37,7 @@ const navItems: NavItem[] = [
   { label: '数据资产', icon: Database, route: 'assets' },
   { label: '数据治理', icon: Landmark, route: 'governance', governanceGroup: true },
   { label: '主索引与主数据', icon: Fingerprint, route: 'mpi' },
-  { label: '数据服务', icon: Boxes },
+  { label: '数据服务', icon: Boxes, route: 'dataServices' },
   { label: '分析看板', icon: ChartNoAxesCombined, route: 'analytics' },
   { label: 'AI Data', icon: BrainCircuit, route: 'aiData' },
   { label: '智能问数', icon: MessageSquareText, route: 'assistant' },
