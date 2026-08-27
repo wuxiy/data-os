@@ -7,6 +7,9 @@ from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, Field
 
 from engine import Engine
+from evaluation import evaluate_corpus
+from adapters import DorisAdapter
+from settings import settings
 from security import Authenticator
 
 router = APIRouter()
@@ -32,6 +35,26 @@ def assess(request: AssessRequest, authorization: str | None = Header(default=No
     _authenticator.require(authorization)
     report = _engine.assess(request.product, request.version, request.profile)
     return report.model_dump(by_alias=True)
+
+
+class EvaluateRequest(BaseModel):
+    product: str = Field(min_length=1)
+    version: str = Field(default="v0.1.0")
+
+
+@router.post("/evaluate")
+def evaluate(request: EvaluateRequest, authorization: str | None = Header(default=None)) -> dict:
+    _authenticator.require(authorization)
+    rows = DorisAdapter(settings).query(
+        "SELECT chunk_id, document_id, section, content FROM data_os_ai.chunks", ())
+    chunks = [
+        {"chunk_id": row[0], "document_id": row[1], "section": row[2] or "", "content": row[3]}
+        for row in rows
+    ]
+    report = evaluate_corpus(chunks, __import__("pathlib").Path(
+        __import__("os").environ.get("AI_DATA_DIR", "/opt/dataos/ai-data")) / "eval/medical-rag-evalset.jsonl")
+    report = {"product": request.product, "version": request.version, **report}
+    return report
 
 
 @router.get("/readiness")

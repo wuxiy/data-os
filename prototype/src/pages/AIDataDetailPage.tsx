@@ -2,13 +2,26 @@ import { useEffect, useState } from 'react'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Button, StatusTag } from '../components/ui/Primitives'
 import {
+  decideCertification,
   fetchAIDataProduct,
+  fetchCertificationRequests,
+  submitCertification,
   lifecycleLabel,
   nextLifecycleTarget,
   productTypeLabel,
+  type AICertificationRequest,
   type AIDataProductDetail,
 } from '../data/aiDataApi'
 import styles from './IntegrationPages.module.css'
+
+interface Props {
+  productId: string
+  onNotice: (message: string) => void
+  onAdvance: () => void
+  onDeprecate: () => void
+  onBuild: () => void
+  onChanged?: () => void
+}
 
 function readinessOf(version: { readinessJson: string | null }): { overall: number; certification: string } | null {
   if (!version.readinessJson) return null
@@ -22,23 +35,23 @@ function readinessOf(version: { readinessJson: string | null }): { overall: numb
 }
 
 /** AI Data Product 详情（G8/G9）：版本历史 + 生命周期操作 + build 守护提示。 */
-export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, onBuild }: {
-  productId: string
-  onNotice: (message: string) => void
-  onAdvance: () => void
-  onDeprecate: () => void
-  onBuild: () => void
-}) {
+export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, onBuild, onChanged }: Props) {
   const [detail, setDetail] = useState<AIDataProductDetail | null>(null)
+  const [certifications, setCertifications] = useState<AICertificationRequest[]>([])
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading')
 
   useEffect(() => {
     const controller = new AbortController()
     setState('loading')
     setDetail(null)
-    fetchAIDataProduct(productId, controller.signal)
-      .then((response) => {
+    setCertifications([])
+    Promise.all([
+      fetchAIDataProduct(productId, controller.signal),
+      fetchCertificationRequests(productId, controller.signal).catch(() => []),
+    ])
+      .then(([response, requests]) => {
         setDetail(response)
+        setCertifications(requests)
         setState('ready')
       })
       .catch(() => {
@@ -47,6 +60,26 @@ export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, 
       })
     return () => controller.abort()
   }, [productId])
+
+  async function handleSubmitCertification() {
+    try {
+      await submitCertification(productId)
+      onNotice('认证审批已提交（等待审批）')
+      onChanged?.()
+    } catch (error) {
+      onNotice(error instanceof Error ? error.message : '提交失败')
+    }
+  }
+
+  async function handleDecision(request: AICertificationRequest, approve: boolean) {
+    try {
+      await decideCertification(request.id, approve, approve ? '同意认证' : '退回：证据不足')
+      onNotice(approve ? '已批准，产品进入「已认证」' : '已退回，保持「已评估」')
+      onChanged?.()
+    } catch (error) {
+      onNotice(error instanceof Error ? error.message : '审批失败')
+    }
+  }
 
   if (state === 'loading' || state === 'error' || !detail) {
     return (
@@ -78,6 +111,9 @@ export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, 
         <div className={styles.toolbarActions}>
           {nextTarget ? (
             <Button onClick={onAdvance}>推进到「{lifecycleLabel[nextTarget]}」</Button>
+          ) : null}
+          {product.lifecycle === 'ASSESSED' ? (
+            <Button onClick={() => void handleSubmitCertification()}>提交认证审批</Button>
           ) : null}
           {product.lifecycle !== 'DEPRECATED' ? (
             <Button onClick={onDeprecate}>弃用</Button>
@@ -129,6 +165,73 @@ export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, 
             </table>
           </div>
         </section>
+
+        {(() => {
+          const evaluation = (() => {
+            if (!detail) return null
+            const version = detail.versions.find((item) => item.versionSn === product.currentVersion)
+            if (!version?.readinessJson) return null
+            try {
+              const payload = JSON.parse(version.readinessJson) as { evaluation?: Record<string, number> }
+              return payload.evaluation ?? null
+            } catch {
+              return null
+            }
+          })()
+          if (!evaluation) return null
+          return (
+            <section className={styles.contentPanel}>
+              <div className={styles.contentPanelHeader}>
+                <h3>评测指标（RAG Eval · 合成评测集）</h3>
+                <span>评测集 {evaluation.eval_set_size ?? evaluation.evalSetSize ?? '—'} 问</span>
+              </div>
+              <div className={styles.lineageImpact}>
+                <div className={styles.impactItem}><span>Recall@5</span><strong>{Number(evaluation.retrieval_recall_at_5 ?? evaluation.retrievalRecallAt5 ?? 0).toFixed(2)}</strong></div>
+                <div className={styles.impactItem}><span>Precision@5</span><strong>{Number(evaluation.precision_at_5 ?? evaluation.precisionAt5 ?? 0).toFixed(2)}</strong></div>
+                <div className={styles.impactItem}><span>MRR</span><strong>{Number(evaluation.mrr ?? 0).toFixed(2)}</strong></div>
+                <div className={styles.impactItem}><span>引用正确率</span><strong>{Number(evaluation.citation_correctness ?? evaluation.citationCorrectness ?? 0).toFixed(2)}</strong></div>
+                <div className={styles.impactItem}><span>忠实度</span><strong>{Number(evaluation.faithfulness ?? 0).toFixed(2)}</strong></div>
+              </div>
+            </section>
+          )
+        })()}
+
+        {certifications.length > 0 ? (
+          <section className={styles.contentPanel}>
+            <div className={styles.contentPanelHeader}>
+              <h3>认证审批</h3>
+              <span>{certifications.length} 条记录 · CERTIFIED 仅可经审批流转</span>
+            </div>
+            <div className={styles.horizontalScroll}>
+              <table className={styles.fieldTable}>
+                <thead><tr><th>版本</th><th>就绪度</th><th>状态</th><th>提交人</th><th>审批人</th><th>操作</th></tr></thead>
+                <tbody>
+                  {certifications.map((request) => (
+                    <tr key={request.id}>
+                      <td>{request.versionSn}</td>
+                      <td>{request.readinessOverall?.toFixed?.(2) ?? '—'}</td>
+                      <td>
+                        <StatusTag tone={request.decision === 'APPROVED' ? 'healthy' : request.decision === 'REJECTED' ? 'danger' : 'warning'}>
+                          {request.decision === 'PENDING' ? '待审批' : request.decision === 'APPROVED' ? '已批准' : '已退回'}
+                        </StatusTag>
+                      </td>
+                      <td>{request.requestedBy}</td>
+                      <td>{request.decidedBy ?? '—'}</td>
+                      <td>
+                        {request.decision === 'PENDING' ? (
+                          <span className={styles.toolbarActions}>
+                            <Button onClick={() => void handleDecision(request, true)}>批准</Button>
+                            <Button onClick={() => void handleDecision(request, false)}>退回</Button>
+                          </span>
+                        ) : (request.decisionNote ?? '—')}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        ) : null}
 
         <section className={styles.technicalNotice} role="status">
           <StatusTag tone="warning">评估引擎</StatusTag>

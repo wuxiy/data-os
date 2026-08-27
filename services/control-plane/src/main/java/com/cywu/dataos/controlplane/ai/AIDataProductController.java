@@ -65,7 +65,35 @@ public class AIDataProductController {
                 "assessedAt", assessment.assessedAt());
     }
 
+    @PostMapping("/{id}/certification-requests")
+    public ResponseEntity<AICertificationRequest> submitCertification(@PathVariable String id) {
+        var request = service.submitCertification(id);
+        return ResponseEntity
+                .created(URI.create("/api/v1/ai-data-products/" + id + "/certification-requests/" + request.id()))
+                .body(request);
+    }
+
+    @GetMapping("/{id}/certification-requests")
+    public java.util.List<AICertificationRequest> certificationHistory(@PathVariable String id) {
+        return service.certificationHistory(id);
+    }
+
+    @PostMapping("/certification-requests/{requestId}/decision")
+    public Object decideCertification(@PathVariable String requestId,
+                                       @RequestBody CertificationDecisionRequest request) {
+        var product = service.decideCertification(requestId, request.approve(), request.note());
+        return java.util.Map.of("productId", product.id(), "lifecycle", product.lifecycle().name());
+    }
+
+    @PostMapping("/{id}/evaluate")
+    public Object evaluate(@PathVariable String id) {
+        return service.evaluate(id);
+    }
+
     public record AIDataProductListResponse(List<AIDataProduct> items, int total) {
+    }
+
+    public record CertificationDecisionRequest(boolean approve, String note) {
     }
 
     public record LifecycleTransitionRequest(String target) {

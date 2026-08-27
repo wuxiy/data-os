@@ -10,4 +10,7 @@ public interface AIReadyEnginePort {
 
     /** 对指定产品的当前版本执行就绪度评估，返回结论投影（含完整报告）。 */
     AIReadyAssessment build(AIDataProduct product, String recipeRef);
+
+    /** 对当前版本语料执行 RAG 评测（G11），返回五指标报告。 */
+    java.util.Map<String, Object> evaluate(AIDataProduct product);
 }

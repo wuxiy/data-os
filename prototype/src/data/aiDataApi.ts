@@ -133,6 +133,67 @@ export async function transitionAIDataProduct(id: string, target: AIDataProductL
   ) as Promise<AIDataProduct>
 }
 
+/** RAG 评测报告（G11：五指标）。 */
+export interface AIReadyEvaluationReport {
+  product: string
+  version: string
+  evalSetSize: number
+  retrievalRecallAt5: number
+  precisionAt5: number
+  mrr: number
+  citationCorrectness: number
+  faithfulness: number
+}
+
+export interface AICertificationRequest {
+  id: string
+  productId: string
+  versionSn: string
+  readinessOverall: number
+  certification: string
+  decision: 'PENDING' | 'APPROVED' | 'REJECTED'
+  decisionNote: string | null
+  requestedBy: string
+  decidedBy: string | null
+  decidedAt: string | null
+  createdAt: string
+}
+
+export async function fetchCertificationRequests(id: string, signal?: AbortSignal): Promise<AICertificationRequest[]> {
+  const payload = await parseOrThrow(
+    await aiFetch(`/v1/ai-data-products/${encodeURIComponent(id)}/certification-requests`, {}, signal),
+    '认证审批历史读取失败',
+  )
+  return Array.isArray(payload) ? payload : []
+}
+
+export async function submitCertification(id: string): Promise<AICertificationRequest> {
+  return parseOrThrow(
+    await aiFetch(`/v1/ai-data-products/${encodeURIComponent(id)}/certification-requests`, {
+      method: 'POST', body: JSON.stringify({}),
+    }),
+    '认证审批提交失败',
+  ) as Promise<AICertificationRequest>
+}
+
+export async function decideCertification(requestId: string, approve: boolean, note: string): Promise<{ productId: string; lifecycle: string }> {
+  return parseOrThrow(
+    await aiFetch(`/v1/ai-data-products/certification-requests/${encodeURIComponent(requestId)}/decision`, {
+      method: 'POST', body: JSON.stringify({ approve, note }),
+    }),
+    '审批失败',
+  ) as Promise<{ productId: string; lifecycle: string }>
+}
+
+export async function evaluateAIDataProduct(id: string): Promise<AIReadyEvaluationReport> {
+  return parseOrThrow(
+    await aiFetch(`/v1/ai-data-products/${encodeURIComponent(id)}/evaluate`, {
+      method: 'POST', body: JSON.stringify({}),
+    }),
+    '评测执行失败',
+  ) as Promise<AIReadyEvaluationReport>
+}
+
 /** build 返回评估摘要（G9：完整报告在版本 readiness_json）。 */
 export interface AIReadyBuildSummary {
   product: string

@@ -4,6 +4,7 @@ import { PageHeader } from '../components/ui/PageHeader'
 import { Button, StatusTag } from '../components/ui/Primitives'
 import {
   createAIDataProduct,
+  evaluateAIDataProduct,
   fetchAIDataProducts,
   lifecycleLabel,
   nextLifecycleTarget,
@@ -117,6 +118,17 @@ function AIDataLive({ onNotice }: { onNotice: (message: string) => void }) {
     }
   }
 
+  async function runEvaluation(product: AIDataProduct) {
+    try {
+      const report = await evaluateAIDataProduct(product.id)
+      onNotice(`评测完成：MRR ${report.mrr?.toFixed?.(2) ?? '—'} · Recall@5 ${report.retrievalRecallAt5?.toFixed?.(2) ?? '—'}（已并入版本报告）`)
+      setSelectedId(product.id)
+      refresh()
+    } catch (error) {
+      onNotice(error instanceof Error ? error.message : '评测失败')
+    }
+  }
+
   async function build(product: AIDataProduct) {
     try {
       const summary = await buildAIDataProduct(product.id)
@@ -224,6 +236,7 @@ function AIDataLive({ onNotice }: { onNotice: (message: string) => void }) {
               onAdvance={() => advance(selected)}
               onDeprecate={() => deprecate(selected)}
               onBuild={() => build(selected)}
+              onChanged={refresh}
             />
           ) : (
             <div className={styles.technicalNotice} role="status">

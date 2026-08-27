@@ -25,12 +25,16 @@ public class AIDataProductService {
     static final String BUILD_STATUS_SUCCEEDED = "SUCCEEDED";
 
     private final AIDataProductRepository repository;
+    private final AICertificationRepository certificationRepository;
     private final TenantScope tenantScope;
     private final ObjectProvider<AIReadyEnginePort> enginePort;
 
-    public AIDataProductService(AIDataProductRepository repository, TenantScope tenantScope,
+    public AIDataProductService(AIDataProductRepository repository,
+                                AICertificationRepository certificationRepository,
+                                TenantScope tenantScope,
                                 ObjectProvider<AIReadyEnginePort> enginePort) {
         this.repository = repository;
+        this.certificationRepository = certificationRepository;
         this.tenantScope = tenantScope;
         this.enginePort = enginePort;
     }
@@ -76,6 +80,10 @@ public class AIDataProductService {
     @Transactional
     public AIDataProduct transition(String id, String target) {
         var product = require(id);
+        // G11：CERTIFIED 只能经认证审批流转（架构 §27 人工审批不可绕过）
+        if ("CERTIFIED".equalsIgnoreCase(target == null ? "" : target.trim())) {
+            throw new ConflictException("认证必须经审批流转：提交 POST /ai-data-products/" + id + "/certification-requests");
+        }
         AIDataProductLifecycle next;
         try {
             next = product.lifecycle().transitionTo(parseLifecycle(target));
@@ -113,6 +121,95 @@ public class AIDataProductService {
         repository.updateVersionReadiness(product.id(), product.currentVersion(),
                 readinessJson, BUILD_STATUS_SUCCEEDED);
         return assessment;
+    }
+
+    /** 提交认证审批（G11）：当前版本须已评估且 gate=CANDIDATE。 */
+    @Transactional
+    public AICertificationRequest submitCertification(String id) {
+        var product = require(id);
+        if (certificationRepository.hasPending(product.id())) {
+            throw new ConflictException("该产品已有待审批的认证请求");
+        }
+        var version = repository.findVersions(product.id()).stream()
+                .filter(item -> item.versionSn().equals(product.currentVersion()))
+                .findFirst()
+                .orElseThrow(() -> new ConflictException("当前版本不存在：" + product.currentVersion()));
+        if (version.readinessJson() == null || version.readinessJson().isBlank()) {
+            throw new ConflictException("当前版本尚未评估：先执行 build（就绪度评估）");
+        }
+        var snapshot = AICertificationRepository.snapshotOf(version.readinessJson());
+        if (snapshot == null) {
+            throw new ConflictException("就绪度报告无法解析，请重新评估");
+        }
+        if (!"CANDIDATE".equals(snapshot.certification())) {
+            throw new ConflictException("仅 CANDIDATE（自动检查通过）可提交认证审批，当前：" + snapshot.certification());
+        }
+        var scope = tenantScope.current();
+        return certificationRepository.save(new AICertificationRequest(
+                AICertificationRepository.newId(), product.id(), product.currentVersion(),
+                snapshot.overall(), snapshot.certification(), "PENDING", null,
+                scope.subject(), null, null, Instant.now()));
+    }
+
+    /** 审批决定（G11）：APPROVED 流转 CERTIFIED；REJECTED 保持 ASSESSED 并留痕。 */
+    @Transactional
+    public AIDataProduct decideCertification(String requestId, boolean approve, String note) {
+        var request = certificationRepository.findById(requestId)
+                .orElseThrow(() -> new ResourceNotFoundException("未找到认证请求：" + requestId));
+        if (!"PENDING".equals(request.decision())) {
+            throw new ConflictException("该认证请求已处理：" + request.decision());
+        }
+        var scope = tenantScope.current();
+        var decided = certificationRepository.decide(requestId, approve ? "APPROVED" : "REJECTED",
+                note, scope.subject(), Instant.now());
+        if (decided == 0) {
+            throw new ConflictException("审批未生效（可能已被处理），请刷新");
+        }
+        if (approve) {
+            var product = require(request.productId());
+            if (product.lifecycle() != AIDataProductLifecycle.ASSESSED) {
+                throw new ConflictException("产品当前状态 " + product.lifecycle() + " 不允许进入 CERTIFIED（须为 ASSESSED）");
+            }
+            repository.updateLifecycle(product.id(), product.tenantId(),
+                    AIDataProductLifecycle.CERTIFIED, Instant.now());
+            return require(request.productId());
+        }
+        return require(request.productId());
+    }
+
+    public java.util.List<AICertificationRequest> certificationHistory(String id) {
+        var product = require(id);
+        return certificationRepository.findByProduct(product.id());
+    }
+
+    /** 评测委托（G11）：引擎执行 RAG 评测，结果并入当前版本 readiness_json 的 evaluation 段。 */
+    @Transactional
+    public java.util.Map<String, Object> evaluate(String id) {
+        var product = require(id);
+        var engine = enginePort.getIfAvailable();
+        if (engine == null) {
+            throw new EngineNotConfiguredException();
+        }
+        var report = engine.evaluate(product);
+        var version = repository.findVersions(product.id()).stream()
+                .filter(item -> item.versionSn().equals(product.currentVersion()))
+                .findFirst()
+                .orElseThrow(() -> new ConflictException("当前版本不存在"));
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        try {
+            var root = version.readinessJson() == null || version.readinessJson().isBlank()
+                    ? mapper.createObjectNode()
+                    : (com.fasterxml.jackson.databind.node.ObjectNode) mapper.readTree(version.readinessJson());
+            var evaluation = (com.fasterxml.jackson.databind.node.ObjectNode) mapper.valueToTree(report);
+            // 细节明细过长，入库只保留指标摘要
+            evaluation.remove("details");
+            root.set("evaluation", evaluation);
+            repository.updateVersionReadiness(product.id(), product.currentVersion(),
+                    mapper.writeValueAsString(root), version.buildStatus());
+        } catch (com.fasterxml.jackson.core.JsonProcessingException exception) {
+            throw new IllegalStateException("评测报告写回失败", exception);
+        }
+        return report;
     }
 
     /** 登记新版本（G9 build 消费；唯一性由 (product_id, version_sn) 约束保证）。 */

@@ -31,7 +31,51 @@ public class AIReadyEngineConfiguration {
                 ? null
                 : new OidcClientCredentialsTokenProvider(builder, properties.getTokenUri(),
                         properties.getClientId(), properties.getClientSecret(), "", "");
-        return (product, recipeRef) -> assess(client, tokenProvider, properties, product, recipeRef);
+        return new AIReadyEnginePort() {
+            @Override
+            public AIReadyAssessment build(AIDataProduct product, String recipeRef) {
+                return assess(client, tokenProvider, properties, product, recipeRef);
+            }
+
+            @Override
+            public java.util.Map<String, Object> evaluate(AIDataProduct product) {
+                return AIReadyEngineConfiguration.evaluate(client, tokenProvider, properties, product);
+            }
+        };
+    }
+
+    @SuppressWarnings("unchecked")
+    private static java.util.Map<String, Object> evaluate(RestClient client,
+            OidcClientCredentialsTokenProvider tokenProvider, AIReadyProperties properties,
+            AIDataProduct product) {
+        var body = String.format("{\"product\":%s,\"version\":%s}",
+                quote(product.name()), quote(product.currentVersion()));
+        try {
+            var payload = client.post()
+                    .uri("/evaluate")
+                    .accept(MediaType.APPLICATION_JSON)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .headers(headers -> {
+                        if (tokenProvider != null) {
+                            var token = tokenProvider.current();
+                            if (!token.isBlank()) headers.setBearerAuth(token);
+                        } else if (!properties.getApiToken().isBlank()) {
+                            headers.setBearerAuth(properties.getApiToken());
+                        }
+                    })
+                    .body(body)
+                    .retrieve()
+                    .body(Map.class);
+            if (payload == null) {
+                throw new AdapterUnavailableException("AI Ready 引擎返回空评测报告");
+            }
+            return payload;
+        } catch (AdapterUnavailableException exception) {
+            throw exception;
+        } catch (RuntimeException exception) {
+            var cause = exception.getCause() == null ? exception : exception.getCause();
+            throw new AdapterUnavailableException("AI Ready 引擎暂时不可用：" + cause.getMessage());
+        }
     }
 
     private AIReadyAssessment assess(RestClient client, OidcClientCredentialsTokenProvider tokenProvider,

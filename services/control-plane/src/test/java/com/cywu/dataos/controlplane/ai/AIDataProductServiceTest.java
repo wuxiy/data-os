@@ -25,6 +25,9 @@ class AIDataProductServiceTest {
     private AIDataProductRepository repository;
 
     @Autowired
+    private AICertificationRepository certificationRepository;
+
+    @Autowired
     private com.cywu.dataos.controlplane.security.TenantScope tenantScope;
 
     @Autowired
@@ -79,11 +82,21 @@ class AIDataProductServiceTest {
     @Test
     void buildWritesReadinessToCurrentVersionWhenEngineConfigured() {
         var product = service.create(request("svc-build-ok-" + UUID.randomUUID()));
-        AIReadyEnginePort stubEngine = (candidate, recipe) -> AIReadyAssessment.from(java.util.Map.of(
-                "product", candidate.name(), "version", candidate.currentVersion(),
-                "profile", "medical-rag", "overall", 0.92,
-                "assessedAt", "2026-08-27T10:00:00+00:00",
-                "gate", java.util.Map.of("certification", "CANDIDATE")));
+        AIReadyEnginePort stubEngine = new AIReadyEnginePort() {
+            @Override
+            public AIReadyAssessment build(AIDataProduct candidate, String recipe) {
+                return AIReadyAssessment.from(java.util.Map.of(
+                        "product", candidate.name(), "version", candidate.currentVersion(),
+                        "profile", "medical-rag", "overall", 0.92,
+                        "assessedAt", "2026-08-27T10:00:00+00:00",
+                        "gate", java.util.Map.of("certification", "CANDIDATE")));
+            }
+
+            @Override
+            public java.util.Map<String, Object> evaluate(AIDataProduct candidate) {
+                return java.util.Map.of("mrr", 0.8, "details", java.util.List.of());
+            }
+        };
         org.springframework.beans.factory.ObjectProvider<AIReadyEnginePort> provider =
                 new org.springframework.beans.factory.ObjectProvider<>() {
                     @Override
@@ -96,7 +109,7 @@ class AIDataProductServiceTest {
                         return stubEngine;
                     }
                 };
-        var wired = new AIDataProductService(repository, tenantScope, provider);
+        var wired = new AIDataProductService(repository, certificationRepository, tenantScope, provider);
 
         var assessment = wired.build(product.id(), "recipes/medical-rag-v1.yaml");
 
@@ -141,5 +154,110 @@ class AIDataProductServiceTest {
     void missingProductMapsToNotFound() {
         assertThatThrownBy(() -> service.detail("no-such-id"))
                 .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    // ---- G11 认证审批与评测 ----
+
+    private void assessCurrent(AIDataProduct product) {
+        AIReadyEnginePort stub = new AIReadyEnginePort() {
+            @Override
+            public AIReadyAssessment build(AIDataProduct candidate, String recipe) {
+                return AIReadyAssessment.from(java.util.Map.of(
+                        "product", candidate.name(), "version", candidate.currentVersion(),
+                        "profile", "medical-rag", "overall", 0.9,
+                        "assessedAt", "2026-08-27T10:00:00+00:00",
+                        "gate", java.util.Map.of("certification", "CANDIDATE")));
+            }
+
+            @Override
+            public java.util.Map<String, Object> evaluate(AIDataProduct candidate) {
+                return java.util.Map.of("mrr", 0.8);
+            }
+        };
+        org.springframework.beans.factory.ObjectProvider<AIReadyEnginePort> provider =
+                new org.springframework.beans.factory.ObjectProvider<>() {
+                    @Override public AIReadyEnginePort getObject() { return stub; }
+                    @Override public AIReadyEnginePort getIfAvailable() { return stub; }
+                };
+        new AIDataProductService(repository, certificationRepository, tenantScope, provider)
+                .build(product.id(), null);
+    }
+
+    @Test
+    void certificationRequiresAssessmentAndCandidateGate() {
+        var product = service.create(request("cert-no-assess-" + UUID.randomUUID()));
+        assertThatThrownBy(() -> service.submitCertification(product.id()))
+                .isInstanceOf(ConflictException.class)
+                .hasMessageContaining("尚未评估");
+        assessCurrent(product);
+        var request = service.submitCertification(product.id());
+        assertThat(request.decision()).isEqualTo("PENDING");
+        assertThat(request.certification()).isEqualTo("CANDIDATE");
+        assertThatThrownBy(() -> service.submitCertification(product.id()))
+                .isInstanceOf(ConflictException.class)
+                .hasMessageContaining("已有待审批");
+    }
+
+    @Test
+    void directTransitionToCertifiedIsRejected() {
+        var product = service.create(request("cert-direct-" + UUID.randomUUID()));
+        service.transition(product.id(), "CURATED");
+        service.transition(product.id(), "ASSESSED");
+        assertThatThrownBy(() -> service.transition(product.id(), "CERTIFIED"))
+                .isInstanceOf(ConflictException.class)
+                .hasMessageContaining("审批");
+    }
+
+    @Test
+    void approvalFlowMovesProductToCertified() {
+        var product = service.create(request("cert-flow-" + UUID.randomUUID()));
+        service.transition(product.id(), "CURATED");
+        service.transition(product.id(), "ASSESSED");
+        assessCurrent(product);
+        var request = service.submitCertification(product.id());
+        var decided = service.decideCertification(request.id(), true, "同意认证");
+        assertThat(decided.lifecycle()).isEqualTo(AIDataProductLifecycle.CERTIFIED);
+        var history = service.certificationHistory(product.id());
+        assertThat(history.get(0).decision()).isEqualTo("APPROVED");
+        assertThat(history.get(0).decidedBy()).isNotBlank();
+    }
+
+    @Test
+    void rejectionKeepsAssessedAndRecordsDecision() {
+        var product = service.create(request("cert-reject-" + UUID.randomUUID()));
+        service.transition(product.id(), "CURATED");
+        service.transition(product.id(), "ASSESSED");
+        assessCurrent(product);
+        var request = service.submitCertification(product.id());
+        var decided = service.decideCertification(request.id(), false, "评测证据不足");
+        assertThat(decided.lifecycle()).isEqualTo(AIDataProductLifecycle.ASSESSED);
+        assertThat(service.certificationHistory(product.id()).get(0).decision()).isEqualTo("REJECTED");
+    }
+
+    @Test
+    void evaluateWritesMetricsIntoReadinessJson() {
+        var product = service.create(request("cert-eval-" + UUID.randomUUID()));
+        assessCurrent(product);
+        AIReadyEnginePort stub = new AIReadyEnginePort() {
+            @Override
+            public AIReadyAssessment build(AIDataProduct candidate, String recipe) {
+                throw new IllegalStateException("not used");
+            }
+
+            @Override
+            public java.util.Map<String, Object> evaluate(AIDataProduct candidate) {
+                return java.util.Map.of("mrr", 0.75, "details", java.util.List.of("x"));
+            }
+        };
+        org.springframework.beans.factory.ObjectProvider<AIReadyEnginePort> provider =
+                new org.springframework.beans.factory.ObjectProvider<>() {
+                    @Override public AIReadyEnginePort getObject() { return stub; }
+                    @Override public AIReadyEnginePort getIfAvailable() { return stub; }
+                };
+        var report = new AIDataProductService(repository, certificationRepository, tenantScope, provider)
+                .evaluate(product.id());
+        assertThat(report).containsEntry("mrr", 0.75);
+        var readiness = service.detail(product.id()).versions().get(0).readinessJson();
+        assertThat(readiness).contains("evaluation").contains("0.75").doesNotContain("details");
     }
 }

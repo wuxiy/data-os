@@ -1,0 +1,10 @@
+{"question": "高血压的诊断阈值是多少", "expected_document_id": "aab65a509975", "expected_section": "概述", "golden_sentence": "高血压是以体循环动脉血压升高为主要特征的心血管综合征。"}
+{"question": "高血压如何分级", "expected_document_id": "aab65a509975", "expected_section": "分级标准", "golden_sentence": ""}
+{"question": "高血压药物治疗首选哪几类", "expected_document_id": "aab65a509975", "expected_section": "治疗原则", "golden_sentence": ""}
+{"question": "2 型糖尿病随访频率要求", "expected_document_id": "64c714af462f", "expected_section": "随访频率", "golden_sentence": "血糖控制达标者每季度随访一次；"}
+{"question": "糖尿病糖化血红蛋白控制目标", "expected_document_id": "64c714af462f", "expected_section": "控制目标", "golden_sentence": ""}
+{"question": "药师处方审核包括哪些内容", "expected_document_id": "c0b7a59eecc2", "expected_section": "审核规则", "golden_sentence": ""}
+{"question": "处方内容必须包含什么", "expected_document_id": "c0b7a59eecc2", "expected_section": "处方权限", "golden_sentence": "医师须经处方权限备案后方可开具处方；"}
+{"question": "手卫生的两前三后指什么 洗手时间", "expected_document_id": "02cf8d6f0567", "expected_section": "手卫生", "golden_sentence": "严格执行两前三后手卫生时机；"}
+{"question": "经飞沫传播疾病如何安置", "expected_document_id": "02cf8d6f0567", "expected_section": "隔离措施", "golden_sentence": ""}
+{"question": "62 岁男性患者血压控制不佳的个案管理计划", "expected_document_id": "41d5b685dec7", "expected_section": "管理计划", "golden_sentence": ""}
