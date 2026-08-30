@@ -1,6 +1,6 @@
 # 开发环境信息与组件访问查询卡
 
-> 本文档用于开发演示环境的日常查询，最后核验时间：2026-08-11。
+> 本文档用于开发演示环境的日常查询，最后核验时间：2026-08-30。
 > 文档可以提交到 Git；真实密码、Secret、Token 和数据库连接串不写入仓库，统一从开发机受保护的 `.env` 或 Secret 卷读取。
 
 ## 1. 环境概览
@@ -35,6 +35,7 @@
 | DolphinScheduler 健康检查 | `http://172.16.65.59:18083/dolphinscheduler/actuator/health` | 运维人员 | API 端口根路径 `/` 返回 404 是预期行为 |
 | RustFS S3 API | `http://172.16.65.59:19000` | 技术人员/服务 | S3 兼容 API；质量运行器使用容器内地址 |
 | RustFS Console | [http://172.16.65.59:19001/rustfs/console/](http://172.16.65.59:19001/rustfs/console/) | 技术人员 | 对象存储管理，不展示给甲方 |
+| Superset 嵌入监听 | [http://172.16.65.59:18084/](http://172.16.65.59:18084/) | 技术人员 | 嵌入式分析 iframe 专用代理端口，非甲方入口 |
 | Doris FE | `172.16.66.8:8030`（HTTP） / `172.16.66.8:9030`（MySQL） | 技术人员 | 复用开发环境；生产必须更换为院方地址 |
 
 SeaTunnel、RustFS 和 DolphinScheduler 的原生入口只给技术人员。门户“平台运维”菜单在生产由
@@ -53,6 +54,9 @@ OIDC 技术角色控制（`data-engineer`、`platform-operator`、`platform-admi
 | 质量运行器 / Doris 只读 | `dataos_quality_ro` | `.env` 的 `DORIS_PASSWORD` | 只读 `dataos_quality_acceptance` 业务验收库 |
 | 质量运行器 / dbt | `dataos_quality_dbt` | `.env` 的 `DORIS_DBT_PASSWORD` | 读取验收库并在 `dataos_quality_audit` 写失败表 |
 | 质量运行器 / 清理 | `dataos_quality_cleanup` | `.env` 的 `DORIS_CLEANUP_PASSWORD` | 仅清理已登记的质量失败表 |
+| 患者主索引服务 | `dataos_mpi`（PG 与 Doris 同名账号） | `.env` 的 `DATAOS_MPI_DB_PASSWORD`、`DORIS_MPI_PASSWORD`；敏感字段哈希盐 `DATAOS_MPI_HASH_SALT` | PG `data_os_mpi` schema 与 Doris `dataos_mpi` 库，均由 mpi-service 独占 |
+| AI Ready 评估引擎 | `dataos_om_ro`（Doris 只读）/ `dataos_ai_writer` | `.env` 的 `DORIS_OM_PASSWORD`、`DORIS_AI_WRITER_PASSWORD`；OM 探针身份 `DATAOS_OM_INGEST_CLIENT_SECRET` | Doris 只读检查与 AI 数据写入；OM 经 ingestion-bot 身份只读 |
+| ToB 数据 API | `dataos_api_ro` | `.env` 的 `DORIS_API_PASSWORD` | 仅授权面内 SELECT，医院行级授权在服务内执行 |
 | 质量运行器 / PostgreSQL | `keycloak`（开发复用） | `.env` 的 `QUALITY_RUNNER_DB_URL`，不要复制到工单或日志 | 保存质量运行、租约和幂等记录；生产改为独立 data-os 数据库 |
 | 通知接收器（开发） | 无登录账号 | `.env` 的 `DATAOS_NOTIFICATION_WEBHOOK_SECRET` | 仅用于开发 HMAC 回执；生产替换为院方消息网关，不部署该接收器 |
 | SeaTunnel | 无业务账号 | 无；控制面通过容器内 `http://seatunnel-master:8080` 调用 | 运行时不向门户返回连接串或凭据 |

@@ -1,6 +1,6 @@
 # 医数中枢第一版前端原型
 
-面向医院信息中心、数据治理与业务管理人员的桌面端可点击原型。当前覆盖数据接入、管理/治理驾驶舱、标准与质量、主索引、数据资产、分析看板和智能问数十个路由页面。
+面向医院信息中心、数据治理与业务管理人员的桌面端可点击原型。当前覆盖数据接入、管理/治理驾驶舱、标准与质量、主索引、数据资产、分析看板、AI Data、数据服务、智能问数和平台运维等桌面路由页面（`src/data/routes.ts` 共 15 条路由，含资产技术视图与问数工作区两条深链）。
 
 ## 运行
 
@@ -29,6 +29,8 @@ npm run preview
 - `/assets/technical?asset=asset-outpatient-visit`：数据资产技术视图深链（新标签页打开）
 - `/operations`：技术人员专属的平台运维舱，聚合 SeaTunnel 运行态并提供 DolphinScheduler/RustFS 技术入口
 - `/analysis`：嵌入式分析看板与指标证据
+- `/ai-data`：AI Data 产品工作台（清单、版本与生命周期；仅真实模式接控制面）
+- `/data-services`：数据服务工作台（ToB 数据 API 的定义、Key 与调用审计；仅真实模式接控制面）
 - `/assistant`：受控智能问数与查询证据
 - `/assistant/workspace?scenario=assistant-outpatient`：智能问数专业工作区深链（新标签页打开）
 

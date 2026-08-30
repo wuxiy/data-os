@@ -1,6 +1,6 @@
 # data-os 开发环境部署
 
-这套覆盖只新增 data-os 控制面、桌面门户和可选的 SeaTunnel 单节点执行器；DolphinScheduler 通过独立 overlay 启用，不修改 data-ops 的 Compose 文件。开发环境仍可复用 `medical-platform-keycloak-db-1`，通过 `data_os` schema 隔离表；生产部署必须使用独立业务数据库，不能复用 Keycloak 数据库。
+这套覆盖新增 data-os 控制面、桌面门户、质量执行器、患者主索引服务、AI Ready 评估引擎、ToB 数据 API 网关、开发通知接收器、RustFS 对象存储和可选的 SeaTunnel 单节点执行器；DolphinScheduler 通过独立 overlay 启用，不修改 data-ops 的 Compose 文件。开发环境仍可复用 `medical-platform-keycloak-db-1`，通过 `data_os` schema 隔离表；生产部署必须使用独立业务数据库，不能复用 Keycloak 数据库。
 
 ## 组件
 
@@ -11,9 +11,14 @@
 | 服务 | 作用 | 暴露端口 |
 | --- | --- | --- |
 | `control-plane` | Java 21 / Spring Boot API，初始化 PostgreSQL schema | 仅平台网络 `8080` |
-| `portal` | React/Vite 静态门户与 API 反向代理 | `18081` |
+| `portal` | React/Vite 静态门户与 API 反向代理 | `18081`、`18084`（Superset 嵌入监听） |
 | `rustfs` | RustFS 单节点 S3 兼容对象存储，保存质量汇总制品 | `19000`（S3）、`19001`（Console） |
 | `rustfs-init` | 幂等创建质量制品桶的一次性初始化任务 | 无 |
+| `quality-runner` | Python 3.12 / FastAPI + dbt 质量执行器，执行登记规则并回写证据 | 仅平台网络 `8080` |
+| `mpi-service` | Java 21 / Spring Boot 患者主索引服务，门户经 `/api/v1/mpi/` 直路由 | 仅平台网络 `8080` |
+| `ai-ready-service` | Python 3.12 / FastAPI AI Ready 评估引擎 | 仅平台网络 |
+| `data-api` | Python 3.12 / FastAPI ToB 数据 API 网关，门户经 `/dataapi/` 反代 | 仅平台网络 |
+| `notification-receiver` | 开发通知接收器，验证 HMAC 投递回执 | 仅平台网络 `8080` |
 | `seatunnel-master` | SeaTunnel 单节点开发执行器，可选 profile | `18082`、`15801` |
 | `dolphinscheduler-*` | DolphinScheduler 单院紧凑编排器（API/Master/Worker/Alert/JDBC Registry），可选 profile | API `18083`；UI `/dolphinscheduler/ui/` |
 
@@ -79,6 +84,15 @@ DORIS_DBT_USER=dataos_quality_dbt
 DORIS_DBT_PASSWORD=仅保存于开发机 .env
 DORIS_CLEANUP_USER=dataos_quality_cleanup
 DORIS_CLEANUP_PASSWORD=仅保存于开发机 .env
+# OM/AI Ready/数据 API/MPI 各服务的 Doris 与服务账号口令（compose 以 :? 强制，缺失时无法解析配置）。
+DORIS_OM_PASSWORD=仅保存于开发机 .env
+DATAOS_OM_INGEST_CLIENT_SECRET=仅保存于开发机 .env
+DORIS_AI_WRITER_PASSWORD=仅保存于开发机 .env
+DORIS_API_PASSWORD=仅保存于开发机 .env
+DORIS_MPI_PASSWORD=仅保存于开发机 .env
+DATAOS_MPI_DB_PASSWORD=仅保存于开发机 .env
+# MPI 敏感字段加盐哈希的盐值：仅存 .env。
+DATAOS_MPI_HASH_SALT=仅保存于开发机 .env
 DATAOS_QUALITY_SUBMIT_LEASE_MS=120000
 # 开发通知接收器验证 HMAC；不配置时会明确 SKIPPED，不会伪造已送达。
 DATAOS_NOTIFICATION_WEBHOOK_URL=http://notification-receiver:8080/notify

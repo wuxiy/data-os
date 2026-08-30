@@ -807,3 +807,5 @@ Secret 卷托管。新增文档链接已放入根 README 和 `deploy/dev/README.
 - [x] G10 RAG 数据集工厂 — ✅ 2026-08-27 验收 8/8（gate-ai-ready-g10-20260827.md；工具降级规范不降级，7 chunks 双落 Doris/RustFS，产品 0.8654/CANDIDATE）
 - [x] G11 评测与认证闭环 — ✅ 2026-08-27 验收 5/6+1 部分（gate-ai-ready-g11-20260827.md；评测可复现、审批全流程 CERTIFIED、直通守卫；OM term 受实例缺陷阻断归档 P3）
 - [x] G12 数据飞轮与门户收口 — ✅ 2026-08-27 验收 6/6（gate-ai-ready-g12-20260827.md；飞轮机制全链实测、SERVING 守卫双向、指标对比如实留证）。**G8-G12 AI Ready 主线收官**
+- [x] G13 ToB 数据 API — ✅ 2026-08-27 验收 16/16（gate-tob-data-api-g13-20260827.md；管理面/执行面/门户/部署四层，`dataos_api_ro` 授权面与 `/dataapi` 反代）
+- [x] G14 MPI 匹配算法效果与 V2 评分 — ✅ 2026-08-28 验收 9/9（gate-mpi-g14-20260828.md；核心发现：EP 字段集身份信号在字段合取不在边际，V2 以影子模式上线、非同人复核负担 -78%；关闭备忘 T2）
