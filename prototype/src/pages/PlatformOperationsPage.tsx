@@ -10,7 +10,8 @@ import {
   Workflow,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ControlPlaneError, fetchPlatformOperations, type PlatformOperationsApiResponse, type PlatformServiceApiItem } from '../data/controlPlane'
+import { fetchPlatformOperations, type PlatformOperationsApiResponse, type PlatformServiceApiItem } from '../data/controlPlane'
+import { PortalHttpError } from '../data/http'
 import { Button, StatusTag } from '../components/ui/Primitives'
 import { formatDateTime } from '../data/domain'
 import styles from './PlatformOperationsPage.module.css'
@@ -38,7 +39,7 @@ export function PlatformOperationsPage({ canAccess }: { canAccess: boolean }) {
       setState('ready')
     } catch (cause) {
       if (cause instanceof DOMException && cause.name === 'AbortError') return
-      if (cause instanceof ControlPlaneError && cause.status === 403) {
+      if (cause instanceof PortalHttpError && cause.status === 403) {
         setState('forbidden')
         setError('当前身份未被授予技术域访问权限')
         return

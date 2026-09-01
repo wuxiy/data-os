@@ -1,4 +1,4 @@
-import { getAccessToken } from './oidc'
+import { fetchJson, portalFetch, throwHttpError } from './http'
 
 export interface GovernanceApiMetric {
   key: string
@@ -227,43 +227,12 @@ export interface WorkflowTemplateApiItem {
   sampleConfig: JobConfig
 }
 
-const API_BASE_URL = (import.meta.env.VITE_DATAOS_API_BASE_URL ?? '/api').replace(/\/$/, '')
-
-async function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
-  const headers = new Headers(init.headers)
-  if (!headers.has('Accept')) headers.set('Accept', 'application/json')
-  const token = getAccessToken()
-  if (token) headers.set('Authorization', `Bearer ${token}`)
-  const response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers })
-  if (response.status === 401 && typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent('dataos:auth-required'))
-  }
-  return response
-}
-
-export class ControlPlaneError extends Error {
-  readonly status: number
-
-  constructor(message: string, status: number) {
-    super(message)
-    this.name = 'ControlPlaneError'
-    this.status = status
-  }
-}
-
-async function responseError(response: Response, prefix: string): Promise<never> {
-  let detail = ''
-  try {
-    const payload = await response.json() as { message?: string; detail?: string }
-    detail = payload.message ?? payload.detail ?? ''
-  } catch {
-    // Keep the HTTP status when the upstream did not return JSON.
-  }
-  throw new ControlPlaneError(`${prefix}${detail ? `：${detail}` : ''}（HTTP ${response.status}）`, response.status)
+async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
+  return fetchJson<T>(path, signal, '控制面请求失败')
 }
 
 export async function fetchGovernanceSummary(signal?: AbortSignal): Promise<GovernanceApiSummary> {
-  const response = await apiFetch('/v1/governance/summary', { signal })
+  const response = await portalFetch('/v1/governance/summary', { signal })
   if (!response.ok) {
     throw new Error(`治理摘要请求失败：${response.status}`)
   }
@@ -298,54 +267,54 @@ export async function updateGovernanceIssueWorkflow(issueId: string, input: {
   status: string
   note: string
 }, signal?: AbortSignal): Promise<GovernanceIssueDetailApiResponse> {
-  const response = await apiFetch(`/v1/governance/issues/${encodeURIComponent(issueId)}/workflow`, {
+  const response = await portalFetch(`/v1/governance/issues/${encodeURIComponent(issueId)}/workflow`, {
     method: 'PUT',
     headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
     signal,
   })
-  if (!response.ok) await responseError(response, '治理问题更新失败')
+  if (!response.ok) await throwHttpError(response, '治理问题更新失败')
   return response.json() as Promise<GovernanceIssueDetailApiResponse>
 }
 
 export async function requestGovernanceIssueRecheck(issueId: string, note?: string, signal?: AbortSignal): Promise<GovernanceIssueDetailApiResponse> {
-  const response = await apiFetch(`/v1/governance/issues/${encodeURIComponent(issueId)}/recheck`, {
+  const response = await portalFetch(`/v1/governance/issues/${encodeURIComponent(issueId)}/recheck`, {
     method: 'POST',
     headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
     body: JSON.stringify(note ? { note } : {}),
     signal,
   })
-  if (!response.ok) await responseError(response, '治理问题复检请求失败')
+  if (!response.ok) await throwHttpError(response, '治理问题复检请求失败')
   return response.json() as Promise<GovernanceIssueDetailApiResponse>
 }
 
 export async function syncGovernanceIssueRun(issueId: string, runId: string, signal?: AbortSignal): Promise<GovernanceIssueDetailApiResponse> {
-  const response = await apiFetch(`/v1/governance/issues/${encodeURIComponent(issueId)}/runs/${encodeURIComponent(runId)}/sync`, {
+  const response = await portalFetch(`/v1/governance/issues/${encodeURIComponent(issueId)}/runs/${encodeURIComponent(runId)}/sync`, {
     method: 'POST',
     headers: { Accept: 'application/json' },
     signal,
   })
-  if (!response.ok) await responseError(response, '质量复检结果同步失败')
+  if (!response.ok) await throwHttpError(response, '质量复检结果同步失败')
   return response.json() as Promise<GovernanceIssueDetailApiResponse>
 }
 
 export async function reconcileGovernanceIssueRun(issueId: string, runId: string, signal?: AbortSignal): Promise<GovernanceIssueDetailApiResponse> {
-  const response = await apiFetch(`/v1/governance/issues/${encodeURIComponent(issueId)}/runs/${encodeURIComponent(runId)}/reconcile`, {
+  const response = await portalFetch(`/v1/governance/issues/${encodeURIComponent(issueId)}/runs/${encodeURIComponent(runId)}/reconcile`, {
     method: 'POST',
     headers: { Accept: 'application/json' },
     signal,
   })
-  if (!response.ok) await responseError(response, '质量执行批次重新对账失败')
+  if (!response.ok) await throwHttpError(response, '质量执行批次重新对账失败')
   return response.json() as Promise<GovernanceIssueDetailApiResponse>
 }
 
 export async function confirmGovernanceIssueRunAbsent(issueId: string, runId: string, signal?: AbortSignal): Promise<GovernanceIssueDetailApiResponse> {
-  const response = await apiFetch(`/v1/governance/issues/${encodeURIComponent(issueId)}/runs/${encodeURIComponent(runId)}/reconcile/confirm-absent`, {
+  const response = await portalFetch(`/v1/governance/issues/${encodeURIComponent(issueId)}/runs/${encodeURIComponent(runId)}/reconcile/confirm-absent`, {
     method: 'POST',
     headers: { Accept: 'application/json' },
     signal,
   })
-  if (!response.ok) await responseError(response, '确认质量执行批次不存在失败')
+  if (!response.ok) await throwHttpError(response, '确认质量执行批次不存在失败')
   return response.json() as Promise<GovernanceIssueDetailApiResponse>
 }
 
@@ -353,19 +322,13 @@ export async function remindGovernanceIssueOwner(issueId: string, signal?: Abort
   const idempotencyKey = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
     ? crypto.randomUUID()
     : `reminder-${Date.now()}-${Math.random().toString(36).slice(2)}`
-  const response = await apiFetch(`/v1/governance/issues/${encodeURIComponent(issueId)}/notifications/remind`, {
+  const response = await portalFetch(`/v1/governance/issues/${encodeURIComponent(issueId)}/notifications/remind`, {
     method: 'POST',
     headers: { Accept: 'application/json', 'Idempotency-Key': idempotencyKey },
     signal,
   })
-  if (!response.ok) await responseError(response, '责任人提醒请求失败')
+  if (!response.ok) await throwHttpError(response, '责任人提醒请求失败')
   return response.json() as Promise<GovernanceIssueDetailApiResponse>
-}
-
-async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
-  const response = await apiFetch(path, { signal })
-  if (!response.ok) await responseError(response, '控制面请求失败')
-  return response.json() as Promise<T>
 }
 
 export async function fetchSources(signal?: AbortSignal): Promise<{ items: SourceApiItem[]; total: number }> {
@@ -385,46 +348,46 @@ export async function createSource(input: {
   systemType: string
   protocol: string
 }, signal?: AbortSignal): Promise<SourceApiItem> {
-  const response = await apiFetch('/v1/sources', {
+  const response = await portalFetch('/v1/sources', {
     method: 'POST',
     headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
     signal,
   })
-  if (!response.ok) await responseError(response, '数据源创建失败')
+  if (!response.ok) await throwHttpError(response, '数据源创建失败')
   return response.json() as Promise<SourceApiItem>
 }
 
 export async function checkSource(sourceId: string, config: JobConfig, signal?: AbortSignal): Promise<SourceApiItem> {
-  const response = await apiFetch(`/v1/sources/${sourceId}/check`, {
+  const response = await portalFetch(`/v1/sources/${sourceId}/check`, {
     method: 'POST',
     headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
     body: JSON.stringify({ config }),
     signal,
   })
-  if (!response.ok) await responseError(response, '数据源检查失败')
+  if (!response.ok) await throwHttpError(response, '数据源检查失败')
   return response.json() as Promise<SourceApiItem>
 }
 
 export async function createIngestionJob(input: CreateIngestionJobInput, signal?: AbortSignal): Promise<IngestionJobApiItem> {
-  const response = await apiFetch('/v1/jobs', {
+  const response = await portalFetch('/v1/jobs', {
     method: 'POST',
     headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
     signal,
   })
-  if (!response.ok) await responseError(response, '采集任务创建失败')
+  if (!response.ok) await throwHttpError(response, '采集任务创建失败')
   return response.json() as Promise<IngestionJobApiItem>
 }
 
 export async function updateIngestionJobStatus(jobId: string, status: string, signal?: AbortSignal): Promise<IngestionJobApiItem> {
-  const response = await apiFetch(`/v1/jobs/${jobId}/status`, {
+  const response = await portalFetch(`/v1/jobs/${jobId}/status`, {
     method: 'PUT',
     headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
     body: JSON.stringify({ status }),
     signal,
   })
-  if (!response.ok) await responseError(response, '任务状态更新失败')
+  if (!response.ok) await throwHttpError(response, '任务状态更新失败')
   return response.json() as Promise<IngestionJobApiItem>
 }
 
@@ -437,13 +400,13 @@ export async function saveJobConfig(jobId: string, input: {
   templateVersion: number
   config: JobConfig
 }, signal?: AbortSignal): Promise<IngestionJobConfigApiItem> {
-  const response = await apiFetch(`/v1/jobs/${jobId}/config`, {
+  const response = await portalFetch(`/v1/jobs/${jobId}/config`, {
     method: 'PUT',
     headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
     signal,
   })
-  if (!response.ok) await responseError(response, '采集任务配置保存失败')
+  if (!response.ok) await throwHttpError(response, '采集任务配置保存失败')
   return response.json() as Promise<IngestionJobConfigApiItem>
 }
 
@@ -454,13 +417,13 @@ export async function startIngestionRun(jobId: string, options: {
 } = {}): Promise<IngestionRunApiItem> {
   const headers: Record<string, string> = { Accept: 'application/json', 'Content-Type': 'application/json' }
   if (options.idempotencyKey) headers['Idempotency-Key'] = options.idempotencyKey
-  const response = await apiFetch(`/v1/jobs/${jobId}/runs`, {
+  const response = await portalFetch(`/v1/jobs/${jobId}/runs`, {
     method: 'POST',
     headers,
     body: JSON.stringify({ config: options.config ?? {} }),
     signal: options.signal,
   })
-  if (!response.ok) await responseError(response, '运行请求失败')
+  if (!response.ok) await throwHttpError(response, '运行请求失败')
   return response.json() as Promise<IngestionRunApiItem>
 }
 
@@ -469,31 +432,31 @@ export async function fetchIngestionRuns(jobId: string, signal?: AbortSignal): P
 }
 
 export async function syncIngestionRun(jobId: string, runId: string, signal?: AbortSignal): Promise<IngestionRunApiItem> {
-  const response = await apiFetch(`/v1/jobs/${jobId}/runs/${runId}/sync`, {
+  const response = await portalFetch(`/v1/jobs/${jobId}/runs/${runId}/sync`, {
     method: 'POST',
     headers: { Accept: 'application/json' },
     signal,
   })
-  if (!response.ok) await responseError(response, '运行状态同步失败')
+  if (!response.ok) await throwHttpError(response, '运行状态同步失败')
   return response.json() as Promise<IngestionRunApiItem>
 }
 
 export async function confirmIngestionRunAbsent(jobId: string, runId: string, signal?: AbortSignal): Promise<IngestionRunApiItem> {
-  const response = await apiFetch(`/v1/jobs/${jobId}/runs/${runId}/reconcile/confirm-absent`, {
+  const response = await portalFetch(`/v1/jobs/${jobId}/runs/${runId}/reconcile/confirm-absent`, {
     method: 'POST',
     headers: { Accept: 'application/json' },
     signal,
   })
-  if (!response.ok) await responseError(response, '确认外部运行不存在失败')
+  if (!response.ok) await throwHttpError(response, '确认外部运行不存在失败')
   return response.json() as Promise<IngestionRunApiItem>
 }
 
 export async function retryIngestionRun(jobId: string, runId: string, signal?: AbortSignal): Promise<IngestionRunApiItem> {
-  const response = await apiFetch(`/v1/jobs/${jobId}/runs/${runId}/retry`, {
+  const response = await portalFetch(`/v1/jobs/${jobId}/runs/${runId}/retry`, {
     method: 'POST',
     headers: { Accept: 'application/json' },
     signal,
   })
-  if (!response.ok) await responseError(response, '运行重试失败')
+  if (!response.ok) await throwHttpError(response, '运行重试失败')
   return response.json() as Promise<IngestionRunApiItem>
 }

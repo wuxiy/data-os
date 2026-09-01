@@ -12,10 +12,10 @@ import {
   productTypeLabel,
   transitionAIDataProduct,
   buildAIDataProduct,
-  AIDataError,
   type AIDataProduct,
   type AIDataProductType,
 } from '../data/aiDataApi'
+import { PortalHttpError } from '../data/http'
 import { frontendDemoMode } from '../data/runtimeMode'
 import { useApiResource } from '../hooks/useApiResource'
 import type { AIOverview } from '../data/aiDataApi'
@@ -146,9 +146,9 @@ function AIDataLive({ onNotice }: { onNotice: (message: string) => void }) {
       setSelectedId(product.id)
       refresh()
     } catch (error) {
-      if (error instanceof AIDataError && error.code === 'AI_READY_ENGINE_NOT_CONFIGURED') {
+      if (error instanceof PortalHttpError && error.code === 'AI_READY_ENGINE_NOT_CONFIGURED') {
         onNotice('评估引擎未配置（data-os.ai-ready.base-url）：build 不伪造成功')
-      } else if (error instanceof AIDataError && error.status === 503) {
+      } else if (error instanceof PortalHttpError && error.status === 503) {
         onNotice('评估引擎暂不可达，请稍后重试')
       } else {
         onNotice(error instanceof Error ? error.message : '构建失败')

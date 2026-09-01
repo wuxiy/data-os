@@ -44,6 +44,7 @@ import {
   type SourceApiItem,
   type WorkflowTemplateApiItem,
 } from '../data/controlPlane'
+import { PortalHttpError } from '../data/http'
 import { ACTIVE_RUN_STATUSES, formatDateTime, retryableRunStatus, runStatusView } from '../data/domain'
 import { useAction } from '../hooks/useAction'
 import { allowsTemplate, defaultTemplateKey, offersDemoTemplate } from '../data/runtimeMode'
@@ -650,7 +651,7 @@ function parseConfig(text: string): JobConfig {
 }
 
 function isNotFound(error: unknown) {
-  return error instanceof Error && error.message.includes('HTTP 404')
+  return error instanceof PortalHttpError && error.status === 404
 }
 
 function createRequestKey() {

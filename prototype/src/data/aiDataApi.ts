@@ -1,12 +1,10 @@
-import { getAccessToken } from './oidc'
+import { parseJsonOrThrow, portalFetch } from './http'
 
 /**
  * AI Data Product API 客户端（控制面 G8 域，见 docs/ai-ready-g8-review-and-plan-20260826.md）。
  * 类型与 control-plane `ai` 包的 record 一一对应；lifecycle/type 词汇以
- * CONTEXT.md「AI Ready Data」为准。
+ * CONTEXT.md「AI Ready Data」为准。传输层（鉴权/401/错误归一）见 http.ts。
  */
-
-const API_BASE_URL = (import.meta.env.VITE_DATAOS_API_BASE_URL ?? '/api').replace(/\/$/, '')
 
 export type AIDataProductType =
   | 'RAG_CORPUS'
@@ -119,54 +117,17 @@ export interface AIDataProductDetail {
   versions: AIDataProductVersion[]
 }
 
-export class AIDataError extends Error {
-  readonly status: number
-  readonly code: string
-
-  constructor(message: string, status: number, code = '') {
-    super(message)
-    this.name = 'AIDataError'
-    this.status = status
-    this.code = code
-  }
-}
-
 async function aiFetch(path: string, init: RequestInit = {}, signal?: AbortSignal): Promise<Response> {
-  const headers = new Headers(init.headers)
-  headers.set('Accept', 'application/json')
-  const token = getAccessToken()
-  if (token) headers.set('Authorization', `Bearer ${token}`)
-  if (init.body) headers.set('Content-Type', 'application/json')
-  const response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers, signal })
-  if (response.status === 401 && typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent('dataos:auth-required'))
-  }
-  return response
-}
-
-async function parseOrThrow(response: Response, prefix: string): Promise<unknown> {
-  if (!response.ok) {
-    let detail = ''
-    let code = ''
-    try {
-      const payload = await response.json() as { message?: string; code?: string }
-      detail = payload.message ?? ''
-      code = payload.code ?? ''
-    } catch {
-      // 非 JSON 错误体时仅保留 HTTP 状态
-    }
-    throw new AIDataError(`${prefix}${detail ? `：${detail}` : ''}（HTTP ${response.status}）`, response.status, code)
-  }
-  return response.json()
+  return portalFetch(path, { ...init, signal })
 }
 
 export async function fetchAIDataProducts(signal?: AbortSignal): Promise<AIDataProduct[]> {
-  const payload = await parseOrThrow(await aiFetch('/v1/ai-data-products', {}, signal), 'AI Data 产品列表读取失败')
+  const payload = await parseJsonOrThrow(await aiFetch('/v1/ai-data-products', {}, signal), 'AI Data 产品列表读取失败')
   return (payload as { items: AIDataProduct[] }).items ?? []
 }
 
 export async function fetchAIDataProduct(id: string, signal?: AbortSignal): Promise<AIDataProductDetail> {
-  const payload = await parseOrThrow(
+  const payload = await parseJsonOrThrow(
     await aiFetch(`/v1/ai-data-products/${encodeURIComponent(id)}`, {}, signal),
     'AI Data 产品详情读取失败',
   ) as {
@@ -190,14 +151,14 @@ export async function createAIDataProduct(request: {
   workflow: string
   source: string
 }, signal?: AbortSignal): Promise<AIDataProduct> {
-  return parseOrThrow(
+  return parseJsonOrThrow(
     await aiFetch('/v1/ai-data-products', { method: 'POST', body: JSON.stringify(request) }, signal),
     'AI Data 产品创建失败',
   ) as Promise<AIDataProduct>
 }
 
 export async function transitionAIDataProduct(id: string, target: AIDataProductLifecycle): Promise<AIDataProduct> {
-  return parseOrThrow(
+  return parseJsonOrThrow(
     await aiFetch(`/v1/ai-data-products/${encodeURIComponent(id)}/lifecycle`, {
       method: 'POST',
       body: JSON.stringify({ target }),
@@ -217,7 +178,7 @@ export interface AIOverview {
 }
 
 export async function fetchAIOverview(signal?: AbortSignal): Promise<AIOverview> {
-  return parseOrThrow(
+  return parseJsonOrThrow(
     await aiFetch('/v1/ai-data-products/overview', {}, signal),
     '工作台概览读取失败',
   ) as Promise<AIOverview>
@@ -240,7 +201,7 @@ export interface AIEvaluationFeedbackItem {
 }
 
 export async function fetchFeedback(id: string, signal?: AbortSignal): Promise<AIEvaluationFeedbackItem[]> {
-  const payload = await parseOrThrow(
+  const payload = await parseJsonOrThrow(
     await aiFetch(`/v1/ai-data-products/${encodeURIComponent(id)}/feedback`, {}, signal),
     '反馈队列读取失败',
   )
@@ -250,7 +211,7 @@ export async function fetchFeedback(id: string, signal?: AbortSignal): Promise<A
 export async function submitFeedback(id: string, body: {
   question: string; metric?: string; outcome?: string; feedbackType?: string; detail?: string
 }): Promise<AIEvaluationFeedbackItem> {
-  return parseOrThrow(
+  return parseJsonOrThrow(
     await aiFetch(`/v1/ai-data-products/${encodeURIComponent(id)}/feedback`, {
       method: 'POST', body: JSON.stringify(body),
     }),
@@ -259,7 +220,7 @@ export async function submitFeedback(id: string, body: {
 }
 
 export async function resolveFeedback(feedbackId: string, consume: boolean, resolution: string): Promise<AIEvaluationFeedbackItem> {
-  return parseOrThrow(
+  return parseJsonOrThrow(
     await aiFetch(`/v1/ai-data-products/feedback/${encodeURIComponent(feedbackId)}/resolve`, {
       method: 'POST', body: JSON.stringify({ consume, resolution }),
     }),
@@ -295,7 +256,7 @@ export interface AICertificationRequest {
 }
 
 export async function fetchCertificationRequests(id: string, signal?: AbortSignal): Promise<AICertificationRequest[]> {
-  const payload = await parseOrThrow(
+  const payload = await parseJsonOrThrow(
     await aiFetch(`/v1/ai-data-products/${encodeURIComponent(id)}/certification-requests`, {}, signal),
     '认证审批历史读取失败',
   )
@@ -303,7 +264,7 @@ export async function fetchCertificationRequests(id: string, signal?: AbortSigna
 }
 
 export async function submitCertification(id: string): Promise<AICertificationRequest> {
-  return parseOrThrow(
+  return parseJsonOrThrow(
     await aiFetch(`/v1/ai-data-products/${encodeURIComponent(id)}/certification-requests`, {
       method: 'POST', body: JSON.stringify({}),
     }),
@@ -312,7 +273,7 @@ export async function submitCertification(id: string): Promise<AICertificationRe
 }
 
 export async function decideCertification(requestId: string, approve: boolean, note: string): Promise<{ productId: string; lifecycle: string }> {
-  return parseOrThrow(
+  return parseJsonOrThrow(
     await aiFetch(`/v1/ai-data-products/certification-requests/${encodeURIComponent(requestId)}/decision`, {
       method: 'POST', body: JSON.stringify({ approve, note }),
     }),
@@ -321,7 +282,7 @@ export async function decideCertification(requestId: string, approve: boolean, n
 }
 
 export async function evaluateAIDataProduct(id: string): Promise<AIReadyEvaluationReport> {
-  return parseOrThrow(
+  return parseJsonOrThrow(
     await aiFetch(`/v1/ai-data-products/${encodeURIComponent(id)}/evaluate`, {
       method: 'POST', body: JSON.stringify({}),
     }),
@@ -340,7 +301,7 @@ export interface AIReadyBuildSummary {
 }
 
 export async function buildAIDataProduct(id: string, recipeRef?: string): Promise<AIReadyBuildSummary> {
-  return parseOrThrow(
+  return parseJsonOrThrow(
     await aiFetch(`/v1/ai-data-products/${encodeURIComponent(id)}/build`, {
       method: 'POST',
       body: JSON.stringify({ recipeRef: recipeRef ?? null }),

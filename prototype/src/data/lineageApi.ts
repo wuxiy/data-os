@@ -1,11 +1,9 @@
-import { getAccessToken } from './oidc'
+import { parseJsonOrThrow, portalFetch } from './http'
 
 /**
  * 血缘/资产读 API 客户端（控制面 BFF → OpenMetadata，见 G1/G2 方案）。
  * 数据形状与 control-plane `lineage.LineageAssetService` 的投影 record 一一对应。
  */
-
-const API_BASE_URL = (import.meta.env.VITE_DATAOS_API_BASE_URL ?? '/api').replace(/\/$/, '')
 
 export interface LineageAssetSummary {
   name: string
@@ -72,62 +70,31 @@ export interface LineageSummaryView {
   dashboards: LineageDashboardSummary[]
 }
 
-export class LineageError extends Error {
-  readonly status: number
-
-  constructor(message: string, status: number) {
-    super(message)
-    this.name = 'LineageError'
-    this.status = status
-  }
-}
-
 async function lineageFetch(path: string, signal?: AbortSignal): Promise<Response> {
-  const headers = new Headers({ Accept: 'application/json' })
-  const token = getAccessToken()
-  if (token) headers.set('Authorization', `Bearer ${token}`)
-  const response = await fetch(`${API_BASE_URL}${path}`, { headers, signal })
-  if (response.status === 401 && typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent('dataos:auth-required'))
-  }
-  return response
-}
-
-async function parseOrThrow(response: Response, prefix: string): Promise<unknown> {
-  if (!response.ok) {
-    let detail = ''
-    try {
-      const payload = await response.json() as { message?: string }
-      detail = payload.message ?? ''
-    } catch {
-      // 非 JSON 错误体时仅保留 HTTP 状态。
-    }
-    throw new LineageError(`${prefix}${detail ? `：${detail}` : ''}（HTTP ${response.status}）`, response.status)
-  }
-  return response.json()
+  return portalFetch(path, { signal })
 }
 
 export async function fetchLineageCatalog(schema?: string, signal?: AbortSignal): Promise<LineageAssetCatalog> {
   const query = schema ? `?schema=${encodeURIComponent(schema)}` : ''
-  return parseOrThrow(await lineageFetch(`/v1/assets${query}`, signal), '资产目录读取失败') as Promise<LineageAssetCatalog>
+  return parseJsonOrThrow(await lineageFetch(`/v1/assets${query}`, signal), '资产目录读取失败') as Promise<LineageAssetCatalog>
 }
 
 export async function fetchLineageAsset(fullyQualifiedName: string, signal?: AbortSignal): Promise<LineageAssetDetail> {
-  return parseOrThrow(
+  return parseJsonOrThrow(
     await lineageFetch(`/v1/assets/${encodeURIComponent(fullyQualifiedName)}`, signal),
     '资产详情读取失败',
   ) as Promise<LineageAssetDetail>
 }
 
 export async function fetchLineageGraph(fullyQualifiedName: string, signal?: AbortSignal): Promise<LineageAssetLineage> {
-  return parseOrThrow(
+  return parseJsonOrThrow(
     await lineageFetch(`/v1/assets/${encodeURIComponent(fullyQualifiedName)}/lineage`, signal),
     '血缘读取失败',
   ) as Promise<LineageAssetLineage>
 }
 
 export async function fetchLineageSummary(signal?: AbortSignal): Promise<LineageSummaryView> {
-  return parseOrThrow(await lineageFetch('/v1/lineage/summary', signal), '血缘摘要读取失败') as Promise<LineageSummaryView>
+  return parseJsonOrThrow(await lineageFetch('/v1/lineage/summary', signal), '血缘摘要读取失败') as Promise<LineageSummaryView>
 }
 
 /** 资产的质量测试与最近结论（G7：控制面自有质量域，非 OM）。 */
@@ -142,7 +109,7 @@ export async function fetchAssetQualityTests(
   fullyQualifiedName: string,
   signal?: AbortSignal,
 ): Promise<AssetQualityTest[]> {
-  const payload = await parseOrThrow(
+  const payload = await parseJsonOrThrow(
     await lineageFetch(`/v1/assets/${encodeURIComponent(fullyQualifiedName)}/quality-tests`, signal),
     '质量测试读取失败',
   ) as { tests?: AssetQualityTest[] }

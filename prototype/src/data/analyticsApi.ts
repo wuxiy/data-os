@@ -1,12 +1,11 @@
-import { getAccessToken } from './oidc'
+import { parseJsonOrThrow, portalFetch } from './http'
 
 /**
  * 嵌入式分析 API 客户端（控制面 BFF → Superset 访客令牌，见 G4 方案）。
  * 仪表盘以 BFF 白名单为准；嵌入 origin 是门户 nginx 的专用监听端口
- * （默认同主机 18084，可用 VITE_DATAOS_SUPERSET_EMBED_ORIGIN 覆盖）。
+ * （默认同主机 18084，可用 VITE_DATAOS_SUPERSET_EMBED_ORIGIN 覆盖）；
+ * 传输层（鉴权/401/错误归一）见 http.ts。
  */
-
-const API_BASE_URL = (import.meta.env.VITE_DATAOS_API_BASE_URL ?? '/api').replace(/\/$/, '')
 
 export interface EmbeddableDashboard {
   id: string
@@ -20,45 +19,12 @@ export interface GuestTokenResponse {
   expiresInSeconds: number
 }
 
-export class AnalyticsError extends Error {
-  readonly status: number
-
-  constructor(message: string, status: number) {
-    super(message)
-    this.name = 'AnalyticsError'
-    this.status = status
-  }
-}
-
 async function analyticsFetch(path: string, init: RequestInit = {}): Promise<Response> {
-  const headers = new Headers(init.headers)
-  if (!headers.has('Accept')) headers.set('Accept', 'application/json')
-  if (init.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json')
-  const token = getAccessToken()
-  if (token) headers.set('Authorization', `Bearer ${token}`)
-  const response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers })
-  if (response.status === 401 && typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent('dataos:auth-required'))
-  }
-  return response
-}
-
-async function parseOrThrow(response: Response, prefix: string): Promise<unknown> {
-  if (!response.ok) {
-    let detail = ''
-    try {
-      const payload = await response.json() as { message?: string }
-      detail = payload.message ?? ''
-    } catch {
-      // 非 JSON 错误体时仅保留 HTTP 状态。
-    }
-    throw new AnalyticsError(`${prefix}${detail ? `：${detail}` : ''}（HTTP ${response.status}）`, response.status)
-  }
-  return response.json()
+  return portalFetch(path, init)
 }
 
 export async function fetchEmbeddableDashboards(signal?: AbortSignal): Promise<EmbeddableDashboard[]> {
-  const payload = await parseOrThrow(
+  const payload = await parseJsonOrThrow(
     await analyticsFetch('/v1/analytics/dashboards', { signal }),
     '分析仪表盘清单读取失败',
   ) as { dashboards?: EmbeddableDashboard[] }
@@ -66,7 +32,7 @@ export async function fetchEmbeddableDashboards(signal?: AbortSignal): Promise<E
 }
 
 export async function fetchGuestToken(dashboardId: string): Promise<GuestTokenResponse> {
-  return parseOrThrow(
+  return parseJsonOrThrow(
     await analyticsFetch('/v1/analytics/guest-token', {
       method: 'POST',
       body: JSON.stringify({ dashboardId }),

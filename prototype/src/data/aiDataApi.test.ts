@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { PortalHttpError } from './http'
 import {
-  AIDataError,
   buildAIDataProduct,
   createAIDataProduct,
   fetchAIDataProduct,
@@ -51,9 +51,9 @@ describe('aiDataApi', () => {
   it('surfaces the engine guard code on 503', async () => {
     stubFetch(503, { code: 'AI_READY_ENGINE_NOT_CONFIGURED', message: 'AI Ready 评估引擎未接入' })
     const error = await buildAIDataProduct('p1').catch((cause: unknown) => cause)
-    expect(error).toBeInstanceOf(AIDataError)
-    expect((error as AIDataError).status).toBe(503)
-    expect((error as AIDataError).code).toBe('AI_READY_ENGINE_NOT_CONFIGURED')
+    expect(error).toBeInstanceOf(PortalHttpError)
+    expect((error as PortalHttpError).status).toBe(503)
+    expect((error as PortalHttpError).code).toBe('AI_READY_ENGINE_NOT_CONFIGURED')
   })
 
   it('maps conflict responses to errors with status', async () => {
@@ -61,8 +61,8 @@ describe('aiDataApi', () => {
     const error = await createAIDataProduct({
       name: '重复', type: 'FEATURE_DATASET', owner: 'o', workflow: 'w', source: 's',
     }).catch((cause: unknown) => cause)
-    expect((error as AIDataError).status).toBe(409)
-    expect((error as AIDataError).message).toContain('同名')
+    expect((error as PortalHttpError).status).toBe(409)
+    expect((error as PortalHttpError).message).toContain('同名')
   })
 
   it('projects readiness json at the boundary (snake/camel normalized)', async () => {
