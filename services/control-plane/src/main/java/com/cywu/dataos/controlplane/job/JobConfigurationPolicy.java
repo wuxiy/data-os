@@ -26,7 +26,7 @@ public final class JobConfigurationPolicy {
     }
 
     public void validateRun(IngestionJob job, Map<String, Object> config) {
-        if (isProduction() && (isDemoTemplate(job.templateKey()) || containsFakeSource(config))) {
+        if (isProduction() && (isDemoTemplate(job.templateKey()) || JobConfigTree.containsPlugin(config, "fakesource"))) {
             throw new ConflictException("生产环境不允许启动 FakeSource 演示采集任务");
         }
     }
@@ -37,20 +37,5 @@ public final class JobConfigurationPolicy {
 
     private boolean isDemoTemplate(String templateKey) {
         return templateKey != null && "FAKE_TO_CONSOLE".equalsIgnoreCase(templateKey.trim());
-    }
-
-    private boolean containsFakeSource(Object value) {
-        if (value instanceof Map<?, ?> map) {
-            for (var entry : map.entrySet()) {
-                if ("plugin_name".equalsIgnoreCase(String.valueOf(entry.getKey()))
-                        && "fakesource".equalsIgnoreCase(String.valueOf(entry.getValue()).trim())) {
-                    return true;
-                }
-                if (containsFakeSource(entry.getValue())) return true;
-            }
-        } else if (value instanceof Collection<?> collection) {
-            for (var item : collection) if (containsFakeSource(item)) return true;
-        }
-        return false;
     }
 }

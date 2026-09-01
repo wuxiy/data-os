@@ -157,7 +157,7 @@ public class IngestionRunService {
         // the external executor's finish time would skip rows committed while
         // the query was already running.
         var watermarkEnd = submittedAt;
-        config = interpolateConfig(config, watermarkStart, watermarkEnd, runId);
+        config = JobConfigTree.interpolate(config, watermarkStart, watermarkEnd, runId);
         var run = new IngestionRun(
                 runId,
                 job.id(),
@@ -173,46 +173,6 @@ public class IngestionRunService {
         runRepository.setSourceWatermarkEndBoundary(runId, watermarkEnd);
         runRepository.updateJobLastRunAt(job.id(), submittedAt);
         return ExternalRunLifecycle.ClaimOutcome.pending(run, new IngestionSubmission(job, config));
-    }
-
-    private Map<String, Object> interpolateConfig(Map<String, Object> source, Instant watermarkStart,
-                                                   Instant watermarkEnd, String runId) {
-        var value = interpolateNode(source, watermarkStart, watermarkEnd, runId);
-        if (!(value instanceof Map<?, ?> map)) return Map.of();
-        var result = new HashMap<String, Object>();
-        map.forEach((key, item) -> result.put(String.valueOf(key), item));
-        var env = result.get("env");
-        var resolvedEnv = new HashMap<String, Object>();
-        if (env instanceof Map<?, ?> envMap) {
-            envMap.forEach((key, item) -> resolvedEnv.put(String.valueOf(key), item));
-        }
-        resolvedEnv.put("dataos_run_id", runId);
-        resolvedEnv.put("dataos.watermark.start",
-                watermarkStart == null ? "1970-01-01T00:00:00Z" : watermarkStart.toString());
-        resolvedEnv.put("dataos.watermark.end",
-                watermarkEnd == null ? Instant.now().toString() : watermarkEnd.toString());
-        result.put("env", resolvedEnv);
-        return result;
-    }
-
-    private Object interpolateNode(Object value, Instant watermarkStart, Instant watermarkEnd, String runId) {
-        if (value instanceof Map<?, ?> map) {
-            var result = new HashMap<String, Object>();
-            map.forEach((key, item) -> result.put(String.valueOf(key),
-                    interpolateNode(item, watermarkStart, watermarkEnd, runId)));
-            return result;
-        }
-        if (value instanceof java.util.Collection<?> collection) {
-            return collection.stream().map(item -> interpolateNode(item, watermarkStart, watermarkEnd, runId)).toList();
-        }
-        if (value instanceof String text) {
-            return text.replace("${last_success_time}",
-                            watermarkStart == null ? "1970-01-01T00:00:00Z" : watermarkStart.toString())
-                    .replace("${run_start_time}",
-                            watermarkEnd == null ? Instant.now().toString() : watermarkEnd.toString())
-                    .replace("${data_os_run_id}", runId);
-        }
-        return value;
     }
 
     private String normalizeIdempotencyKey(String value) {

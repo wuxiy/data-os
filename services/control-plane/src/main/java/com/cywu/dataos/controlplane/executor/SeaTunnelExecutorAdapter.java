@@ -15,6 +15,7 @@ import java.util.Locale;
 import java.util.Map;
 
 import com.cywu.dataos.controlplane.job.IngestionJob;
+import com.cywu.dataos.controlplane.job.JobConfigTree;
 import com.cywu.dataos.controlplane.credential.CredentialResolver;
 import com.cywu.dataos.controlplane.security.AuthProperties;
 import com.cywu.dataos.controlplane.security.TenantScope;
@@ -93,7 +94,13 @@ public class SeaTunnelExecutorAdapter implements ExecutorAdapter {
         }
 
         var scope = tenantScope.current();
-        var config = resolveCredentials(requestConfig, scope);
+        Map<String, Object> config;
+        try {
+            config = JobConfigTree.resolveCredentials(requestConfig, credentialResolver,
+                    scope.tenantId(), scope.institutionId());
+        } catch (IllegalStateException exception) {
+            throw new AdapterConfigurationException("中心采集作业 credentialRef 无法解析");
+        }
         var env = new HashMap<String, Object>();
         if (config.get("env") instanceof Map<?, ?> existingEnv) {
             existingEnv.forEach((key, value) -> env.put(String.valueOf(key), value));
@@ -276,53 +283,6 @@ public class SeaTunnelExecutorAdapter implements ExecutorAdapter {
     private String normalizeBaseUrl(String value) {
         if (value == null) return "";
         return value.trim().replaceAll("/+$", "");
-    }
-
-    /**
-     * Expand credentialRef only in memory immediately before submission. The
-     * persisted job JSON contains references, never password/token values;
-     * the resolved map is also never logged or returned to the caller.
-     */
-    private Map<String, Object> resolveCredentials(Map<String, Object> requestConfig,
-                                                   TenantScope.Scope scope) {
-        Object resolved = resolveNode(requestConfig, scope);
-        if (!(resolved instanceof Map<?, ?> map)) {
-            throw new AdapterConfigurationException("中心采集作业配置必须是对象");
-        }
-        var result = new HashMap<String, Object>();
-        map.forEach((key, value) -> result.put(String.valueOf(key), value));
-        return result;
-    }
-
-    private Object resolveNode(Object value, TenantScope.Scope scope) {
-        if (value instanceof Map<?, ?> map) {
-            var result = new HashMap<String, Object>();
-            Object reference = map.get("credentialRef");
-            if (reference != null && !String.valueOf(reference).isBlank()) {
-                try {
-                    var secret = credentialResolver.resolve(String.valueOf(reference), scope.tenantId(),
-                            scope.institutionId());
-                    secret.forEach((key, item) -> result.put(String.valueOf(key), resolveNode(item, scope)));
-                    // SeaTunnel's JDBC source uses user while Doris uses
-                    // username; accepting either credential shape keeps the
-                    // credential service provider-neutral.
-                    if (secret.containsKey("username")) {
-                        result.putIfAbsent("user", resolveNode(secret.get("username"), scope));
-                    }
-                } catch (RuntimeException exception) {
-                    throw new AdapterConfigurationException("中心采集作业 credentialRef 无法解析");
-                }
-            }
-            map.forEach((key, item) -> {
-                var name = String.valueOf(key);
-                if (!"credentialRef".equals(name)) result.put(name, resolveNode(item, scope));
-            });
-            return result;
-        }
-        if (value instanceof Collection<?> collection) {
-            return collection.stream().map(item -> resolveNode(item, scope)).toList();
-        }
-        return value;
     }
 
     static String toSeaTunnelMode(String mode) {

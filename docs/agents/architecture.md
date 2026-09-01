@@ -5,6 +5,7 @@
 ## 单一来源清单（要写第二处 = 方向错了）
 
 - **外部运行状态机只有一份**：`controlplane/run/ExternalRunLifecycle`。采集/质量两侧差异全部经 `RunPolicy` 与接入点显式声明（如 `StaleSubmissionPolicy`：采集侧宁可疑转对账、质量侧幂等重投退避），不得复制状态机、不得散布裸状态字符串（统一 `RunStatus`）。
+- **采集作业配置树只有一份属主**：`controlplane/job/JobConfigTree`。树的结构（env 对象、source/sink 插件列表、plugin_name/credentialRef、`${...}` 占位符）及其操作（保存期密钥守卫、运行期演示连接器守卫、领取期插值与环境注入、提交期凭据展开）不得在调用方复制 walker 或散布第二份树形知识；各阶段的业务校验（临床连接器契约、网络策略）仍归各自属主。
 - 错误消息：`api/ErrorMessages.safe`；厂商状态归一留在各执行器 adapter 内，中性归一在 `RunStatus.normalize/sanitized`。
 - 仓储按聚合拆分：`IssueRepository` / `QualityRunRepository` / `NotificationOutboxRepository`，不得向调用方暴露跨聚合宽接口。
 - 执行器「是否配置好」由执行器自答（`QualityRuleExecutor.configured()` / `readinessEndpoint()`），消费方按名询问。

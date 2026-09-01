@@ -59,7 +59,7 @@ public class JobConfigService {
         }
         requirePlugins(config, "source");
         requirePlugins(config, "sink");
-        if (containsSecretKey(config)) {
+        if (JobConfigTree.containsSecretKey(config)) {
             throw new InvalidRequestException("任务配置不得保存明文密码或密钥，请改用凭据引用");
         }
         workflowCatalog.validateConfig(request.templateKey(), request.templateVersion(), config);
@@ -69,19 +69,6 @@ public class JobConfigService {
         if (!(config.get(key) instanceof Collection<?> plugins) || plugins.isEmpty()) {
             throw new InvalidRequestException("任务配置必须包含非空 " + key + " 插件列表");
         }
-    }
-
-    private boolean containsSecretKey(Object value) {
-        if (value instanceof Map<?, ?> map) {
-            for (var entry : map.entrySet()) {
-                var key = String.valueOf(entry.getKey()).toLowerCase(java.util.Locale.ROOT);
-                if (key.contains("password") || key.contains("secret") || key.equals("token")) return true;
-                if (containsSecretKey(entry.getValue())) return true;
-            }
-        } else if (value instanceof Collection<?> collection) {
-            for (var item : collection) if (containsSecretKey(item)) return true;
-        }
-        return false;
     }
 
     private void requireJob(String jobId) {
