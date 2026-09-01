@@ -18,6 +18,7 @@
 
 - **源身份（Source Identity）**：单一来源系统中的一个患者登记（机构 + 源主键/卡号 + 标准化属性），自 Doris ods 层装载，按源键幂等去重。
 - **黄金人（Golden Person）**：一组被判定为同一自然人的源身份的归一主体（`mpi_person`）；Merge/Split 改变其成员构成，全程留痕可逆。
+- **归并格子（Unite Grid）**：把两个源身份归入同一黄金人的四分支判定（无链接建人/一方收编/已同人幂等补投影/双方并人），单一属主为 `MpiPersonService`；链接与 Doris 投影回写只经格子发生。RULE 与 MANUAL 两侧差异（并人保谁：RULE 保留创建较早者、MANUAL 保留 personA；建人属性来源与决策元数据）经 `UnitePlan` 显式声明，不做隐性分叉。
 - **候选对（Candidate Pair）**：候选召回阶段产出的待判定身份对，跨召回规则按 pair 去重。
 - **候选召回（Blocking）**：用确定性键（机构+源主键、机构+卡号、姓名+性别）缩小候选集合的 SQL 阶段；只负责召回，判定交给规则层。
 - **硬冲突（Hard Conflict）**：人工已判 NO_MATCH 或已 Split 的身份对再次成为候选时，规则层强制 NO_MATCH——人工否决高于任何规则与分数。

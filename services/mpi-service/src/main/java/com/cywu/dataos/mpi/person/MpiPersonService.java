@@ -15,6 +15,9 @@ import com.cywu.dataos.mpi.audit.MpiAuditService;
 
 /**
  * 黄金人生命周期：AUTO 建人/并人（规则置信内）、人工 Merge、Split。
+ * 归并格子（建人/收编/幂等/并人）的单一属主：RULE 与 MANUAL 两个人口
+ * 共用 unite(...)，链接与 Doris 投影回写只在这里发生；两侧差异经
+ * UnitePlan 显式声明（先例：ExternalRunLifecycle 的 RunPolicy）。
  * V1 说明：M 级规则按 pair 逐对应用，同卡同名链自然连通为一个黄金人；
  * 传递闭包冲突检测（Cluster Guard 完整版）留 V2，此处以「弱标识不单独
  * 硬合并」的规则纪律兜底。link 为版本链（valid_to 关闭即失效），
@@ -40,36 +43,66 @@ public class MpiPersonService {
     public void applyAutoMatch(String tenantId, String institutionId, long pairId,
                                String identityA, String identityB, String name, String gender,
                                String ruleId, String ruleVersion) {
+        var outcome = unite(tenantId, institutionId, identityA, identityB, new UnitePlan(
+                "RULE", "system", ruleVersion, true, name, gender, "system",
+                "AUTO_MATCH 规则并人：" + ruleId));
+        if (outcome.alreadyUnited()) {
+            // 幂等早退不追加审计：全量重算会重复经过已决对。
+            return;
+        }
+        audit.append(tenantId, institutionId, "AUTO_MATCH", "system", "SYSTEM",
+                "PAIR", String.valueOf(pairId),
+                Map.of("ruleId", ruleId, "personId", outcome.personId(),
+                        "identities", List.of(identityA, identityB)),
+                ruleVersion);
+    }
+
+    /** 人工复核 SAME_PERSON：把两个身份归入同一黄金人（决策源 MANUAL，幂等）。 */
+    @Transactional
+    public String uniteManual(String tenantId, String institutionId,
+                              String identityA, String identityB, String actor) {
+        return unite(tenantId, institutionId, identityA, identityB, new UnitePlan(
+                "MANUAL", actor, null, false, nameOf(tenantId, identityA), null,
+                "manual", "人工复核确认同人")).personId();
+    }
+
+    /**
+     * 归并格子：双方无链接→建人 / 一方有→收编 / 已同人→幂等补投影 /
+     * 双方各有→并人。并人保谁按侧显式声明（RULE 保留创建较早者，
+     * MANUAL 保留 personA），不做隐性分叉。
+     */
+    private UniteOutcome unite(String tenantId, String institutionId,
+                               String identityA, String identityB, UnitePlan plan) {
         var personA = currentPersonOf(tenantId, identityA);
         var personB = currentPersonOf(tenantId, identityB);
         if (personA.isPresent() && personA.equals(personB)) {
             // 已同人：rebuild 幂等路径。装载阶段全量重装会重置回写列，
             // 此处必须补投影回写（identity→person 的缓存视图随时可重建）。
             writeBackPersonId(tenantId, personA.get(), identityA, identityB);
-            return;
+            return new UniteOutcome(personA.get(), true);
         }
         String personId;
         if (personA.isEmpty() && personB.isEmpty()) {
-            personId = createPerson(tenantId, institutionId, name, gender, "system");
+            personId = createPerson(tenantId, institutionId,
+                    plan.newPersonName(), plan.newPersonGender(), plan.newPersonCreatedBy());
         } else if (personA.isPresent() && personB.isEmpty()) {
             personId = personA.get();
         } else if (personA.isEmpty()) {
             personId = personB.get();
         } else {
-            // 双方各有黄金人：规则置信内自动并人（保留创建较早者为主人）。
-            personId = earlierOf(tenantId, personA.get(), personB.get());
+            personId = plan.mergeKeepEarlier()
+                    ? earlierOf(tenantId, personA.get(), personB.get())
+                    : personA.get();
             var dropped = personId.equals(personA.get()) ? personB.get() : personA.get();
-            mergePersons(tenantId, institutionId, personId, dropped, "RULE", "system",
-                    "AUTO_MATCH 规则并人：" + ruleId);
+            mergePersons(tenantId, institutionId, personId, dropped,
+                    plan.decisionSource(), plan.actor(), plan.mergeReason());
         }
-        insertLink(tenantId, institutionId, personId, identityA, "RULE", ruleVersion, "system");
-        insertLink(tenantId, institutionId, personId, identityB, "RULE", ruleVersion, "system");
+        insertLink(tenantId, institutionId, personId, identityA,
+                plan.decisionSource(), plan.ruleVersion(), plan.actor());
+        insertLink(tenantId, institutionId, personId, identityB,
+                plan.decisionSource(), plan.ruleVersion(), plan.actor());
         writeBackPersonId(tenantId, personId, identityA, identityB);
-        audit.append(tenantId, institutionId, "AUTO_MATCH", "system", "SYSTEM",
-                "PAIR", String.valueOf(pairId),
-                Map.of("ruleId", ruleId, "personId", personId,
-                        "identities", List.of(identityA, identityB)),
-                ruleVersion);
+        return new UniteOutcome(personId, false);
     }
 
     /** 人工/规则合并：drop 的全部有效身份改挂 keep，drop 归档为 MERGED。 */
@@ -129,11 +162,7 @@ public class MpiPersonService {
                 SET valid_to = CURRENT_TIMESTAMP, link_status = 'SPLIT'
                 WHERE tenant_id = ? AND person_id = ? AND source_identifier = ? AND valid_to IS NULL
                 """, tenantId, personId, identityGroup);
-        var name = doris.queryForObject("""
-                SELECT name_norm FROM dataos_mpi.mpi_source_identity
-                WHERE tenant_id = ?
-                  AND CONCAT(institution_code, '|', source_system, '|', source_key) = ?
-                """, String.class, tenantId, identityGroup);
+        var name = nameOf(tenantId, identityGroup);
         var newPersonId = createPerson(tenantId, institutionId, name, null, actor);
         insertLink(tenantId, institutionId, newPersonId, identityGroup, "MANUAL", null, actor);
         writeBackPersonId(tenantId, newPersonId, identityGroup);
@@ -146,17 +175,6 @@ public class MpiPersonService {
                         "splitIdentity", identityGroup, "reason", reason == null ? "" : reason),
                 null);
         return newPersonId;
-    }
-
-    /** 人工路径建黄金人（复核确认同人且双方均无人时）。 */
-    public String createManualPerson(String tenantId, String institutionId, String name) {
-        return createPerson(tenantId, institutionId, name, null, "manual");
-    }
-
-    /** 人工路径把身份挂到黄金人（版本链语义同规则路径，决策源 MANUAL）。 */
-    public void linkManual(String tenantId, String institutionId, String personId,
-                           String identityGroup, String actor) {
-        insertLink(tenantId, institutionId, personId, identityGroup, "MANUAL", null, actor);
     }
 
     private Optional<String> currentPersonOf(String tenantId, String identityGroup) {
@@ -210,9 +228,16 @@ public class MpiPersonService {
                 """, String.class, tenantId, first, second);
     }
 
+    private String nameOf(String tenantId, String identityGroup) {
+        return doris.queryForObject("""
+                SELECT name_norm FROM dataos_mpi.mpi_source_identity
+                WHERE tenant_id = ?
+                  AND CONCAT(institution_code, '|', source_system, '|', source_key) = ?
+                """, String.class, tenantId, identityGroup);
+    }
+
     private void writeBackPersonId(String tenantId, String personId, String... identityGroups) {
         for (var group : identityGroups) {
-            var parts = group.split("\\|", 2);
             doris.update("""
                     UPDATE dataos_mpi.mpi_source_identity
                     SET mpi_person_id = ?
@@ -221,4 +246,12 @@ public class MpiPersonService {
                     """, personId, tenantId, group);
         }
     }
+
+    /** 两侧归并差异的显式声明：决策元数据、并人保谁、建人属性来源。 */
+    private record UnitePlan(String decisionSource, String actor, String ruleVersion,
+                             boolean mergeKeepEarlier, String newPersonName, String newPersonGender,
+                             String newPersonCreatedBy, String mergeReason) {}
+
+    /** 归并结果：存活黄金人 + 是否幂等早退（已同人，未产生新链接/审计）。 */
+    private record UniteOutcome(String personId, boolean alreadyUnited) {}
 }

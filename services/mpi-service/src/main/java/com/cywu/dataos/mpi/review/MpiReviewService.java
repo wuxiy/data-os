@@ -2,8 +2,6 @@ package com.cywu.dataos.mpi.review;
 
 import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException;
-import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -58,7 +56,7 @@ public class MpiReviewService {
 
         String mergedPersonId = null;
         if ("SAME_PERSON".equals(resolution)) {
-            mergedPersonId = uniteIdentities(tenantId, institutionId, identityA, identityB, actor);
+            mergedPersonId = persons.uniteManual(tenantId, institutionId, identityA, identityB, actor);
         }
         pg.update("""
                 UPDATE data_os_mpi.mpi_review_task
@@ -75,52 +73,5 @@ public class MpiReviewService {
                 null);
         return Map.of("taskId", taskId, "resolution", resolution,
                 "mergedPersonId", mergedPersonId == null ? "" : mergedPersonId);
-    }
-
-    /** 把两个身份归入同一黄金人（人工路径）：复用 person 服务的链接语义。 */
-    private String uniteIdentities(String tenantId, String institutionId,
-                                   String identityA, String identityB, String actor) {
-        var personA = currentPerson(tenantId, identityA);
-        var personB = currentPerson(tenantId, identityB);
-        if (personA.isPresent() && personA.equals(personB)) {
-            return personA.get();
-        }
-        String personId;
-        if (personA.isEmpty() && personB.isEmpty()) {
-            personId = createManualPerson(tenantId, institutionId, identityA);
-        } else if (personA.isPresent() && personB.isEmpty()) {
-            personId = personA.get();
-        } else if (personA.isEmpty()) {
-            personId = personB.get();
-        } else {
-            personId = personA.get();
-            persons.mergePersons(tenantId, institutionId, personA.get(), personB.get(),
-                    "MANUAL", actor, "人工复核确认同人");
-        }
-        persons.linkManual(tenantId, institutionId, personId, identityA, actor);
-        persons.linkManual(tenantId, institutionId, personId, identityB, actor);
-        return personId;
-    }
-
-    private String createManualPerson(String tenantId, String institutionId, String identityGroup) {
-        var name = doris.queryForObject("""
-                SELECT name_norm FROM dataos_mpi.mpi_source_identity
-                WHERE tenant_id = ?
-                  AND CONCAT(institution_code, '|', source_system, '|', source_key) = ?
-                """, String.class, tenantId, identityGroup);
-        return persons.createManualPerson(tenantId, institutionId, name);
-    }
-
-    private java.util.Optional<String> currentPerson(String tenantId, String identityGroup) {
-        var found = pg.queryForList("""
-                SELECT person_id FROM data_os_mpi.mpi_person_link
-                WHERE tenant_id = ? AND source_identifier = ? AND valid_to IS NULL
-                  AND link_status = 'ACTIVE'
-                """, String.class, tenantId, identityGroup);
-        if (found.isEmpty()) return java.util.Optional.empty();
-        if (found.size() > 1) {
-            throw new IllegalStateException("身份存在多条有效链接（数据一致性违规）");
-        }
-        return java.util.Optional.of(found.get(0));
     }
 }
