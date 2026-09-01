@@ -40,6 +40,68 @@ export interface AIDataProduct {
   updatedAt: string
 }
 
+export interface ReadinessEvaluation {
+  evalSetSize: number | null
+  retrievalRecallAt5: number | null
+  precisionAt5: number | null
+  mrr: number | null
+  citationCorrectness: number | null
+  faithfulness: number | null
+}
+
+/** readiness_json 的只读投影：就绪度报告（ai-ready-service models.py）是
+ *  camelCase，RAG 评测段（/evaluate 回写）是 snake_case——历史两代拼写
+ *  都在版本行里，边界处一次解析并归一为 camelCase 视图，页面不再碰原文。 */
+export interface ReadinessView {
+  overall: number | null
+  certification: string | null
+  evaluation: ReadinessEvaluation | null
+}
+
+function num(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null
+}
+
+function pick(source: Record<string, unknown>, ...keys: string[]): unknown {
+  for (const key of keys) {
+    if (source[key] !== undefined) return source[key]
+  }
+  return undefined
+}
+
+export function parseReadiness(readinessJson: string | null | undefined): ReadinessView | null {
+  if (!readinessJson) return null
+  let payload: Record<string, unknown>
+  try {
+    const parsed: unknown = JSON.parse(readinessJson)
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null
+    payload = parsed as Record<string, unknown>
+  } catch {
+    return null
+  }
+  const gate = payload.gate
+  const evaluationRaw = payload.evaluation
+  let evaluation: ReadinessEvaluation | null = null
+  if (evaluationRaw && typeof evaluationRaw === 'object' && !Array.isArray(evaluationRaw)) {
+    const section = evaluationRaw as Record<string, unknown>
+    evaluation = {
+      evalSetSize: num(pick(section, 'evalSetSize', 'eval_set_size')),
+      retrievalRecallAt5: num(pick(section, 'retrievalRecallAt5', 'retrieval_recall_at_5')),
+      precisionAt5: num(pick(section, 'precisionAt5', 'precision_at_5')),
+      mrr: num(section.mrr),
+      citationCorrectness: num(pick(section, 'citationCorrectness', 'citation_correctness')),
+      faithfulness: num(section.faithfulness),
+    }
+  }
+  const certification = (gate && typeof gate === 'object' && !Array.isArray(gate)
+    ? (gate as Record<string, unknown>).certification : undefined)
+  return {
+    overall: num(payload.overall),
+    certification: typeof certification === 'string' ? certification : null,
+    evaluation,
+  }
+}
+
 export interface AIDataProductVersion {
   id: string
   productId: string
@@ -47,7 +109,7 @@ export interface AIDataProductVersion {
   recipeRef: string | null
   gitCommit: string | null
   snapshotAt: string | null
-  readinessJson: string | null
+  readiness: ReadinessView | null
   buildStatus: string
   createdAt: string
 }
@@ -104,10 +166,21 @@ export async function fetchAIDataProducts(signal?: AbortSignal): Promise<AIDataP
 }
 
 export async function fetchAIDataProduct(id: string, signal?: AbortSignal): Promise<AIDataProductDetail> {
-  return parseOrThrow(
+  const payload = await parseOrThrow(
     await aiFetch(`/v1/ai-data-products/${encodeURIComponent(id)}`, {}, signal),
     'AI Data 产品详情读取失败',
-  ) as Promise<AIDataProductDetail>
+  ) as {
+    product: AIDataProduct
+    versions: Array<Omit<AIDataProductVersion, 'readiness'> & { readinessJson: string | null }>
+  }
+  // 边界投影：原文 readinessJson 不出 API client。
+  return {
+    product: payload.product,
+    versions: payload.versions.map(({ readinessJson, ...rest }) => ({
+      ...rest,
+      readiness: parseReadiness(readinessJson),
+    })),
+  }
 }
 
 export async function createAIDataProduct(request: {
@@ -194,15 +267,16 @@ export async function resolveFeedback(feedbackId: string, consume: boolean, reso
   ) as Promise<AIEvaluationFeedbackItem>
 }
 
-/** RAG 评测报告（G11：五指标）。 */
+/** RAG 评测报告（G11：五指标）。引擎 /evaluate 返回 snake_case 原文
+ *  （evaluation 模块）；入库的 evaluation 段同此拼写。 */
 export interface AIReadyEvaluationReport {
   product: string
   version: string
-  evalSetSize: number
-  retrievalRecallAt5: number
-  precisionAt5: number
+  eval_set_size: number
+  retrieval_recall_at_5: number
+  precision_at_5: number
   mrr: number
-  citationCorrectness: number
+  citation_correctness: number
   faithfulness: number
 }
 

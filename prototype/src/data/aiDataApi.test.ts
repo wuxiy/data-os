@@ -3,6 +3,7 @@ import {
   AIDataError,
   buildAIDataProduct,
   createAIDataProduct,
+  fetchAIDataProduct,
   fetchAIDataProducts,
   nextLifecycleTarget,
 } from './aiDataApi'
@@ -62,6 +63,47 @@ describe('aiDataApi', () => {
     }).catch((cause: unknown) => cause)
     expect((error as AIDataError).status).toBe(409)
     expect((error as AIDataError).message).toContain('同名')
+  })
+
+  it('projects readiness json at the boundary (snake/camel normalized)', async () => {
+    stubFetch(200, {
+      product: { id: 'p1', name: '指南语料库', lifecycle: 'ASSESSED', currentVersion: 'v0.3.0' },
+      versions: [
+        {
+          id: 'v1', productId: 'p1', versionSn: 'v0.1.0', recipeRef: null, gitCommit: null,
+          snapshotAt: null, buildStatus: 'SUCCEEDED',
+          readinessJson: JSON.stringify({
+            overall: 0.83,
+            gate: { certification: 'REVIEW_REQUIRED' },
+            evaluation: { eval_set_size: 9, retrieval_recall_at_5: 0.61, precision_at_5: 0.55, mrr: 0.72, citation_correctness: 0.5, faithfulness: 0.44 },
+          }),
+        },
+        {
+          id: 'v2', productId: 'p1', versionSn: 'v0.2.0', recipeRef: null, gitCommit: null,
+          snapshotAt: null, buildStatus: 'SUCCEEDED',
+          readinessJson: JSON.stringify({
+            overall: 0.87,
+            gate: { certification: 'CANDIDATE' },
+            evaluation: { evalSetSize: 9, retrievalRecallAt5: 0.66, precisionAt5: 0.6, mrr: 0.78, citationCorrectness: 0.56, faithfulness: 0.5 },
+          }),
+        },
+        { id: 'v3', productId: 'p1', versionSn: 'v0.3.0', recipeRef: null, gitCommit: null, snapshotAt: null, buildStatus: 'REGISTERED', readinessJson: null },
+        { id: 'v4', productId: 'p1', versionSn: 'v0.3.1', recipeRef: null, gitCommit: null, snapshotAt: null, buildStatus: 'SUCCEEDED', readinessJson: '{bad json' },
+      ],
+    })
+    const detail = await fetchAIDataProduct('p1')
+    const [snake, camel, missing, broken] = detail.versions
+    // snake_case（/evaluate 回写）与 camelCase（旧版报告）归一为同一视图。
+    expect(snake.readiness?.overall).toBe(0.83)
+    expect(snake.readiness?.certification).toBe('REVIEW_REQUIRED')
+    expect(snake.readiness?.evaluation?.evalSetSize).toBe(9)
+    expect(snake.readiness?.evaluation?.retrievalRecallAt5).toBe(0.61)
+    expect(camel.readiness?.evaluation?.mrr).toBe(0.78)
+    expect(camel.readiness?.certification).toBe('CANDIDATE')
+    // 未评估与坏 JSON 都投影为 null，原文不再暴露给页面。
+    expect(missing.readiness).toBeNull()
+    expect(broken.readiness).toBeNull()
+    expect('readinessJson' in detail.versions[0]).toBe(false)
   })
 })
 

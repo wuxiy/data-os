@@ -27,17 +27,6 @@ interface Props {
   onChanged?: () => void
 }
 
-function readinessOf(version: { readinessJson: string | null }): { overall: number; certification: string } | null {
-  if (!version.readinessJson) return null
-  try {
-    const payload = JSON.parse(version.readinessJson) as { overall?: number; gate?: { certification?: string } }
-    if (typeof payload.overall !== 'number') return null
-    return { overall: payload.overall, certification: payload.gate?.certification ?? '' }
-  } catch {
-    return null
-  }
-}
-
 /** AI Data Product 详情（G8/G9）：版本历史 + 生命周期操作 + build 守护提示。 */
 export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, onBuild, onChanged }: Props) {
   const [detail, setDetail] = useState<AIDataProductDetail | null>(null)
@@ -176,15 +165,15 @@ export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, 
               <thead><tr><th>版本</th><th>构建状态</th><th>就绪度</th><th>Recipe</th><th>Git Commit</th><th>创建时间</th></tr></thead>
               <tbody>
                 {versions.map((version) => {
-                  const readiness = readinessOf(version)
+                  const readiness = version.readiness
                   return (
                     <tr key={version.id}>
                       <td>{version.versionSn}</td>
                       <td><StatusTag tone={version.buildStatus === 'REGISTERED' ? 'neutral' : 'healthy'}>{version.buildStatus}</StatusTag></td>
                       <td>
-                        {readiness
+                        {readiness?.overall != null
                           ? <StatusTag tone={readiness.certification === 'BLOCKED' ? 'danger' : readiness.certification === 'CANDIDATE' ? 'healthy' : 'warning'}>
-                              {readiness.overall.toFixed(2)} · {readiness.certification}
+                              {readiness.overall.toFixed(2)} · {readiness.certification ?? '—'}
                             </StatusTag>
                           : <span>—</span>}
                       </td>
@@ -200,29 +189,20 @@ export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, 
         </section>
 
         {(() => {
-          const evaluation = (() => {
-            if (!detail) return null
-            const version = detail.versions.find((item) => item.versionSn === product.currentVersion)
-            if (!version?.readinessJson) return null
-            try {
-              const payload = JSON.parse(version.readinessJson) as { evaluation?: Record<string, number> }
-              return payload.evaluation ?? null
-            } catch {
-              return null
-            }
-          })()
+          const version = detail.versions.find((item) => item.versionSn === product.currentVersion)
+          const evaluation = version?.readiness?.evaluation ?? null
           if (!evaluation) return null
           return (
             <section className={styles.contentPanel}>
               <div className={styles.contentPanelHeader}>
                 <h3>评测指标（RAG Eval · 合成评测集）</h3>
-                <span>评测集 {evaluation.eval_set_size ?? evaluation.evalSetSize ?? '—'} 问</span>
+                <span>评测集 {evaluation.evalSetSize ?? '—'} 问</span>
               </div>
               <div className={styles.lineageImpact}>
-                <div className={styles.impactItem}><span>Recall@5</span><strong>{Number(evaluation.retrieval_recall_at_5 ?? evaluation.retrievalRecallAt5 ?? 0).toFixed(2)}</strong></div>
-                <div className={styles.impactItem}><span>Precision@5</span><strong>{Number(evaluation.precision_at_5 ?? evaluation.precisionAt5 ?? 0).toFixed(2)}</strong></div>
+                <div className={styles.impactItem}><span>Recall@5</span><strong>{Number(evaluation.retrievalRecallAt5 ?? 0).toFixed(2)}</strong></div>
+                <div className={styles.impactItem}><span>Precision@5</span><strong>{Number(evaluation.precisionAt5 ?? 0).toFixed(2)}</strong></div>
                 <div className={styles.impactItem}><span>MRR</span><strong>{Number(evaluation.mrr ?? 0).toFixed(2)}</strong></div>
-                <div className={styles.impactItem}><span>引用正确率</span><strong>{Number(evaluation.citation_correctness ?? evaluation.citationCorrectness ?? 0).toFixed(2)}</strong></div>
+                <div className={styles.impactItem}><span>引用正确率</span><strong>{Number(evaluation.citationCorrectness ?? 0).toFixed(2)}</strong></div>
                 <div className={styles.impactItem}><span>忠实度</span><strong>{Number(evaluation.faithfulness ?? 0).toFixed(2)}</strong></div>
               </div>
             </section>
@@ -232,16 +212,13 @@ export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, 
         {(() => {
           // 版本对比（G12 飞轮呈现面）：相邻版本的 Overall/MRR/Faithfulness 变化
           const rows = detail.versions.map((version) => {
-            if (!version.readinessJson) return null
-            try {
-              const payload = JSON.parse(version.readinessJson) as {
-                overall?: number
-                evaluation?: { mrr?: number; faithfulness?: number }
-              }
-              return { versionSn: version.versionSn, overall: payload.overall ?? null,
-                       mrr: payload.evaluation?.mrr ?? null, faith: payload.evaluation?.faithfulness ?? null }
-            } catch {
-              return null
+            const readiness = version.readiness
+            if (!readiness) return null
+            return {
+              versionSn: version.versionSn,
+              overall: readiness.overall,
+              mrr: readiness.evaluation?.mrr ?? null,
+              faith: readiness.evaluation?.faithfulness ?? null,
             }
           }).filter(Boolean) as { versionSn: string; overall: number | null; mrr: number | null; faith: number | null }[]
           if (rows.length < 2) return null

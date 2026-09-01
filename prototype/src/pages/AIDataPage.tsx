@@ -131,7 +131,7 @@ function AIDataLive({ onNotice }: { onNotice: (message: string) => void }) {
   async function runEvaluation(product: AIDataProduct) {
     try {
       const report = await evaluateAIDataProduct(product.id)
-      onNotice(`评测完成：MRR ${report.mrr?.toFixed?.(2) ?? '—'} · Recall@5 ${report.retrievalRecallAt5?.toFixed?.(2) ?? '—'}（已并入版本报告）`)
+      onNotice(`评测完成：MRR ${report.mrr?.toFixed?.(2) ?? '—'} · Recall@5 ${report.retrieval_recall_at_5?.toFixed?.(2) ?? '—'}（已并入版本报告）`)
       setSelectedId(product.id)
       refresh()
     } catch (error) {

@@ -15,15 +15,14 @@ public record AIReadyAssessment(
         String assessedAt,
         Map<String, Object> rawJson) {
 
-    @SuppressWarnings("unchecked")
     public static AIReadyAssessment from(Map<String, Object> payload) {
-        var gate = payload.get("gate") instanceof Map<?, ?> gateMap ? (Map<String, Object>) gateMap : Map.of();
+        var snapshot = ReadinessSnapshot.of(payload);
         return new AIReadyAssessment(
                 String.valueOf(payload.getOrDefault("product", "")),
                 String.valueOf(payload.getOrDefault("version", "")),
                 String.valueOf(payload.getOrDefault("profile", "")),
-                payload.get("overall") instanceof Number number ? number.doubleValue() : 0.0,
-                String.valueOf(gate.getOrDefault("certification", "")),
+                snapshot.overall(),
+                snapshot.certification(),
                 String.valueOf(payload.getOrDefault("assessedAt", "")),
                 payload);
     }

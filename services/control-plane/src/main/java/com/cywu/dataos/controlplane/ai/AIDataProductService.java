@@ -150,7 +150,7 @@ public class AIDataProductService {
         if (version.readinessJson() == null || version.readinessJson().isBlank()) {
             throw new ConflictException("当前版本尚未评估：先执行 build（就绪度评估）");
         }
-        var snapshot = AICertificationRepository.snapshotOf(version.readinessJson());
+        var snapshot = ReadinessSnapshot.parse(version.readinessJson());
         if (snapshot == null) {
             throw new ConflictException("就绪度报告无法解析，请重新评估");
         }
@@ -301,19 +301,13 @@ public class AIDataProductService {
                     .filter(item -> item.versionSn().equals(product.currentVersion()))
                     .findFirst().orElse(null);
             if (version != null && version.readinessJson() != null && !version.readinessJson().isBlank()) {
-                var snapshot = AICertificationRepository.snapshotOf(version.readinessJson());
+                var snapshot = ReadinessSnapshot.parse(version.readinessJson());
                 if (snapshot != null) {
                     overallSum += snapshot.overall();
                     assessed++;
-                }
-                try {
-                    var root = new com.fasterxml.jackson.databind.ObjectMapper()
-                            .readTree(version.readinessJson());
-                    if (root.has("evaluation") && root.path("evaluation").has("mrr")) {
-                        latestMrr = root.path("evaluation").path("mrr").asDouble(latestMrr);
+                    if (snapshot.mrr() != null) {
+                        latestMrr = snapshot.mrr();
                     }
-                } catch (com.fasterxml.jackson.core.JsonProcessingException ignored) {
-                    // 概览对单条脏数据零容忍：跳过
                 }
             }
         }

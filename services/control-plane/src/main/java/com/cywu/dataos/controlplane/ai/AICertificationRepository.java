@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -60,19 +59,7 @@ public class AICertificationRepository {
                 """, decision, note, decidedBy, Timestamp.from(decidedAt), id);
     }
 
-    /** 当前版本 readiness_json 的 gate 摘要（无评估返回 null）。 */
-    public record ReadinessSnapshot(double overall, String certification) {
-    }
-
-    public static ReadinessSnapshot snapshotOf(String readinessJson) {
-        try {
-            JsonNode root = new com.fasterxml.jackson.databind.ObjectMapper().readTree(readinessJson);
-            return new ReadinessSnapshot(root.path("overall").asDouble(0.0),
-                    root.path("gate").path("certification").asText(""));
-        } catch (Exception exception) {
-            return null;
-        }
-    }
+    /** 当前版本 readiness_json 的 gate 摘要见 {@link ReadinessSnapshot}。 */
 
     private static final String SELECT = """
             SELECT id, product_id, version_sn, readiness_overall, certification, decision,
