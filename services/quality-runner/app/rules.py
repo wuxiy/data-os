@@ -11,6 +11,8 @@ from models import RuleDefinition
 
 _IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_\.]*$")
 _SELECTOR = re.compile(r"^[A-Za-z0-9_\.\-:\+]+$")
+# dbt 通用测试族（失败表形状的声明），见 evidence.py。
+_KINDS = {"not_null", "unique", "accepted_values", "relationships"}
 
 
 class RuleCatalog:
@@ -27,11 +29,14 @@ class RuleCatalog:
             evidence = raw.get("evidence") or {}
             if not rule_id or not _SELECTOR.fullmatch(selector) or not dataset_id:
                 raise ValueError(f"invalid quality rule registration: {rule_id}")
-            table = str(evidence.get("table", "")).strip()
+            kind = str(evidence.get("kind", "")).strip().lower()
+            column = str(evidence.get("column", "")).strip()
             columns = evidence.get("columns", [])
-            if table and not _IDENTIFIER.fullmatch(table):
-                raise ValueError(f"invalid evidence table for {rule_id}")
-            if not isinstance(columns, list):
+            if kind not in _KINDS:
+                raise ValueError(f"invalid evidence kind for {rule_id}")
+            if not _IDENTIFIER.fullmatch(column):
+                raise ValueError(f"invalid evidence column for {rule_id}")
+            if not isinstance(columns, list) or not columns:
                 raise ValueError(f"invalid evidence columns for {rule_id}")
             for item in columns:
                 if isinstance(item, str):

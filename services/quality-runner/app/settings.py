@@ -38,7 +38,8 @@ class Settings:
     stale_run_seconds: int = field(default_factory=lambda: _int_env("QUALITY_RUNNER_STALE_RUN_SECONDS", 120))
     doris_host: str = field(default_factory=lambda: _env("DORIS_FE_HOST"))
     doris_port: int = field(default_factory=lambda: _int_env("DORIS_FE_PORT", 9030))
-    doris_database: str = field(default_factory=lambda: _env("DORIS_DATABASE", "dataos_quality_acceptance"))
+    # DORIS_DATABASE（业务/验收库）由 dbt 子进程经 profiles.yml 直接读取，
+    # 运行器本体只访问审计库（失败表读取与清理）。
     doris_audit_database: str = field(default_factory=lambda: _env("DORIS_AUDIT_DATABASE", "dataos_quality_audit"))
     doris_user: str = field(default_factory=lambda: _env("DORIS_USER"))
     doris_password: str = field(default_factory=lambda: os.getenv("DORIS_PASSWORD", ""))

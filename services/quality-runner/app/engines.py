@@ -90,7 +90,7 @@ class DbtEngine:
                                          outcome.stdout, outcome.stderr)
             if not summary["passed"]:
                 summary["evidence"] = await asyncio.to_thread(
-                    self.evidence.read, rule.evidence, namespace)
+                    self.evidence.read, rule.selector, rule.evidence, namespace)
             if not await asyncio.to_thread(self.database.owns_generation,
                                            run.run_id, run.execution_generation):
                 return EngineResult("CANCELED", False, "执行代次已失效")

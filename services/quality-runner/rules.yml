@@ -1,10 +1,15 @@
+# 质量规则注册表。规则语义（谓词、值域、外键目标）的唯一权威是
+# quality/dbt 工程的测试声明——selector 与 dbt 测试 name 同名互绑。
+# evidence 块只声明执行器自己的展示契约：
+#   kind    = dbt 通用测试族，决定失败表的形状（见 evidence.py）
+#   column  = 被测列（聚合形状的值列按它命名投影）
+#   columns = 证据列白名单与脱敏分类（IDENTIFIER/CATEGORY/SAFE/REDACTED）
 rules:
   - rule_id: quality.acceptance.not_null_patient_id
     selector: quality_acceptance_not_null_patient_id
     dataset_id: dataos_quality_acceptance.quality_sample
     evidence:
       kind: not_null
-      table: dataos_quality_acceptance.quality_sample
       column: patient_id
       columns:
         - {name: record_id, classification: IDENTIFIER}
@@ -15,7 +20,6 @@ rules:
     dataset_id: dataos_quality_acceptance.quality_sample
     evidence:
       kind: unique
-      table: dataos_quality_acceptance.quality_sample
       column: record_id
       columns:
         - {name: record_id, classification: IDENTIFIER}
@@ -26,9 +30,7 @@ rules:
     dataset_id: dataos_quality_acceptance.quality_sample
     evidence:
       kind: accepted_values
-      table: dataos_quality_acceptance.quality_sample
       column: status
-      values: [VALID, CANCELLED]
       columns:
         - {name: record_id, classification: IDENTIFIER}
         - {name: patient_id, classification: IDENTIFIER}
@@ -42,7 +44,6 @@ rules:
     dataset_id: asset-lis-lab-result
     evidence:
       kind: not_null
-      table: dataos_quality_acceptance.quality_sample
       column: updated_at
       columns:
         - {name: record_id, classification: IDENTIFIER}
@@ -53,9 +54,7 @@ rules:
     dataset_id: asset-emr-diagnosis
     evidence:
       kind: accepted_values
-      table: dataos_quality_acceptance.quality_sample
       column: status
-      values: [VALID, CANCELLED]
       columns:
         - {name: record_id, classification: IDENTIFIER}
         - {name: patient_id, classification: IDENTIFIER}
@@ -65,7 +64,6 @@ rules:
     dataset_id: asset-surgery-record
     evidence:
       kind: not_null
-      table: dataos_quality_acceptance.quality_sample
       column: patient_id
       columns:
         - {name: record_id, classification: IDENTIFIER}
@@ -80,7 +78,6 @@ rules:
     dataset_id: asset-ep-prescription-edge
     evidence:
       kind: not_null
-      table: ods_ep.ep_mz_cfzb_edge
       column: ID
       columns:
         - {name: ID, classification: IDENTIFIER}
@@ -91,7 +88,6 @@ rules:
     dataset_id: asset-ep-prescription-edge
     evidence:
       kind: unique
-      table: ods_ep.ep_mz_cfzb_edge
       column: ID
       columns:
         - {name: ID, classification: IDENTIFIER}
@@ -102,9 +98,7 @@ rules:
     dataset_id: asset-ep-prescription-edge
     evidence:
       kind: accepted_values
-      table: ods_ep.ep_mz_cfzb_edge
       column: CFPTZT
-      values: [-1, 1, 3, 4, 5, 6, 7, 8, 9, 10, 12, 13, 15, 16, 18, 20, 35]
       columns:
         - {name: ID, classification: IDENTIFIER}
         - {name: CFPTZT, classification: CATEGORY}
@@ -114,7 +108,6 @@ rules:
     dataset_id: asset-ep-prescription-edge
     evidence:
       kind: relationships
-      table: ods_ep.ep_mz_ypcfmx_edge
       column: CFZID
       columns:
         - {name: ID, classification: IDENTIFIER}

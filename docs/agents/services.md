@@ -10,4 +10,4 @@
 
 - 测试：`cd services/quality-runner && .venv/bin/python -m pytest tests/ -q`（`.venv` 只装测试最小依赖，非完整运行时）。
 - 跨服务契约见 `docs/quality-runner.md`：**批次号 == runId == Idempotency-Key**；两侧租约（`stale-run-seconds` 与 `submit-lease-ms`）需协同调参——只调一侧会打开重复执行窗口。
-- 新增质量规则：`rules.yml` 登记 + dbt 测试 + 证据查询合同三件套（详见该文档「注册规则」一节）。
+- 新增质量规则：`rules.yml` 登记（selector 与 dbt 测试 name 同名互绑）+ dbt 测试 + 证据展示契约（kind/column/列脱敏策略；值域与外键目标只在 dbt 测试里声明一次，详见该文档「注册规则」一节）。

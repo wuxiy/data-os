@@ -87,15 +87,20 @@ Content-Type: application/json
 
 ## Doris 与证据
 
-业务库不由 Runtime 访问。Doris 质量查询账号只读验收/质量库；失败时仅执行固定的
-`not_null`、`unique`、`accepted_values` 证据查询，最多 20 行；每条规则必须声明列级
-allowlist 和 `IDENTIFIER/CATEGORY/SAFE/REDACTED` 分类。标识列使用由运行器主密钥按
+规则语义（谓词、值域、外键目标）唯一声明在 `quality/dbt` 的测试 YAML 里，运行器不重新
+实现判定。失败样本直接消费 dbt `--store-failures` 落在审计库的
+`<tenant namespace>__<selector>` 失败表：`not_null` 存整行，`unique`/`accepted_values`
+聚合为（违规值, n_records），`relationships` 为孤儿值列；最多 20 行，按每条规则声明的
+列级 allowlist 和 `IDENTIFIER/CATEGORY/SAFE/REDACTED` 分类投影脱敏（`rules.yml` 的
+`evidence` 块只声明 kind/column/列策略，装载期校验 kind）。标识列使用由运行器主密钥按
 tenant/institution 派生的专用 HMAC，
-未登记列默认 `[REDACTED]`，不依赖字段名猜测 PHI。dbt `--store-failures` 产物在证据读取后
+未登记列默认 `[REDACTED]`，不依赖字段名猜测 PHI。失败表在证据读取后
 由单独清理账号按 tenant namespace + 注册 selector 删除，禁止通配表删除；超时、取消和 Runtime 重启也会
-在 finally/启动清理残留。汇总 JSON 不包含 SQL、连接串或原始 PHI，RustFS/S3 制品默认保留 30 天。
+在 finally/启动清理残留；dbt 测试自身 error（非数据失败）没有失败表，证据留空、结论与诊断
+由 dbt 输出承载。汇总 JSON 不包含 SQL、连接串或原始 PHI，RustFS/S3 制品默认保留 30 天。
 部署时用 `DORIS_AUDIT_DATABASE` 指定隔离审计库；`DORIS_DBT_USER` 只允许读取业务库并
-写入该审计库，`DORIS_CLEANUP_USER` 只允许删除已登记的失败表，不能把三类账号合并。
+写入该审计库，`DORIS_USER`（质量查询账号）只允许 SELECT 该审计库的失败表（证据读取已
+不访问业务库），`DORIS_CLEANUP_USER` 只允许删除已登记的失败表，不能把三类账号合并。
 
 ## 认证与租户
 
@@ -106,8 +111,8 @@ client secret，不向前端暴露。`DISABLED` 仅可用于开发接收器，�
 
 ## 注册规则
 
-新增医疗规则必须同时提交：规则 ID、稳定 dbt selector、数据集 ID、证据查询合同、Doris
-样本/真实表映射和测试。镜像构建时固定 `dbt-core` 与 `dbt-doris` 版本；运行时不联网拉取
+新增医疗规则必须同时提交：规则 ID、稳定 dbt selector、数据集 ID、证据展示契约
+（kind/column/列脱敏策略）和测试；值域与外键目标只在 dbt 测试里声明一次。镜像构建时固定 `dbt-core` 与 `dbt-doris` 版本；运行时不联网拉取
 Git 项目或包。首版 `rule-timeliness-result-time` 等兼容绑定只指向合成
 `dataos_quality_acceptance.quality_sample`，真实 LIS/EMR/手术表接入前必须完成规则映射评审。
 完成真实表映射后，应由调度工作流在质量检查终态调用上述 finding 接口；没有这一步，质量

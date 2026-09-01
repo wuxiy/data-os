@@ -41,8 +41,7 @@ class QualityRunManager:
         self.settings = settings
         self.supervisor = supervisor or ProcessSupervisor(database, settings.stale_run_seconds)
         self.engine = engine or DbtEngine(settings, EvidenceReader(
-            settings.doris_host, settings.doris_port, settings.doris_database,
-            settings.doris_audit_database,
+            settings.doris_host, settings.doris_port, settings.doris_audit_database,
             settings.doris_user, settings.doris_password, settings.evidence_limit,
             settings.doris_cleanup_user, settings.doris_cleanup_password,
             settings.evidence_hash_key,

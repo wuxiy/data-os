@@ -15,7 +15,7 @@ from supervisor import ProcessOutcome
 
 
 RULE = RuleDefinition(rule_id="r1", selector="sel_a", dataset_id="d1",
-                      evidence={"table": "t", "kind": "not_null", "column": "c", "columns": ["c"]})
+                      evidence={"kind": "not_null", "column": "c", "columns": ["c"]})
 
 
 def make_run(status: str = "RUNNING", generation: int = 3) -> QualityRun:
@@ -78,11 +78,11 @@ class FakeArtifacts:
 class FakeEvidence:
     def __init__(self, rows: list[dict[str, Any]] | None = None):
         self.rows = rows or [{"sample": 1}]
-        self.reads: list[tuple[dict, str]] = []
+        self.reads: list[tuple[str, dict, str]] = []
         self.cleanups: list[tuple[str, str]] = []
 
-    def read(self, evidence: dict, namespace: str = "") -> list[dict[str, Any]]:
-        self.reads.append((evidence, namespace))
+    def read(self, selector: str, evidence: dict, namespace: str = "") -> list[dict[str, Any]]:
+        self.reads.append((selector, evidence, namespace))
         return self.rows
 
     def cleanup_failure_tables(self, selector: str, namespace: str = "") -> int:
@@ -162,7 +162,7 @@ def test_dbt_engine_reads_evidence_when_failed(tmp_path: Path) -> None:
     result = asyncio.run(engine.execute(make_run(), RULE, tmp_path, "ns-2"))
 
     assert result.status == "FAILED" and not result.passed
-    assert evidence.reads == [(RULE.evidence, "ns-2")]
+    assert evidence.reads == [("sel_a", RULE.evidence, "ns-2")]
     assert result.evidence == [{"sample": 1}]
 
 

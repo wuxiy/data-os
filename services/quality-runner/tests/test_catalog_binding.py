@@ -57,5 +57,6 @@ def test_ep_edge_rule_pack_registered():
     assert EP_EDGE_SELECTORS <= registered
     for rule in catalog.all():
         if rule.selector in EP_EDGE_SELECTORS:
-            assert rule.evidence["table"].startswith("ods_ep.")
+            assert rule.evidence["kind"] in {"not_null", "unique", "accepted_values", "relationships"}
+            assert rule.evidence["column"]
             assert rule.dataset_id == "asset-ep-prescription-edge"
