@@ -241,3 +241,27 @@ Gate 0 实现与验证完成。控制面全量 Maven 测试 56 项通过，前�
 - quality-runner：独立临时环境 8 项 pytest 通过，`compileall` 通过。
 - Portal：`npm run build`、`npm run qa:mock`、`node qa/portal-interactions-smoke.mjs` 通过。
 - Delivery：`bash -n deploy/production/scripts/platformctl`、`platformctl status/smoke` dry-run、占位环境 `preflight` 预期失败、生产 Compose `config --quiet` 和 `git diff --check` 通过。
+
+## 2026-09-01 下一阶段实施计划与验收清单
+
+### Goal
+
+将 Decision Intelligence Roadmap 评审结论收敛为与当前 G1–G14 基线兼容、可直接用 Gate 方式执行的下一阶段计划，明确顺序、依赖、文件边界、验收证据、回滚和停止条件。
+
+### Phases
+
+- [x] Phase 1: 确认仓库、评审稿、当前 Gate 与工作树基线
+- [x] Phase 2: 核对 T5、电子处方数据、Superset、Data API、OM 和门户实际接缝
+- [x] Phase 3: 冻结下一阶段 Gate 顺序、范围、依赖与决策门
+- [x] Phase 4: 编写文件级实施计划与正常/失败/边界验收清单
+- [x] Phase 5: 自审、更新 `tasks/todo.md` 与下一阶段备忘、交付待批准计划
+
+### Key Decisions
+
+- 本轮不实施功能，只产出待批准计划。
+- 计划必须让“无真实业务 Owner”成为可执行的分支，而不是隐含前提。
+- 默认不新增服务/数据面/采集引擎/看板编辑器。
+
+### Status
+
+**Complete** - 正式计划已归档至 `docs/decision-intelligence-next-stage-plan-20260901.md`，实施等待用户批准。

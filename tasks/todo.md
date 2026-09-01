@@ -809,3 +809,56 @@ Secret 卷托管。新增文档链接已放入根 README 和 `deploy/dev/README.
 - [x] G12 数据飞轮与门户收口 — ✅ 2026-08-27 验收 6/6（gate-ai-ready-g12-20260827.md；飞轮机制全链实测、SERVING 守卫双向、指标对比如实留证）。**G8-G12 AI Ready 主线收官**
 - [x] G13 ToB 数据 API — ✅ 2026-08-27 验收 16/16（gate-tob-data-api-g13-20260827.md；管理面/执行面/门户/部署四层，`dataos_api_ro` 授权面与 `/dataapi` 反代）
 - [x] G14 MPI 匹配算法效果与 V2 评分 — ✅ 2026-08-28 验收 9/9（gate-mpi-g14-20260828.md；核心发现：EP 字段集身份信号在字段合取不在边际，V2 以影子模式上线、非同人复核负担 -78%；关闭备忘 T2）
+
+# 2026-09-01 Decision Intelligence 功能与 Roadmap 评审
+
+## 目标
+
+根据当前架构、已完成迭代、待验证业务闭环及当前行业实践，审核 Decision Intelligence 方案是否必要、是否纳入总体 Roadmap，并给出范围裁剪、前置条件和准入门。
+
+## 执行计划
+
+- [x] 回顾历史教训、领域词汇、当前 Gate 与延后台账
+- [x] 解构方案的产品假设、模块边界、技术选型和迭代承诺
+- [x] 核对仓库中的现有能力、重复面、缺口与当前阻塞项
+- [x] 用官方/一手资料核验行业最佳实践
+- [x] 产出架构适配性、必要性、Roadmap 优先级、风险与决策门结论
+- [x] 检查引用、逻辑、项目术语与文档差异，完成复盘
+
+## 结果复盘
+
+- 结论：不批准附件 V0.1 原样开发；批准将“可治理的医疗指标语义与决策消费”作为条件主线纳入 Roadmap 候选。
+- 当前不直接排实施 Gate；先以真实业务责任人、高频决策问题、5–10 表、8–12 指标和至少 10 个黄金问题执行 R0 准入。
+- 通过准入后依次推进指标语义 MVP、真实 Decision Workspace、受控 AI Analyst Beta 和 Healthcare Pack；复用 Superset、OpenMetadata、dbt/Doris 与 Data API。
+- 明确不纳入本主线：DuckDB 第二数据面、新 Built-in Connector、新 Edge Agent、NiFi 服务端适配、自研 Dashboard 编辑器、MyBatis-Flex 切换和仓库重排。
+- 正式评审稿：`docs/decision-intelligence-roadmap-review-20260901.md`；本轮只改文档/任务台账，未修改业务代码。
+
+# 2026-09-01 下一阶段实施计划与验收清单
+
+## 目标
+
+把 Decision Intelligence 评审结论与 G14/T5、Superset、OpenMetadata、dbt/Doris、Data API、治理闭环和门户真实边界对齐，形成可批准、可停止、可回滚、可逐 Gate 验收的下一阶段计划。
+
+## 执行计划
+
+- [x] 回顾项目教训、领域词汇、架构边界与 G1–G14 验收事实
+- [x] 核对 T5、G4 分析、G13 Data API、OM、治理问题和管理驾驶舱实际接缝
+- [x] 冻结 G15A/G15B 并行、G16/G17 条件串行的推荐顺序
+- [x] 明确文件落点、外部依赖、失败形态、回滚和不建设范围
+- [x] 编写各 Gate 正常/失败/边界验收清单与 Go/No-Go 条件
+- [x] 完成差异检查、任务台账和延后项台账同步
+
+## 结果复盘
+
+- 推荐下一阶段为 6–8 周、43–62 人日：G15A MPI 混合策略影子实验与 G15B Decision R0 产品准入并行；R0 全过后才进入 G16 指标语义 MVP，再进入 G17 真实决策工作台。
+- G15A 只验证 V1 合取守卫 + V2 复核分流，不改变生产 outcome；真实多源重标定继续等待多源数据。
+- G16 作为现有 control-plane 内的 `semantic` 深模块，复用 Doris/dbt、Superset、OpenMetadata 和 Data API，不新增微服务、第二数据面或 Dashboard 编辑器。
+- R0 最大硬门是 10 个工作日内取得真实业务 Owner、5–10 表、8–12 指标和 10 个黄金问题；未通过即停止语义层，用现有 Superset 满足固定看板。
+- AI Analyst 与 Healthcare Pack 不进入本阶段实施，必须等待真实决策工作台的采用证据后另行评审。
+- 正式交付：`docs/decision-intelligence-next-stage-plan-20260901.md`；状态为待批准，本轮未实施业务功能。
+
+## 验证
+
+- [x] `git diff --check` 通过
+- [x] 计划引用的现有关键源码、评审、架构、验收与台账路径均存在
+- [x] G15A/G15B/G16/G17 均包含前置条件、验收证据、停止条件和回滚边界

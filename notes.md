@@ -182,3 +182,35 @@
 
 - 本轮没有伪造真实 LIS/EMR、Doris、院方通知网关或跨组件生产 E2E 证据；这些仍是外部联调和上线前置条件。
 - `platformctl backup/restore` 已提供标准操作入口和恢复后迁移检查，但未在本机执行真实生产数据恢复演练；不等于 RPO/RTO 已被证明。
+
+# 2026-09-01 下一阶段计划调研笔记
+
+## 已批准方向
+
+- Decision Intelligence 不按附件 V0.1 原样建设；Roadmap 候选名称为“可治理的医疗指标语义与决策消费”。
+- 先做 R0 产品准入；通过后才做 R1 指标语义、R2 真实决策工作台、R3 受控 AI Analyst、R4 Healthcare Pack。
+- T5（MPI 混合决策权与多源重标定）是已有明确下一 Gate 候选，新主线不应自动取代它。
+
+## 核对清单（已完成）
+
+- T5 的实际前置条件、可否与 R0 并行。
+- R1 可复用的 dbt/Doris 模型、G4 Superset 数据集、G13 Data API 及 OM 映射接缝。
+- 最小新文件/迁移/API/门户范围与涉及文件数。
+- 每个 Gate 的机器证据、远端实测、回滚和停止条件。
+
+## 接缝核对结论
+
+- G14 已有冻结 2142 对评测集、V2 影子分数和 45 对 dev 候选证据；下一步可先做“V1 AUTO/硬冲突不变，V2 只分流 V1 REVIEW”的混合影子策略，不能在单源 EP 条件下宣称完成多源重标定。
+- control-plane 现有 `analytics`、`dataservice`、`lineage`、`governance` 模块足以承载新接缝；指标发布应作为 control-plane 内的 `semantic` 深模块，不需要新微服务。
+- G13 Data API 的定义事实仍为 SQL 模板，适合通过独立 `metric_consumer_binding` 增加语义版本投影，不应复制 Key、配额、机构范围与审计实现。
+- Superset 继续拥有图表和 Dashboard；门户只消费已授权嵌入、指标元数据和证据入口，不开发可视化编辑器。
+- OpenMetadata 当前 `glossaryTerms` 缺陷不能成为新增 Glossary 的理由；指标发布保存 GlossaryRef 与 PENDING 同步状态，P3 升级事项继续归延后台账。
+- 管理驾驶舱仍由 `DemoDataBoundary` 包裹；R2 可复用嵌入分析，并将决策动作登记为带指标上下文的治理问题，从而复用既有问题事件、通知发件箱与复查生命周期。
+- `quality/dbt` 属于质量执行器，不应承载业务语义模型；若 R0 通过，应建立独立的一次性 `semantic/dbt` 工程，复用 Doris 而不新增常驻执行器。
+
+## 计划决策
+
+- 推荐 G15A（MPI 混合策略影子）与 G15B（Decision R0）并行；G16/G17 由 R0 单向解锁。
+- 下一阶段控制在 G15A/G15B/G16/G17，预计 6–8 周、43–62 人日；AI Analyst 和 Healthcare Pack 不进入本阶段实施。
+- 最大风险不是技术，而是 10 个工作日内能否取得真实业务 Owner 与采用基线；失败即 No-Go，用现有 Superset 满足固定看板需求。
+- 正式计划：`docs/decision-intelligence-next-stage-plan-20260901.md`。

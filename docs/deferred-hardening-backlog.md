@@ -57,3 +57,5 @@
 - 2026-08-27（G13）：新增 P7（异步导出）、P8（网关级限流等）、S8（/internal OIDC 化）；交付面见 docs/validation/gate-tob-data-api-g13-20260827.md。
 - 2026-08-27（安全收敛批·收尾）：S2/S4/S5/S7 完成、S1 部分（RustFS 残留需停机窗口）、S3 评估延后；**运维须知：OM bot secret 轮换须同时更新两个 env 键（DATAOS_OPENMETADATA_CLIENT_SECRET / DATAOS_OM_INGEST_CLIENT_SECRET）+ 0600 文件**（本轮漏键曾致 BFF 断链）。
 - 2026-08-28（G14）：T2 完成（评测集+标定+影子评分）；新增 T5（混合策略切换实验+多源重标定）。
+- 2026-09-01（Decision Intelligence Roadmap 评审）：无新增延后项；AI 行/列/指标权限、查询证据、拒答与黄金问题回归被定义为未来功能准入门，不归入当前延后加固；OM `glossaryTerms` 版本缺陷继续归口 P3。
+- 2026-09-01（下一阶段计划）：无新增安全/生产加固/深度测试项；T5 在计划中拆分为可立即执行的混合策略影子实验（T5a）与须等待真实多源的重标定/决策切换（T5b），在实际实施验收前保持原条目状态；T1/P3/S8 等既有延后边界不并入 G15–G17。
