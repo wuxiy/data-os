@@ -16,19 +16,11 @@ public final class MpiPairId {
     }
 
     public static long of(String tenantId, String identityA, String identityB) {
-        String first;
-        String second;
-        if (identityA.compareTo(identityB) <= 0) {
-            first = identityA;
-            second = identityB;
-        } else {
-            first = identityB;
-            second = identityA;
-        }
+        String[] ordered = canonical(identityA, identityB);
         byte[] digest;
         try {
             digest = MessageDigest.getInstance("MD5")
-                    .digest((tenantId + "|" + first + "|" + second).getBytes(StandardCharsets.UTF_8));
+                    .digest((tenantId + "|" + ordered[0] + "|" + ordered[1]).getBytes(StandardCharsets.UTF_8));
         } catch (NoSuchAlgorithmException exception) {
             throw new IllegalStateException("MD5 不可用", exception);
         }
@@ -37,5 +29,13 @@ public final class MpiPairId {
             value = (value << 8) | (digest[i] & 0xFF);
         }
         return value;
+    }
+
+    /** 与参数顺序无关的规范序（first ≤ second，字典序）——召回去重与
+     *  pair id 共用，同一对在两处的排序结果永远一致。 */
+    public static String[] canonical(String identityA, String identityB) {
+        return identityA.compareTo(identityB) <= 0
+                ? new String[] {identityA, identityB}
+                : new String[] {identityB, identityA};
     }
 }

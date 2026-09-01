@@ -1,6 +1,8 @@
 package com.cywu.dataos.mpi.decision;
 
 import java.sql.Timestamp;
+
+import com.cywu.dataos.mpi.identity.SourceIdentity;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -37,11 +39,11 @@ public class MpiDecisionService {
                    b.institution_code, b.patient_id, b.card_no_norm, b.name_norm, b.gender, b.contact_hash
             FROM dataos_mpi.mpi_candidate_pair p
             JOIN dataos_mpi.mpi_source_identity a
-              ON a.tenant_id = p.tenant_id AND CONCAT(a.institution_code, '|', a.source_system, '|', a.source_key) = p.identity_a
+              ON a.tenant_id = p.tenant_id AND %1$s = p.identity_a
             JOIN dataos_mpi.mpi_source_identity b
-              ON b.tenant_id = p.tenant_id AND CONCAT(b.institution_code, '|', b.source_system, '|', b.source_key) = p.identity_b
+              ON b.tenant_id = p.tenant_id AND %2$s = p.identity_b
             WHERE p.tenant_id = ?
-            """;
+            """.formatted(SourceIdentity.sqlProjection("a"), SourceIdentity.sqlProjection("b"));
 
     static final String CLEAR_RESULTS = "DELETE FROM dataos_mpi.mpi_match_result WHERE tenant_id = ?";
 

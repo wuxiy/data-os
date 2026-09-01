@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.cywu.dataos.mpi.audit.MpiAuditService;
+import com.cywu.dataos.mpi.identity.SourceIdentity;
 
 /**
  * 黄金人生命周期：AUTO 建人/并人（规则置信内）、人工 Merge、Split。
@@ -26,6 +27,8 @@ import com.cywu.dataos.mpi.audit.MpiAuditService;
  */
 @Service
 public class MpiPersonService {
+
+    private static final String IDENTITY_PROJECTION = SourceIdentity.sqlProjection(null);
 
     private final JdbcTemplate pg;
     private final JdbcTemplate doris;
@@ -210,7 +213,7 @@ public class MpiPersonService {
                 SET valid_to = CURRENT_TIMESTAMP
                 WHERE tenant_id = ? AND source_identifier = ? AND valid_to IS NULL
                 """, tenantId, identityGroup);
-        var sourceSystem = identityGroup.split("\\|", -1)[1];
+        var sourceSystem = SourceIdentity.parse(identityGroup).sourceSystem();
         pg.update("""
                 INSERT INTO data_os_mpi.mpi_person_link
                   (id, tenant_id, institution_id, person_id, source_system, source_identifier,
@@ -232,8 +235,8 @@ public class MpiPersonService {
         return doris.queryForObject("""
                 SELECT name_norm FROM dataos_mpi.mpi_source_identity
                 WHERE tenant_id = ?
-                  AND CONCAT(institution_code, '|', source_system, '|', source_key) = ?
-                """, String.class, tenantId, identityGroup);
+                  AND %s = ?
+                """.formatted(IDENTITY_PROJECTION), String.class, tenantId, identityGroup);
     }
 
     private void writeBackPersonId(String tenantId, String personId, String... identityGroups) {
@@ -242,8 +245,8 @@ public class MpiPersonService {
                     UPDATE dataos_mpi.mpi_source_identity
                     SET mpi_person_id = ?
                     WHERE tenant_id = ?
-                      AND CONCAT(institution_code, '|', source_system, '|', source_key) = ?
-                    """, personId, tenantId, group);
+                      AND %s = ?
+                    """.formatted(IDENTITY_PROJECTION), personId, tenantId, group);
         }
     }
 

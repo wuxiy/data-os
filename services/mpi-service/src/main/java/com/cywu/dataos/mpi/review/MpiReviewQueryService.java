@@ -9,6 +9,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
+import com.cywu.dataos.mpi.identity.SourceIdentity;
 import com.cywu.dataos.mpi.matcher.MpiRuleMatcher;
 
 /**
@@ -19,6 +20,8 @@ import com.cywu.dataos.mpi.matcher.MpiRuleMatcher;
 @Service
 @ConditionalOnProperty(name = "data-os.mpi.doris.url")
 public class MpiReviewQueryService {
+
+    private static final String IDENTITY_PROJECTION = SourceIdentity.sqlProjection(null);
 
     private final JdbcTemplate pg;
     private final JdbcTemplate doris;
@@ -125,8 +128,8 @@ public class MpiReviewQueryService {
                        gender, age_display
                 FROM dataos_mpi.mpi_source_identity
                 WHERE tenant_id = ?
-                  AND CONCAT(institution_code, '|', source_system, '|', source_key) = ?
-                """, tenantId, identityGroup);
+                  AND %s = ?
+                """.formatted(IDENTITY_PROJECTION), tenantId, identityGroup);
         return Map.of(
                 "identity", identityGroup,
                 "institution", row.get("INSTITUTION_CODE"),

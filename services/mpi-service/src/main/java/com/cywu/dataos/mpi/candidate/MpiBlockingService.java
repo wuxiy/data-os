@@ -7,6 +7,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.cywu.dataos.mpi.identity.SourceIdentity;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -15,32 +16,35 @@ import org.springframework.stereotype.Service;
 /**
  * 候选召回（Blocking）：三条确定性规则在 mpi_source_identity 上自 JOIN 找对。
  * Blocking 只负责召回——判定完全交给规则层；跨召回规则按身份组对去重。
- * 身份组标识 = source_system|source_key（复合，保证跨源同主键是两个身份）。
+ * 身份组标识格式（机构|源系统|源主键）的唯一属主是 {@link SourceIdentity}。
  */
 @Service
 @ConditionalOnProperty(name = "data-os.mpi.doris.url")
 public class MpiBlockingService {
 
+    private static final String IDENTITY_A = SourceIdentity.sqlProjection("a");
+    private static final String IDENTITY_B = SourceIdentity.sqlProjection("b");
+
     /** B3：同机构、同患者主键、跨源系统（EP 单源恒 0 对，规则为多源就绪）。 */
     static final String BLOCK_B3 = """
-            SELECT CONCAT(a.institution_code, '|', a.source_system, '|', a.source_key), CONCAT(b.institution_code, '|', b.source_system, '|', b.source_key)
+            SELECT %1$s, %2$s
             FROM dataos_mpi.mpi_source_identity a
             JOIN dataos_mpi.mpi_source_identity b
               ON a.tenant_id = b.tenant_id AND a.institution_code = b.institution_code
              AND a.patient_id = b.patient_id AND a.source_system < b.source_system
             WHERE a.tenant_id = ?
-            """;
+            """.formatted(IDENTITY_A, IDENTITY_B);
 
     /** B4：同机构、归一卡号相同（卡号复用是 EP 真实形态，P-ep1 的召回来源）。 */
     static final String BLOCK_B4 = """
-            SELECT CONCAT(a.institution_code, '|', a.source_system, '|', a.source_key), CONCAT(b.institution_code, '|', b.source_system, '|', b.source_key)
+            SELECT %1$s, %2$s
             FROM dataos_mpi.mpi_source_identity a
             JOIN dataos_mpi.mpi_source_identity b
               ON a.tenant_id = b.tenant_id AND a.institution_code = b.institution_code
              AND a.card_no_norm IS NOT NULL AND a.card_no_norm = b.card_no_norm
-             AND CONCAT(a.institution_code, '|', a.source_system, '|', a.source_key) < CONCAT(b.institution_code, '|', b.source_system, '|', b.source_key)
+             AND %1$s < %2$s
             WHERE a.tenant_id = ?
-            """;
+            """.formatted(IDENTITY_A, IDENTITY_B);
 
     /**
      * B6'：EP 演示档的同名替代召回 = 同机构 + 姓名相同 + 性别相同 + 联系方式哈希相同。
@@ -49,16 +53,16 @@ public class MpiBlockingService {
      * （实测 3 对）。V2 引入出生日期/证件后再放宽。
      */
     static final String BLOCK_B6 = """
-            SELECT CONCAT(a.institution_code, '|', a.source_system, '|', a.source_key), CONCAT(b.institution_code, '|', b.source_system, '|', b.source_key)
+            SELECT %1$s, %2$s
             FROM dataos_mpi.mpi_source_identity a
             JOIN dataos_mpi.mpi_source_identity b
               ON a.tenant_id = b.tenant_id AND a.institution_code = b.institution_code
              AND a.name_norm = b.name_norm AND a.gender = b.gender
              AND a.gender IN ('M', 'F')
              AND a.contact_hash IS NOT NULL AND a.contact_hash = b.contact_hash
-             AND CONCAT(a.institution_code, '|', a.source_system, '|', a.source_key) < CONCAT(b.institution_code, '|', b.source_system, '|', b.source_key)
+             AND %1$s < %2$s
             WHERE a.tenant_id = ?
-            """;
+            """.formatted(IDENTITY_A, IDENTITY_B);
 
     static final String INSERT_PAIR = """
             INSERT INTO dataos_mpi.mpi_candidate_pair
@@ -95,11 +99,8 @@ public class MpiBlockingService {
                 default -> BLOCK_B6;
             };
             doris.query(sql, (rs, i) -> {
-                var left = rs.getString(1);
-                var right = rs.getString(2);
-                var first = left.compareTo(right) <= 0 ? left : right;
-                var second = left.compareTo(right) <= 0 ? right : left;
-                deduped.putIfAbsent(new PairKey(first, second), rule);
+                var ordered = MpiPairId.canonical(rs.getString(1), rs.getString(2));
+                deduped.putIfAbsent(new PairKey(ordered[0], ordered[1]), rule);
                 return null;
             }, tenantId);
         }
