@@ -22,7 +22,7 @@
 | S3 | Superset CSP 收紧 — **评估延后**：同源嵌入+Referer 白名单+allowed_domains 三层在位；显式 frame-ancestors 待生产域名定稿（G4 前鉴） | 安全收敛批报告 | 生产化批 |
 | S4 | guest-token 缓存/限流 — **限流完成 2026-08-27**（nginx 10r/m burst5，200→503 实测）；按用户维度重设计仍待认证批次 | 安全收敛批报告 | 认证批次（余项） |
 | S5 | 网络隔离持久化 — **完成 2026-08-27**：edge-isolation-rules.sh 幂等 + systemd 自启 | 安全收敛批报告 | 完成 |
-| S6 | 源库凭据面收敛复查：DM EP_TEST（可写测试账号）、各服务账号授权最小化复核 | G3/G5 已按分层授权交付（dataos_om_ro 等），未做全面审计 | 生产化批 |
+| S6 | 源库凭据面收敛复查：DM EP_TEST（可写测试账号）、各服务账号授权最小化复核 — **2026-09-02 实测新证据**：dev Doris `dataos_quality_ro` 残留对 `dataos_quality_acceptance` 的 SELECT（旧证据路径时期的授权，新路径只需 audit 库），应收窄；audit GRANT 本体已于同日补齐（见 deploy/dev/README.md 部署前置检查） | G3/G5 已按分层授权交付（dataos_om_ro 等），未做全面审计 | 生产化批 |
 | S7 | ai-ready 服务间 OIDC — **完成 2026-08-27**：client+audience mapper+issuer 网关对齐；JWKS 容自签为 dev 口径（生产化换 truststore） | 安全收敛批报告 | 完成（truststore 项归生产化） |
 | S8 | data-api `/internal/**` 强制 OIDC 服务 token — dev control-plane 为 DISABLED 直通（与 /api 同水平）；切 ENFORCED 时建 Keycloak client `dataos-data-api` + audience mapper（S7 模式，compose 键位已预留） | G13 验收报告 | 认证批次 |
 

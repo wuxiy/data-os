@@ -159,6 +159,13 @@ mysql -h 172.16.66.8 -P 9030 -u dataos_quality_admin -p < ../scripts/seed-qualit
 curl -fsS http://127.0.0.1:18081/api/v1/system/status
 ```
 
+**部署前置检查（quality-runner 每次重建/重部署前过一遍）**：运行时查询账号
+（远端 `.env` 的 `DORIS_USER`，dev 为 `dataos_quality_ro`）须持有
+`dataos_quality_audit` 的 SELECT 与 compute group 的 USAGE——失败规则证据
+读取 dbt `--store-failures` 表，缺授权会大声报错。语句见
+`../scripts/init-quality-doris.sql` 注释（口令不入仓，管理员手工执行）。
+dev 已于 2026-09-02 执行并验证（临时表建/查/清全链通过）。
+
 真实质量闭环验收通过条件：提交复检后，控制面应得到 `runId`，Runtime 回写通过/失败、
 执行批次和最多 20 条脱敏样本证据；通知接收器 `/receipts` 能看到带 HMAC 的责任人投递。
 
