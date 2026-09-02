@@ -47,6 +47,7 @@ import {
 import { PortalHttpError } from '../data/http'
 import { ACTIVE_RUN_STATUSES, formatDateTime, retryableRunStatus, runStatusView } from '../data/domain'
 import { useAction } from '../hooks/useAction'
+import { useKeyedResource } from '../hooks/useKeyedResource'
 import { usePolling } from '../hooks/usePolling'
 import { allowsTemplate, defaultTemplateKey, offersDemoTemplate } from '../data/runtimeMode'
 import type { RouteKey } from '../types'
@@ -187,16 +188,13 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
     }
   }, [])
 
-  useEffect(() => {
-    if (state !== 'live') return
-    const controller = new AbortController()
-    fetchWorkflowTemplates(controller.signal)
-      .then(setWorkflowTemplates)
-      .catch(() => {
-        if (!controller.signal.aborted) setWorkflowTemplates([])
-      })
-    return () => controller.abort()
-  }, [state])
+  // 模板目录为从属资源：主链路 live 后载入，失败静默清空不塌页。
+  useKeyedResource({
+    key: state === 'live' ? 'templates' : null,
+    load: (signal) => fetchWorkflowTemplates(signal),
+    onData: setWorkflowTemplates,
+    onError: () => setWorkflowTemplates([]),
+  })
 
   // 运行详情抽屉的周期刷新（5 秒）；切换目标作业即重启。
   usePolling(useCallback(async () => {
