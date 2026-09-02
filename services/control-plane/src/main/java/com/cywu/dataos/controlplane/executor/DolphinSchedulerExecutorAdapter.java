@@ -1,13 +1,11 @@
 package com.cywu.dataos.controlplane.executor;
 
 import java.net.URI;
-import java.net.http.HttpClient;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
+import java.time.ZoneId;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Locale;
@@ -21,7 +19,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.web.client.HttpClientErrorException;
@@ -42,8 +39,6 @@ public class DolphinSchedulerExecutorAdapter implements ExecutorAdapter {
 
     private static final String EXTERNAL_ID_PREFIX = "ds|";
     private static final DateTimeFormatter SCHEDULE_TIME =
-            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-    private static final DateTimeFormatter LOCAL_TIME =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private static final int MAX_MESSAGE_LENGTH = 240;
 
@@ -84,16 +79,9 @@ public class DolphinSchedulerExecutorAdapter implements ExecutorAdapter {
             String password,
             String timeZone,
             RuntimeContext runtimeContext) {
-        // DolphinScheduler's internal API is normally plain HTTP.  Pin the
-        // client to HTTP/1.1 so a JDK h2c upgrade cannot be rejected by its
-        // embedded HTTP server in the same way as the quality Runtime.
-        var client = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1)
-                .connectTimeout(Duration.ofSeconds(3)).build();
-        var requestFactory = new JdkClientHttpRequestFactory(client);
-        requestFactory.setReadTimeout(Duration.ofSeconds(10));
-        this.restClient = builder.requestFactory(requestFactory).build();
+        this.restClient = AdapterHttp.restClient(builder, Duration.ofSeconds(3), Duration.ofSeconds(10));
         this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper");
-        this.baseUrl = normalizeBaseUrl(baseUrl);
+        this.baseUrl = AdapterHttp.normalizeBaseUrl(baseUrl);
         this.tokenProvider = new SchedulerTokenProvider(objectMapper, token, tokenFile);
         try {
             this.schedulerZone = ZoneId.of(normalize(timeZone).isBlank()
@@ -199,8 +187,7 @@ public class DolphinSchedulerExecutorAdapter implements ExecutorAdapter {
                     encodeExternalId(projectCode, workflowCode, instanceId),
                     "DolphinScheduler 已接受工作流运行");
         } catch (HttpClientErrorException exception) {
-            if (exception.getStatusCode().value() == 408 || exception.getStatusCode().value() == 429
-                    || exception.getStatusCode().value() >= 500) {
+            if (AdapterHttp.isTransient(exception.getStatusCode().value())) {
                 throw new AdapterSubmissionUnknownException("DolphinScheduler 提交结果未知（HTTP "
                         + exception.getStatusCode().value() + "），需按 data_os_run_id 人工核对");
             }
@@ -226,7 +213,7 @@ public class DolphinSchedulerExecutorAdapter implements ExecutorAdapter {
             if (data == null) {
                 return new AdapterRunStatus("UNKNOWN", "DolphinScheduler 未返回工作流状态", null, null);
             }
-            var normalized = normalizeStatus(firstValue(data, "state", "status", "workflowInstanceState"));
+            var normalized = normalizeStatus(AdapterHttp.firstOr(data, "UNKNOWN", "state", "status", "workflowInstanceState"));
             return new AdapterRunStatus(normalized, statusMessage(normalized, data.get("failureReason")),
                     parseTime(data, "startTime", "scheduleTime"),
                     parseTime(data, "endTime", "finishTime", "updateTime"));
@@ -385,14 +372,6 @@ public class DolphinSchedulerExecutorAdapter implements ExecutorAdapter {
         return result;
     }
 
-    private String firstValue(Map<String, Object> map, String... keys) {
-        for (var key : keys) {
-            var value = map.get(key);
-            if (value != null && !String.valueOf(value).isBlank()) return String.valueOf(value);
-        }
-        return "UNKNOWN";
-    }
-
     static String encodeExternalId(long projectCode, long workflowCode, long instanceId) {
         return EXTERNAL_ID_PREFIX + projectCode + "|" + workflowCode + "|" + instanceId;
     }
@@ -454,26 +433,18 @@ public class DolphinSchedulerExecutorAdapter implements ExecutorAdapter {
     }
 
     private Instant parseTime(Map<String, Object> data, String... keys) {
+        // DS 语义：坏时间戳试下一字段，绝不让状态轮询失败。
         for (var key : keys) {
-            var value = data.get(key);
-            if (value == null || String.valueOf(value).isBlank()) continue;
-            var text = String.valueOf(value);
-            try {
-                return Instant.parse(text);
-            } catch (DateTimeParseException ignored) {
-                try {
-                    return LocalDateTime.parse(text, LOCAL_TIME).atZone(schedulerZone).toInstant();
-                } catch (DateTimeParseException ignoredAgain) {
-                    // Try the next field; malformed vendor timestamps must not fail the status poll.
-                }
-            }
+            var parsed = AdapterHttp.parseInstant(data.get(key), schedulerZone);
+            if (parsed != null) return parsed;
         }
         return null;
     }
 
+    /** DS 方言：在瞬态分类之上，401/403（token 失效）也归「暂时不可用」。 */
     private RuntimeException classifyHttp(String action, HttpClientErrorException exception) {
         var status = exception.getStatusCode().value();
-        if (status == 401 || status == 403 || status == 408 || status == 429 || status >= 500) {
+        if (AdapterHttp.isTransient(status) || status == 401 || status == 403) {
             return new AdapterUnavailableException(action + "暂时不可用（HTTP " + status + "）");
         }
         return new AdapterConfigurationException(action + "配置不合法（HTTP " + status + "）");
@@ -485,10 +456,6 @@ public class DolphinSchedulerExecutorAdapter implements ExecutorAdapter {
 
     private String normalize(String value) {
         return value == null ? "" : value.trim();
-    }
-
-    private String normalizeBaseUrl(String value) {
-        return normalize(value).replaceAll("/+$", "");
     }
 
     private record Reference(long projectCode, long workflowCode, long instanceId) {

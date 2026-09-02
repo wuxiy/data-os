@@ -2,13 +2,9 @@ package com.cywu.dataos.controlplane.executor;
 
 import com.cywu.dataos.controlplane.api.ErrorMessages;
 
-import java.net.http.HttpClient;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
 import java.util.HashMap;
 import java.util.Collection;
 import java.util.Locale;
@@ -22,7 +18,6 @@ import com.cywu.dataos.controlplane.security.TenantScope;
 import com.cywu.dataos.controlplane.source.SourceNetworkPolicy;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
-import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
@@ -34,7 +29,6 @@ public class SeaTunnelExecutorAdapter implements ExecutorAdapter {
 
     private static final int MAX_SUBMIT_ATTEMPTS = 2;
     private static final long RETRY_BACKOFF_MILLIS = 250;
-    private static final DateTimeFormatter SEATUNNEL_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     private final RestClient restClient;
     private final String baseUrl;
@@ -49,11 +43,8 @@ public class SeaTunnelExecutorAdapter implements ExecutorAdapter {
                                     @Value("${data-os.seatunnel.time-zone:UTC}") String timeZone,
                                     CredentialResolver credentialResolver, TenantScope tenantScope,
                                     SourceNetworkPolicy sourceNetworkPolicy) {
-        var client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3)).build();
-        var requestFactory = new JdkClientHttpRequestFactory(client);
-        requestFactory.setReadTimeout(Duration.ofSeconds(10));
-        this.restClient = builder.requestFactory(requestFactory).build();
-        this.baseUrl = normalizeBaseUrl(baseUrl);
+        this.restClient = AdapterHttp.restClient(builder, Duration.ofSeconds(3), Duration.ofSeconds(10));
+        this.baseUrl = AdapterHttp.normalizeBaseUrl(baseUrl);
         this.seatunnelZone = ZoneId.of(timeZone);
         this.credentialResolver = credentialResolver;
         this.tenantScope = tenantScope;
@@ -120,7 +111,7 @@ public class SeaTunnelExecutorAdapter implements ExecutorAdapter {
                     ? null : String.valueOf(response.get("jobId"));
             return new AdapterSubmission(externalId, "中心采集执行器已接受提交");
         } catch (HttpClientErrorException exception) {
-            if (isRetryable(exception)) {
+            if (AdapterHttp.isTransient(exception.getStatusCode().value())) {
                 throw new AdapterUnavailableException("中心采集执行器暂时不可用（HTTP "
                         + exception.getStatusCode().value() + "）");
             }
@@ -157,7 +148,7 @@ public class SeaTunnelExecutorAdapter implements ExecutorAdapter {
             if (exception.getStatusCode().value() == 404) {
                 return new AdapterRunStatus("UNKNOWN", "中心采集作业暂未找到，请人工重试", null, null);
             }
-            if (isRetryable(exception)) {
+            if (AdapterHttp.isTransient(exception.getStatusCode().value())) {
                 throw new AdapterUnavailableException("中心采集执行器暂时不可用（HTTP "
                         + exception.getStatusCode().value() + "）");
             }
@@ -197,7 +188,7 @@ public class SeaTunnelExecutorAdapter implements ExecutorAdapter {
             if (exception.getStatusCode().value() == 404) {
                 return AdapterReconciliation.notFound("中心采集执行器未找到该 data_os_run_id");
             }
-            if (isRetryable(exception)) {
+            if (AdapterHttp.isTransient(exception.getStatusCode().value())) {
                 throw new AdapterUnavailableException("中心采集执行器暂时不可用（HTTP "
                         + exception.getStatusCode().value() + "）");
             }
@@ -220,8 +211,8 @@ public class SeaTunnelExecutorAdapter implements ExecutorAdapter {
                 }
                 return request.body(config).retrieve().body(Map.class);
             } catch (HttpClientErrorException | HttpServerErrorException exception) {
-                if (!isRetryable(exception) || attempt == MAX_SUBMIT_ATTEMPTS) {
-                    if (isRetryable(exception)) {
+                if (!AdapterHttp.isTransient(exception.getStatusCode().value()) || attempt == MAX_SUBMIT_ATTEMPTS) {
+                    if (AdapterHttp.isTransient(exception.getStatusCode().value())) {
                         throw new AdapterSubmissionUnknownException("中心采集提交结果未知（HTTP "
                                 + exception.getStatusCode().value() + "），需按 data_os_run_id 对账");
                     }
@@ -266,11 +257,6 @@ public class SeaTunnelExecutorAdapter implements ExecutorAdapter {
         }
     }
 
-    private boolean isRetryable(org.springframework.web.client.HttpStatusCodeException exception) {
-        var status = exception.getStatusCode().value();
-        return status == 408 || status == 429 || status >= 500;
-    }
-
     private void backoff() {
         try {
             Thread.sleep(RETRY_BACKOFF_MILLIS);
@@ -278,11 +264,6 @@ public class SeaTunnelExecutorAdapter implements ExecutorAdapter {
             Thread.currentThread().interrupt();
             throw new AdapterUnavailableException("中心采集执行器重试被中断");
         }
-    }
-
-    private String normalizeBaseUrl(String value) {
-        if (value == null) return "";
-        return value.trim().replaceAll("/+$", "");
     }
 
     static String toSeaTunnelMode(String mode) {
@@ -317,26 +298,14 @@ public class SeaTunnelExecutorAdapter implements ExecutorAdapter {
     }
 
     private Instant parseTime(Map<String, Object> response, String... keys) {
-        Object value = null;
-        if (response != null) {
-            for (String key : keys) {
-                if (response.get(key) != null && !String.valueOf(response.get(key)).isBlank()) {
-                    value = response.get(key);
-                    break;
-                }
+        // SeaTunnel 语义：取第一个非空字段解析一次，坏时间戳不失败状态轮询。
+        if (response == null) return null;
+        for (String key : keys) {
+            var value = response.get(key);
+            if (value != null && !String.valueOf(value).isBlank()) {
+                return AdapterHttp.parseInstant(value, seatunnelZone);
             }
         }
-        if (value == null || String.valueOf(value).isBlank()) return null;
-        var text = String.valueOf(value);
-        try {
-            return Instant.parse(text);
-        } catch (DateTimeParseException ignored) {
-            try {
-                return LocalDateTime.parse(text, SEATUNNEL_TIME)
-                        .atZone(seatunnelZone).toInstant();
-            } catch (DateTimeParseException ignoredAgain) {
-                return null;
-            }
-        }
+        return null;
     }
 }

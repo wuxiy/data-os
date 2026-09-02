@@ -2,7 +2,6 @@ package com.cywu.dataos.controlplane.quality;
 
 import com.cywu.dataos.controlplane.api.ErrorMessages;
 
-import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.time.Duration;
@@ -10,10 +9,10 @@ import java.time.Instant;
 import java.util.UUID;
 import java.util.Map;
 
+import com.cywu.dataos.controlplane.executor.AdapterHttp;
 import com.cywu.dataos.controlplane.governance.GovernanceNotification;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
-import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
@@ -36,10 +35,7 @@ public class WebhookNotificationChannel implements NotificationChannel {
                                       @Value("${data-os.notification.webhook-secret-file:}") String webhookSecretFile,
                                       ObjectMapper objectMapper,
                                       NotificationEndpointPolicy endpointPolicy) {
-        var client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3)).build();
-        var requestFactory = new JdkClientHttpRequestFactory(client);
-        requestFactory.setReadTimeout(Duration.ofSeconds(10));
-        this.restClient = builder.requestFactory(requestFactory).build();
+        this.restClient = AdapterHttp.restClient(builder, Duration.ofSeconds(3), Duration.ofSeconds(10));
         this.webhookUrl = webhookUrl == null ? "" : webhookUrl.trim();
         this.objectMapper = objectMapper;
         this.secrets = new WebhookSecretProvider(objectMapper, webhookSecret, webhookSecretFile);

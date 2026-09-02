@@ -1,18 +1,17 @@
 package com.cywu.dataos.controlplane.platform;
 
 import java.net.URI;
-import java.net.http.HttpClient;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.cywu.dataos.controlplane.executor.AdapterHttp;
 import com.cywu.dataos.controlplane.operational.OperationalFacts;
 import com.cywu.dataos.controlplane.operational.OperationalFactsRegistry;
 import com.cywu.dataos.controlplane.quality.QualityRuleExecutor;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.web.client.RestClient;
@@ -53,21 +52,15 @@ public final class PlatformOperationsService {
             @Value("${data-os.platform.rustfs-endpoint:}") String rustfsEndpoint,
             @Value("${data-os.platform.rustfs-console-url:}") String rustfsConsoleUrl,
             OperationalFactsRegistry operationalFacts) {
-        var client = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(2))
-                .version(HttpClient.Version.HTTP_1_1)
-                .build();
-        var requestFactory = new JdkClientHttpRequestFactory(client);
-        requestFactory.setReadTimeout(Duration.ofSeconds(4));
-        this.restClient = builder.requestFactory(requestFactory).build();
-        this.seatunnelBaseUrl = normalize(seatunnelBaseUrl);
+        this.restClient = AdapterHttp.restClient(builder, Duration.ofSeconds(2), Duration.ofSeconds(4));
+        this.seatunnelBaseUrl = AdapterHttp.normalizeBaseUrl(seatunnelBaseUrl);
         this.qualityExecutor = qualityExecutor == null ? "HTTP" : qualityExecutor.trim().toUpperCase(java.util.Locale.ROOT);
         this.qualityExecutors = qualityExecutors;
-        this.notificationHealthUrl = normalize(notificationHealthUrl);
+        this.notificationHealthUrl = AdapterHttp.normalizeBaseUrl(notificationHealthUrl);
         this.seatunnelUiUrl = browserUrl(seatunnelUiUrl);
-        this.dolphinschedulerBaseUrl = normalize(dolphinschedulerBaseUrl);
+        this.dolphinschedulerBaseUrl = AdapterHttp.normalizeBaseUrl(dolphinschedulerBaseUrl);
         this.dolphinschedulerUiUrl = browserUrl(dolphinschedulerUiUrl);
-        this.rustfsEndpoint = normalize(rustfsEndpoint);
+        this.rustfsEndpoint = AdapterHttp.normalizeBaseUrl(rustfsEndpoint);
         this.rustfsConsoleUrl = browserUrl(rustfsConsoleUrl);
         this.operationalFacts = operationalFacts;
     }
@@ -123,7 +116,7 @@ public final class PlatformOperationsService {
             var metrics = new LinkedHashMap<String, String>();
             put(metrics, "版本", response.get("projectVersion"));
             put(metrics, "集群", response.get("clusterName"));
-            put(metrics, "节点", first(response, "workerCount", "workerNum", "memberCount"));
+            put(metrics, "节点", AdapterHttp.first(response, "workerCount", "workerNum", "memberCount"));
             return up("seatunnel", "SeaTunnel", "采集执行器", "中心采集任务的运行态与版本信息。",
                     checkedAt, "overview 探针返回正常", seatunnelUiUrl, metrics);
         } catch (RestClientException exception) {
@@ -201,23 +194,12 @@ public final class PlatformOperationsService {
         return "探针请求失败";
     }
 
-    private String first(Map<String, Object> response, String... keys) {
-        for (var key : keys) {
-            if (response.containsKey(key) && response.get(key) != null) return String.valueOf(response.get(key));
-        }
-        return null;
-    }
-
     private void put(Map<String, String> target, String label, Object value) {
         if (value != null && !String.valueOf(value).isBlank()) target.put(label, String.valueOf(value));
     }
 
-    private String normalize(String value) {
-        return value == null ? "" : value.trim().replaceAll("/+$", "");
-    }
-
     private String browserUrl(String value) {
-        var normalized = normalize(value);
+        var normalized = AdapterHttp.normalizeBaseUrl(value);
         if (normalized.isBlank()) return null;
         try {
             var uri = URI.create(normalized);

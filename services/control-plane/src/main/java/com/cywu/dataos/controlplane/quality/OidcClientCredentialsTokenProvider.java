@@ -1,14 +1,13 @@
 package com.cywu.dataos.controlplane.quality;
 
-import java.net.http.HttpClient;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
+import com.cywu.dataos.controlplane.executor.AdapterHttp;
 import com.cywu.dataos.controlplane.executor.AdapterUnavailableException;
 import org.springframework.http.MediaType;
-import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.web.client.RestClient;
 
@@ -28,10 +27,7 @@ public final class OidcClientCredentialsTokenProvider {
 
     public OidcClientCredentialsTokenProvider(RestClient.Builder builder, String tokenUri, String clientId,
                                               String clientSecret, String audience, String scopes) {
-        var httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3)).build();
-        var requestFactory = new JdkClientHttpRequestFactory(httpClient);
-        requestFactory.setReadTimeout(Duration.ofSeconds(5));
-        this.client = builder.requestFactory(requestFactory).build();
+        this.client = AdapterHttp.restClient(builder, Duration.ofSeconds(3), Duration.ofSeconds(5));
         this.tokenUri = normalize(tokenUri);
         this.clientId = normalize(clientId);
         this.clientSecret = clientSecret == null ? "" : clientSecret.trim();

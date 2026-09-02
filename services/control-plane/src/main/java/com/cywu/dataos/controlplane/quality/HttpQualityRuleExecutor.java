@@ -4,24 +4,21 @@ import com.cywu.dataos.controlplane.run.RunStatus;
 
 import com.cywu.dataos.controlplane.api.ErrorMessages;
 
-import java.net.http.HttpClient;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
 import com.cywu.dataos.controlplane.executor.AdapterConfigurationException;
+import com.cywu.dataos.controlplane.executor.AdapterHttp;
 import com.cywu.dataos.controlplane.executor.AdapterUnavailableException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
-import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
@@ -57,15 +54,8 @@ public class HttpQualityRuleExecutor implements QualityRuleExecutor {
 
     private HttpQualityRuleExecutor(RestClient.Builder builder, String baseUrl,
                                    OidcClientCredentialsTokenProvider tokenProvider) {
-        // The Python runner exposes a clear-text HTTP/1.1 endpoint.  JDK's
-        // default client version may attempt an h2c upgrade, which Uvicorn's
-        // h11 server rejects as an invalid request (reported as HTTP 400).
-        var client = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1)
-                .connectTimeout(Duration.ofSeconds(3)).build();
-        var requestFactory = new JdkClientHttpRequestFactory(client);
-        requestFactory.setReadTimeout(Duration.ofSeconds(15));
-        this.restClient = builder.requestFactory(requestFactory).build();
-        this.baseUrl = normalizeBaseUrl(baseUrl);
+        this.restClient = AdapterHttp.restClient(builder, Duration.ofSeconds(3), Duration.ofSeconds(15));
+        this.baseUrl = AdapterHttp.normalizeBaseUrl(baseUrl);
         this.tokenProvider = tokenProvider;
     }
 
@@ -104,14 +94,14 @@ public class HttpQualityRuleExecutor implements QualityRuleExecutor {
                             "executionBatchId", request.executionBatchId()))
                     .retrieve()
                     .body(Map.class);
-            var externalId = first(response, "externalId", "runId", "id");
+            var externalId = AdapterHttp.first(response, "externalId", "runId", "id");
             if (externalId == null || externalId.isBlank()) {
                 throw new AdapterConfigurationException("质量规则执行器未返回外部批次编号");
             }
             return new QualityRuleSubmission(externalId,
-                    firstOr(response, "message", "质量规则执行器已接受复检"));
+                    AdapterHttp.firstOr(response, "质量规则执行器已接受复检", "message"));
         } catch (HttpClientErrorException exception) {
-            if (exception.getStatusCode().value() == 408 || exception.getStatusCode().value() == 429) {
+            if (AdapterHttp.isTransient(exception.getStatusCode().value())) {
                 throw new AdapterUnavailableException("质量规则执行器暂时不可用（HTTP "
                         + exception.getStatusCode().value() + "）");
             }
@@ -135,13 +125,13 @@ public class HttpQualityRuleExecutor implements QualityRuleExecutor {
                     .headers(headers -> addAuthorization(headers))
                     .retrieve()
                     .body(Map.class);
-            var status = RunStatus.normalize(first(response, "status", "state")).name();
+            var status = RunStatus.normalize(AdapterHttp.first(response, "status", "state")).name();
             return new QualityRuleExecutionStatus(status,
                     bool(response == null ? null : response.get("passed")),
-                    firstOr(response, "message", "质量规则执行状态已同步"),
-                    first(response, "executionBatchId", "batchId"),
+                    AdapterHttp.firstOr(response, "质量规则执行状态已同步", "message"),
+                    AdapterHttp.first(response, "executionBatchId", "batchId"),
                     evidence(response == null ? null : response.get("sampleEvidence")),
-                    first(response, "artifactUri", "artifactURI", "artifact_url"),
+                    AdapterHttp.first(response, "artifactUri", "artifactURI", "artifact_url"),
                     instant(response == null ? null : response.get("startedAt")),
                     instant(response == null ? null : response.get("finishedAt")));
         } catch (HttpClientErrorException exception) {
@@ -149,7 +139,7 @@ public class HttpQualityRuleExecutor implements QualityRuleExecutor {
                 return new QualityRuleExecutionStatus("UNKNOWN", null, "质量规则执行批次暂未找到",
                         null, List.of(), null, null, null);
             }
-            if (exception.getStatusCode().value() == 408 || exception.getStatusCode().value() == 429) {
+            if (AdapterHttp.isTransient(exception.getStatusCode().value())) {
                 throw new AdapterUnavailableException("质量规则执行器暂时不可用（HTTP "
                         + exception.getStatusCode().value() + "）");
             }
@@ -169,24 +159,6 @@ public class HttpQualityRuleExecutor implements QualityRuleExecutor {
         if (!token.isBlank()) headers.setBearerAuth(token);
     }
 
-    private String normalizeBaseUrl(String value) {
-        return value == null ? "" : value.trim().replaceAll("/+$", "");
-    }
-
-    private String first(Map<String, Object> response, String... keys) {
-        if (response == null) return null;
-        for (var key : keys) {
-            var value = response.get(key);
-            if (value != null && !String.valueOf(value).isBlank()) return String.valueOf(value);
-        }
-        return null;
-    }
-
-    private String firstOr(Map<String, Object> response, String key, String fallback) {
-        var value = first(response, key);
-        return value == null ? fallback : value;
-    }
-
     private Boolean bool(Object value) {
         if (value == null) return null;
         if (value instanceof Boolean booleanValue) return booleanValue;
@@ -200,20 +172,10 @@ public class HttpQualityRuleExecutor implements QualityRuleExecutor {
     }
 
     private Instant instant(Object value) {
-        if (value == null || String.valueOf(value).isBlank()) return null;
-        var text = String.valueOf(value).trim();
-        try {
-            return Instant.parse(text);
-        } catch (DateTimeParseException ignored) {
-            try {
-                return OffsetDateTime.parse(text).toInstant();
-            } catch (DateTimeParseException offsetIgnored) {
-                try {
-                    return LocalDateTime.parse(text).toInstant(ZoneOffset.UTC);
-                } catch (DateTimeParseException localIgnored) {
-                    throw new AdapterConfigurationException("质量规则执行器返回的时间格式无效：" + text);
-                }
-            }
+        var parsed = AdapterHttp.parseInstant(value, ZoneOffset.UTC);
+        if (parsed == null && value != null && !String.valueOf(value).isBlank()) {
+            throw new AdapterConfigurationException("质量规则执行器返回的时间格式无效：" + value);
         }
+        return parsed;
     }
 }
