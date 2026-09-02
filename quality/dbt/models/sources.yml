@@ -37,3 +37,149 @@ sources:
                   arguments:
                     to: source('ep_edge', 'ep_mz_cfzb_edge')
                     field: CFZID
+
+  # EP 域首批 9 表（G16b，直连 SeaTunnel 采集，UNIQUE KEY 幂等）：处方生命周期
+  # 深化 + 患者身份域（C 端注册路径）。FK 只登记源库聚合预检干净的引用边
+  # （2026-09-02：EP_STATUS/EP_CHAIN/EP_FLOW 各有 1-2 个孤儿 EP_ID，测试库删
+  # 主表所致，不注册为规则，见 docs/validation/gate-ep-g16b-*.md）。
+  # ep_mz_cfzb 仅作 FK 目标登记，不带测试（其质量面由边缘链路规则覆盖）。
+  - name: ep_domain
+    schema: "{{ env_var('DORIS_EP_DATABASE', 'ods_ep') }}"
+    tables:
+      - name: ep_mz_cfzb
+      - name: ep_status
+        columns:
+          - name: ID
+            description: 处方状态表主键
+            data_tests:
+              - unique:
+                  name: quality_ep_status_id_unique
+              - not_null:
+                  name: quality_ep_status_id_not_null
+      - name: ep_chain
+        columns:
+          - name: ID
+            description: 处方链路表主键
+            data_tests:
+              - unique:
+                  name: quality_ep_chain_id_unique
+              - not_null:
+                  name: quality_ep_chain_id_not_null
+          - name: EP_FLOW_ID
+            description: 处方流转外键（源库预检 0 孤儿）
+            data_tests:
+              - relationships:
+                  name: quality_ep_chain_epflowid_fk
+                  arguments:
+                    to: source('ep_domain', 'ep_flow')
+                    field: ID
+      - name: ep_yb_rx
+        columns:
+          - name: HI_RXNO
+            description: 医保处方号（业务主键，源库实测 12688 全唯一）
+            data_tests:
+              - unique:
+                  name: quality_ep_yb_rx_hirxno_unique
+              - not_null:
+                  name: quality_ep_yb_rx_hirxno_not_null
+      - name: ep_tag
+        columns:
+          - name: ID
+            description: 处方标签主键
+            data_tests:
+              - unique:
+                  name: quality_ep_tag_id_unique
+              - not_null:
+                  name: quality_ep_tag_id_not_null
+          - name: EP_ID
+            description: 处方外键（源库预检 0 孤儿）
+            data_tests:
+              - relationships:
+                  name: quality_ep_tag_epid_fk
+                  arguments:
+                    to: source('ep_domain', 'ep_mz_cfzb')
+                    field: ID
+      - name: ep_flow
+        columns:
+          - name: ID
+            description: 处方流转表主键
+            data_tests:
+              - unique:
+                  name: quality_ep_flow_id_unique
+              - not_null:
+                  name: quality_ep_flow_id_not_null
+      - name: ep_drug_ext
+        columns:
+          - name: ID
+            description: 处方药品扩展主键
+            data_tests:
+              - unique:
+                  name: quality_ep_drug_ext_id_unique
+              - not_null:
+                  name: quality_ep_drug_ext_id_not_null
+          - name: EP_ID
+            description: 处方外键（源库预检 0 孤儿）
+            data_tests:
+              - relationships:
+                  name: quality_ep_drug_ext_epid_fk
+                  arguments:
+                    to: source('ep_domain', 'ep_mz_cfzb')
+                    field: ID
+      - name: patient
+        columns:
+          - name: ID
+            description: 患者主档主键
+            data_tests:
+              - unique:
+                  name: quality_patient_id_unique
+              - not_null:
+                  name: quality_patient_id_not_null
+          - name: DEL
+            description: 逻辑删除标记（源库实测值域 {0,1}）
+            data_tests:
+              - accepted_values:
+                  name: quality_patient_del_values
+                  arguments:
+                    values: [0, 1]
+      - name: patient_card
+        columns:
+          - name: ID
+            description: 就诊卡主键
+            data_tests:
+              - unique:
+                  name: quality_patient_card_id_unique
+              - not_null:
+                  name: quality_patient_card_id_not_null
+          - name: PATIENT_ID
+            description: 患者外键（源库预检 0 孤儿）
+            data_tests:
+              - relationships:
+                  name: quality_patient_card_patientid_fk
+                  arguments:
+                    to: source('ep_domain', 'patient')
+                    field: ID
+      - name: patient_ep_record
+        columns:
+          - name: ID
+            description: 患者处方记录主键
+            data_tests:
+              - unique:
+                  name: quality_patient_ep_record_id_unique
+              - not_null:
+                  name: quality_patient_ep_record_id_not_null
+          - name: PATIENT_ID
+            description: 患者外键（源库预检 0 孤儿）
+            data_tests:
+              - relationships:
+                  name: quality_patient_ep_record_patientid_fk
+                  arguments:
+                    to: source('ep_domain', 'patient')
+                    field: ID
+          - name: EP_ID
+            description: 处方外键（源库预检 0 孤儿）
+            data_tests:
+              - relationships:
+                  name: quality_patient_ep_record_epid_fk
+                  arguments:
+                    to: source('ep_domain', 'ep_mz_cfzb')
+                    field: ID

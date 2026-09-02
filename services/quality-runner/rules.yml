@@ -113,3 +113,257 @@ rules:
         - {name: ID, classification: IDENTIFIER}
         - {name: CFZID, classification: IDENTIFIER}
         - {name: YPSL, classification: CATEGORY}
+  # EP 域首批 9 表（G16b，直连 SeaTunnel UNIQUE KEY 表）。dataset_id 用「库.表」
+  # 形态，控制面按 fqn 段直接匹配（不需要 application.yml dataset-tables 映射）。
+  # FK 只登记源库聚合预检干净的边；EP_STATUS/EP_CHAIN/EP_FLOW 的孤儿 EP_ID 是
+  # 已知数据质量发现，不注册为规则。患者域证据列白名单不含姓名/证件/电话。
+  - rule_id: quality.ep.status.id-not-null
+    selector: quality_ep_status_id_not_null
+    dataset_id: ods_ep.ep_status
+    evidence:
+      kind: not_null
+      column: ID
+      columns:
+        - {name: ID, classification: IDENTIFIER}
+        - {name: REVIEW_STATUS, classification: CATEGORY}
+        - {name: UPDATE_TIME, classification: SAFE}
+  - rule_id: quality.ep.status.id-unique
+    selector: quality_ep_status_id_unique
+    dataset_id: ods_ep.ep_status
+    evidence:
+      kind: unique
+      column: ID
+      columns:
+        - {name: ID, classification: IDENTIFIER}
+        - {name: REVIEW_STATUS, classification: CATEGORY}
+        - {name: UPDATE_TIME, classification: SAFE}
+  - rule_id: quality.ep.chain.id-not-null
+    selector: quality_ep_chain_id_not_null
+    dataset_id: ods_ep.ep_chain
+    evidence:
+      kind: not_null
+      column: ID
+      columns:
+        - {name: ID, classification: IDENTIFIER}
+        - {name: STATUS, classification: CATEGORY}
+        - {name: UPDATE_TIME, classification: SAFE}
+  - rule_id: quality.ep.chain.id-unique
+    selector: quality_ep_chain_id_unique
+    dataset_id: ods_ep.ep_chain
+    evidence:
+      kind: unique
+      column: ID
+      columns:
+        - {name: ID, classification: IDENTIFIER}
+        - {name: STATUS, classification: CATEGORY}
+        - {name: UPDATE_TIME, classification: SAFE}
+  - rule_id: quality.ep.chain.epflowid-fk
+    selector: quality_ep_chain_epflowid_fk
+    dataset_id: ods_ep.ep_chain
+    evidence:
+      kind: relationships
+      column: EP_FLOW_ID
+      columns:
+        - {name: ID, classification: IDENTIFIER}
+        - {name: EP_FLOW_ID, classification: IDENTIFIER}
+        - {name: STATUS, classification: CATEGORY}
+  - rule_id: quality.ep.yb-rx.hirxno-not-null
+    selector: quality_ep_yb_rx_hirxno_not_null
+    dataset_id: ods_ep.ep_yb_rx
+    evidence:
+      kind: not_null
+      column: HI_RXNO
+      columns:
+        - {name: HI_RXNO, classification: IDENTIFIER}
+        - {name: SOURCE, classification: CATEGORY}
+        - {name: UPDATE_TIME, classification: SAFE}
+  - rule_id: quality.ep.yb-rx.hirxno-unique
+    selector: quality_ep_yb_rx_hirxno_unique
+    dataset_id: ods_ep.ep_yb_rx
+    evidence:
+      kind: unique
+      column: HI_RXNO
+      columns:
+        - {name: HI_RXNO, classification: IDENTIFIER}
+        - {name: SOURCE, classification: CATEGORY}
+        - {name: UPDATE_TIME, classification: SAFE}
+  - rule_id: quality.ep.tag.id-not-null
+    selector: quality_ep_tag_id_not_null
+    dataset_id: ods_ep.ep_tag
+    evidence:
+      kind: not_null
+      column: ID
+      columns:
+        - {name: ID, classification: IDENTIFIER}
+        - {name: CATEGORY, classification: CATEGORY}
+        - {name: UPDATE_TIME, classification: SAFE}
+  - rule_id: quality.ep.tag.id-unique
+    selector: quality_ep_tag_id_unique
+    dataset_id: ods_ep.ep_tag
+    evidence:
+      kind: unique
+      column: ID
+      columns:
+        - {name: ID, classification: IDENTIFIER}
+        - {name: CATEGORY, classification: CATEGORY}
+        - {name: UPDATE_TIME, classification: SAFE}
+  - rule_id: quality.ep.tag.epid-fk
+    selector: quality_ep_tag_epid_fk
+    dataset_id: ods_ep.ep_tag
+    evidence:
+      kind: relationships
+      column: EP_ID
+      columns:
+        - {name: ID, classification: IDENTIFIER}
+        - {name: EP_ID, classification: IDENTIFIER}
+        - {name: CATEGORY, classification: CATEGORY}
+  - rule_id: quality.ep.flow.id-not-null
+    selector: quality_ep_flow_id_not_null
+    dataset_id: ods_ep.ep_flow
+    evidence:
+      kind: not_null
+      column: ID
+      columns:
+        - {name: ID, classification: IDENTIFIER}
+        - {name: REVIEW_STATUS, classification: CATEGORY}
+        - {name: UPDATE_TIME, classification: SAFE}
+  - rule_id: quality.ep.flow.id-unique
+    selector: quality_ep_flow_id_unique
+    dataset_id: ods_ep.ep_flow
+    evidence:
+      kind: unique
+      column: ID
+      columns:
+        - {name: ID, classification: IDENTIFIER}
+        - {name: REVIEW_STATUS, classification: CATEGORY}
+        - {name: UPDATE_TIME, classification: SAFE}
+  - rule_id: quality.ep.drug-ext.id-not-null
+    selector: quality_ep_drug_ext_id_not_null
+    dataset_id: ods_ep.ep_drug_ext
+    evidence:
+      kind: not_null
+      column: ID
+      columns:
+        - {name: ID, classification: IDENTIFIER}
+        - {name: VALID, classification: CATEGORY}
+        - {name: UPDATE_TIME, classification: SAFE}
+  - rule_id: quality.ep.drug-ext.id-unique
+    selector: quality_ep_drug_ext_id_unique
+    dataset_id: ods_ep.ep_drug_ext
+    evidence:
+      kind: unique
+      column: ID
+      columns:
+        - {name: ID, classification: IDENTIFIER}
+        - {name: VALID, classification: CATEGORY}
+        - {name: UPDATE_TIME, classification: SAFE}
+  - rule_id: quality.ep.drug-ext.epid-fk
+    selector: quality_ep_drug_ext_epid_fk
+    dataset_id: ods_ep.ep_drug_ext
+    evidence:
+      kind: relationships
+      column: EP_ID
+      columns:
+        - {name: ID, classification: IDENTIFIER}
+        - {name: EP_ID, classification: IDENTIFIER}
+        - {name: VALID, classification: CATEGORY}
+  - rule_id: quality.patient.id-not-null
+    selector: quality_patient_id_not_null
+    dataset_id: ods_ep.patient
+    evidence:
+      kind: not_null
+      column: ID
+      columns:
+        - {name: ID, classification: IDENTIFIER}
+        - {name: SOURCE, classification: CATEGORY}
+        - {name: CREATE_TIME, classification: SAFE}
+  - rule_id: quality.patient.id-unique
+    selector: quality_patient_id_unique
+    dataset_id: ods_ep.patient
+    evidence:
+      kind: unique
+      column: ID
+      columns:
+        - {name: ID, classification: IDENTIFIER}
+        - {name: SOURCE, classification: CATEGORY}
+        - {name: CREATE_TIME, classification: SAFE}
+  - rule_id: quality.patient.del-values
+    selector: quality_patient_del_values
+    dataset_id: ods_ep.patient
+    evidence:
+      kind: accepted_values
+      column: DEL
+      columns:
+        - {name: ID, classification: IDENTIFIER}
+        - {name: DEL, classification: CATEGORY}
+        - {name: SOURCE, classification: CATEGORY}
+  - rule_id: quality.patient.card.id-not-null
+    selector: quality_patient_card_id_not_null
+    dataset_id: ods_ep.patient_card
+    evidence:
+      kind: not_null
+      column: ID
+      columns:
+        - {name: ID, classification: IDENTIFIER}
+        - {name: STATE, classification: CATEGORY}
+        - {name: CREATE_TIME, classification: SAFE}
+  - rule_id: quality.patient.card.id-unique
+    selector: quality_patient_card_id_unique
+    dataset_id: ods_ep.patient_card
+    evidence:
+      kind: unique
+      column: ID
+      columns:
+        - {name: ID, classification: IDENTIFIER}
+        - {name: STATE, classification: CATEGORY}
+        - {name: CREATE_TIME, classification: SAFE}
+  - rule_id: quality.patient.card.patientid-fk
+    selector: quality_patient_card_patientid_fk
+    dataset_id: ods_ep.patient_card
+    evidence:
+      kind: relationships
+      column: PATIENT_ID
+      columns:
+        - {name: ID, classification: IDENTIFIER}
+        - {name: PATIENT_ID, classification: IDENTIFIER}
+        - {name: STATE, classification: CATEGORY}
+  - rule_id: quality.patient.ep-record.id-not-null
+    selector: quality_patient_ep_record_id_not_null
+    dataset_id: ods_ep.patient_ep_record
+    evidence:
+      kind: not_null
+      column: ID
+      columns:
+        - {name: ID, classification: IDENTIFIER}
+        - {name: TYPE, classification: CATEGORY}
+        - {name: CREATE_TIME, classification: SAFE}
+  - rule_id: quality.patient.ep-record.id-unique
+    selector: quality_patient_ep_record_id_unique
+    dataset_id: ods_ep.patient_ep_record
+    evidence:
+      kind: unique
+      column: ID
+      columns:
+        - {name: ID, classification: IDENTIFIER}
+        - {name: TYPE, classification: CATEGORY}
+        - {name: CREATE_TIME, classification: SAFE}
+  - rule_id: quality.patient.ep-record.patientid-fk
+    selector: quality_patient_ep_record_patientid_fk
+    dataset_id: ods_ep.patient_ep_record
+    evidence:
+      kind: relationships
+      column: PATIENT_ID
+      columns:
+        - {name: ID, classification: IDENTIFIER}
+        - {name: PATIENT_ID, classification: IDENTIFIER}
+        - {name: TYPE, classification: CATEGORY}
+  - rule_id: quality.patient.ep-record.epid-fk
+    selector: quality_patient_ep_record_epid_fk
+    dataset_id: ods_ep.patient_ep_record
+    evidence:
+      kind: relationships
+      column: EP_ID
+      columns:
+        - {name: ID, classification: IDENTIFIER}
+        - {name: EP_ID, classification: IDENTIFIER}
+        - {name: TYPE, classification: CATEGORY}
