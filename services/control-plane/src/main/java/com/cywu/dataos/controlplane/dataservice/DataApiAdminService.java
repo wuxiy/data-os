@@ -15,9 +15,10 @@ import java.util.UUID;
 
 import com.cywu.dataos.controlplane.security.TenantScope;
 import com.fasterxml.jackson.databind.json.JsonMapper;
-import org.springframework.http.HttpStatus;
+import com.cywu.dataos.controlplane.api.ConflictException;
+import com.cywu.dataos.controlplane.api.InvalidRequestException;
+import com.cywu.dataos.controlplane.api.ResourceNotFoundException;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 
 /**
  * 数据服务管理面服务（G13 方案 §4.1）：定义状态机、模板静态校验、
@@ -41,7 +42,7 @@ public class DataApiAdminService {
     public DataServiceDefinition create(String tenantId, CreateDataServiceRequest request) {
         tenantId = tenantScope.resolve(tenantId, null).tenantId();
         if (repository.existsByCode(tenantId, request.code())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "服务代码已存在: " + request.code());
+            throw new ConflictException("服务代码已存在: " + request.code());
         }
         var declared = new java.util.LinkedHashSet<String>();
         for (var parameter : request.parameters()) {
@@ -49,7 +50,7 @@ public class DataApiAdminService {
         }
         var rejection = SqlTemplateValidator.validate(request.sqlTemplate(), declared);
         if (rejection != null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, rejection);
+            throw new InvalidRequestException(rejection);
         }
         var now = Instant.now();
         var definition = new DataServiceDefinition(
@@ -65,7 +66,7 @@ public class DataApiAdminService {
         tenantId = tenantScope.resolve(tenantId, null).tenantId();
         var definition = requireDefinition(id, tenantId);
         if (!definition.status().canTransitionTo(DataApiLifecycle.PUBLISHED)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
+            throw new ConflictException(
                     "状态机拒绝: " + definition.status() + " → PUBLISHED");
         }
         repository.updateStatus(id, tenantId, DataApiLifecycle.PUBLISHED, Instant.now());
@@ -76,7 +77,7 @@ public class DataApiAdminService {
         tenantId = tenantScope.resolve(tenantId, null).tenantId();
         var definition = requireDefinition(id, tenantId);
         if (!definition.status().canTransitionTo(DataApiLifecycle.DEPRECATED)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
+            throw new ConflictException(
                     "状态机拒绝: " + definition.status() + " → DEPRECATED");
         }
         repository.updateStatus(id, tenantId, DataApiLifecycle.DEPRECATED, Instant.now());
@@ -113,7 +114,7 @@ public class DataApiAdminService {
     public void revokeKey(String id, String keyId, String tenantId) {
         tenantId = tenantScope.resolve(tenantId, null).tenantId();
         if (repository.revokeKey(keyId, id, tenantId, Instant.now()) == 0) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Key 不存在或已吊销");
+            throw new ConflictException("Key 不存在或已吊销");
         }
     }
 
@@ -202,7 +203,7 @@ public class DataApiAdminService {
 
     private DataServiceDefinition requireDefinition(String id, String tenantId) {
         return repository.findById(id, tenantId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "数据服务不存在: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("数据服务不存在: " + id));
     }
 
     private Map<String, Object> keySummary(DataServiceKey key) {
@@ -226,7 +227,7 @@ public class DataApiAdminService {
         try {
             return JSON.writeValueAsString(value);
         } catch (Exception exception) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "契约结构无法序列化");
+            throw new InvalidRequestException("契约结构无法序列化");
         }
     }
 

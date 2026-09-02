@@ -30,7 +30,7 @@ class AnalyticsApiTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"dashboardId\":\"2\"}"))
                 .andExpect(status().isServiceUnavailable())
-                .andExpect(jsonPath("$.code").value(503))
+                .andExpect(jsonPath("$.code").value("ADAPTER_UNAVAILABLE"))
                 .andExpect(jsonPath("$.message").value(
                         "分析服务未配置：请在控制面设置 data-os.analytics.superset.base-url 后重启"));
     }

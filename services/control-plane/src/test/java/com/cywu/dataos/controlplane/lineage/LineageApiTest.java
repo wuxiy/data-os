@@ -26,7 +26,7 @@ class LineageApiTest {
     @Test
     void assetsReturns503WhenOpenMetadataNotConfigured() throws Exception {
         mockMvc.perform(get("/api/v1/assets")).andExpect(status().isServiceUnavailable())
-                .andExpect(jsonPath("$.code").value(503))
+                .andExpect(jsonPath("$.code").value("ADAPTER_UNAVAILABLE"))
                 .andExpect(jsonPath("$.message").value(
                         "血缘服务未配置：请在控制面设置 data-os.openmetadata.base-url 后重启"));
     }
@@ -34,13 +34,13 @@ class LineageApiTest {
     @Test
     void lineageSummaryReturns503WhenOpenMetadataNotConfigured() throws Exception {
         mockMvc.perform(get("/api/v1/lineage/summary")).andExpect(status().isServiceUnavailable())
-                .andExpect(jsonPath("$.code").value(503));
+                .andExpect(jsonPath("$.code").value("ADAPTER_UNAVAILABLE"));
     }
 
     @Test
     void assetLineageReturns503WhenOpenMetadataNotConfigured() throws Exception {
         mockMvc.perform(get("/api/v1/assets/doris-dataos.default.ods_ep.ep_mz_cfzb/lineage"))
                 .andExpect(status().isServiceUnavailable())
-                .andExpect(jsonPath("$.code").value(503));
+                .andExpect(jsonPath("$.code").value("ADAPTER_UNAVAILABLE"));
     }
 }
