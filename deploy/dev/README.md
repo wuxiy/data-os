@@ -162,9 +162,15 @@ curl -fsS http://127.0.0.1:18081/api/v1/system/status
 **部署前置检查（quality-runner 每次重建/重部署前过一遍）**：运行时查询账号
 （远端 `.env` 的 `DORIS_USER`，dev 为 `dataos_quality_ro`）须持有
 `dataos_quality_audit` 的 SELECT 与 compute group 的 USAGE——失败规则证据
-读取 dbt `--store-failures` 表，缺授权会大声报错。语句见
+读取 dbt `--store-failures` 表，缺授权会大声报错。反向同样要核：**运行时
+账号不应持有业务库（`dataos_quality_acceptance` 等）的 SELECT**——新证据
+路径只读 audit 库，历史环境的残留授权须 REVOKE（2026-09-02 已收窄并验证：
+两条规则失败路径证据均从 audit 表读出，业务库访问被拒）。语句见
 `../scripts/init-quality-doris.sql` 注释（口令不入仓，管理员手工执行）。
 dev 已于 2026-09-02 执行并验证（临时表建/查/清全链通过）。
+另注意远端 `.env` 的 `DATAOS_QUALITY_RUNNER_IMAGE` 可能钉在历史 tag
+（曾钉 `0.1.0-hospital-edge-g5-20260820`）——重部署后用
+`docker inspect <容器> --format '{{.Image}}'` 核对实际运行镜像。
 
 真实质量闭环验收通过条件：提交复检后，控制面应得到 `runId`，Runtime 回写通过/失败、
 执行批次和最多 20 条脱敏样本证据；通知接收器 `/receipts` 能看到带 HMAC 的责任人投递。
