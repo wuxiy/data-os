@@ -59,7 +59,8 @@ public class MpiAuditService {
                 """, String.class, tenantId);
         for (String detail : details) {
             try {
-                var separated = (List<?>) objectMapper.readValue(detail, Map.class).get("separatedIdentities");
+                var separated = (List<?>) objectMapper.readValue(detail, Map.class)
+                        .get(MpiAuditEvents.KEY_SEPARATED_IDENTITIES);
                 if (separated != null && separated.contains(identityA) && separated.contains(identityB)) {
                     return true;
                 }

@@ -11,6 +11,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.cywu.dataos.mpi.audit.MpiAuditEvents;
 import com.cywu.dataos.mpi.audit.MpiAuditService;
 import com.cywu.dataos.mpi.identity.SourceIdentity;
 
@@ -53,11 +54,8 @@ public class MpiPersonService {
             // 幂等早退不追加审计：全量重算会重复经过已决对。
             return;
         }
-        audit.append(tenantId, institutionId, "AUTO_MATCH", "system", "SYSTEM",
-                "PAIR", String.valueOf(pairId),
-                Map.of("ruleId", ruleId, "personId", outcome.personId(),
-                        "identities", List.of(identityA, identityB)),
-                ruleVersion);
+        MpiAuditEvents.autoMatch(audit, tenantId, institutionId, pairId, ruleId,
+                outcome.personId(), List.of(identityA, identityB), ruleVersion);
     }
 
     /** 人工复核 SAME_PERSON：把两个身份归入同一黄金人（决策源 MANUAL，幂等）。 */
@@ -136,10 +134,8 @@ public class MpiPersonService {
             writeBackPersonId(tenantId, keepId, group);
         }
         if ("MANUAL".equals(decisionSource)) {
-            audit.append(tenantId, institutionId, "MERGE", actor, "USER", "PERSON", keepId,
-                    Map.of("mergedPersonId", dropId, "movedIdentities", movingIdentities,
-                            "reason", reason == null ? "" : reason),
-                    null);
+            MpiAuditEvents.merge(audit, tenantId, institutionId, keepId, dropId,
+                    movingIdentities, actor, reason);
         }
     }
 
@@ -173,10 +169,8 @@ public class MpiPersonService {
         var separated = new ArrayList<String>();
         separated.add(identityGroup);
         separated.addAll(remaining);
-        audit.append(tenantId, institutionId, "SPLIT", actor, "USER", "PERSON", personId,
-                Map.of("separatedIdentities", separated, "newPersonId", newPersonId,
-                        "splitIdentity", identityGroup, "reason", reason == null ? "" : reason),
-                null);
+        MpiAuditEvents.split(audit, tenantId, institutionId, personId, separated,
+                newPersonId, identityGroup, actor, reason);
         return newPersonId;
     }
 

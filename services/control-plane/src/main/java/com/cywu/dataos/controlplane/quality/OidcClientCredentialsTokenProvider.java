@@ -11,7 +11,8 @@ import org.springframework.http.MediaType;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.web.client.RestClient;
 
-/** Short-lived OIDC client-credentials token cache for control-plane adapters. */
+/** Short-lived OIDC client-credentials token cache shared by control-plane adapters
+ *  (quality runtime / OpenMetadata / AI-ready engine)——错误文案为三个域共用，不绑定单一域。 */
 public final class OidcClientCredentialsTokenProvider {
 
     private record Token(String value, Instant expiresAt) {
@@ -59,13 +60,13 @@ public final class OidcClientCredentialsTokenProvider {
                         .retrieve().body(Map.class);
                 var value = response == null ? "" : String.valueOf(response.getOrDefault("access_token", ""));
                 var expires = response == null ? 300L : longValue(response.get("expires_in"), 300L);
-                if (value.isBlank()) throw new AdapterUnavailableException("质量 Runtime OIDC Token 响应缺少 access_token");
+                if (value.isBlank()) throw new AdapterUnavailableException("OIDC client-credentials Token 响应缺少 access_token");
                 cached.set(new Token(value, Instant.now().plusSeconds(Math.max(30, expires))));
                 return value;
             } catch (AdapterUnavailableException exception) {
                 throw exception;
             } catch (RuntimeException exception) {
-                throw new AdapterUnavailableException("质量 Runtime OIDC Token 暂时不可用");
+                throw new AdapterUnavailableException("OIDC client-credentials Token 暂时不可用");
             }
         }
     }

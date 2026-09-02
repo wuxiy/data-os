@@ -9,6 +9,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.cywu.dataos.mpi.audit.MpiAuditEvents;
 import com.cywu.dataos.mpi.audit.MpiAuditService;
 import com.cywu.dataos.mpi.person.MpiPersonService;
 
@@ -64,13 +65,9 @@ public class MpiReviewService {
                     resolved_at = CURRENT_TIMESTAMP
                 WHERE tenant_id = ? AND id = ?
                 """, resolution, reason, actor, tenantId, taskId);
-        audit.append(tenantId, institutionId, "DECISION", actor, "USER", "REVIEW_TASK", taskId,
-                Map.of("resolution", resolution,
-                        "pairId", ((Number) task.get("PAIR_ID")).longValue(),
-                        "identities", List.of(identityA, identityB),
-                        "mergedPersonId", mergedPersonId == null ? "" : mergedPersonId,
-                        "reason", reason == null ? "" : reason),
-                null);
+        MpiAuditEvents.decision(audit, tenantId, institutionId, taskId, resolution,
+                ((Number) task.get("PAIR_ID")).longValue(), List.of(identityA, identityB),
+                mergedPersonId, actor, reason);
         return Map.of("taskId", taskId, "resolution", resolution,
                 "mergedPersonId", mergedPersonId == null ? "" : mergedPersonId);
     }

@@ -5,6 +5,7 @@ import java.util.Map;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
+import com.cywu.dataos.mpi.audit.MpiAuditEvents;
 import com.cywu.dataos.mpi.audit.MpiAuditService;
 import com.cywu.dataos.mpi.candidate.MpiBlockingService;
 import com.cywu.dataos.mpi.decision.MpiDecisionService;
@@ -46,13 +47,9 @@ public class MpiRebuildService {
         var load = loader.load(tenantId, SOURCE_SYSTEM_EP);
         var pairs = blocking.generate(tenantId);
         var decided = decisions.decideAll(tenantId, institutionId, actor);
-        audit.append(tenantId, institutionId, "REBUILD", actor, "USER", "TENANT", tenantId,
-                Map.of("identitiesLoaded", load.identitiesLoaded(),
-                        "candidatePairs", pairs.totalPairs(),
-                        "autoMatches", decided.autoMatch(),
-                        "reviewPairs", decided.review(),
-                        "hardConflicts", decided.hardConflict()),
-                MpiRuleMatcher.RULE_VERSION);
+        MpiAuditEvents.rebuild(audit, tenantId, institutionId, actor,
+                load.identitiesLoaded(), pairs.totalPairs(), decided.autoMatch(),
+                decided.review(), decided.hardConflict(), MpiRuleMatcher.RULE_VERSION);
         return new RebuildResult(load.identitiesLoaded(), load.identitiesSkipped(),
                 pairs.totalPairs(), pairs.byB3(), pairs.byB4(), pairs.byB6(),
                 decided.autoMatch(), decided.review(), decided.noMatch(), decided.hardConflict());
