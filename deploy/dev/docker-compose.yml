@@ -352,7 +352,11 @@ services:
       start_period: 45s
       retries: 12
     networks:
-      - platform-net
+      platform-net:
+        # G16b 定向豁免：SeaTunnel 是唯一获准直读 DM 采集库的平台容器
+        # （edge-isolation-rules.sh 的 ST_INGEST_IP 白名单项）。静态 IP 钉扎
+        # 使 iptables 豁免与容器重建解耦；改动 IP 必须同步该脚本。
+        ipv4_address: 172.20.0.53
     restart: unless-stopped
 
   scheduler-token-rotator:
