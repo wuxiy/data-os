@@ -35,6 +35,38 @@ public class QualityRunRepository {
     private final JdbcTemplate jdbc;
     private final ObjectMapper objectMapper;
 
+    /** 资产质量面的注册表读路径：按 dataset 读取启用中的规则（registry 表归此仓储，服务不再直连 JDBC）。 */
+    public List<QualityRuleRegistryEntry> findEnabledRules(String datasetId) {
+        return jdbc.query("""
+                SELECT rule_id, dataset_id, selector FROM data_os.quality_rule_registry
+                WHERE dataset_id = ? AND enabled = TRUE
+                ORDER BY rule_id
+                """,
+                (rs, i) -> new QualityRuleRegistryEntry(
+                        rs.getString("rule_id"), rs.getString("dataset_id"), rs.getString("selector")),
+                datasetId);
+    }
+
+    public record QualityRuleRegistryEntry(String ruleId, String datasetId, String selector) {
+    }
+
+    /** 规则最近一次终态运行（资产质量面）。 */
+    public Optional<QualityRuleLastRun> findLastTerminalRun(String ruleId) {
+        return jdbc.query("""
+                        SELECT status, passed, finished_at FROM data_os.quality_rule_runs
+                        WHERE rule_id = ? AND status IN ('SUCCEEDED', 'FAILED')
+                        ORDER BY submitted_at DESC LIMIT 1
+                        """,
+                (rs, i) -> new QualityRuleLastRun(
+                        rs.getString("status"),
+                        Boolean.TRUE.equals(rs.getObject("passed")),
+                        rs.getTimestamp("finished_at")),
+                ruleId).stream().findFirst();
+    }
+
+    public record QualityRuleLastRun(String status, boolean passed, java.sql.Timestamp finishedAt) {
+    }
+
     public QualityRunRepository(JdbcTemplate jdbc, ObjectMapper objectMapper) {
         this.jdbc = jdbc;
         this.objectMapper = objectMapper;

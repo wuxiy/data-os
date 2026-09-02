@@ -67,32 +67,8 @@ public class IngestionRunService {
                 new IngestionExecutorPort(adapters),
                 new IngestionRunEffects(runRepository, checkpointRepository),
                 run -> Optional.empty(),
-                ingestionPolicy(syncIntervalMs, submitLeaseMs),
+                RunPolicy.ingestion(syncIntervalMs, submitLeaseMs),
                 transactionManager);
-    }
-
-    /** 采集侧行为声明：外部写入不可重入，提交失败一律终态、宁可疑转对账。 */
-    private static RunPolicy ingestionPolicy(long syncIntervalMs, long submitLeaseMs) {
-        return new RunPolicy(
-                StaleSubmissionPolicy.MARK_UNKNOWN_RECONCILE,
-                false,
-                false,
-                "UNSUPPORTED_EXECUTOR",
-                "UNKNOWN",
-                "UNKNOWN",
-                "BLOCKED_CONFIGURATION",
-                "BLOCKED_DEPENDENCY",
-                "SUBMIT_FAILED",
-                "执行器提交失败：",
-                "暂不支持执行器：%s",
-                "中心采集执行器未返回外部运行编号，需按 data_os_run_id 对账",
-                "UNKNOWN",
-                false,
-                "FAILED",
-                true,
-                true,
-                syncIntervalMs,
-                submitLeaseMs);
     }
 
     public IngestionRun start(String jobId, CreateRunRequest request, String idempotencyKey) {

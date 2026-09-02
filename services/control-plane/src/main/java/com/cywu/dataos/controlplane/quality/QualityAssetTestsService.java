@@ -5,7 +5,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 /**
@@ -18,11 +17,11 @@ import org.springframework.stereotype.Service;
 @Service
 public class QualityAssetTestsService {
 
-    private final JdbcTemplate jdbc;
+    private final QualityRunRepository runs;
     private final QualityAssetProperties properties;
 
-    public QualityAssetTestsService(JdbcTemplate jdbc, QualityAssetProperties properties) {
-        this.jdbc = jdbc;
+    public QualityAssetTestsService(QualityRunRepository runs, QualityAssetProperties properties) {
+        this.runs = runs;
         this.properties = properties;
     }
 
@@ -35,23 +34,16 @@ public class QualityAssetTestsService {
         var views = new ArrayList<QualityTestView>();
         var seen = new HashSet<String>();
         for (String dataset : datasets) {
-            jdbc.query("""
-                    SELECT rule_id, dataset_id, selector, enabled
-                    FROM data_os.quality_rule_registry
-                    WHERE dataset_id = ? AND enabled = TRUE
-                    ORDER BY rule_id
-                    """,
-                    rs -> {
-                        var ruleId = rs.getString("rule_id");
-                        if (!seen.add(ruleId)) {
-                            return;
-                        }
-                        views.add(new QualityTestView(
-                                ruleId,
-                                rs.getString("dataset_id"),
-                                rs.getString("selector"),
-                                lastRun(ruleId)));
-                    }, dataset);
+            for (var rule : runs.findEnabledRules(dataset)) {
+                if (!seen.add(rule.ruleId())) {
+                    continue;
+                }
+                views.add(new QualityTestView(
+                        rule.ruleId(),
+                        rule.datasetId(),
+                        rule.selector(),
+                        runs.findLastTerminalRun(rule.ruleId()).orElse(null)));
+            }
         }
         return List.copyOf(views);
     }
@@ -71,26 +63,9 @@ public class QualityAssetTestsService {
         return datasets;
     }
 
-    private QualityTestLastRun lastRun(String ruleId) {
-        var rows = jdbc.query("""
-                SELECT status, passed, finished_at FROM data_os.quality_rule_runs
-                WHERE rule_id = ? AND status IN ('SUCCEEDED', 'FAILED')
-                ORDER BY submitted_at DESC LIMIT 1
-                """,
-                (rs, i) -> new QualityTestLastRun(
-                        rs.getString("status"),
-                        Boolean.TRUE.equals(rs.getObject("passed")),
-                        rs.getTimestamp("finished_at")),
-                ruleId);
-        return rows.isEmpty() ? null : rows.get(0);
-    }
-
-    /** 单条质量测试（规则注册表口径）。 */
+    /** 单条质量测试（规则注册表口径；最近结论复用仓储的读模型）。 */
     public record QualityTestView(
-            String ruleId, String datasetId, String selector, QualityTestLastRun lastRun) {
-    }
-
-    /** 最近一次运行结论（外部运行状态机口径）。 */
-    public record QualityTestLastRun(String status, boolean passed, java.sql.Timestamp finishedAt) {
+            String ruleId, String datasetId, String selector,
+            QualityRunRepository.QualityRuleLastRun lastRun) {
     }
 }

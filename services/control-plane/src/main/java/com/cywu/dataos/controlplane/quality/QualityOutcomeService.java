@@ -75,32 +75,8 @@ public class QualityOutcomeService {
                 new QualityExecutorPort(executors),
                 new QualityRecheckEffects(issues, runs, notifications),
                 QualityRunStore.recoveryCommandSource(issues, runs),
-                qualityRecheckPolicy(pollIntervalMs, submitLeaseMs),
+                RunPolicy.qualityRecheck(pollIntervalMs, submitLeaseMs),
                 transactionManager);
-    }
-
-    /** 质量侧行为声明：提交幂等可重投退避；错误终态同事务推进问题工作流。 */
-    private static RunPolicy qualityRecheckPolicy(long pollIntervalMs, long submitLeaseMs) {
-        return new RunPolicy(
-                StaleSubmissionPolicy.RESUBMIT_BACKOFF,
-                true,
-                true,
-                "SUBMIT_FAILED",
-                "SUBMIT_FAILED",
-                null,
-                "SUBMIT_FAILED",
-                "SUBMIT_FAILED",
-                "SUBMIT_FAILED",
-                "",
-                "暂不支持质量规则执行器：%s",
-                "质量规则执行器未返回外部批次编号",
-                "FAILED",
-                true,
-                "FAILED",
-                false,
-                false,
-                pollIntervalMs,
-                submitLeaseMs);
     }
 
     @PostConstruct
