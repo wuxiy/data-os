@@ -21,6 +21,7 @@
 - **归并格子（Unite Grid）**：把两个源身份归入同一黄金人的四分支判定（无链接建人/一方收编/已同人幂等补投影/双方并人），单一属主为 `MpiPersonService`；链接与 Doris 投影回写只经格子发生。RULE 与 MANUAL 两侧差异（并人保谁：RULE 保留创建较早者、MANUAL 保留 personA；建人属性来源与决策元数据）经 `UnitePlan` 显式声明，不做隐性分叉。
 - **候选对（Candidate Pair）**：候选召回阶段产出的待判定身份对，跨召回规则按 pair 去重。
 - **候选召回（Blocking）**：用确定性键（机构+源主键、机构+卡号、姓名+性别）缩小候选集合的 SQL 阶段；只负责召回，判定交给规则层。
+- **匹配引擎（Pair Scorer）**：判定候选对的算法层。两代实现（V1 确定性规则 `MpiRuleMatcher` / V2 Fellegi-Sunter 评分 `MpiScoreMatcher`，影子模式）统一走 `PairScorer` seam——输入 `MatchPair`、产出三态 `Outcome`，生产编排与评测 harness 的适配只有一份；决策权在 V1，V2 分数作为证据落库（转正须走「合取守卫 + 分数」的混合策略）。
 - **硬冲突（Hard Conflict）**：人工已判 NO_MATCH 或已 Split 的身份对再次成为候选时，规则层强制 NO_MATCH——人工否决高于任何规则与分数。
 - **人工复核（Review）**：中间置信区间（如卡号复用）进入复核任务，由门户工作台确认同人/不同人/合并/拆分，决策全部落审计。
 

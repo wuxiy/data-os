@@ -16,7 +16,7 @@ import java.util.List;
  * 决策（双阈值三态）：score ≥ T_AUTO → AUTO_MATCH；≥ T_REVIEW → REVIEW；
  * 否则 NO_MATCH。Hard Constraint（人工否决/拆分）在编排层前置，高于分数。
  */
-public final class MpiScoreMatcher {
+public final class MpiScoreMatcher implements PairScorer {
 
     public static final String SCORE_VERSION = "v2-fs";
 
@@ -24,13 +24,8 @@ public final class MpiScoreMatcher {
     public record FieldScore(String field, String level, double weight) {
     }
 
-    public record ScoreDecision(double score, MpiRuleMatcher.Outcome outcome,
-                                List<FieldScore> breakdown) {
-    }
-
-    /** 候选对双侧原始属性（联系方式保留哈希原值以区分 DISAGREE/MISSING）。 */
-    public record ScorePair(String cardA, String nameA, String genderA, String contactHashA,
-                            String cardB, String nameB, String genderB, String contactHashB) {
+    public record ScoreDecision(double score, Outcome outcome,
+                                List<FieldScore> breakdown) implements PairDecision {
     }
 
     public enum Level { AGREE, VARIANT, DISAGREE, MISSING }
@@ -41,16 +36,24 @@ public final class MpiScoreMatcher {
         this.weights = weights;
     }
 
-    public ScoreDecision evaluate(ScorePair pair) {
+    @Override
+    public String version() {
+        return SCORE_VERSION;
+    }
+
+    @Override
+    public ScoreDecision evaluate(MatchPair pair) {
+        var a = pair.a();
+        var b = pair.b();
         var breakdown = List.of(
-                fieldScore("card", level(pair.cardA(), pair.cardB()), weights.card()),
-                nameScore(pair.nameA(), pair.nameB()),
-                fieldScore("gender", genderLevel(pair.genderA(), pair.genderB()), weights.gender()),
-                fieldScore("contact", level(pair.contactHashA(), pair.contactHashB()), weights.contact()));
+                fieldScore("card", level(a.card(), b.card()), weights.card()),
+                nameScore(a.name(), b.name()),
+                fieldScore("gender", genderLevel(a.gender(), b.gender()), weights.gender()),
+                fieldScore("contact", level(a.contactHash(), b.contactHash()), weights.contact()));
         double score = Math.round(breakdown.stream().mapToDouble(FieldScore::weight).sum() * 100.0) / 100.0;
-        var outcome = score >= weights.tAuto() ? MpiRuleMatcher.Outcome.AUTO_MATCH
-                : score >= weights.tReview() ? MpiRuleMatcher.Outcome.REVIEW
-                : MpiRuleMatcher.Outcome.NO_MATCH;
+        var outcome = score >= weights.tAuto() ? Outcome.AUTO_MATCH
+                : score >= weights.tReview() ? Outcome.REVIEW
+                : Outcome.NO_MATCH;
         return new ScoreDecision(score, outcome, breakdown);
     }
 

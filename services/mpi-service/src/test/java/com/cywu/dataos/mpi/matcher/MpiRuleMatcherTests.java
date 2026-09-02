@@ -9,31 +9,30 @@ class MpiRuleMatcherTests {
 
     private final MpiRuleMatcher matcher = new MpiRuleMatcher();
 
-    private MpiRuleMatcher.PairAttributes pair(String instA, String pidA, String cardA, String nameA,
-                                               String genderA, String instB, String pidB, String cardB,
-                                               String nameB, String genderB) {
-        return new MpiRuleMatcher.PairAttributes(instA, pidA, cardA, nameA, genderA, false,
-                instB, pidB, cardB, nameB, genderB);
+    private MatchPair pair(String instA, String pidA, String cardA, String nameA, String genderA,
+                           String instB, String pidB, String cardB, String nameB, String genderB) {
+        return new MatchPair(new MatchPair.Side(instA, pidA, cardA, nameA, genderA, null),
+                new MatchPair.Side(instB, pidB, cardB, nameB, genderB, null));
     }
 
     @Test
     void mEp1AutoMatchesCrossSourceSamePatientIdWithNameGender() {
         var decision = matcher.evaluate(pair("H1", "9", null, "张三", "M", "H1", "9", "k2", "张三", "M"));
         assertThat(decision.ruleId()).isEqualTo("M-ep1");
-        assertThat(decision.outcome()).isEqualTo(MpiRuleMatcher.Outcome.AUTO_MATCH);
+        assertThat(decision.outcome()).isEqualTo(Outcome.AUTO_MATCH);
     }
 
     @Test
     void mEp1DowngradesToReviewWhenNameConflicts() {
         var decision = matcher.evaluate(pair("H1", "9", null, "张三", "M", "H1", "9", "k2", "李四", "M"));
-        assertThat(decision.outcome()).isEqualTo(MpiRuleMatcher.Outcome.REVIEW);
+        assertThat(decision.outcome()).isEqualTo(Outcome.REVIEW);
     }
 
     @Test
     void mEp2AutoMatchesSameCardWithNameGenderSameInstitution() {
         var decision = matcher.evaluate(pair("H1", "1", "C1", "张三", "M", "H1", "2", "C1", "张三", "M"));
         assertThat(decision.ruleId()).isEqualTo("M-ep2");
-        assertThat(decision.outcome()).isEqualTo(MpiRuleMatcher.Outcome.AUTO_MATCH);
+        assertThat(decision.outcome()).isEqualTo(Outcome.AUTO_MATCH);
     }
 
     @Test
@@ -41,7 +40,7 @@ class MpiRuleMatcherTests {
         // 跨机构同卡同名：机构锚点缺失不得 AUTO；P-ep1/P-ep2 字面也不覆盖
         // （卡相同但机构不同）——由兜底规则送人工复核。
         var decision = matcher.evaluate(pair("H1", "1", "C1", "张三", "M", "H2", "2", "C1", "张三", "M"));
-        assertThat(decision.outcome()).isEqualTo(MpiRuleMatcher.Outcome.REVIEW);
+        assertThat(decision.outcome()).isEqualTo(Outcome.REVIEW);
         assertThat(decision.ruleId()).isEqualTo("P-fallback");
     }
 
@@ -49,20 +48,20 @@ class MpiRuleMatcherTests {
     void pEp1SendsCardReuseWithConflictToReview() {
         var decision = matcher.evaluate(pair("H1", "1", "C1", "张三", "M", "H1", "2", "C1", "李四", "F"));
         assertThat(decision.ruleId()).isEqualTo("P-ep1");
-        assertThat(decision.outcome()).isEqualTo(MpiRuleMatcher.Outcome.REVIEW);
+        assertThat(decision.outcome()).isEqualTo(Outcome.REVIEW);
     }
 
     @Test
     void pEp2ReviewsSameNameGenderWithDistinctCards() {
         var decision = matcher.evaluate(pair("H1", "1", "C1", "张三", "M", "H1", "2", "C2", "张三", "M"));
         assertThat(decision.ruleId()).isEqualTo("P-ep2");
-        assertThat(decision.outcome()).isEqualTo(MpiRuleMatcher.Outcome.REVIEW);
+        assertThat(decision.outcome()).isEqualTo(Outcome.REVIEW);
     }
 
     @Test
     void unknownGenderNeverAutoMatches() {
         var decision = matcher.evaluate(pair("H1", "1", "C1", "张三", "U", "H1", "2", "C1", "张三", "U"));
-        assertThat(decision.outcome()).isNotEqualTo(MpiRuleMatcher.Outcome.AUTO_MATCH);
+        assertThat(decision.outcome()).isNotEqualTo(Outcome.AUTO_MATCH);
     }
 
     @Test

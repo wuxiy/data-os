@@ -18,9 +18,13 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 import com.cywu.dataos.mpi.audit.MpiAuditService;
+import com.cywu.dataos.mpi.matcher.MatchPair;
 import com.cywu.dataos.mpi.matcher.MpiRuleMatcher;
+import com.cywu.dataos.mpi.matcher.MpiRuleMatcher.EvidenceItem;
+import com.cywu.dataos.mpi.matcher.MpiRuleMatcher.RuleDecision;
 import com.cywu.dataos.mpi.matcher.MpiScoreMatcher;
 import com.cywu.dataos.mpi.matcher.MpiWeights;
+import com.cywu.dataos.mpi.matcher.Outcome;
 import com.cywu.dataos.mpi.person.MpiPersonService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -82,27 +86,19 @@ public class MpiDecisionService {
     public record DecisionStats(int autoMatch, int review, int noMatch, int hardConflict) {
     }
 
-    public record PairRow(long pairId, String identityA, String identityB,
-                          String institutionA, String patientIdA, String cardA, String nameA,
-                          String genderA, String contactHashA,
-                          String institutionB, String patientIdB, String cardB, String nameB,
-                          String genderB, String contactHashB) {
-
-        MpiRuleMatcher.PairAttributes toAttributes() {
-            var contactSame = contactHashA != null && contactHashA.equals(contactHashB);
-            return new MpiRuleMatcher.PairAttributes(institutionA, patientIdA, cardA, nameA, genderA,
-                    contactSame, institutionB, patientIdB, cardB, nameB, genderB);
-        }
+    /** 候选对行：对标识 + 统一输入（行映射器直接构造域形状，无二次胶水）。 */
+    public record PairRow(long pairId, String identityA, String identityB, MatchPair matchPair) {
     }
 
     public DecisionStats decideAll(String tenantId, String institutionId, String actor) {
         registerRuleVersion();
         var pairs = doris.query(SELECT_PAIRS_WITH_ATTRIBUTES, (rs, i) -> new PairRow(
                 rs.getLong(1), rs.getString(2), rs.getString(3),
-                rs.getString(4), rs.getString(5), rs.getString(6), rs.getString(7), rs.getString(8),
-                rs.getString(9),
-                rs.getString(10), rs.getString(11), rs.getString(12), rs.getString(13),
-                rs.getString(14), rs.getString(15)), tenantId);
+                new MatchPair(
+                        new MatchPair.Side(rs.getString(4), rs.getString(5), rs.getString(6),
+                                rs.getString(7), rs.getString(8), rs.getString(9)),
+                        new MatchPair.Side(rs.getString(10), rs.getString(11), rs.getString(12),
+                                rs.getString(13), rs.getString(14), rs.getString(15)))), tenantId);
         doris.update(CLEAR_RESULTS, tenantId);
 
         // 已有任何复核任务的 pair 不再自动建任务（人工已介入或已裁决）。
@@ -122,46 +118,46 @@ public class MpiDecisionService {
         // 落库，供复核排序与后续策略裁决，不改变本表 outcome。
         var scoreMatcher = new MpiScoreMatcher(
                 MpiWeights.packaged().withNameUFrequency(loadNameFrequency(tenantId)));
-        for (var pair : pairs) {
-            MpiRuleMatcher.RuleDecision decision;
-            if (audit.rejectedAsDifferentPerson(tenantId, pair.pairId())) {
+        for (var row : pairs) {
+            var pair = row.matchPair();
+            var a = pair.a();
+            RuleDecision decision;
+            if (audit.rejectedAsDifferentPerson(tenantId, row.pairId())) {
                 // H-ep1：人工已判不同人——最高优先级否决。
-                decision = new MpiRuleMatcher.RuleDecision("H-ep1", MpiRuleMatcher.Outcome.HARD_CONFLICT,
+                decision = new RuleDecision("H-ep1", Outcome.HARD_CONFLICT,
                         List.of());
                 hard++;
-            } else if (audit.separatedBySplit(tenantId, pair.identityA(), pair.identityB())) {
+            } else if (audit.separatedBySplit(tenantId, row.identityA(), row.identityB())) {
                 // H-ep2：人工已拆开——永不再自动合并。
-                decision = new MpiRuleMatcher.RuleDecision("H-ep2", MpiRuleMatcher.Outcome.HARD_CONFLICT,
+                decision = new RuleDecision("H-ep2", Outcome.HARD_CONFLICT,
                         List.of());
                 hard++;
             } else {
-                decision = matcher.evaluate(pair.toAttributes());
+                decision = matcher.evaluate(pair);
             }
-            var shadow = scoreMatcher.evaluate(new MpiScoreMatcher.ScorePair(
-                    pair.cardA(), pair.nameA(), pair.genderA(), pair.contactHashA(),
-                    pair.cardB(), pair.nameB(), pair.genderB(), pair.contactHashB()));
-            List<MpiRuleMatcher.EvidenceItem> evidence = new ArrayList<>(decision.evidence());
-            evidence.add(new MpiRuleMatcher.EvidenceItem("v2Score",
+            var shadow = scoreMatcher.evaluate(pair);
+            List<EvidenceItem> evidence = new ArrayList<>(decision.evidence());
+            evidence.add(new EvidenceItem("v2Score",
                     String.valueOf(shadow.score()), shadow.outcome().name(),
                     shadow.outcome() == decision.outcome()));
             switch (decision.outcome()) {
                 case AUTO_MATCH -> {
                     auto++;
-                    persons.applyAutoMatch(tenantId, institutionId, pair.pairId(), pair.identityA(),
-                            pair.identityB(), pair.nameA(), pair.genderA(), decision.ruleId(),
+                    persons.applyAutoMatch(tenantId, institutionId, row.pairId(), row.identityA(),
+                            row.identityB(), a.name(), a.gender(), decision.ruleId(),
                             MpiRuleMatcher.RULE_VERSION);
                 }
                 case REVIEW -> {
                     review++;
-                    if (!pairsWithTask.contains(pair.pairId())) {
+                    if (!pairsWithTask.contains(row.pairId())) {
                         pg.update(INSERT_REVIEW_TASK, UUID.randomUUID().toString(), tenantId,
-                                institutionId, pair.pairId());
-                        pairsWithTask.add(pair.pairId());
+                                institutionId, row.pairId());
+                        pairsWithTask.add(row.pairId());
                     }
                 }
                 default -> noMatch++;
             }
-            resultBatch.add(new Object[] {pair.pairId(), tenantId, pair.identityA(), pair.identityB(),
+            resultBatch.add(new Object[] {row.pairId(), tenantId, row.identityA(), row.identityB(),
                     decision.ruleId(), MpiRuleMatcher.RULE_VERSION,
                     decision.outcome().name(), writeEvidence(evidence), now});
         }

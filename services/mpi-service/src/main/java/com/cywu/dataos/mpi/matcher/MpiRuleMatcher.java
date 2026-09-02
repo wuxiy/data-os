@@ -4,41 +4,40 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 确定性规则集 v1（EP 适配）。评估顺序即优先级：人工否决（调用方先行，
- * 见 MpiHardConstraint）→ M-ep1 → M-ep2 → P-ep1 → P-ep2 → 兜底 NO_MATCH。
- * 弱标识纪律：卡号/姓名/性别任一单独不构成 AUTO——M 级规则全部要求
- * 「机构锚点 + 至少两类属性一致」；错误合并的临床风险高于漏合并。
+ * 确定性规则集 v1（EP 适配）。评估顺序即优先级：人工否决（H-ep1/H-ep2
+ * 在编排层前置，见 MpiDecisionService）→ M-ep1 → M-ep2 → P-ep1 → P-ep2
+ * → 兜底 NO_MATCH。弱标识纪律：卡号/姓名/性别任一单独不构成 AUTO——
+ * M 级规则全部要求「机构锚点 + 至少两类属性一致」；错误合并的临床风险
+ * 高于漏合并。
  */
-public final class MpiRuleMatcher {
+public final class MpiRuleMatcher implements PairScorer {
 
     public static final String RULE_VERSION = "v1";
-
-    public enum Outcome {
-        AUTO_MATCH, REVIEW, NO_MATCH, HARD_CONFLICT
-    }
 
     /** 证据项：字段对比快照。证件类值必须先掩码（验收红线：明文证件不落库）。 */
     public record EvidenceItem(String field, String valueA, String valueB, boolean match) {
     }
 
-    public record RuleDecision(String ruleId, Outcome outcome, List<EvidenceItem> evidence) {
+    public record RuleDecision(String ruleId, Outcome outcome, List<EvidenceItem> evidence)
+            implements PairDecision {
     }
 
-    /** 候选对两侧的标准化属性（来自 mpi_source_identity）。 */
-    public record PairAttributes(String institutionA, String patientIdA, String cardA, String nameA,
-                                 String genderA, boolean contactSame,
-                                 String institutionB, String patientIdB, String cardB, String nameB,
-                                 String genderB) {
+    @Override
+    public String version() {
+        return RULE_VERSION;
     }
 
-    public RuleDecision evaluate(PairAttributes p) {
-        var sameInstitution = equalsNullable(p.institutionA(), p.institutionB());
-        var samePatientId = equalsNullable(p.patientIdA(), p.patientIdB());
-        var sameCard = p.cardA() != null && p.cardA().equals(p.cardB());
-        var sameName = equalsNullable(p.nameA(), p.nameB());
-        var sameGender = p.genderA() != null && p.genderA().equals(p.genderB())
-                && !"U".equals(p.genderA());
-        var evidence = evidence(p, sameInstitution, samePatientId, sameCard, sameName, sameGender);
+    @Override
+    public RuleDecision evaluate(MatchPair pair) {
+        var a = pair.a();
+        var b = pair.b();
+        var sameInstitution = equalsNullable(a.institution(), b.institution());
+        var samePatientId = equalsNullable(a.patientId(), b.patientId());
+        var sameCard = a.card() != null && a.card().equals(b.card());
+        var sameName = equalsNullable(a.name(), b.name());
+        var sameGender = a.gender() != null && a.gender().equals(b.gender())
+                && !"U".equals(a.gender());
+        var evidence = evidence(pair, sameInstitution, samePatientId, sameCard, sameName, sameGender);
 
         // M-ep1：同机构 + 同患者主键（跨源）+ 姓名 + 性别一致。
         if (sameInstitution && samePatientId && sameName && sameGender) {
@@ -61,17 +60,19 @@ public final class MpiRuleMatcher {
                 evidence);
     }
 
-    private List<EvidenceItem> evidence(PairAttributes p, boolean sameInstitution, boolean samePatientId,
+    private List<EvidenceItem> evidence(MatchPair pair, boolean sameInstitution, boolean samePatientId,
                                         boolean sameCard, boolean sameName, boolean sameGender) {
+        var a = pair.a();
+        var b = pair.b();
         List<EvidenceItem> items = new ArrayList<>();
-        items.add(new EvidenceItem("institution", p.institutionA(), p.institutionB(), sameInstitution));
-        items.add(new EvidenceItem("patientId", maskTail(p.patientIdA()), maskTail(p.patientIdB()),
+        items.add(new EvidenceItem("institution", a.institution(), b.institution(), sameInstitution));
+        items.add(new EvidenceItem("patientId", maskTail(a.patientId()), maskTail(b.patientId()),
                 samePatientId));
-        items.add(new EvidenceItem("cardNo", maskCard(p.cardA()), maskCard(p.cardB()), sameCard));
-        items.add(new EvidenceItem("name", p.nameA(), p.nameB(), sameName));
-        items.add(new EvidenceItem("gender", p.genderA(), p.genderB(), sameGender));
-        items.add(new EvidenceItem("contact", p.contactSame() ? "SAME" : "DIFF", p.contactSame() ? "SAME" : "DIFF",
-                p.contactSame()));
+        items.add(new EvidenceItem("cardNo", maskCard(a.card()), maskCard(b.card()), sameCard));
+        items.add(new EvidenceItem("name", a.name(), b.name(), sameName));
+        items.add(new EvidenceItem("gender", a.gender(), b.gender(), sameGender));
+        items.add(new EvidenceItem("contact", pair.contactSame() ? "SAME" : "DIFF", pair.contactSame() ? "SAME" : "DIFF",
+                pair.contactSame()));
         return items;
     }
 

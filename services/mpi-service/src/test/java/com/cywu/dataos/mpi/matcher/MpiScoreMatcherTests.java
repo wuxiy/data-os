@@ -24,17 +24,17 @@ class MpiScoreMatcherTests {
                 tAuto, tReview, null);
     }
 
-    private MpiScoreMatcher.ScorePair pair(String cardA, String nameA, String genderA, String contactA,
-                                           String cardB, String nameB, String genderB, String contactB) {
-        return new MpiScoreMatcher.ScorePair(cardA, nameA, genderA, contactA,
-                cardB, nameB, genderB, contactB);
+    private MatchPair pair(String cardA, String nameA, String genderA, String contactA,
+                           String cardB, String nameB, String genderB, String contactB) {
+        return new MatchPair(new MatchPair.Side(null, null, cardA, nameA, genderA, contactA),
+                new MatchPair.Side(null, null, cardB, nameB, genderB, contactB));
     }
 
     @Test
     void strongAgreementAutoMatches() {
         var matcher = new MpiScoreMatcher(testWeights(8, 1));
         var decision = matcher.evaluate(pair("C1", "张三", "M", "h1", "C1", "张三", "M", "h1"));
-        assertThat(decision.outcome()).isEqualTo(MpiRuleMatcher.Outcome.AUTO_MATCH);
+        assertThat(decision.outcome()).isEqualTo(Outcome.AUTO_MATCH);
         assertThat(decision.score()).isGreaterThanOrEqualTo(8);
     }
 
@@ -43,7 +43,7 @@ class MpiScoreMatcherTests {
         // 同卡不同名（EP 真实形态）：卡 AGREE 加分，但姓名 DISAGREE 强负分。
         var matcher = new MpiScoreMatcher(testWeights(8, 1));
         var decision = matcher.evaluate(pair("C1", "张三", "M", "h1", "C1", "李四", "F", "h2"));
-        assertThat(decision.outcome()).isEqualTo(MpiRuleMatcher.Outcome.NO_MATCH);
+        assertThat(decision.outcome()).isEqualTo(Outcome.NO_MATCH);
         assertThat(levelOf(decision, "card")).isEqualTo("AGREE");
         assertThat(levelOf(decision, "name")).isEqualTo("DISAGREE");
     }
@@ -53,7 +53,7 @@ class MpiScoreMatcherTests {
         // 同名同性别难负样本：联系方式不一致压住姓名频率细化后的加分。
         var matcher = new MpiScoreMatcher(testWeights(8, 1));
         var decision = matcher.evaluate(pair("C1", "张三", "M", "h1", "C2", "张三", "M", "h2"));
-        assertThat(decision.outcome()).isNotEqualTo(MpiRuleMatcher.Outcome.AUTO_MATCH);
+        assertThat(decision.outcome()).isNotEqualTo(Outcome.AUTO_MATCH);
     }
 
     @Test
@@ -114,12 +114,12 @@ class MpiScoreMatcherTests {
         var matcher = new MpiScoreMatcher(testWeights(8, 1));
         var strong = matcher.evaluate(pair("C1", "张三", "M", "h1", "C1", "张三", "M", "h1"));
         var mid = matcher.evaluate(pair("C1", "张三", "M", "h1", "C2", "张三", "M", "h1"));
-        assertThat(strong.outcome()).isEqualTo(MpiRuleMatcher.Outcome.AUTO_MATCH);
-        assertThat(mid.outcome()).isIn(MpiRuleMatcher.Outcome.REVIEW, MpiRuleMatcher.Outcome.NO_MATCH);
+        assertThat(strong.outcome()).isEqualTo(Outcome.AUTO_MATCH);
+        assertThat(mid.outcome()).isIn(Outcome.REVIEW, Outcome.NO_MATCH);
         // 用同一对、不同阈值验证边界语义。
         var relaxed = new MpiScoreMatcher(testWeights(mid.score(), mid.score() - 1));
         assertThat(relaxed.evaluate(pair("C1", "张三", "M", "h1", "C2", "张三", "M", "h1")).outcome())
-                .isEqualTo(MpiRuleMatcher.Outcome.AUTO_MATCH);
+                .isEqualTo(Outcome.AUTO_MATCH);
     }
 
     @Test

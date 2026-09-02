@@ -37,12 +37,13 @@ class MpiEvalHarnessTests {
     private static final Path CORPUS = Path.of("eval", "corpus");
     private static final double EPSILON = 0.005;
 
-    private record Side(String institution, String patientId, String card, String name,
-                        String gender, String contactHash) {
-    }
-
     private record Pair(String id, boolean match, String kind, boolean blockingReachable,
-                        Side a, Side b) {
+                        MatchPair.Side a, MatchPair.Side b) {
+
+        /** 语料行 → 统一引擎输入（两代引擎共用的唯一适配）。 */
+        MatchPair toMatchPair() {
+            return new MatchPair(a, b);
+        }
     }
 
     private final ObjectMapper json = new ObjectMapper();
@@ -140,7 +141,7 @@ class MpiEvalHarnessTests {
         var matchScores = new ArrayList<Double>();
         double maxNonMatch = Double.NEGATIVE_INFINITY;
         for (var pair : calibration) {
-            double score = matcher.evaluate(toScorePair(pair)).score();
+            double score = matcher.evaluate(pair.toMatchPair()).score();
             if (pair.match()) {
                 matchScores.add(score);
             } else {
@@ -159,37 +160,47 @@ class MpiEvalHarnessTests {
                           double v2F1, List<String> anchorViolations) {
     }
 
+    /** 参评引擎（报告键 / 标签 / seam 实现），加引擎只加一行。 */
+    private record Engine(String key, String label, PairScorer scorer) {
+    }
+
     private Report report(List<Pair> evalSet, MpiWeights weights) throws IOException {
-        var ruleMatcher = new MpiRuleMatcher();
-        var scoreMatcher = new MpiScoreMatcher(weights);
-        var v1 = new Confusion("V1 规则");
-        var v2 = new Confusion("V2 评分");
+        var engines = List.of(
+                new Engine("v1", "V1 规则", new MpiRuleMatcher()),
+                new Engine("v2", "V2 评分", new MpiScoreMatcher(weights)));
         int positivesBlockingReachable = 0;
         for (var pair : evalSet) {
             if (pair.match() && pair.blockingReachable()) positivesBlockingReachable++;
-            v1.record(pair.match(), ruleMatcher.evaluate(toRuleAttributes(pair)).outcome());
-            v2.record(pair.match(), scoreMatcher.evaluate(toScorePair(pair)).outcome());
         }
+        var confusions = new LinkedHashMap<String, Confusion>();
+        for (var engine : engines) {
+            var confusion = new Confusion(engine.label());
+            for (var pair : evalSet) {
+                confusion.record(pair.match(), engine.scorer().evaluate(pair.toMatchPair()).outcome());
+            }
+            confusions.put(engine.key(), confusion);
+        }
+
         var anchors = anchors();
         var violations = new ArrayList<String>();
         var anchorRows = json.createArrayNode();
         for (var anchor : anchors) {
-            var v1Outcome = ruleMatcher.evaluate(toRuleAttributes(anchor.pair())).outcome();
-            var v2Outcome = scoreMatcher.evaluate(toScorePair(anchor.pair())).outcome();
-            if (!anchor.match() && v2Outcome == MpiRuleMatcher.Outcome.AUTO_MATCH) {
-                violations.add(anchor.id());
-            }
             var row = anchorRows.addObject();
             row.put("id", anchor.id());
             row.put("human", anchor.match() ? "SAME_PERSON" : "DIFFERENT_PERSON");
-            row.put("v1", v1Outcome.name());
-            row.put("v2", v2Outcome.name());
+            for (var engine : engines) {
+                var outcome = engine.scorer().evaluate(anchor.pair().toMatchPair()).outcome();
+                row.put(engine.key(), outcome.name());
+                // 安全不变量只锁 V2：评分器不得把不同人锚点判 AUTO。
+                if ("v2".equals(engine.key()) && !anchor.match() && outcome == Outcome.AUTO_MATCH) {
+                    violations.add(anchor.id());
+                }
+            }
         }
 
         var node = json.createObjectNode();
         node.put("corpus", "eval/corpus/evalset.jsonl (seed 20260828)");
-        node.set("v1", v1.toJson(json));
-        node.set("v2", v2.toJson(json));
+        confusions.forEach((key, confusion) -> node.set(key, confusion.toJson(json)));
         node.put("positivesBlockingReachable", positivesBlockingReachable);
         node.put("positives", evalSet.stream().filter(Pair::match).count());
         node.set("anchors", anchorRows);
@@ -198,6 +209,8 @@ class MpiEvalHarnessTests {
         thresholds.put("tReview", weights.tReview());
         node.set("thresholds", thresholds);
         node.set("tAutoSensitivity", sensitivitySweep(evalSet, weights));
+        var v1 = confusions.get("v1");
+        var v2 = confusions.get("v2");
         return new Report(node, v1.falseAuto, v1.f1(), v2.falseAuto, v2.f1(), violations);
     }
 
@@ -208,7 +221,7 @@ class MpiEvalHarnessTests {
         var matchScores = new ArrayList<Double>();
         var nonMatchScores = new ArrayList<Double>();
         for (var pair : evalSet) {
-            double score = matcher.evaluate(toScorePair(pair)).score();
+            double score = matcher.evaluate(pair.toMatchPair()).score();
             (pair.match() ? matchScores : nonMatchScores).add(score);
         }
         matchScores.sort(Comparator.reverseOrder());
@@ -244,7 +257,7 @@ class MpiEvalHarnessTests {
             this.name = name;
         }
 
-        void record(boolean match, MpiRuleMatcher.Outcome outcome) {
+        void record(boolean match, Outcome outcome) {
             if (match) {
                 switch (outcome) {
                     case AUTO_MATCH -> tp++;
@@ -346,8 +359,8 @@ class MpiEvalHarnessTests {
                 .mapToDouble(Double::doubleValue).average().orElse(0.4));
     }
 
-    private static Side side(JsonNode node) {
-        return new Side(node.get("institution").asText(null), node.get("patientId").asText(null),
+    private static MatchPair.Side side(JsonNode node) {
+        return new MatchPair.Side(node.get("institution").asText(null), node.get("patientId").asText(null),
                 nullsToNull(node.get("card")), node.get("name").asText(null),
                 nullsToNull(node.get("gender")), nullsToNull(node.get("contactHash")));
     }
@@ -355,22 +368,6 @@ class MpiEvalHarnessTests {
     /** JSON null → Java null（缺失语义在比较级里承载）。 */
     private static String nullsToNull(JsonNode node) {
         return node == null || node.isNull() ? null : node.asText();
-    }
-
-    private static MpiRuleMatcher.PairAttributes toRuleAttributes(Pair pair) {
-        var a = pair.a();
-        var b = pair.b();
-        boolean contactSame = a.contactHash() != null && a.contactHash().equals(b.contactHash());
-        return new MpiRuleMatcher.PairAttributes(a.institution(), a.patientId(), a.card(), a.name(),
-                a.gender(), contactSame, b.institution(), b.patientId(), b.card(), b.name(),
-                b.gender());
-    }
-
-    private static MpiScoreMatcher.ScorePair toScorePair(Pair pair) {
-        var a = pair.a();
-        var b = pair.b();
-        return new MpiScoreMatcher.ScorePair(a.card(), a.name(), a.gender(), a.contactHash(),
-                b.card(), b.name(), b.gender(), b.contactHash());
     }
 
     private void assertFieldEquals(String field, MpiWeights.FieldWeights estimated,
