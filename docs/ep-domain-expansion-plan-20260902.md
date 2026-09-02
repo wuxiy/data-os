@@ -46,13 +46,15 @@
 
 ### 4.1 每张表的交付链（全部复用已验证模式）
 
-1. **采集**：SeaTunnel JDBC 作业（复用 CFZB 模板，增量占位符按 `TO_TIMESTAMP(REPLACE(SUBSTR('${last_success_time}',1,19),'T',' '))` 规整）；
+1. **采集**：SeaTunnel JDBC 作业（复用 CFZB 模板，增量占位符按 `TO_TIMESTAMP(REPLACE(SUBSTR('${last_success_time}',1,19),'T',' '))` 规整）；`PATIENT` 等含敏感列表必须**显式列清单**（排除 `PASSWORD`/`CREDENTIALS`/`WECHAT_OPEN_ID`），禁止 `SELECT *`（G16a 盘点确认，见 `docs/ep-domain-inventory-20260902.md` §五）；
 2. **落仓**：Doris `ods_ep` 新表，writer 账号沿用既有三重授权；
 3. **质量**：dbt 规则（主键唯一/非空/值域/外键关系，复用 `ep_edge` 模式）并注册进控制面质量域；
 4. **资产与血缘**：OM 摄取脚本登记 + dbt 产物列级血缘（G6/G7 兼容链，1.7+dbt-mysql 产物）；
 5. **消费**：至少 1 个新 Data API 数据集（无 PHI 聚合口径，走 G13 发布/配额/审计面）；Superset 图表按需可选。
 
-### 4.2 T5b 条件项（G16a 标记到身份表时触发）
+### 4.2 T5b 条件项（G16a 盘点已确认触发，2026-09-02）
+
+- 触发依据：`PATIENT`（C 端注册/实名认证路径）与 `EP_MZ_CFZB`（门诊开方路径）构成双采集面，`PATIENT_EP_RECORD` 提供免人工标注的同人对底账；第二身份流以患者域（PATIENT/PATIENT_CARD）为主候选；
 
 - 第二身份流入仓后按 `docs/mpi-recalibration-runbook.md` 执行重标定（估计器/漂移报告/dev 基线全部现成）；
 - 重标定报告**如实标注「同库跨表弱多源」局限**：同一 DM 库的跨表身份流与真实多源系统存在分布差异；
