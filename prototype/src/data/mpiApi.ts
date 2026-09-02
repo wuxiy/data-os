@@ -57,7 +57,8 @@ export const mpiRuleLabel: Record<string, string> = {
   'P-fallback': '弱证据待核',
 }
 
-/** 证据字段中文口径（G14 影子评分：valueA=分数(bit)、valueB=V2 三态）。 */
+/** 证据字段中文口径（影子行：v2Score 的 valueA=分数(bit)、valueB=三态；
+ *  hybrid 为 T5 混合三态，否决触发时 valueB 带 /V2-VETO 后缀）。 */
 export const mpiEvidenceFieldLabel: Record<string, string> = {
   institution: '机构',
   patientId: '患者主键',
@@ -66,6 +67,7 @@ export const mpiEvidenceFieldLabel: Record<string, string> = {
   gender: '性别',
   contact: '联系方式',
   v2Score: 'V2 影子评分',
+  hybrid: 'T5 混合（影子）',
 }
 
 export interface MpiCandidatesResponse {

@@ -24,11 +24,13 @@ import static org.assertj.core.api.Assertions.assertThat;
  *
  * 一、标定：从冻结标定集估计逐比较级 m/u，断言与 MpiWeights.packaged()
  * 一致（锁权重漂移——占位/过期权重会被拦下）。
- * 二、评测：冻结评测集上 V1 规则 vs V2 评分的 P/R/F1 + 混淆矩阵。
+ * 二、评测：冻结评测集上 V1 规则 vs V2 评分 vs T5 混合（守卫 + 否决带）
+ * 的 P/R/F1 + 混淆矩阵。
  * 三、阈值：确定性规则定版——T_AUTO = 零错误 AUTO 约束下的最大召回
  * （max 非同人分 + 0.01）；T_REVIEW = 同人分数第 1 百分位（复核安全网，
- * 丢失匹配 ≤1%）。扫描表写入 eval/reports/eval-report.json。
- * 四、锚点：4 条人工裁决真实对，V1/V2 判定对照；V2 不得把不同人对判 AUTO。
+ * 丢失匹配 ≤1%）；T_VETO = min 同人分 − 0.01（零误否约束，混合专用）。
+ * 扫描表写入 eval/reports/eval-report.json。
+ * 四、锚点：4 条人工裁决真实对，各引擎判定对照；V2 不得把不同人对判 AUTO。
  *
  * 语料字段见 eval/generate_corpus.py；运行目录为模块根（surefire 默认）。
  */
@@ -61,20 +63,26 @@ class MpiEvalHarnessTests {
         assertFieldEquals("contact", estimated.contact(), packaged.contact());
         assertThat(packaged.tAuto()).as("T_AUTO 与阈值扫描定版值一致").isCloseTo(estimated.tAuto(), org.assertj.core.data.Offset.offset(EPSILON));
         assertThat(packaged.tReview()).as("T_REVIEW 与阈值扫描定版值一致").isCloseTo(estimated.tReview(), org.assertj.core.data.Offset.offset(EPSILON));
+        assertThat(packaged.tVeto()).as("T_VETO 与标定定版值一致（min 同人 - 0.01）").isCloseTo(estimated.tVeto(), org.assertj.core.data.Offset.offset(EPSILON));
     }
 
     @Test
-    void evaluationReportCoversV1V2MetricsAndAnchors() throws IOException {
+    void evaluationReportCoversAllEnginesMetricsAndAnchors() throws IOException {
         var evalSet = load(CORPUS.resolve("evalset.jsonl"));
         var frequency = nameFrequency();
         var weights = MpiWeights.packaged().withNameUFrequency(frequency);
         var report = report(evalSet, weights);
 
-        // 安全不变量（验收 #5/#6）：两代算法评测集均零错误 AUTO；人工锚点
-        // 不得被 V2 判 AUTO。F1 对比如实记录不硬断言——标定结论是纯加性 FS
-        // 的 AUTO 召回结构性低于 V1 合取规则（见 gate 报告），优劣由报告呈现。
-        assertThat(report.v1FalseAuto).as("V1 评测集错误 AUTO 必须为 0").isZero();
-        assertThat(report.v2FalseAuto).as("V2 评测集错误 AUTO 必须为 0").isZero();
+        // 安全不变量：各引擎评测集零错误 AUTO；V2 不把人工锚点的不同人对
+        // 判 AUTO；T5 混合零误否（否决带不得吞掉任何同人对）。F1 对比如实
+        // 记录不硬断言——标定结论是纯加性 FS 的 AUTO 召回结构性低于 V1
+        // 合取规则（见 gate 报告），优劣由报告呈现。
+        assertThat(report.confusions().get("v1").falseAuto).as("V1 评测集错误 AUTO 必须为 0").isZero();
+        assertThat(report.confusions().get("v2").falseAuto).as("V2 评测集错误 AUTO 必须为 0").isZero();
+        assertThat(report.confusions().get("hybrid").falseAuto)
+                .as("混合引擎错误 AUTO 必须为 0（AUTO 完全继承 V1 守卫）").isZero();
+        assertThat(report.confusions().get("hybrid").matchNoMatch)
+                .as("混合引擎零误否：否决带不得把同人对判 NO_MATCH").isZero();
         assertThat(report.anchorViolations).as("锚点错判清单必须为空").isEmpty();
 
         writeReport(report.node);
@@ -89,11 +97,11 @@ class MpiEvalHarnessTests {
                 fieldWeights(m, u, "name"),
                 fieldWeights(m, u, "gender"),
                 fieldWeights(m, u, "contact"),
-                0.0, 0.0, frequency);
+                0.0, 0.0, 0.0, frequency);
         var thresholds = calibrateThresholds(calibration, weights);
         return new MpiWeights(fieldWeights(m, u, "card"), fieldWeights(m, u, "name"),
                 fieldWeights(m, u, "gender"), fieldWeights(m, u, "contact"),
-                thresholds[0], thresholds[1], frequency);
+                thresholds[0], thresholds[1], thresholds[2], frequency);
     }
 
     /** 逐字段×比较级的 m/u 速率（label 侧过滤）。 */
@@ -135,7 +143,7 @@ class MpiEvalHarnessTests {
         return rates.getOrDefault(field, Map.of()).getOrDefault(level, new double[] {0.0})[0];
     }
 
-    /** 阈值定版（确定性）：见类注释三。返回 [tAuto, tReview]。 */
+    /** 阈值定版（确定性）：见类注释三。返回 [tAuto, tReview, tVeto]。 */
     private double[] calibrateThresholds(List<Pair> calibration, MpiWeights weights) {
         var matcher = new MpiScoreMatcher(weights);
         var matchScores = new ArrayList<Double>();
@@ -153,11 +161,13 @@ class MpiEvalHarnessTests {
         int lostAllowed = matchScores.size() / 100;   // ≤1% 同人对允许落 NO_MATCH
         double tReview = matchScores.isEmpty() ? tAuto
                 : round2(matchScores.get(Math.min(lostAllowed, matchScores.size() - 1)));
-        return new double[] {tAuto, tReview};
+        double tVeto = matchScores.isEmpty() ? Double.NEGATIVE_INFINITY
+                : round2(matchScores.get(0) - 0.01);
+        return new double[] {tAuto, tReview, tVeto};
     }
 
-    private record Report(ObjectNode node, int v1FalseAuto, double v1F1, int v2FalseAuto,
-                          double v2F1, List<String> anchorViolations) {
+    private record Report(ObjectNode node, Map<String, Confusion> confusions,
+                          List<String> anchorViolations) {
     }
 
     /** 参评引擎（报告键 / 标签 / seam 实现），加引擎只加一行。 */
@@ -167,7 +177,9 @@ class MpiEvalHarnessTests {
     private Report report(List<Pair> evalSet, MpiWeights weights) throws IOException {
         var engines = List.of(
                 new Engine("v1", "V1 规则", new MpiRuleMatcher()),
-                new Engine("v2", "V2 评分", new MpiScoreMatcher(weights)));
+                new Engine("v2", "V2 评分", new MpiScoreMatcher(weights)),
+                new Engine("hybrid", "V1+V2 混合", new MpiHybridMatcher(
+                        new MpiRuleMatcher(), new MpiScoreMatcher(weights), weights.tVeto())));
         int positivesBlockingReachable = 0;
         for (var pair : evalSet) {
             if (pair.match() && pair.blockingReachable()) positivesBlockingReachable++;
@@ -207,11 +219,11 @@ class MpiEvalHarnessTests {
         var thresholds = json.createObjectNode();
         thresholds.put("tAuto", weights.tAuto());
         thresholds.put("tReview", weights.tReview());
+        thresholds.put("tVeto", weights.tVeto());
         node.set("thresholds", thresholds);
         node.set("tAutoSensitivity", sensitivitySweep(evalSet, weights));
-        var v1 = confusions.get("v1");
-        var v2 = confusions.get("v2");
-        return new Report(node, v1.falseAuto, v1.f1(), v2.falseAuto, v2.f1(), violations);
+        node.set("tVetoSensitivity", vetoSensitivitySweep(evalSet, weights));
+        return new Report(node, confusions, violations);
     }
 
     /** T_AUTO 敏感度：放宽错误 AUTO 允许量 k 时的召回/负担变化（诚实呈现
@@ -239,6 +251,44 @@ class MpiEvalHarnessTests {
             row.put("matchAuto", auto);
             row.put("matchReview", review);
             row.put("autoRecall", round2((double) auto / matchScores.size()));
+        }
+        return sweep;
+    }
+
+    /** T_VETO 敏感度：否决下限取不同值时的误否（同人对被否决掉）与复核
+     *  减免（非同人被免除）——诚实呈现零误否约束下的负担削减曲线。 */
+    private ArrayNode vetoSensitivitySweep(List<Pair> evalSet, MpiWeights weights) {
+        var rules = new MpiRuleMatcher();
+        var scorer = new MpiScoreMatcher(weights);
+        record Row(boolean match, Outcome v1, double score) {
+        }
+        var rows = new ArrayList<Row>();
+        for (var pair : evalSet) {
+            rows.add(new Row(pair.match(), rules.evaluate(pair.toMatchPair()).outcome(),
+                    scorer.evaluate(pair.toMatchPair()).score()));
+        }
+        double calibrated = weights.tVeto();
+        var candidates = new double[] {weights.tReview(), 0, -2, -4, -6, -8, -10, -12, calibrated};
+        var sweep = json.createArrayNode();
+        for (double tVeto : candidates) {
+            int matchVetoed = 0;
+            int nonMatchRelieved = 0;
+            int nonMatchReview = 0;
+            for (var row : rows) {
+                boolean vetoed = row.v1() != Outcome.AUTO_MATCH && row.score() < tVeto;
+                if (row.match()) {
+                    if (vetoed) matchVetoed++;
+                } else if (row.v1() == Outcome.REVIEW) {
+                    if (vetoed) nonMatchRelieved++;
+                    else nonMatchReview++;
+                }
+            }
+            var entry = sweep.addObject();
+            entry.put("tVeto", round2(tVeto));
+            entry.put("calibrated", tVeto == calibrated);
+            entry.put("matchVetoed", matchVetoed);
+            entry.put("nonMatchReviewRelieved", nonMatchRelieved);
+            entry.put("nonMatchSentToReview", nonMatchReview);
         }
         return sweep;
     }

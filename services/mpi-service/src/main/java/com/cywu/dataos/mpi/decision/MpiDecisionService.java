@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 
 import com.cywu.dataos.mpi.audit.MpiAuditService;
 import com.cywu.dataos.mpi.matcher.MatchPair;
+import com.cywu.dataos.mpi.matcher.MpiHybridMatcher;
 import com.cywu.dataos.mpi.matcher.MpiRuleMatcher;
 import com.cywu.dataos.mpi.matcher.MpiRuleMatcher.EvidenceItem;
 import com.cywu.dataos.mpi.matcher.MpiRuleMatcher.RuleDecision;
@@ -113,11 +114,13 @@ public class MpiDecisionService {
         int noMatch = 0;
         int hard = 0;
         var matcher = new MpiRuleMatcher();
-        // G14 影子评分：决策权仍在规则层（评测结论：加性 FS 自动化率低于合取
-        // 规则，见 docs/validation/gate-mpi-g14-*.md）；V2 分数与三态作为证据
-        // 落库，供复核排序与后续策略裁决，不改变本表 outcome。
-        var scoreMatcher = new MpiScoreMatcher(
-                MpiWeights.packaged().withNameUFrequency(loadNameFrequency(tenantId)));
+        // G14 影子评分 + T5 混合影子：决策权仍在规则层（评测结论见
+        // docs/validation/gate-mpi-g14-*.md 与 gate-mpi-g15-*.md）；V2 分数
+        // 与 T5 混合三态（守卫定 AUTO + 分数否决带）作为证据落库，供复核
+        // 排序与决策权切换裁决，不改变本表 outcome。
+        var weights = MpiWeights.packaged().withNameUFrequency(loadNameFrequency(tenantId));
+        var scoreMatcher = new MpiScoreMatcher(weights);
+        var hybridMatcher = new MpiHybridMatcher(matcher, scoreMatcher, weights.tVeto());
         for (var row : pairs) {
             var pair = row.matchPair();
             var a = pair.a();
@@ -136,10 +139,15 @@ public class MpiDecisionService {
                 decision = matcher.evaluate(pair);
             }
             var shadow = scoreMatcher.evaluate(pair);
+            var hybrid = hybridMatcher.evaluate(pair);
             List<EvidenceItem> evidence = new ArrayList<>(decision.evidence());
             evidence.add(new EvidenceItem("v2Score",
                     String.valueOf(shadow.score()), shadow.outcome().name(),
                     shadow.outcome() == decision.outcome()));
+            evidence.add(new EvidenceItem("hybrid",
+                    String.valueOf(hybrid.score()),
+                    hybrid.outcome().name() + (hybrid.vetoed() ? "/V2-VETO" : ""),
+                    hybrid.outcome() == decision.outcome()));
             switch (decision.outcome()) {
                 case AUTO_MATCH -> {
                     auto++;

@@ -14,14 +14,14 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class MpiScoreMatcherTests {
 
-    /** 测试权重：比较级间差异放大，便于断言三态分界。 */
+    /** 测试权重：比较级间差异放大，便于断言三态分界（tVeto 与纯评分无关，占位）。 */
     private MpiWeights testWeights(double tAuto, double tReview) {
         return new MpiWeights(
                 new MpiWeights.FieldWeights(0.6, 0.1, 0.2, 0.6, 0.2, 0.3),
                 new MpiWeights.FieldWeights(1.0, 0.4, 0.0, 0.3, 0.0, 0.1),
                 new MpiWeights.FieldWeights(0.9, 0.5, 0.0, 0.5, 0.1, 0.0),
                 new MpiWeights.FieldWeights(0.5, 0.02, 0.3, 0.6, 0.2, 0.38),
-                tAuto, tReview, null);
+                tAuto, tReview, 0.0, null);
     }
 
     private MatchPair pair(String cardA, String nameA, String genderA, String contactA,
@@ -93,7 +93,7 @@ class MpiScoreMatcherTests {
                 new MpiWeights.FieldWeights(1.0, 0.4, 0.0, 0.3, 0.0, 0.1),
                 new MpiWeights.FieldWeights(0.9, 0.5, 0.0, 0.5, 0.1, 0.0),
                 new MpiWeights.FieldWeights(0.5, 0.02, 0.3, 0.6, 0.2, 0.38),
-                8, 1, frequency);
+                8, 1, 0.0, frequency);
         var matcher = new MpiScoreMatcher(weights);
         var rare = matcher.evaluate(pair("C1", "李罕见", "M", "h1", "C1", "李罕见", "M", "h1"));
         var common = matcher.evaluate(pair("C1", "张常见", "M", "h1", "C1", "张常见", "M", "h1"));

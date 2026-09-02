@@ -3,7 +3,9 @@ package com.cywu.dataos.mpi.matcher;
 import java.util.function.ToDoubleFunction;
 
 /**
- * V2 评分权重与阈值（Fellegi-Sunter m/u，逐比较级估计）。
+ * V2 评分权重与阈值（Fellegi-Sunter m/u，逐比较级估计）。tVeto 是 T5 混合
+ * 策略的否决下限（与 tAuto/tReview 同源标定，由混合引擎消费，V2 纯评分
+ * 不用它）。
  *
  * 数值来源：G14 P3 harness 在冻结标定集（services/mpi-service/eval/corpus/
  * calibration.jsonl，生成器 seed 20260828）上的极大似然估计；标定/评测身份
@@ -15,7 +17,7 @@ import java.util.function.ToDoubleFunction;
  * 总体上定义 u，这是有意选择，报告已记录口径。
  */
 public record MpiWeights(FieldWeights card, FieldWeights name, FieldWeights gender,
-                         FieldWeights contact, double tAuto, double tReview,
+                         FieldWeights contact, double tAuto, double tReview, double tVeto,
                          ToDoubleFunction<String> nameUFrequency) {
 
     /** 单字段三比较级（AGREE / DISAGREE / MISSING）的 m/u。 */
@@ -28,7 +30,8 @@ public record MpiWeights(FieldWeights card, FieldWeights name, FieldWeights gend
      * 打包权重（2026-08-28 标定定版）：m/u 逐比较级估计自冻结标定集
      * （决策层配比：卡复用 0.60 / 同名孪生 0.12 / 随机对 0.28——锚定真实
      * 45 候选中 B4 占 93% 的构成）。T_AUTO = 零错误 AUTO 约束（max 非同人
-     * 分 + 0.01）；T_REVIEW = 同人分数第 1 百分位（复核安全网）。
+     * 分 + 0.01）；T_REVIEW = 同人分数第 1 百分位（复核安全网）；
+     * T_VETO = 标定集 min 同人分 − 0.01（零误否约束，T5 混合策略专用）。
      * 标定结论（gate 报告详述）：决策层总体上卡号无边际区分度（m≈u），
      * 身份信号在字段合取——纯加性 FS 的 AUTO 召回结构性低于 V1 合取规则，
      * V2 价值在复核排序/负担削减/可解释，决策权保持 V1（影子模式）。
@@ -39,7 +42,7 @@ public record MpiWeights(FieldWeights card, FieldWeights name, FieldWeights gend
                 new FieldWeights(1.0000, 0.1249, 0.0000, 0.7453, 0.0000, 0.0000),
                 new FieldWeights(0.8366, 0.5277, 0.0000, 0.3116, 0.1634, 0.1607),
                 new FieldWeights(0.5028, 0.0084, 0.3953, 0.9081, 0.1020, 0.0835),
-                16.54, 0.62,
+                16.54, 0.62, 0.42,
                 null);
     }
 
@@ -51,7 +54,7 @@ public record MpiWeights(FieldWeights card, FieldWeights name, FieldWeights gend
 
     /** 频率表注入的便捷拷贝（评测与测试用）。 */
     public MpiWeights withNameUFrequency(ToDoubleFunction<String> frequency) {
-        return new MpiWeights(card, name, gender, contact, tAuto, tReview, frequency);
+        return new MpiWeights(card, name, gender, contact, tAuto, tReview, tVeto, frequency);
     }
 
     public static double clamp(double probability) {
