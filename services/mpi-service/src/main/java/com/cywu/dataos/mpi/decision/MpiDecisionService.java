@@ -22,7 +22,6 @@ import com.cywu.dataos.mpi.matcher.MatchPair;
 import com.cywu.dataos.mpi.matcher.MpiHybridMatcher;
 import com.cywu.dataos.mpi.matcher.MpiRuleMatcher;
 import com.cywu.dataos.mpi.matcher.MpiRuleMatcher.EvidenceItem;
-import com.cywu.dataos.mpi.matcher.MpiRuleMatcher.RuleDecision;
 import com.cywu.dataos.mpi.matcher.MpiScoreMatcher;
 import com.cywu.dataos.mpi.matcher.MpiWeights;
 import com.cywu.dataos.mpi.matcher.Outcome;
@@ -30,10 +29,11 @@ import com.cywu.dataos.mpi.person.MpiPersonService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
- * 决策编排：候选对 → Hard Constraint 前置 → 规则评估 → 三态分派。
+ * 决策编排：候选对 → Hard Constraint 前置 → T5 混合引擎判定 → 三态分派。
  * AUTO_MATCH 自动建/并黄金人；REVIEW 生成复核任务（人工已裁决的 pair
- * 不再重建）；HARD_CONFLICT 落库但永不建任务。match_result 每轮全量
- * 重算（先清后写），人工终态（复核决议）在 PG，不受重算影响。
+ * 不再重建）；否决带（V2 分数 < tVeto）把规则层的复核对直接判 NO_MATCH。
+ * match_result 每轮全量重算（先清后写），人工终态（复核决议）在 PG，
+ * 不受重算影响。
  */
 @Service
 public class MpiDecisionService {
@@ -68,6 +68,19 @@ public class MpiDecisionService {
             {"rules":["M-ep1","M-ep2","P-ep1","P-ep2","H-ep1","H-ep2"],
              "blocking":["B3","B4","B6(contact)"],
              "policy":"hard-constraint-first; weak identifiers never auto-merge alone"}""";
+
+    private static final String HYBRID_RULES_JSON_SNAPSHOT = """
+            {"rules":["M-ep1","M-ep2","P-ep1","P-ep2","P-fallback",
+                      "P-ep1/V2-VETO","P-ep2/V2-VETO","P-fallback/V2-VETO","H-ep1","H-ep2"],
+             "blocking":["B3","B4","B6(contact)"],
+             "policy":"conjunction-guards-decide-auto; fs-score-vetoes-review-below-tVeto=0.42; hard-constraint-first"}""";
+
+    static final String INSERT_RULE_VERSION = """
+            INSERT INTO data_os_mpi.mpi_rule_version
+              (version, description, rules_json, activated_by, activated_at)
+            SELECT ?, ?, ?, 'system', CURRENT_TIMESTAMP
+            WHERE NOT EXISTS (SELECT 1 FROM data_os_mpi.mpi_rule_version WHERE version = ?)
+            """;
 
     private final JdbcTemplate doris;
     private final JdbcTemplate pg;
@@ -114,46 +127,47 @@ public class MpiDecisionService {
         int noMatch = 0;
         int hard = 0;
         var matcher = new MpiRuleMatcher();
-        // G14 影子评分 + T5 混合影子：决策权仍在规则层（评测结论见
-        // docs/validation/gate-mpi-g14-*.md 与 gate-mpi-g15-*.md）；V2 分数
-        // 与 T5 混合三态（守卫定 AUTO + 分数否决带）作为证据落库，供复核
-        // 排序与决策权切换裁决，不改变本表 outcome。
+        // G15 决策权切换：T5 混合引擎（V1 合取守卫定 AUTO + V2 分数否决带）
+        // 为生产判定引擎；评测与 dev 影子核验见 docs/validation/
+        // gate-mpi-g15-20260902.md。纯 V2 三态保留为对照证据行。
         var weights = MpiWeights.packaged().withNameUFrequency(loadNameFrequency(tenantId));
         var scoreMatcher = new MpiScoreMatcher(weights);
         var hybridMatcher = new MpiHybridMatcher(matcher, scoreMatcher, weights.tVeto());
         for (var row : pairs) {
             var pair = row.matchPair();
             var a = pair.a();
-            RuleDecision decision;
+            String ruleId;
+            Outcome outcome;
+            List<EvidenceItem> ruleEvidence;
             if (audit.rejectedAsDifferentPerson(tenantId, row.pairId())) {
-                // H-ep1：人工已判不同人——最高优先级否决。
-                decision = new RuleDecision("H-ep1", Outcome.HARD_CONFLICT,
-                        List.of());
+                // H-ep1：人工已判不同人——最高优先级否决（高于混合引擎）。
+                ruleId = "H-ep1";
+                outcome = Outcome.HARD_CONFLICT;
+                ruleEvidence = List.of();
                 hard++;
             } else if (audit.separatedBySplit(tenantId, row.identityA(), row.identityB())) {
-                // H-ep2：人工已拆开——永不再自动合并。
-                decision = new RuleDecision("H-ep2", Outcome.HARD_CONFLICT,
-                        List.of());
+                // H-ep2：人工已拆开——永不再自动合并（高于混合引擎）。
+                ruleId = "H-ep2";
+                outcome = Outcome.HARD_CONFLICT;
+                ruleEvidence = List.of();
                 hard++;
             } else {
-                decision = matcher.evaluate(pair);
+                var decision = hybridMatcher.evaluate(pair);
+                ruleId = decision.ruleId();
+                outcome = decision.outcome();
+                ruleEvidence = decision.ruleEvidence();
             }
             var shadow = scoreMatcher.evaluate(pair);
-            var hybrid = hybridMatcher.evaluate(pair);
-            List<EvidenceItem> evidence = new ArrayList<>(decision.evidence());
+            List<EvidenceItem> evidence = new ArrayList<>(ruleEvidence);
             evidence.add(new EvidenceItem("v2Score",
                     String.valueOf(shadow.score()), shadow.outcome().name(),
-                    shadow.outcome() == decision.outcome()));
-            evidence.add(new EvidenceItem("hybrid",
-                    String.valueOf(hybrid.score()),
-                    hybrid.outcome().name() + (hybrid.vetoed() ? "/V2-VETO" : ""),
-                    hybrid.outcome() == decision.outcome()));
-            switch (decision.outcome()) {
+                    shadow.outcome() == outcome));
+            switch (outcome) {
                 case AUTO_MATCH -> {
                     auto++;
                     persons.applyAutoMatch(tenantId, institutionId, row.pairId(), row.identityA(),
-                            row.identityB(), a.name(), a.gender(), decision.ruleId(),
-                            MpiRuleMatcher.RULE_VERSION);
+                            row.identityB(), a.name(), a.gender(), ruleId,
+                            hybridMatcher.version());
                 }
                 case REVIEW -> {
                     review++;
@@ -163,11 +177,12 @@ public class MpiDecisionService {
                         pairsWithTask.add(row.pairId());
                     }
                 }
-                default -> noMatch++;
+                case NO_MATCH -> noMatch++;
+                default -> { /* HARD_CONFLICT 已在上方计入 hard */ }
             }
             resultBatch.add(new Object[] {row.pairId(), tenantId, row.identityA(), row.identityB(),
-                    decision.ruleId(), MpiRuleMatcher.RULE_VERSION,
-                    decision.outcome().name(), writeEvidence(evidence), now});
+                    ruleId, hybridMatcher.version(),
+                    outcome.name(), writeEvidence(evidence), now});
         }
         if (!resultBatch.isEmpty()) {
             doris.batchUpdate(INSERT_RESULT, resultBatch);
@@ -205,12 +220,12 @@ public class MpiDecisionService {
         }
     }
 
+    /** 版本登记：v1 保留为历史版本；v1+v2（现行判定引擎）幂等登记。 */
     private void registerRuleVersion() {
-        pg.update("""
-                INSERT INTO data_os_mpi.mpi_rule_version
-                  (version, description, rules_json, activated_by, activated_at)
-                SELECT ?, 'EP 适配确定性规则集', ?, 'system', CURRENT_TIMESTAMP
-                WHERE NOT EXISTS (SELECT 1 FROM data_os_mpi.mpi_rule_version WHERE version = ?)
-                """, MpiRuleMatcher.RULE_VERSION, RULES_JSON_SNAPSHOT, MpiRuleMatcher.RULE_VERSION);
+        pg.update(INSERT_RULE_VERSION, MpiRuleMatcher.RULE_VERSION, "EP 适配确定性规则集",
+                RULES_JSON_SNAPSHOT, MpiRuleMatcher.RULE_VERSION);
+        pg.update(INSERT_RULE_VERSION, MpiHybridMatcher.HYBRID_VERSION,
+                "T5 混合：合取守卫定 AUTO + 分数否决带（G15 切换）",
+                HYBRID_RULES_JSON_SNAPSHOT, MpiHybridMatcher.HYBRID_VERSION);
     }
 }

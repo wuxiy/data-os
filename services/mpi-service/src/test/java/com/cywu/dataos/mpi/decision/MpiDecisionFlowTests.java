@@ -19,7 +19,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * 决策全流程（H2 双侧真 SQL）：装载→召回→三态落库 + AUTO 建人 +
- * REVIEW 建任务 + 幂等重算 + H-ep1/H-ep2 硬冲突拦截（人工否决高于规则）。
+ * REVIEW 建任务 + 否决带（P-ep1 卡复用对判 NO_MATCH 不建任务）+
+ * 幂等重算 + H-ep1/H-ep2 硬冲突拦截（人工否决高于混合引擎）。
  */
 @ActiveProfiles("test")
 @SpringBootTest
@@ -84,11 +85,12 @@ class MpiDecisionFlowTests {
         var stats = runPipeline();
 
         // 7 对：B4 同卡 6 对 + B6 同联系 1 对。
-        // (EP|1,EP|7) 同卡同名同男 → M-ep2 AUTO；其余 5 对同卡冲突 → P-ep1；
-        // (EP|1,EP|5) 同名同男卡互异 → P-ep2。
+        // (EP|1,EP|7) 同卡同名同男 → M-ep2 AUTO；5 个同卡冲突对（P-ep1）
+        // 被 V2 否决带压到 NO_MATCH（分数约 -6.9~-17.7 < tVeto=0.42）；
+        // (EP|1,EP|5) 同名同男卡互异 + 同联系 → P-ep2 存活复核（约 +7.3 bit）。
         assertThat(stats.autoMatch()).isEqualTo(1);
-        assertThat(stats.review()).isEqualTo(6);
-        assertThat(stats.noMatch()).isZero();
+        assertThat(stats.review()).isEqualTo(1);
+        assertThat(stats.noMatch()).isEqualTo(5);
         assertThat(stats.hardConflict()).isZero();
 
         // 黄金人：张三 person 收编 EP|1 与 EP|7（decision_source=RULE）。
@@ -110,19 +112,26 @@ class MpiDecisionFlowTests {
                 """);
         assertThat(((Number) writtenBack.get("LINKED")).intValue()).isEqualTo(2);
 
-        // 复核任务：6 个 OPEN（P-ep1×5 + P-ep2×1）。
+        // 复核任务：否决带免除了 5 个 P-ep1 任务，只剩 P-ep2 一条。
         var tasks = pg.queryForObject(
                 "SELECT COUNT(*) FROM data_os_mpi.mpi_review_task WHERE status = 'OPEN'",
                 Integer.class);
-        assertThat(tasks).isEqualTo(6);
+        assertThat(tasks).isEqualTo(1);
 
-        // 匹配结果三态落库 + 证据含掩码卡号。
+        // 匹配结果三态落库 + 证据含掩码卡号；否决对 rule_id 带 /V2-VETO。
         var outcomes = doris.queryForList(
                 "SELECT outcome, COUNT(*) c FROM dataos_mpi.mpi_match_result GROUP BY outcome");
         assertThat(outcomes).anySatisfy(row -> {
             assertThat(row.get("OUTCOME")).isEqualTo("AUTO_MATCH");
             assertThat(((Number) row.get("C")).intValue()).isEqualTo(1);
         });
+        assertThat(outcomes).anySatisfy(row -> {
+            assertThat(row.get("OUTCOME")).isEqualTo("NO_MATCH");
+            assertThat(((Number) row.get("C")).intValue()).isEqualTo(5);
+        });
+        assertThat(doris.queryForObject(
+                "SELECT COUNT(*) FROM dataos_mpi.mpi_match_result WHERE rule_id LIKE '%/V2-VETO'",
+                Integer.class)).isEqualTo(5);
         var evidence = doris.queryForObject("""
                 SELECT evidence FROM dataos_mpi.mpi_match_result WHERE outcome = 'REVIEW' LIMIT 1
                 """, String.class);
@@ -139,7 +148,7 @@ class MpiDecisionFlowTests {
         assertThat(pg.queryForObject("SELECT COUNT(*) FROM data_os_mpi.mpi_person", Integer.class))
                 .isEqualTo(1);
         assertThat(pg.queryForObject(
-                "SELECT COUNT(*) FROM data_os_mpi.mpi_review_task", Integer.class)).isEqualTo(6);
+                "SELECT COUNT(*) FROM data_os_mpi.mpi_review_task", Integer.class)).isEqualTo(1);
         // 幂等路径（已同人）不再追加 AUTO_MATCH 审计。
         assertThat(pg.queryForObject(
                 "SELECT COUNT(*) FROM data_os_mpi.mpi_audit_event WHERE action = 'AUTO_MATCH'",
@@ -154,10 +163,10 @@ class MpiDecisionFlowTests {
     void humanDifferentPersonDecisionBecomesHardConflictOnNextRun() {
         seed();
         runPipeline();
-        // 人工判定 (EP|1,EP|2)（张三 vs 李四同卡）为不同人。
+        // 人工判定 (EP|1,EP|5)（张三 P-ep2 存活对——唯一复核任务）为不同人。
         long pairId = doris.queryForObject("""
                 SELECT pair_id FROM dataos_mpi.mpi_candidate_pair
-                WHERE identity_a = 'H0001|EP|1' AND identity_b = 'H0001|EP|2'
+                WHERE identity_a = 'H0001|EP|1' AND identity_b = 'H0001|EP|5'
                 """, Long.class);
         pg.update("""
                 UPDATE data_os_mpi.mpi_review_task
@@ -169,8 +178,10 @@ class MpiDecisionFlowTests {
         var stats = runPipeline();
 
         // H-ep1：同对再次候选 → HARD_CONFLICT，不再 AUTO/REVIEW、不再重建任务。
+        // noMatch 保持 5（否决带）——硬冲突不再重复计入 noMatch。
         assertThat(stats.hardConflict()).isEqualTo(1);
-        assertThat(stats.review()).isEqualTo(5);
+        assertThat(stats.review()).isZero();
+        assertThat(stats.noMatch()).isEqualTo(5);
         var outcome = doris.queryForMap(
                 "SELECT rule_id, outcome FROM dataos_mpi.mpi_match_result WHERE pair_id = ?",
                 pairId);

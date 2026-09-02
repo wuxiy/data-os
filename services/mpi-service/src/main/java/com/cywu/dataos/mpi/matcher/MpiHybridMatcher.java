@@ -1,5 +1,7 @@
 package com.cywu.dataos.mpi.matcher;
 
+import java.util.List;
+
 /**
  * T5 混合策略引擎（V1 合取守卫 + V2 分数否决）。G14 核心结论：EP 字段集上
  * 身份信号在字段合取不在边际——V1 合取规则零误并自动化率 0.44，纯加性 FS
@@ -14,13 +16,19 @@ package com.cywu.dataos.mpi.matcher;
  *   典型目标：P-ep1 卡复用对（同卡 + 姓名冲突，分数约 -10 bit）。
  * - Hard Constraint（H-ep1/H-ep2）在编排层前置，高于本引擎（见
  *   MpiDecisionService）。
+ *
+ * G15 决策权切换后本引擎为生产判定引擎（rule_version "v1+v2"）。
  */
 public final class MpiHybridMatcher implements PairScorer {
 
     public static final String HYBRID_VERSION = "v1+v2";
 
-    /** 混合决策：V1 规则带 + V2 总分 + 否决是否触发（进影子证据）。 */
-    public record HybridDecision(String ruleId, Outcome outcome, double score, boolean vetoed)
+    /**
+     * 混合决策：V1 规则带 + V2 总分 + 否决是否触发；ruleEvidence 携带规则层
+     * 的掩码字段对照快照（否决不抹掉解释面）。
+     */
+    public record HybridDecision(String ruleId, Outcome outcome, double score, boolean vetoed,
+                                 List<MpiRuleMatcher.EvidenceItem> ruleEvidence)
             implements PairDecision {
     }
 
@@ -44,8 +52,9 @@ public final class MpiHybridMatcher implements PairScorer {
         var rule = rules.evaluate(pair);
         double score = scores.evaluate(pair).score();
         if (rule.outcome() != Outcome.AUTO_MATCH && score < tVeto) {
-            return new HybridDecision(rule.ruleId() + "/V2-VETO", Outcome.NO_MATCH, score, true);
+            return new HybridDecision(rule.ruleId() + "/V2-VETO", Outcome.NO_MATCH, score, true,
+                    rule.evidence());
         }
-        return new HybridDecision(rule.ruleId(), rule.outcome(), score, false);
+        return new HybridDecision(rule.ruleId(), rule.outcome(), score, false, rule.evidence());
     }
 }

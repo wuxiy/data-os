@@ -46,7 +46,8 @@ function parseEvidence(raw: string): MpiEvidenceItem[] {
   }
 }
 
-/** 召回/判定规则中文口径（CONTEXT.md「患者主索引」）。 */
+/** 召回/判定规则中文口径（CONTEXT.md「患者主索引」；G15 起决策权在 T5 混合
+ *  引擎，/V2-VETO 后缀 = 复核对被评分否决带判 NO_MATCH）。 */
 export const mpiRuleLabel: Record<string, string> = {
   'M-ep1': '同机构同主键同人',
   'M-ep2': '同卡同人（自动合并）',
@@ -55,10 +56,13 @@ export const mpiRuleLabel: Record<string, string> = {
   'H-ep1': '人工已判不同人',
   'H-ep2': '人工已拆分',
   'P-fallback': '弱证据待核',
+  'P-ep1/V2-VETO': '卡号复用冲突（评分否决）',
+  'P-ep2/V2-VETO': '同名待核（评分否决）',
+  'P-fallback/V2-VETO': '弱证据（评分否决）',
 }
 
-/** 证据字段中文口径（影子行：v2Score 的 valueA=分数(bit)、valueB=三态；
- *  hybrid 为 T5 混合三态，否决触发时 valueB 带 /V2-VETO 后缀）。 */
+/** 证据字段中文口径（影子行：valueA=分数(bit)、valueB=纯 V2 三态——与
+ *  生产判定（混合引擎）的分歧即守卫/否决带效果）。 */
 export const mpiEvidenceFieldLabel: Record<string, string> = {
   institution: '机构',
   patientId: '患者主键',
@@ -67,7 +71,6 @@ export const mpiEvidenceFieldLabel: Record<string, string> = {
   gender: '性别',
   contact: '联系方式',
   v2Score: 'V2 影子评分',
-  hybrid: 'T5 混合（影子）',
 }
 
 export interface MpiCandidatesResponse {

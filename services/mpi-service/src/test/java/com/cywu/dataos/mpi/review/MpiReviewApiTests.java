@@ -101,9 +101,10 @@ class MpiReviewApiTests {
         var entity = rest.getForEntity("/api/v1/mpi/candidates?status=OPEN", Map.class);
         assertThat(entity.getStatusCode().value()).isEqualTo(200);
         var body = entity.getBody();
-        assertThat(((Number) body.get("total")).intValue()).isEqualTo(6);
+        // 否决带免除 5 个 P-ep1 任务，只剩 (1,5) P-ep2 存活对。
+        assertThat(((Number) body.get("total")).intValue()).isEqualTo(1);
         var items = (List<Map<String, Object>>) body.get("items");
-        assertThat(items).hasSize(6);
+        assertThat(items).hasSize(1);
         var first = items.get(0);
         var identityA = (Map<String, Object>) first.get("identityA");
         // 展示纪律：姓名明文、卡号掩码（短卡号全掩）、无联系方式字段。
@@ -127,6 +128,7 @@ class MpiReviewApiTests {
         var body = entity.getBody();
         assertThat(body.get("ruleId")).isEqualTo("M-ep2");
         assertThat(body.get("outcome")).isEqualTo("AUTO_MATCH");
+        assertThat(body.get("ruleVersion")).isEqualTo("v1+v2");
         assertThat((String) body.get("evidence")).contains("\"field\":\"cardNo\"");
     }
 
@@ -155,10 +157,10 @@ class MpiReviewApiTests {
                 "SELECT COUNT(*) FROM data_os_mpi.mpi_audit_event WHERE action = 'DECISION'",
                 Integer.class)).isEqualTo(1);
 
-        // 重算不重建已决任务、人工归属不被规则改写。
+        // 重算不重建已决任务、人工归属不被规则改写（否决带免除其余任务）。
         rebuild();
         assertThat(pg.queryForObject(
-                "SELECT COUNT(*) FROM data_os_mpi.mpi_review_task", Integer.class)).isEqualTo(6);
+                "SELECT COUNT(*) FROM data_os_mpi.mpi_review_task", Integer.class)).isEqualTo(1);
 
         // 重复决策 → 409。
         var conflict = post("/api/v1/mpi/links/" + taskId + "/decision",
@@ -171,9 +173,9 @@ class MpiReviewApiTests {
     void differentPersonDecisionIsTerminalAndBlocksFutureAuto() {
         seed();
         rebuild();
-        var taskId = taskIdOfPair("H0001|EP|1", "H0001|EP|2");
+        var taskId = taskIdOfPair("H0001|EP|1", "H0001|EP|5");
         var response = post("/api/v1/mpi/links/" + taskId + "/decision",
-                Map.of("resolution", "DIFFERENT_PERSON", "reason", "卡号复用，非同一人"));
+                Map.of("resolution", "DIFFERENT_PERSON", "reason", "登记重复，非同一人"));
         assertThat(response.getStatusCode().value()).isEqualTo(200);
 
         var stats = rebuild();
@@ -181,8 +183,8 @@ class MpiReviewApiTests {
         var reviewAfter = pg.queryForObject(
                 "SELECT COUNT(*) FROM data_os_mpi.mpi_review_task WHERE status = 'OPEN'",
                 Integer.class);
-        // 该对不再进复核队列（其余 5 对仍在）。
-        assertThat(reviewAfter).isEqualTo(5);
+        // 该对终态后复核队列清空（其余 P-ep1 对已被否决带免除）。
+        assertThat(reviewAfter).isZero();
     }
 
     @Test
@@ -211,7 +213,7 @@ class MpiReviewApiTests {
         assertThat(((Number) body.get("identitiesLoaded")).longValue()).isEqualTo(5);
         assertThat(((Number) body.get("goldenPersons")).longValue()).isEqualTo(1);
         assertThat(((Number) body.get("autoMatches")).longValue()).isEqualTo(1);
-        assertThat(((Number) body.get("reviewPending")).longValue()).isEqualTo(6);
+        assertThat(((Number) body.get("reviewPending")).longValue()).isEqualTo(1);
         assertThat(((Number) body.get("reviewResolved")).longValue()).isEqualTo(0);
     }
 

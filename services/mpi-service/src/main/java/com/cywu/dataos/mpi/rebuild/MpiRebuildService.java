@@ -10,7 +10,7 @@ import com.cywu.dataos.mpi.audit.MpiAuditService;
 import com.cywu.dataos.mpi.candidate.MpiBlockingService;
 import com.cywu.dataos.mpi.decision.MpiDecisionService;
 import com.cywu.dataos.mpi.load.MpiLoaderService;
-import com.cywu.dataos.mpi.matcher.MpiRuleMatcher;
+import com.cywu.dataos.mpi.matcher.MpiHybridMatcher;
 
 /**
  * 装载→召回→决策的编排入口：一次 rebuild = 全量幂等装载 + 候选重生成 +
@@ -49,7 +49,7 @@ public class MpiRebuildService {
         var decided = decisions.decideAll(tenantId, institutionId, actor);
         MpiAuditEvents.rebuild(audit, tenantId, institutionId, actor,
                 load.identitiesLoaded(), pairs.totalPairs(), decided.autoMatch(),
-                decided.review(), decided.hardConflict(), MpiRuleMatcher.RULE_VERSION);
+                decided.review(), decided.hardConflict(), MpiHybridMatcher.HYBRID_VERSION);
         return new RebuildResult(load.identitiesLoaded(), load.identitiesSkipped(),
                 pairs.totalPairs(), pairs.byB3(), pairs.byB4(), pairs.byB6(),
                 decided.autoMatch(), decided.review(), decided.noMatch(), decided.hardConflict());

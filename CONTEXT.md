@@ -21,7 +21,7 @@
 - **归并格子（Unite Grid）**：把两个源身份归入同一黄金人的四分支判定（无链接建人/一方收编/已同人幂等补投影/双方并人），单一属主为 `MpiPersonService`；链接与 Doris 投影回写只经格子发生。RULE 与 MANUAL 两侧差异（并人保谁：RULE 保留创建较早者、MANUAL 保留 personA；建人属性来源与决策元数据）经 `UnitePlan` 显式声明，不做隐性分叉。
 - **候选对（Candidate Pair）**：候选召回阶段产出的待判定身份对，跨召回规则按 pair 去重。
 - **候选召回（Blocking）**：用确定性键（机构+源主键、机构+卡号、姓名+性别）缩小候选集合的 SQL 阶段；只负责召回，判定交给规则层。
-- **匹配引擎（Pair Scorer）**：判定候选对的算法层。三个实现（V1 确定性规则 `MpiRuleMatcher` / V2 Fellegi-Sunter 评分 `MpiScoreMatcher` / T5 混合 `MpiHybridMatcher`——守卫定 AUTO + 分数否决带，同为影子）统一走 `PairScorer` seam——输入 `MatchPair`、产出三态 `Outcome`，生产编排与评测 harness 的适配只有一份；决策权在 V1，V2 分数与 T5 混合三态作为证据落库（冻结评测集上混合严格占优：零误并零误否、非同人复核 -79.4%，切换到混合是待裁决的域决策）。
+- **匹配引擎（Pair Scorer）**：判定候选对的算法层。三个实现（V1 确定性规则 `MpiRuleMatcher` / V2 Fellegi-Sunter 评分 `MpiScoreMatcher` / T5 混合 `MpiHybridMatcher`——守卫定 AUTO + 分数否决带）统一走 `PairScorer` seam——输入 `MatchPair`、产出三态 `Outcome`，生产编排与评测 harness 的适配只有一份。**决策权在 T5 混合引擎**（rule_version `v1+v2`，G15 经冻结评测严格占优 + dev 影子核验后切换）：合取守卫单独决定 AUTO（分数不守门），V2 分数低于 tVeto 的复核对直接 NO_MATCH（否决对 rule_id 带 `/V2-VETO`）；硬约束（人工否决/拆分）仍前置高于引擎。纯 V2 三态保留为对照证据行。
 - **硬冲突（Hard Conflict）**：人工已判 NO_MATCH 或已 Split 的身份对再次成为候选时，规则层强制 NO_MATCH——人工否决高于任何规则与分数。
 - **人工复核（Review）**：中间置信区间（如卡号复用）进入复核任务，由门户工作台确认同人/不同人/合并/拆分，决策全部落审计。
 
