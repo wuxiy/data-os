@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 
 import pytest
+import yaml
 
 from conftest import REPO_ROOT
 import rag_builder as rb
@@ -73,6 +74,32 @@ def test_idempotent_build(built):
     ids_first = [c["chunk_id"] for c in built[0]]
     ids_again = [c["chunk_id"] for c in again[0]]
     assert ids_first == ids_again
+
+
+def test_pipeline_is_consumed_not_decorative(tmp_path):
+    """声明=行为：去掉 deidentification 步后，产物保留原文 PII、计数归零。"""
+    recipe = yaml.safe_load(RECIPE.read_text(encoding="utf-8"))
+    recipe["spec"]["pipeline"] = [op for op in recipe["spec"]["pipeline"]
+                                  if op != "deidentification"]
+    path = tmp_path / "recipe-nodeid.yaml"
+    path.write_text(yaml.safe_dump(recipe, allow_unicode=True), encoding="utf-8")
+    chunks, _, stats = rb.build(path, DOCUMENTS)
+    text = "\n".join(c["content"] for c in chunks)
+    sidecar = json.loads((DOCUMENTS / "expected_phi.json").read_text(encoding="utf-8"))
+    for hits in sidecar["expected_hits"].values():
+        for token in hits:
+            assert token in text  # 未声明脱敏算子 -> 原文保留
+    assert stats.pii_hits == 0
+    assert "<PHONE>" not in text
+
+
+def test_unknown_pipeline_operator_fails_loudly(tmp_path):
+    recipe = yaml.safe_load(RECIPE.read_text(encoding="utf-8"))
+    recipe["spec"]["pipeline"] = ["document_parse", "magic_op"]
+    path = tmp_path / "recipe-bad.yaml"
+    path.write_text(yaml.safe_dump(recipe, allow_unicode=True), encoding="utf-8")
+    with pytest.raises(RuntimeError, match="未实现算子"):
+        rb.build(path, DOCUMENTS)
 
 
 class FakeS3:

@@ -141,8 +141,9 @@ class Chunk:
         }
 
 
-def semantic_chunk(doc: dict, params: dict) -> list[Chunk]:
-    """段落感知切块：以块为最小单位累积到目标长度；超长段落按句切。"""
+def semantic_chunk(doc: dict, params: dict, score_enabled: bool = True) -> list[Chunk]:
+    """段落感知切块：以块为最小单位累积到目标长度；超长段落按句切。
+    score_enabled=False（pipeline 未声明 chunk_quality_score）时不打分。"""
     target = int(params.get("target_chars", 900))
     min_chars = int(params.get("min_chars", 200))
     chunks: list[Chunk] = []
@@ -183,7 +184,8 @@ def semantic_chunk(doc: dict, params: dict) -> list[Chunk]:
                                    merged.source_offset, end, merged.content + " " + piece,
                                    merged.quality_score)
                 continue
-            score = chunk_quality_score(piece, min_chars, int(params.get("max_chars", 1500)))
+            score = (chunk_quality_score(piece, min_chars, int(params.get("max_chars", 1500)))
+                     if score_enabled else 1.0)
             result.append(Chunk(doc["fingerprint"][:12], doc["name"], sec, start, end, piece, score))
     return result
 
@@ -210,6 +212,24 @@ def chunk_quality_score(text: str, min_chars: int, max_chars: int) -> float:
 
 # ---------- 构建 ----------
 
+# 已实现算子注册表：recipe spec.pipeline 的名字必须在此；出现与否真实影响
+# 构建（删掉 deidentification 则产物保留原文，删掉 chunk_quality_score 则
+# 不打分）——声明即行为，不存在装饰性工序。
+DEFAULT_PIPELINE = (
+    "document_parse", "text_normalization", "template_removal", "deduplicate",
+    "pii_detection", "deidentification", "semantic_chunk", "chunk_quality_score",
+    "metadata_enrichment",
+)
+
+
+def _pipeline_of(spec: dict) -> list[str]:
+    pipeline = list(spec.get("pipeline") or DEFAULT_PIPELINE)
+    unknown = [op for op in pipeline if op not in DEFAULT_PIPELINE]
+    if unknown:
+        raise RuntimeError(f"Recipe pipeline 含未实现算子：{unknown}（已知：{list(DEFAULT_PIPELINE)}）")
+    return pipeline
+
+
 @dataclass
 class BuildStats:
     documents_in: int = 0
@@ -227,13 +247,29 @@ def build(recipe_path: Path, documents_dir: Path) -> tuple[list[dict], dict, Bui
         raise RuntimeError("Recipe 不符合 data-os/v1 AIDatasetRecipe 规范")
     spec = recipe["spec"]
     params = spec.get("parameters", {})
+    pipeline = _pipeline_of(spec)
     stats = BuildStats()
 
     files = sorted(documents_dir.glob("*.html"))
     stats.documents_in = len(files)
-    documents = [{"name": f.name, "blocks": text_normalization(template_removal(document_parse(f)))}
-                 for f in files]
-    unique, dropped = deduplicate(documents)
+
+    def prepare(path: Path) -> list[dict]:
+        blocks = document_parse(path) if "document_parse" in pipeline else []
+        if "text_normalization" in pipeline:
+            blocks = text_normalization(blocks)
+        if "template_removal" in pipeline:
+            blocks = template_removal(blocks)
+        return blocks
+
+    documents = [{"name": f.name, "blocks": prepare(f)} for f in files]
+    if "deduplicate" in pipeline:
+        unique, dropped = deduplicate(documents)
+    else:
+        unique, dropped = [], 0
+        for doc in documents:
+            fingerprint = hashlib.sha256(
+                "\n".join(b["text"] for b in doc["blocks"]).encode("utf-8")).hexdigest()
+            unique.append({**doc, "fingerprint": fingerprint})
     stats.documents_unique = len(unique)
     stats.duplicates_dropped = dropped
 
@@ -243,16 +279,25 @@ def build(recipe_path: Path, documents_dir: Path) -> tuple[list[dict], dict, Bui
     chunks: list[dict] = []
     for doc in unique:
         pii_total = 0
-        for block in doc["blocks"]:
-            block["text"], hits = deidentification(block["text"], phone_ph, id_ph)
-            pii_total += hits
-            if hits:
-                stats.phi_documents.append(doc["name"])
+        if "pii_detection" in pipeline:
+            # 检测算子只负责命中文档标记；命中计数以脱敏算子的替换数为准
+            #（两者同规则，分开声明可只检测不替换）。
+            for block in doc["blocks"]:
+                if pii_detection(block["text"]):
+                    stats.phi_documents.append(doc["name"])
+        if "deidentification" in pipeline:
+            for block in doc["blocks"]:
+                block["text"], hits = deidentification(block["text"], phone_ph, id_ph)
+                pii_total += hits
+                if hits:
+                    stats.phi_documents.append(doc["name"])
         stats.pii_hits += pii_total
-        for chunk in semantic_chunk(doc, params.get("chunk", {})):
+        for chunk in semantic_chunk(doc, params.get("chunk", {}),
+                                    score_enabled="chunk_quality_score" in pipeline):
             record = chunk.as_dict()
-            record["recipe_version"] = str(recipe["metadata"]["version"])
-            record["built_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+            if "metadata_enrichment" in pipeline:
+                record["recipe_version"] = str(recipe["metadata"]["version"])
+                record["built_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
             chunks.append(record)
     stats.chunks = len(chunks)
     stats.chunks_pass_quality = sum(1 for c in chunks if c["quality_score"] >= 1.0)

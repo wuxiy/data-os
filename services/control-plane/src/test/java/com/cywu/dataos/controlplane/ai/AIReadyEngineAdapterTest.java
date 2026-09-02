@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 
+import com.cywu.dataos.controlplane.api.InvalidRequestException;
 import com.cywu.dataos.controlplane.executor.AdapterUnavailableException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpServer;
@@ -79,11 +80,31 @@ class AIReadyEngineAdapterTest {
     }
 
     @Test
-    void unknownWorkflowFallsBackToMedicalRag() throws Exception {
+    void unknownWorkflowIsPassedThroughForEngineToReject() throws Exception {
         var engine = configuration.aiReadyEnginePort(properties, RestClient.builder());
+        // profile 词汇表唯一源在引擎声明仓库：Java 只做拼写归一，未知值透传。
         engine.build(product("SOMETHING_ELSE"), null);
         assertThat(new ObjectMapper().readTree(lastBody).get("profile").asText())
-                .isEqualTo("medical-rag");
+                .isEqualTo("something-else");
+    }
+
+    @Test
+    void engineRejectionMapsToInvalidRequestNotUnavailable() {
+        server.removeContext("/assess");
+        server.createContext("/assess", exchange -> {
+            var bytes = "{\"detail\":\"未知 Profile：something-else（profiles/ 未定义）\"}"
+                    .getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            exchange.sendResponseHeaders(422, bytes.length);
+            try (var output = exchange.getResponseBody()) {
+                output.write(bytes);
+            }
+        });
+        var engine = configuration.aiReadyEnginePort(properties, RestClient.builder());
+
+        assertThatThrownBy(() -> engine.build(product("SOMETHING_ELSE"), null))
+                .isInstanceOf(InvalidRequestException.class)
+                .hasMessageContaining("未知 Profile");
     }
 
     @Test

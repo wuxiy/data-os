@@ -18,7 +18,8 @@ def main(argv: list[str] | None = None) -> int:
     sub = parser.add_subparsers(dest="command", required=True)
     assess_parser = sub.add_parser("assess", help="执行 AI Ready 评估")
     assess_parser.add_argument("product")
-    assess_parser.add_argument("--profile", default="medical-rag")
+    assess_parser.add_argument("--profile", required=True,
+                               help="声明仓库 profiles/ 中的 workload profile id")
     assess_parser.add_argument("--version", default="v0.1.0")
     args = parser.parse_args(argv)
 

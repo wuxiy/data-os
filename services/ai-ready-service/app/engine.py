@@ -7,7 +7,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
-from catalog import Catalog
+from catalog import Catalog, CatalogError
 from models import (
     DIMENSIONS,
     DIMENSION_LABELS,
@@ -17,7 +17,8 @@ from models import (
     RequirementResult,
 )
 
-STATUS_SCORES = {"PASS": 1.0, "WARN": 0.5, "FAIL": 0.0}
+# policy status_scores 段缺失时的缺省（声明源：ai-ready/policies/default.yaml）。
+DEFAULT_STATUS_SCORES = {"PASS": 1.0, "WARN": 0.5, "FAIL": 0.0}
 
 
 class Engine:
@@ -25,6 +26,20 @@ class Engine:
         self._catalog = catalog
         self._doris = doris
         self._om = om
+        self._status_scores = self._load_status_scores(catalog.policy)
+
+    @staticmethod
+    def _load_status_scores(policy: dict) -> dict[str, float]:
+        """聚合权重来自 policy 的 status_scores 声明（此前是引擎内的第二份常量）。"""
+        raw = policy.get("status_scores") or DEFAULT_STATUS_SCORES
+        try:
+            scores = {str(key).upper(): float(value) for key, value in raw.items()}
+        except (AttributeError, TypeError, ValueError) as exc:
+            raise CatalogError(f"policy status_scores 非法：{exc}") from exc
+        missing = {"PASS", "WARN", "FAIL"} - set(scores)
+        if missing:
+            raise CatalogError(f"policy status_scores 缺少状态：{sorted(missing)}")
+        return scores
 
     def assess(self, product: str, version: str, profile_id: str) -> AssessmentReport:
         requirement_ids = self._catalog.requirement_ids(profile_id)
@@ -43,7 +58,7 @@ class Engine:
                 continue
             weight_sum = sum(weight for _, weight in members)
             dimensions[dimension] = round(
-                sum(STATUS_SCORES[result.status] * weight for result, weight in members) / weight_sum, 4)
+                sum(self._status_scores[result.status] * weight for result, weight in members) / weight_sum, 4)
         overall = round(sum(dimensions.values()) / len(dimensions), 4) if dimensions else 0.0
 
         critical_failures = [result.id for result in results

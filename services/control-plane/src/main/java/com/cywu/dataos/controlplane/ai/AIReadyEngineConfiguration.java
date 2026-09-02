@@ -3,6 +3,8 @@ package com.cywu.dataos.controlplane.ai;
 import java.util.Locale;
 import java.util.Map;
 
+import com.cywu.dataos.controlplane.api.ErrorMessages;
+import com.cywu.dataos.controlplane.api.InvalidRequestException;
 import com.cywu.dataos.controlplane.executor.AdapterUnavailableException;
 import com.cywu.dataos.controlplane.quality.OidcClientCredentialsTokenProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
@@ -72,6 +74,10 @@ public class AIReadyEngineConfiguration {
             return payload;
         } catch (AdapterUnavailableException exception) {
             throw exception;
+        } catch (org.springframework.web.client.HttpClientErrorException exception) {
+            // 引擎侧 422（未知 profile 等声明校验拒绝）是请求错误，不是引擎不可用。
+            throw new InvalidRequestException("AI Ready 引擎拒绝请求（HTTP "
+                    + exception.getStatusCode().value() + "）：" + engineDetail(exception));
         } catch (RuntimeException exception) {
             var cause = exception.getCause() == null ? exception : exception.getCause();
             throw new AdapterUnavailableException("AI Ready 引擎暂时不可用：" + cause.getMessage());
@@ -108,9 +114,24 @@ public class AIReadyEngineConfiguration {
             return AIReadyAssessment.from(payload);
         } catch (AdapterUnavailableException exception) {
             throw exception;
+        } catch (org.springframework.web.client.HttpClientErrorException exception) {
+            throw new InvalidRequestException("AI Ready 引擎拒绝请求（HTTP "
+                    + exception.getStatusCode().value() + "）：" + engineDetail(exception));
         } catch (RuntimeException exception) {
             var cause = exception.getCause() == null ? exception : exception.getCause();
             throw new AdapterUnavailableException("AI Ready 引擎暂时不可用：" + cause.getMessage());
+        }
+    }
+
+    /** 引擎 422 的 FastAPI 错误体形如 {"detail":"..."}——提取 detail，缺省给原文。 */
+    private static String engineDetail(org.springframework.web.client.HttpClientErrorException exception) {
+        try {
+            var node = new com.fasterxml.jackson.databind.ObjectMapper()
+                    .readTree(exception.getResponseBodyAsString());
+            var detail = node.path("detail").asText("");
+            return detail.isBlank() ? ErrorMessages.safe(exception) : detail;
+        } catch (Exception ignored) {
+            return ErrorMessages.safe(exception);
         }
     }
 
@@ -118,12 +139,13 @@ public class AIReadyEngineConfiguration {
         return "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
     }
 
-    /** workflowType（MEDICAL_RAG 等）-> profile id（medical-rag）。 */
+    /**
+     * workflowType（MEDICAL_RAG 等）→ profile id（medical-rag）的拼写归一
+     * （trim/小写/下划线转连字符）。profile 词汇表的唯一源是引擎声明仓库的
+     * profiles/ 目录——这里不做已知值枚举，未知 workflow 由引擎显式拒绝
+     * （422），不再静默按默认 profile 评分。
+     */
     private String profileOf(AIDataProduct product) {
-        var normalized = product.workflowType().trim().toLowerCase(Locale.ROOT).replace('_', '-');
-        return switch (normalized) {
-            case "medical-rag", "medical-training" -> normalized;
-            default -> "medical-rag";
-        };
+        return product.workflowType().trim().toLowerCase(Locale.ROOT).replace('_', '-');
     }
 }

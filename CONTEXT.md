@@ -73,7 +73,7 @@
 - **AI Data Product**：针对明确 AI Workload（RAG / Agent / Training / Evaluation）构建、评估并认证的数据产品，一等域对象；生命周期 `DRAFT → CURATED → ASSESSED → CERTIFIED → SERVING → DEPRECATED`。类型含 RAGCorpus / TrainingDataset / AgentContextProduct / EvaluationDataset 等。
 - **AI Ready**：非绝对状态，而是「Data Quality × Semantic Context × AI Consumability × Workload Fit × Governance × Evaluation」的组合判定；由 Workload Profile 决定要求、权重与阈值。
 - **6C 模型**：Clean / Contextual / Consumable / Current / Correlated / Compliant 六个评估维度，评估结果按维度产出 0–1 分值并加权为 Overall。
-- **Workload Profile**：一组 Requirement + 权重 + 阈值 + Policy 的声明（YAML，Git 管理）；首批 `medical-rag` / `medical-training`。
+- **Workload Profile**：一组 Requirement + 权重 + 阈值 + Policy 的声明（YAML，Git 管理）；首批 `medical-rag` / `medical-training`。词汇表唯一源是声明仓库 `profiles/` 目录——调用方（控制面、CLI、API）只做拼写归一并显式传值，未知 profile 由引擎 422 拒绝，不设静默缺省。
 - **AI Ready Engine（ai-ready-service）**：执行读扫描—评估—诊断—修复建议—复评—认证的引擎；每项 Requirement 输出 PASS/WARN/FAIL/NOT_APPLICABLE。评估结果按产品/版本持久化并回写 OpenMetadata。
 - **AI Dataset Recipe**：AI 数据集构建过程的声明式 Recipe（解析、去重、PII 检测、脱敏、语义分块、元数据富化）；Git 版本化、幂等可复现，输入 Trusted Data、输出 AI Data Product 版本。
 - **Dataset Version**：AI 数据不可变版本（semver）；一个版本必须能回答 source 快照、Recipe、Git Commit、Operator 版本、嵌入模型、标签版本、质量分、评估分与评测结果；生产版本不可覆盖。

@@ -28,7 +28,7 @@ def test_assess_requires_token(client):
 
 
 def test_assess_rejects_wrong_token(client):
-    response = client.post("/assess", json={"product": "p"},
+    response = client.post("/assess", json={"product": "p", "profile": "medical-rag"},
                            headers={"Authorization": "Bearer nope"})
     assert response.status_code == 401
 
@@ -47,7 +47,22 @@ def test_assess_returns_report(client):
 
 
 def test_readiness_endpoint(client):
-    response = client.get("/readiness", params={"product": "p"},
+    response = client.get("/readiness", params={"product": "p", "profile": "medical-rag"},
                           headers={"Authorization": "Bearer test-token"})
     assert response.status_code == 200
     assert response.json()["profile"] == "medical-rag"
+
+
+def test_assess_requires_explicit_profile(client):
+    # profile 无缺省：词汇表唯一源是声明仓库 profiles/，缺省即静默猜测。
+    response = client.post("/assess", json={"product": "p"},
+                           headers={"Authorization": "Bearer test-token"})
+    assert response.status_code == 422
+
+
+def test_assess_rejects_unknown_profile(client):
+    response = client.post("/assess",
+                           json={"product": "p", "profile": "clinical-llm"},
+                           headers={"Authorization": "Bearer test-token"})
+    assert response.status_code == 422
+    assert "未知 Profile" in response.json()["detail"]

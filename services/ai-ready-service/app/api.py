@@ -3,9 +3,10 @@
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from catalog import CatalogError
 from engine import Engine
 from evaluation import evaluate_corpus
 from adapters import DorisAdapter
@@ -27,13 +28,17 @@ def bind(engine: Engine, authenticator: Authenticator) -> None:
 class AssessRequest(BaseModel):
     product: str = Field(min_length=1)
     version: str = Field(default="v0.1.0")
-    profile: str = Field(default="medical-rag")
+    # profile 必填无缺省：词汇表唯一源是声明仓库 profiles/，未知值由引擎拒绝。
+    profile: str = Field(min_length=1)
 
 
 @router.post("/assess")
 def assess(request: AssessRequest, authorization: str | None = Header(default=None)) -> dict:
     _authenticator.require(authorization)
-    report = _engine.assess(request.product, request.version, request.profile)
+    try:
+        report = _engine.assess(request.product, request.version, request.profile)
+    except CatalogError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     return report.model_dump(by_alias=True)
 
 
@@ -58,8 +63,12 @@ def evaluate(request: EvaluateRequest, authorization: str | None = Header(defaul
 
 
 @router.get("/readiness")
-def readiness(product: str, version: str = "v0.1.0", profile: str = "medical-rag",
+def readiness(product: str, version: str = "v0.1.0",
+              profile: str = Query(min_length=1),
               authorization: str | None = Header(default=None)) -> dict:
     _authenticator.require(authorization)
-    report = _engine.assess(product, version, profile)
+    try:
+        report = _engine.assess(product, version, profile)
+    except CatalogError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     return report.model_dump(by_alias=True)
