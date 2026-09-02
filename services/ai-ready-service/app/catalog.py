@@ -54,6 +54,40 @@ def _check_thresholds(check: dict, rid: str) -> None:
         raise CatalogError(f"requirement {rid} 的 direction 非法：{check['direction']}")
 
 
+# om_probe 各探针的必需键（与 adapters 的消费面一致）：声明 typo 在装载期
+# 即爆，而不是评估期坍缩成「数据质量 FAIL」。
+_PROBE_REQUIRED_KEYS = {
+    "table_description_coverage": ("service", "schemas"),
+    "lineage_edge_coverage": ("service", "root"),
+    "pii_tag_coverage": ("service", "table", "columns"),
+}
+
+
+def _check_shape(check: dict, rid: str) -> None:
+    _check_thresholds(check, rid)
+    check_type = check.get("type")
+    if check_type == "doris_metric":
+        metric = check.get("metric")
+        if not isinstance(metric, str) or not metric.strip():
+            raise CatalogError(f"requirement {rid} 的 doris_metric check 缺少 metric")
+        if not check.get("sql_file") and not check.get("requires_table"):
+            raise CatalogError(
+                f"requirement {rid} 的 doris_metric check 须声明 sql_file 或 requires_table（N/A 条件）")
+    elif check_type == "om_probe":
+        probe = check.get("probe")
+        required = _PROBE_REQUIRED_KEYS.get(probe)
+        if required is None:
+            raise CatalogError(f"requirement {rid} 的 om_probe 探针未知：{probe}"
+                               f"（已知：{sorted(_PROBE_REQUIRED_KEYS)}）")
+        for key in required:
+            value = check.get(key)
+            if value is None or value == "" or value == []:
+                raise CatalogError(f"requirement {rid} 的 {probe} 探针缺少 {key}")
+    else:
+        raise CatalogError(f"requirement {rid} 的 check.type 非法：{check_type}"
+                           f"（已知：doris_metric / om_probe）")
+
+
 def load_catalog(repo_dir: str) -> Catalog:
     requirements: dict[str, RequirementDef] = {}
     req_root = os.path.join(repo_dir, "requirements")
@@ -67,7 +101,7 @@ def load_catalog(repo_dir: str) -> Catalog:
             if not os.path.isfile(manifest):
                 continue
             doc = _load_yaml(manifest)
-            _check_thresholds(doc.get("check", {}), doc.get("id", name))
+            _check_shape(doc.get("check", {}), doc.get("id", name))
             req = RequirementDef(**doc, dir_path=req_dir)
             if req.id in requirements:
                 raise CatalogError(f"requirement 重复定义：{req.id}")

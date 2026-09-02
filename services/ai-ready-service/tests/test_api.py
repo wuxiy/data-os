@@ -66,3 +66,11 @@ def test_assess_rejects_unknown_profile(client):
                            headers={"Authorization": "Bearer test-token"})
     assert response.status_code == 422
     assert "未知 Profile" in response.json()["detail"]
+
+
+def test_recipe_ref_is_accepted_not_dropped(client):
+    """控制面 build 链路的 recipeRef 显式收下（不再被 pydantic 静默忽略）。"""
+    response = client.post("/assess",
+                           json={"product": "p", "profile": "medical-rag", "recipeRef": "recipes/medical-rag-v1.yaml"},
+                           headers={"Authorization": "Bearer test-token"})
+    assert response.status_code == 200

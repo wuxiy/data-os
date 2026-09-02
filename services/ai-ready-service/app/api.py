@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from catalog import CatalogError
 from engine import Engine
@@ -26,10 +26,16 @@ def bind(engine: Engine, authenticator: Authenticator) -> None:
 
 
 class AssessRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     product: str = Field(min_length=1)
     version: str = Field(default="v0.1.0")
     # profile 必填无缺省：词汇表唯一源是声明仓库 profiles/，未知值由引擎拒绝。
     profile: str = Field(min_length=1)
+    # 控制面 build 链路随请求发送的 recipe 关联（G9 契约）。显式收下留档，
+    # 不再被 pydantic 静默丢弃；当前评估不消费——构建与版本登记在
+    # rag_builder / 控制面侧完成。
+    recipe_ref: str = Field(default="", alias="recipeRef")
 
 
 @router.post("/assess")
