@@ -10,8 +10,7 @@ from typing import Any
 
 from artifacts import ArtifactStore
 from db import RunnerDatabase
-from engines import DbtEngine, RuleEngine, safe_message
-from evidence import EvidenceReader
+from engines import RuleEngine, safe_message
 from models import QualityRun
 from rules import RuleCatalog
 from settings import Settings
@@ -34,21 +33,16 @@ class QualityRunManager:
     ProcessSupervisor——两者都可注入替换。"""
 
     def __init__(self, database: RunnerDatabase, catalog: RuleCatalog, settings: Settings,
-                 engine: RuleEngine | None = None, supervisor: ProcessSupervisor | None = None,
-                 artifacts: ArtifactStore | None = None):
+                 engine: RuleEngine, supervisor: ProcessSupervisor,
+                 artifacts: ArtifactStore):
+        # composition root 在 main.py：manager 只接收已建好的协作者，
+        # 不内联 Doris/S3 装配参数（多引擎路由到来时的唯一插拔点在装配层）。
         self.database = database
         self.catalog = catalog
         self.settings = settings
-        self.supervisor = supervisor or ProcessSupervisor(database, settings.stale_run_seconds)
-        self.engine = engine or DbtEngine(settings, EvidenceReader(
-            settings.doris_host, settings.doris_port, settings.doris_audit_database,
-            settings.doris_user, settings.doris_password, settings.evidence_limit,
-            settings.doris_cleanup_user, settings.doris_cleanup_password,
-            settings.evidence_hash_key,
-        ), self.supervisor, database, catalog)
-        self.artifacts = artifacts or ArtifactStore(settings.artifact_dir, settings.artifact_s3_endpoint,
-                                                    settings.artifact_s3_bucket, settings.artifact_s3_region,
-                                                    settings.artifact_s3_access_key, settings.artifact_s3_secret_key)
+        self.supervisor = supervisor
+        self.engine = engine
+        self.artifacts = artifacts
         self._global = asyncio.Semaphore(settings.max_concurrency)
         self._tenant_semaphores: dict[str, asyncio.Semaphore] = {}
         self._tasks: dict[str, asyncio.Task[Any]] = {}

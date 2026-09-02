@@ -132,7 +132,7 @@ class ScriptedEngine:
 def test_dbt_engine_builds_namespaced_command_and_parses_pass(tmp_path: Path) -> None:
     supervisor = FakeSupervisor(ProcessOutcome(b"", b"", 0, False))
     evidence = FakeEvidence()
-    engine = DbtEngine(Settings(), evidence, supervisor, FakeDatabase(), FakeCatalog())
+    engine = DbtEngine(Settings(), evidence, supervisor, FakeCatalog())
     target = tmp_path / "target"
     target.mkdir()
     (target / "run_results.json").write_text(json.dumps({"results": [{"status": "pass"}]}), encoding="utf-8")
@@ -154,7 +154,7 @@ def test_dbt_engine_builds_namespaced_command_and_parses_pass(tmp_path: Path) ->
 def test_dbt_engine_reads_evidence_when_failed(tmp_path: Path) -> None:
     supervisor = FakeSupervisor(ProcessOutcome(b"", b"err", 1, False))
     evidence = FakeEvidence()
-    engine = DbtEngine(Settings(), evidence, supervisor, FakeDatabase(), FakeCatalog())
+    engine = DbtEngine(Settings(), evidence, supervisor, FakeCatalog())
     target = tmp_path / "target"
     target.mkdir()
     (target / "run_results.json").write_text(json.dumps({"results": [{"status": "fail"}]}), encoding="utf-8")
@@ -169,7 +169,7 @@ def test_dbt_engine_reads_evidence_when_failed(tmp_path: Path) -> None:
 def test_dbt_engine_timeout_skips_evidence_and_artifact(tmp_path: Path) -> None:
     supervisor = FakeSupervisor(ProcessOutcome(b"", b"", None, True))
     evidence = FakeEvidence()
-    engine = DbtEngine(Settings(), evidence, supervisor, FakeDatabase(), FakeCatalog())
+    engine = DbtEngine(Settings(), evidence, supervisor, FakeCatalog())
 
     result = asyncio.run(engine.execute(make_run(), RULE, tmp_path, "ns-3"))
 
@@ -179,27 +179,15 @@ def test_dbt_engine_timeout_skips_evidence_and_artifact(tmp_path: Path) -> None:
     assert evidence.cleanups == [("sel_a", "ns-3")]
 
 
-def test_dbt_engine_stale_generation_returns_canceled(tmp_path: Path) -> None:
-    supervisor = FakeSupervisor(ProcessOutcome(b"", b"", 0, False))
-    engine = DbtEngine(Settings(), FakeEvidence(), supervisor, FakeDatabase(owns=False), FakeCatalog())
-    target = tmp_path / "target"
-    target.mkdir()
-    (target / "run_results.json").write_text(json.dumps({"results": [{"status": "pass"}]}), encoding="utf-8")
-
-    result = asyncio.run(engine.execute(make_run(), RULE, tmp_path, "ns-4"))
-
-    assert (result.status, result.artifact_payload) == ("CANCELED", None)
-
-
 def test_parse_results_variants(tmp_path: Path) -> None:
     engine = DbtEngine(Settings(), FakeEvidence(), FakeSupervisor(ProcessOutcome(b"", b"", 0, False)),
-                       FakeDatabase(), FakeCatalog())
+                       FakeCatalog())
     path = tmp_path / "run_results.json"
     path.write_text(json.dumps({"results": [{"status": "pass"}, {"status": "warn"}]}), encoding="utf-8")
-    assert engine.parse_results(path, 0, b"", b"")["status"] == "SUCCEEDED"
-    assert engine.parse_results(path, 2, b"", b"")["status"] == "FAILED"
+    assert engine.parse_results(path, 0, b"", b"").status == "SUCCEEDED"
+    assert engine.parse_results(path, 2, b"", b"").status == "FAILED"
     missing = engine.parse_results(tmp_path / "absent.json", 1, b"stdout", b"")
-    assert missing["status"] == "FAILED" and missing["message"] == "stdout"
+    assert missing.status == "FAILED" and missing.message == "stdout"
 
 
 def test_safe_message_redacts_secrets() -> None:

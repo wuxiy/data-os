@@ -7,16 +7,38 @@ from fastapi.responses import PlainTextResponse
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 from api import router
+from artifacts import ArtifactStore
 from db import RunnerDatabase
+from engines import DbtEngine
+from evidence import EvidenceReader
 from rules import RuleCatalog
 from runner import QualityRunManager
 from settings import settings
+from supervisor import ProcessSupervisor
 
 
 settings.validate()
 catalog = RuleCatalog(settings.rules_file)
 database = RunnerDatabase(settings.db_url)
-manager = QualityRunManager(database, catalog, settings)
+# 装配根：引擎族（dbt 引擎 + 失败表证据读取）与产物存储在此构造——
+# manager 只做编排，第二个引擎（GE / 医院质检）到来时在此接入。
+supervisor = ProcessSupervisor(database, settings.stale_run_seconds)
+engine = DbtEngine(
+    settings,
+    EvidenceReader(
+        settings.doris_host, settings.doris_port, settings.doris_audit_database,
+        settings.doris_user, settings.doris_password, settings.evidence_limit,
+        settings.doris_cleanup_user, settings.doris_cleanup_password,
+        settings.evidence_hash_key,
+    ),
+    supervisor,
+    catalog,
+)
+artifacts = ArtifactStore(
+    settings.artifact_dir, settings.artifact_s3_endpoint,
+    settings.artifact_s3_bucket, settings.artifact_s3_region,
+    settings.artifact_s3_access_key, settings.artifact_s3_secret_key)
+manager = QualityRunManager(database, catalog, settings, engine, supervisor, artifacts)
 manager_ready = False
 
 

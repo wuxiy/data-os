@@ -53,12 +53,10 @@ class DbtEngine:
     解析、失败样本读取与失败表清理都是 dbt 专属知识，收在引擎内。"""
 
     def __init__(self, settings: Any, evidence: EvidenceReader,
-                 supervisor: ProcessSupervisor, database: RunnerDatabase,
-                 catalog: Any):
+                 supervisor: ProcessSupervisor, catalog: Any):
         self.settings = settings
         self.evidence = evidence
         self.supervisor = supervisor
-        self.database = database
         self.catalog = catalog
 
     async def execute(self, run: QualityRun, rule: RuleDefinition,
@@ -83,24 +81,19 @@ class DbtEngine:
             (workdir / "stdout.log").write_bytes(outcome.stdout[-64_000:])
             (workdir / "stderr.log").write_bytes(outcome.stderr[-64_000:])
             if outcome.timed_out:
-                summary = {"status": "FAILED", "passed": False,
-                           "message": "dbt 执行超过配置的超时时间", "evidence": []}
-                return EngineResult(summary["status"], False, summary["message"])
-            summary = self.parse_results(target_path / "run_results.json", outcome.returncode,
-                                         outcome.stdout, outcome.stderr)
-            if not summary["passed"]:
-                summary["evidence"] = await asyncio.to_thread(
+                return EngineResult("FAILED", False, "dbt 执行超过配置的超时时间")
+            result = self.parse_results(target_path / "run_results.json", outcome.returncode,
+                                        outcome.stdout, outcome.stderr)
+            if not result.passed:
+                result.evidence = await asyncio.to_thread(
                     self.evidence.read, rule.selector, rule.evidence, namespace)
-            if not await asyncio.to_thread(self.database.owns_generation,
-                                           run.run_id, run.execution_generation):
-                return EngineResult("CANCELED", False, "执行代次已失效")
             payload = {
                 "runId": run.run_id, "ruleId": rule.rule_id, "selector": rule.selector,
-                "status": summary["status"], "passed": summary["passed"], "message": summary["message"],
-                "evidenceCount": len(summary["evidence"]),
+                "status": result.status, "passed": result.passed, "message": result.message,
+                "evidenceCount": len(result.evidence),
             }
-            return EngineResult(summary["status"], summary["passed"], summary["message"],
-                                summary["evidence"], payload)
+            result.artifact_payload = payload
+            return result
         finally:
             # dbt --store-failures is useful only until evidence is captured.
             # This finally block also runs for timeout, cancellation and dbt
@@ -112,7 +105,8 @@ class DbtEngine:
             [rule.selector for rule in self.catalog.all()])
 
     def parse_results(self, path: Path, returncode: int | None,
-                      stdout: bytes, stderr: bytes) -> dict[str, Any]:
+                      stdout: bytes, stderr: bytes) -> EngineResult:
+        """run_results.json -> EngineResult（引擎内部只有这一种结果表示）。"""
         message = safe_message((stderr or stdout).decode("utf-8", errors="replace"))
         statuses: list[str] = []
         if path.exists():
@@ -127,5 +121,4 @@ class DbtEngine:
             message = message or "dbt 执行失败"
         elif not message:
             message = "dbt 质量规则通过" if passed else "dbt 质量规则未通过"
-        return {"status": status, "passed": passed, "message": message,
-                "evidence": [], "artifact_uri": None}
+        return EngineResult(status, passed, message)
