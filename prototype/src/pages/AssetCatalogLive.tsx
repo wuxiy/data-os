@@ -1,5 +1,5 @@
 import { ChartNoAxesCombined, Database, LayoutDashboard, Search, Shapes, Table2 } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Button, StatusTag } from '../components/ui/Primitives'
 import {
@@ -18,6 +18,7 @@ import {
   type LineageSummaryView,
 } from '../data/lineageApi'
 import { useApiResource } from '../hooks/useApiResource'
+import { useKeyedResource } from '../hooks/useKeyedResource'
 import styles from './IntegrationPages.module.css'
 
 const nodeIcons = {
@@ -84,31 +85,25 @@ export function AssetCatalogLive({ onNotice }: { onNotice: (message: string) => 
   const [detail, setDetail] = useState<LineageAssetDetail | null>(null)
   const [lineage, setLineage] = useState<LineageAssetLineage | null>(null)
   const [qualityTests, setQualityTests] = useState<AssetQualityTest[]>([])
-  const [detailState, setDetailState] = useState<'loading' | 'ready' | 'error'>('loading')
-  useEffect(() => {
-    if (!effectiveFqn) return
-    const controller = new AbortController()
-    setDetailState('loading')
-    setDetail(null)
-    setLineage(null)
-    setQualityTests([])
-    Promise.all([
-      fetchLineageAsset(effectiveFqn, controller.signal),
-      fetchLineageGraph(effectiveFqn, controller.signal),
-      fetchAssetQualityTests(effectiveFqn, controller.signal).catch(() => []),
-    ])
-      .then(([detailResponse, lineageResponse, testsResponse]) => {
-        setDetail(detailResponse)
-        setLineage(lineageResponse)
-        setQualityTests(testsResponse)
-        setDetailState('ready')
-      })
-      .catch(() => {
-        if (controller.signal.aborted) return
-        setDetailState('error')
-      })
-    return () => controller.abort()
-  }, [effectiveFqn])
+  // 键控从属加载：切换资产即中止重取；质量测试是次级资源，失败不塌详情。
+  const detailState = useKeyedResource({
+    key: effectiveFqn || null,
+    load: (signal) => Promise.all([
+      fetchLineageAsset(effectiveFqn, signal),
+      fetchLineageGraph(effectiveFqn, signal),
+      fetchAssetQualityTests(effectiveFqn, signal).catch(() => []),
+    ]),
+    onData: ([detailResponse, lineageResponse, testsResponse]) => {
+      setDetail(detailResponse)
+      setLineage(lineageResponse)
+      setQualityTests(testsResponse)
+    },
+    onReset: () => {
+      setDetail(null)
+      setLineage(null)
+      setQualityTests([])
+    },
+  })
 
   if (catalogState !== 'live' || !catalog) {
     return (
@@ -191,7 +186,7 @@ export function AssetCatalogLive({ onNotice }: { onNotice: (message: string) => 
           </div>
 
           <div className={styles.assetBody}>
-            {detailState === 'loading' ? <div className={styles.technicalNotice}><StatusTag tone="neutral">读取中</StatusTag><span>正在读取资产结构与血缘…</span></div> : null}
+            {(detailState === 'loading' || detailState === 'idle') ? <div className={styles.technicalNotice}><StatusTag tone="neutral">读取中</StatusTag><span>正在读取资产结构与血缘…</span></div> : null}
             {detailState === 'error' ? <div className={styles.technicalNotice} role="status"><StatusTag tone="warning">读取失败</StatusTag><span>资产详情或血缘暂时不可读，请稍后重试。</span></div> : null}
             {detail ? (
               <section className={styles.contentPanel}>

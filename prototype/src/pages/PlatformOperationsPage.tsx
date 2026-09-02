@@ -9,9 +9,10 @@ import {
   ShieldCheck,
   Workflow,
 } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { fetchPlatformOperations, type PlatformOperationsApiResponse, type PlatformServiceApiItem } from '../data/controlPlane'
 import { PortalHttpError } from '../data/http'
+import { usePolling } from '../hooks/usePolling'
 import { Button, StatusTag } from '../components/ui/Primitives'
 import { formatDateTime } from '../data/domain'
 import styles from './PlatformOperationsPage.module.css'
@@ -49,15 +50,8 @@ export function PlatformOperationsPage({ canAccess }: { canAccess: boolean }) {
     }
   }, [canAccess])
 
-  useEffect(() => {
-    const controller = new AbortController()
-    void load(controller.signal)
-    const timer = window.setInterval(() => void load(), 30_000)
-    return () => {
-      controller.abort()
-      window.clearInterval(timer)
-    }
-  }, [load])
+  // 周期刷新（30 秒探针）；403/错误语义留在 load 回调内。
+  usePolling(load, 30_000, canAccess)
 
   if (!canAccess || state === 'forbidden') return <AccessDenied />
 

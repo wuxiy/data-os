@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Button, StatusTag } from '../components/ui/Primitives'
 import {
@@ -16,6 +16,7 @@ import {
   type AIDataProductDetail,
   type AIEvaluationFeedbackItem,
 } from '../data/aiDataApi'
+import { useKeyedResource } from '../hooks/useKeyedResource'
 import styles from './IntegrationPages.module.css'
 
 interface Props {
@@ -32,31 +33,25 @@ export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, 
   const [detail, setDetail] = useState<AIDataProductDetail | null>(null)
   const [certifications, setCertifications] = useState<AICertificationRequest[]>([])
   const [feedback, setFeedback] = useState<AIEvaluationFeedbackItem[]>([])
-  const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading')
-
-  useEffect(() => {
-    const controller = new AbortController()
-    setState('loading')
-    setDetail(null)
-    setCertifications([])
-    setFeedback([])
-    Promise.all([
-      fetchAIDataProduct(productId, controller.signal),
-      fetchCertificationRequests(productId, controller.signal).catch(() => []),
-      fetchFeedback(productId, controller.signal).catch(() => []),
-    ])
-      .then(([response, requests, feedbackItems]) => {
-        setDetail(response)
-        setCertifications(requests)
-        setFeedback(feedbackItems)
-        setState('ready')
-      })
-      .catch(() => {
-        if (controller.signal.aborted) return
-        setState('error')
-      })
-    return () => controller.abort()
-  }, [productId])
+  // 键控加载（按产品）；认证历史与反馈是次级资源，失败不塌详情。
+  const state = useKeyedResource({
+    key: productId,
+    load: (signal) => Promise.all([
+      fetchAIDataProduct(productId, signal),
+      fetchCertificationRequests(productId, signal).catch(() => []),
+      fetchFeedback(productId, signal).catch(() => []),
+    ]),
+    onData: ([response, requests, feedbackItems]) => {
+      setDetail(response)
+      setCertifications(requests)
+      setFeedback(feedbackItems)
+    },
+    onReset: () => {
+      setDetail(null)
+      setCertifications([])
+      setFeedback([])
+    },
+  })
 
   async function handleSubmitCertification() {
     try {

@@ -1,5 +1,5 @@
 import { ArrowLeft, Database, Link2, Rows3, TableProperties } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Button, StatusTag } from '../components/ui/Primitives'
 import {
@@ -11,6 +11,7 @@ import {
   type LineageAssetLineage,
 } from '../data/lineageApi'
 import { routePaths } from '../data/routes'
+import { useKeyedResource } from '../hooks/useKeyedResource'
 import styles from './IntegrationPages.module.css'
 
 /**
@@ -21,29 +22,18 @@ export function AssetTechnicalLive({ onNotice }: { onNotice: (message: string) =
   const requestedFqn = new URLSearchParams(window.location.search).get('asset') ?? ''
   const [detail, setDetail] = useState<LineageAssetDetail | null>(null)
   const [lineage, setLineage] = useState<LineageAssetLineage | null>(null)
-  const [state, setState] = useState<'loading' | 'ready' | 'error' | 'missing'>('loading')
-  useEffect(() => {
-    if (!requestedFqn) {
-      setState('missing')
-      return
-    }
-    const controller = new AbortController()
-    setState('loading')
-    Promise.all([
-      fetchLineageAsset(requestedFqn, controller.signal),
-      fetchLineageGraph(requestedFqn, controller.signal),
-    ])
-      .then(([detailResponse, lineageResponse]) => {
-        setDetail(detailResponse)
-        setLineage(lineageResponse)
-        setState('ready')
-      })
-      .catch(() => {
-        if (controller.signal.aborted) return
-        setState('error')
-      })
-    return () => controller.abort()
-  }, [requestedFqn])
+  // 键控加载：无 ?asset= 键时 idle（渲染为缺少资产提示）。
+  const state = useKeyedResource({
+    key: requestedFqn || null,
+    load: (signal) => Promise.all([
+      fetchLineageAsset(requestedFqn, signal),
+      fetchLineageGraph(requestedFqn, signal),
+    ]),
+    onData: ([detailResponse, lineageResponse]) => {
+      setDetail(detailResponse)
+      setLineage(lineageResponse)
+    },
+  })
 
   const backHref = `${routePaths.assets}${detail ? `?asset=${encodeURIComponent(detail.fullyQualifiedName)}` : ''}`
 
@@ -65,7 +55,7 @@ export function AssetTechnicalLive({ onNotice }: { onNotice: (message: string) =
         subtitle="面向数据开发与运维人员的结构、血缘和同步证据；业务定义仍以资产详情为准。"
         compact
       />
-      {state === 'missing' ? (
+      {state === 'idle' ? (
         <section className={styles.technicalNotice} role="status">
           <StatusTag tone="warning">缺少资产</StatusTag>
           <span>请从数据资产目录进入技术视图（URL 需带 ?asset=全限定名）。</span>

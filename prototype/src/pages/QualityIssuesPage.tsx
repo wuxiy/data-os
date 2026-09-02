@@ -1,7 +1,8 @@
 import { CircleAlert, LoaderCircle, RefreshCw, Search, Send } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useAction } from '../hooks/useAction'
 import { useApiResource } from '../hooks/useApiResource'
+import { useKeyedResource } from '../hooks/useKeyedResource'
 import { GovernanceTabs } from '../components/ui/GovernanceTabs'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Button, StatusTag } from '../components/ui/Primitives'
@@ -45,7 +46,6 @@ export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props
   const [detail, setDetail] = useState<GovernanceIssueDetailApiResponse | null>(null)
   const [query, setQuery] = useState('')
   const [note, setNote] = useState('')
-  const [detailError, setDetailError] = useState<string | null>(null)
   const { pendingKey: actionState, error: actionError, setError: setActionError, run: runAction } = useAction()
 
   const apiState = useApiResource({
@@ -61,24 +61,19 @@ export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props
     },
   })
 
-  useEffect(() => {
-    if (apiState !== 'live' || !selectedId) {
+  // 键控从属加载：切换选中问题即中止重取；详情错误不塌列表页。
+  const detailState = useKeyedResource({
+    key: apiState === 'live' && selectedId ? selectedId : null,
+    load: (signal) => fetchGovernanceIssue(selectedId as string, signal),
+    onData: (response) => {
+      setDetail(response)
+      setNote(response.issue.processingNote ?? '')
+    },
+    onReset: () => {
       setDetail(null)
-      return
-    }
-    const controller = new AbortController()
-    setDetail(null)
-    setDetailError(null)
-    fetchGovernanceIssue(selectedId, controller.signal)
-      .then((response) => {
-        setDetail(response)
-        setNote(response.issue.processingNote ?? '')
-      })
-      .catch(() => {
-        if (!controller.signal.aborted) setDetailError('问题详情读取失败，请刷新后重试')
-      })
-    return () => controller.abort()
-  }, [apiState, selectedId])
+      setNote('')
+    },
+  })
 
   const visibleIssues = useMemo(() => {
     const keyword = query.trim().toLowerCase()
@@ -191,7 +186,7 @@ export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props
               {detail.events.map((event) => <li key={event.id}><time>{formatDateTime(event.createdAt)}</time><div><strong>{eventTitle(event.eventType)}</strong><p>{event.note} · {event.actor}</p></div></li>)}
               {detail.events.length === 0 ? <li><time>{formatDateTime(selected.updatedAt)}</time><div><strong>问题已登记</strong><p>问题来自质量规则目录，等待责任人处理。</p></div></li> : null}
             </ol>
-          </> : detailError ? <div className={styles.connectionNotice} role="alert"><CircleAlert size={17} /><div><strong>治理问题详情不可用</strong><span>{detailError}</span></div><button className={styles.secondaryButton} onClick={() => window.location.reload()}>重新读取</button></div> : <div className={styles.emptyState}>{apiState === 'loading' ? '正在读取问题详情…' : apiState === 'unavailable' ? '控制面恢复后可查看治理问题详情' : '请选择一个治理问题'}</div>}
+          </> : detailState === 'error' ? <div className={styles.connectionNotice} role="alert"><CircleAlert size={17} /><div><strong>治理问题详情不可用</strong><span>问题详情读取失败，请刷新后重试</span></div><button className={styles.secondaryButton} onClick={() => window.location.reload()}>重新读取</button></div> : <div className={styles.emptyState}>{apiState === 'loading' ? '正在读取问题详情…' : apiState === 'unavailable' ? '控制面恢复后可查看治理问题详情' : '请选择一个治理问题'}</div>}
         </section>
         <aside className={styles.workspaceInspector}>
           {selected && detail ? <>

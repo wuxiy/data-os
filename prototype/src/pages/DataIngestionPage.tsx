@@ -19,7 +19,7 @@ import {
   Waypoints,
 } from 'lucide-react'
 import type { FormEvent, ReactNode } from 'react'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Drawer } from '../components/ui/Drawer'
 import { PageHeader } from '../components/ui/PageHeader'
 import { StatusTag } from '../components/ui/Primitives'
@@ -47,6 +47,7 @@ import {
 import { PortalHttpError } from '../data/http'
 import { ACTIVE_RUN_STATUSES, formatDateTime, retryableRunStatus, runStatusView } from '../data/domain'
 import { useAction } from '../hooks/useAction'
+import { usePolling } from '../hooks/usePolling'
 import { allowsTemplate, defaultTemplateKey, offersDemoTemplate } from '../data/runtimeMode'
 import type { RouteKey } from '../types'
 import styles from './Pages.module.css'
@@ -142,6 +143,8 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
   const [sourceCheckText, setSourceCheckText] = useState('')
   const [sourceCheckLoading, setSourceCheckLoading] = useState(false)
   const [sourceCheckError, setSourceCheckError] = useState<string | null>(null)
+  // 主载入有意手写（不用 useApiResource）：列表先落位进入 live、各作业最新
+  // 运行随后补齐的两段渐进 UX 需要在 onData 之后继续持有同一中止信号。
   useEffect(() => {
     const controller = new AbortController()
     const timeout = window.setTimeout(() => controller.abort(), 2500)
@@ -195,39 +198,29 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
     return () => controller.abort()
   }, [state])
 
-  useEffect(() => {
-    if (!detailsJob || state !== 'live') return
-    let stopped = false
-    const loadRuns = async () => {
-      setDetailsLoading(true)
-      try {
-        const response = await fetchIngestionRuns(detailsJob.id)
-        if (!stopped) {
-          setDetailsRuns(response.items)
-          setLatestRuns((current) => {
-            const next = { ...current }
-            if (response.items[0]) next[detailsJob.id] = response.items[0]
-            else delete next[detailsJob.id]
-            return next
-          })
-          setJobs((current) => current.map((job) => job.id === detailsJob.id
-            ? { ...job, latestRunStatus: response.items[0]?.status ?? null }
-            : job))
-          setDetailsError(null)
-        }
-      } catch {
-        if (!stopped) setDetailsError('运行记录暂时无法读取，请稍后重试')
-      } finally {
-        if (!stopped) setDetailsLoading(false)
-      }
+  // 运行详情抽屉的周期刷新（5 秒）；切换目标作业即重启。
+  usePolling(useCallback(async () => {
+    if (!detailsJob) return
+    setDetailsLoading(true)
+    try {
+      const response = await fetchIngestionRuns(detailsJob.id)
+      setDetailsRuns(response.items)
+      setLatestRuns((current) => {
+        const next = { ...current }
+        if (response.items[0]) next[detailsJob.id] = response.items[0]
+        else delete next[detailsJob.id]
+        return next
+      })
+      setJobs((current) => current.map((job) => job.id === detailsJob.id
+        ? { ...job, latestRunStatus: response.items[0]?.status ?? null }
+        : job))
+      setDetailsError(null)
+    } catch {
+      setDetailsError('运行记录暂时无法读取，请稍后重试')
+    } finally {
+      setDetailsLoading(false)
     }
-    void loadRuns()
-    const timer = window.setInterval(() => void loadRuns(), 5000)
-    return () => {
-      stopped = true
-      window.clearInterval(timer)
-    }
-  }, [detailsJob?.id, state])
+  }, [detailsJob]), 5000, state === 'live' && !!detailsJob, detailsJob?.id)
 
   const sourceById = useMemo(() => new Map(sources.map((source) => [source.id, source])), [sources])
   const visibleSources = sources
