@@ -12,6 +12,14 @@ CREATE TABLE IF NOT EXISTS ods_ep.ep_mz_cfzb (
     LXFS VARCHAR(64)
 );
 
+-- G16b/T5b 患者域第二身份流（C 端注册路径）：装载查询只用到这四列。
+CREATE TABLE IF NOT EXISTS ods_ep.patient (
+    ID BIGINT,
+    NAME VARCHAR(200),
+    GENDER VARCHAR(10),
+    PHONE VARCHAR(100)
+);
+
 CREATE TABLE IF NOT EXISTS dataos_mpi.mpi_source_identity (
     tenant_id VARCHAR(64),
     institution_code VARCHAR(64),

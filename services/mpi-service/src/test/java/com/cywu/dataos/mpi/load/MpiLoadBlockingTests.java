@@ -168,4 +168,37 @@ class MpiLoadBlockingTests {
         assertThat(blockingStats.get("B6")).isEqualTo(1);
         assertThat(blockingStats.get("B3")).isEqualTo(0);
     }
+
+    /** G16b/T5b：患者域注册流（EP-REG）——机构经处方活动推导、属性取 C 端注册值。 */
+    @Test
+    void registrationStreamLoadsPatientDomainIdentitiesWithDerivedInstitution() {
+        seedPrescriptions();
+        // patient 1/5 有处方活动（机构可推导）；patient 9 无处方活动，不得装载。
+        // 姓名空格与数字性别验证 C 端值走同一归一器。
+        doris.batchUpdate("""
+                INSERT INTO ods_ep.patient (ID, NAME, GENDER, PHONE)
+                VALUES (?, ?, ?, ?)
+                """, List.of(
+                new Object[] {1L, "张 三", "1", "13800000000"},
+                new Object[] {5L, "张三", "男", null},
+                new Object[] {9L, "张三", "男", "13700000000"}));
+
+        var result = loader.load("default", MpiLoaderService.SOURCE_SYSTEM_REGISTRATION);
+
+        assertThat(result.identitiesLoaded()).isEqualTo(2);
+        assertThat(result.identitiesSkipped()).isZero();
+        var rows = doris.queryForList("""
+                SELECT institution_code, source_key, name_norm, gender, card_no_norm
+                FROM dataos_mpi.mpi_source_identity
+                WHERE source_system = 'EP-REG' ORDER BY source_key
+                """);
+        assertThat(rows).hasSize(2);
+        var first = rows.get(0);
+        assertThat(first.get("INSTITUTION_CODE")).isEqualTo("H0001");
+        assertThat(first.get("SOURCE_KEY")).isEqualTo("1");
+        assertThat(first.get("NAME_NORM")).isEqualTo("张三");
+        assertThat(first.get("GENDER")).isEqualTo("M");
+        // 注册流不携带就诊卡：证件号与 KH 不同码空间，不得并入 card_no_norm。
+        assertThat(first.get("CARD_NO_NORM")).isNull();
+    }
 }

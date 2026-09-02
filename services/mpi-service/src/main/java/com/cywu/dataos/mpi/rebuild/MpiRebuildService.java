@@ -25,6 +25,9 @@ public class MpiRebuildService {
     /** EP 演示档固定单源；多源接入时由调用方按数据源循环。 */
     static final String SOURCE_SYSTEM_EP = "EP";
 
+    /** G16b/T5b 患者域第二身份流（C 端注册路径，弱多源）。 */
+    static final String SOURCE_SYSTEM_EP_REG = MpiLoaderService.SOURCE_SYSTEM_REGISTRATION;
+
     private final MpiLoaderService loader;
     private final MpiBlockingService blocking;
     private final MpiDecisionService decisions;
@@ -45,12 +48,17 @@ public class MpiRebuildService {
 
     public RebuildResult rebuild(String tenantId, String institutionId, String actor) {
         var load = loader.load(tenantId, SOURCE_SYSTEM_EP);
+        // T5b 弱多源：同一 rebuild 内装载患者域注册流；装载纪律（先清后插）
+        // 独立于 EP 流，两次 load 互不覆盖。
+        var loadReg = loader.load(tenantId, SOURCE_SYSTEM_EP_REG);
+        int loaded = load.identitiesLoaded() + loadReg.identitiesLoaded();
+        int skipped = load.identitiesSkipped() + loadReg.identitiesSkipped();
         var pairs = blocking.generate(tenantId);
         var decided = decisions.decideAll(tenantId, institutionId, actor);
         MpiAuditEvents.rebuild(audit, tenantId, institutionId, actor,
-                load.identitiesLoaded(), pairs.totalPairs(), decided.autoMatch(),
+                loaded, pairs.totalPairs(), decided.autoMatch(),
                 decided.review(), decided.hardConflict(), MpiHybridMatcher.HYBRID_VERSION);
-        return new RebuildResult(load.identitiesLoaded(), load.identitiesSkipped(),
+        return new RebuildResult(loaded, skipped,
                 pairs.totalPairs(), pairs.byB3(), pairs.byB4(), pairs.byB6(),
                 decided.autoMatch(), decided.review(), decided.noMatch(), decided.hardConflict());
     }

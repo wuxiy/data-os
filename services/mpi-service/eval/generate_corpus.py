@@ -235,10 +235,16 @@ def main():
     rng = random.Random(SEED)
     snapshot = load_snapshot()
     identities = sorted(snapshot, key=lambda r: (r["institution"], r["sourceKey"]))
-    shuffled = list(identities)
-    rng.shuffle(shuffled)
-    half = len(shuffled) // 2
-    cal_pool, eval_pool = shuffled[:half], shuffled[half:]
+    # 多流快照（G16b/T5b：EP + EP-REG 共享 (institution, sourceKey)）下切分单位
+    # 是「人键」而非「行」——同人多流身份必须同池，否则零交集自检必然炸裂。
+    # 单流快照（一人一行）行为等价，但同 seed 的洗牌顺序与旧版不同：冻结语料
+    # 以文件为准不受影响；重新生成时 manifest 需如实记录生成器版本。
+    person_keys = sorted({(r["institution"], r["sourceKey"]) for r in identities})
+    rng.shuffle(person_keys)
+    half = len(person_keys) // 2
+    cal_set = set(person_keys[:half])
+    cal_pool = [r for r in identities if (r["institution"], r["sourceKey"]) in cal_set]
+    eval_pool = [r for r in identities if (r["institution"], r["sourceKey"]) not in cal_set]
 
     # 自检：标定/评测身份零交集（防 m/u 估计与指标计算同源）。
     cal_keys = {(r["institution"], r["sourceKey"]) for r in cal_pool}

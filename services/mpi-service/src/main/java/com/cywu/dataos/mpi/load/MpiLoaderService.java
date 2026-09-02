@@ -31,6 +31,21 @@ public class MpiLoaderService {
             GROUP BY YLJGDM, PATIENT_ID
             """;
 
+    /**
+     * 患者域第二身份流（G16b/T5b 弱多源）：属性取 C 端注册路径的 patient 表
+     * （姓名/性别/电话），机构归属经真实处方活动推导——patient_card 的机构
+     * 字段实测全空（0/1777），不能作为归属依据。无就诊卡列（证件号与 KH
+     * 不同码空间，不并入 card_no_norm）。卡表 RELATIONSHIP 实测全为「本人」，
+     * 不引入亲情账号身份。
+     */
+    static final String SELECT_REGISTRATION_IDENTITIES = """
+            SELECT Z.YLJGDM, CAST(P.ID AS VARCHAR), MAX(P.NAME), MAX(P.GENDER), NULL, NULL, MAX(P.PHONE)
+            FROM ods_ep.patient P
+            JOIN (SELECT DISTINCT YLJGDM, PATIENT_ID FROM ods_ep.ep_mz_cfzb WHERE PATIENT_ID IS NOT NULL) Z
+              ON Z.PATIENT_ID = P.ID
+            GROUP BY Z.YLJGDM, P.ID
+            """;
+
     /** 全量重算纪律：先清本租户本源旧集合（与候选对/匹配结果同一纪律）。 */
     static final String CLEAR_IDENTITIES = """
             DELETE FROM dataos_mpi.mpi_source_identity WHERE tenant_id = ? AND source_system = ?
@@ -57,12 +72,16 @@ public class MpiLoaderService {
     public record LoadResult(int identitiesLoaded, int identitiesSkipped) {
     }
 
+    /** 患者域注册路径源系统标识（T5b 第二身份流）。 */
+    public static final String SOURCE_SYSTEM_REGISTRATION = "EP-REG";
+
     public LoadResult load(String tenantId, String sourceSystem) {
         doris.update(CLEAR_IDENTITIES, tenantId, sourceSystem);
         var now = Timestamp.from(Instant.now());
         List<Object[]> batch = new ArrayList<>();
         int skipped = 0;
-        var rows = doris.query(SELECT_IDENTITIES, (rs, i) -> new Object[] {
+        var sql = SOURCE_SYSTEM_REGISTRATION.equals(sourceSystem) ? SELECT_REGISTRATION_IDENTITIES : SELECT_IDENTITIES;
+        var rows = doris.query(sql, (rs, i) -> new Object[] {
                 rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4),
                 rs.getString(5), rs.getString(6), rs.getString(7)});
         for (var row : rows) {
