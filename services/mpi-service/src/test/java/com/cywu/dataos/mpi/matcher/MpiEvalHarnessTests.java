@@ -4,16 +4,13 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.ToDoubleFunction;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.junit.jupiter.api.Test;
 
@@ -33,28 +30,21 @@ import static org.assertj.core.api.Assertions.assertThat;
  * 四、锚点：4 条人工裁决真实对，各引擎判定对照；V2 不得把不同人对判 AUTO。
  *
  * 语料字段见 eval/generate_corpus.py；运行目录为模块根（surefire 默认）。
+ * 估计数学的单一属主是 MpiWeightEstimator（T5b 漂移检测共用）。
  */
 class MpiEvalHarnessTests {
 
     private static final Path CORPUS = Path.of("eval", "corpus");
     private static final double EPSILON = 0.005;
 
-    private record Pair(String id, boolean match, String kind, boolean blockingReachable,
-                        MatchPair.Side a, MatchPair.Side b) {
-
-        /** 语料行 → 统一引擎输入（两代引擎共用的唯一适配）。 */
-        MatchPair toMatchPair() {
-            return new MatchPair(a, b);
-        }
-    }
-
+    private final MpiCorpus corpus = new MpiCorpus();
     private final ObjectMapper json = new ObjectMapper();
 
     @Test
     void calibrateEstimateMatchesPackagedWeights() throws IOException {
-        var calibration = load(CORPUS.resolve("calibration.jsonl"));
-        var frequency = nameFrequency();
-        var estimated = estimateWeights(calibration, frequency);
+        var calibration = corpus.load(CORPUS.resolve("calibration.jsonl"));
+        var frequency = corpus.nameFrequency(CORPUS.resolve("snapshot.jsonl"));
+        var estimated = new MpiWeightEstimator(frequency).estimate(labeled(calibration));
         var packaged = MpiWeights.packaged().withNameUFrequency(frequency);
 
         assertFieldEquals("card", estimated.card(), packaged.card());
@@ -68,8 +58,8 @@ class MpiEvalHarnessTests {
 
     @Test
     void evaluationReportCoversAllEnginesMetricsAndAnchors() throws IOException {
-        var evalSet = load(CORPUS.resolve("evalset.jsonl"));
-        var frequency = nameFrequency();
+        var evalSet = corpus.load(CORPUS.resolve("evalset.jsonl"));
+        var frequency = corpus.nameFrequency(CORPUS.resolve("snapshot.jsonl"));
         var weights = MpiWeights.packaged().withNameUFrequency(frequency);
         var report = report(evalSet, weights);
 
@@ -85,96 +75,20 @@ class MpiEvalHarnessTests {
                 .as("混合引擎零误否：否决带不得把同人对判 NO_MATCH").isZero();
         assertThat(report.anchorViolations).as("锚点错判清单必须为空").isEmpty();
 
-        writeReport(report.node);
+        writeReport(report.node());
     }
 
-    /** 估计 + 阈值定版 + 报告（calibrate 测试复用估计部分）。 */
-    private MpiWeights estimateWeights(List<Pair> calibration, ToDoubleFunction<String> frequency) {
-        var m = levelRates(calibration, true);
-        var u = levelRates(calibration, false);
-        var weights = new MpiWeights(
-                fieldWeights(m, u, "card"),
-                fieldWeights(m, u, "name"),
-                fieldWeights(m, u, "gender"),
-                fieldWeights(m, u, "contact"),
-                0.0, 0.0, 0.0, frequency);
-        var thresholds = calibrateThresholds(calibration, weights);
-        return new MpiWeights(fieldWeights(m, u, "card"), fieldWeights(m, u, "name"),
-                fieldWeights(m, u, "gender"), fieldWeights(m, u, "contact"),
-                thresholds[0], thresholds[1], thresholds[2], frequency);
-    }
-
-    /** 逐字段×比较级的 m/u 速率（label 侧过滤）。 */
-    private Map<String, Map<String, double[]>> levelRates(List<Pair> pairs, boolean matchSide) {
-        Map<String, Map<String, long[]>> counts = new LinkedHashMap<>();
-        for (var pair : pairs.stream().filter(p -> p.match() == matchSide).toList()) {
-            tally(counts, "card", MpiScoreMatcher.level(pair.a().card(), pair.b().card()));
-            tally(counts, "name", MpiScoreMatcher.nameLevel(pair.a().name(), pair.b().name()));
-            tally(counts, "gender", MpiScoreMatcher.genderLevel(pair.a().gender(), pair.b().gender()));
-            tally(counts, "contact", MpiScoreMatcher.level(pair.a().contactHash(), pair.b().contactHash()));
-        }
-        Map<String, Map<String, double[]>> rates = new LinkedHashMap<>();
-        counts.forEach((field, levels) -> {
-            long total = levels.values().stream().mapToLong(c -> c[0]).sum();
-            Map<String, double[]> fieldRates = new LinkedHashMap<>();
-            levels.forEach((level, count) ->
-                    fieldRates.put(level, new double[] {count[0] == 0 ? 0.0 : (double) count[0] / total}));
-            rates.put(field, fieldRates);
-        });
-        return rates;
-    }
-
-    private static void tally(Map<String, Map<String, long[]>> counts, String field,
-                              MpiScoreMatcher.Level level) {
-        counts.computeIfAbsent(field, f -> new LinkedHashMap<>())
-                .computeIfAbsent(level.name(), l -> new long[1])[0]++;
-    }
-
-    private MpiWeights.FieldWeights fieldWeights(Map<String, Map<String, double[]>> m,
-                                                 Map<String, Map<String, double[]>> u,
-                                                 String field) {
-        return new MpiWeights.FieldWeights(
-                rate(m, field, "AGREE"), rate(u, field, "AGREE"),
-                rate(m, field, "DISAGREE"), rate(u, field, "DISAGREE"),
-                rate(m, field, "MISSING"), rate(u, field, "MISSING"));
-    }
-
-    private static double rate(Map<String, Map<String, double[]>> rates, String field, String level) {
-        return rates.getOrDefault(field, Map.of()).getOrDefault(level, new double[] {0.0})[0];
-    }
-
-    /** 阈值定版（确定性）：见类注释三。返回 [tAuto, tReview, tVeto]。 */
-    private double[] calibrateThresholds(List<Pair> calibration, MpiWeights weights) {
-        var matcher = new MpiScoreMatcher(weights);
-        var matchScores = new ArrayList<Double>();
-        double maxNonMatch = Double.NEGATIVE_INFINITY;
-        for (var pair : calibration) {
-            double score = matcher.evaluate(pair.toMatchPair()).score();
-            if (pair.match()) {
-                matchScores.add(score);
-            } else {
-                maxNonMatch = Math.max(maxNonMatch, score);
-            }
-        }
-        matchScores.sort(Comparator.naturalOrder());
-        double tAuto = round2(maxNonMatch + 0.01);
-        int lostAllowed = matchScores.size() / 100;   // ≤1% 同人对允许落 NO_MATCH
-        double tReview = matchScores.isEmpty() ? tAuto
-                : round2(matchScores.get(Math.min(lostAllowed, matchScores.size() - 1)));
-        double tVeto = matchScores.isEmpty() ? Double.NEGATIVE_INFINITY
-                : round2(matchScores.get(0) - 0.01);
-        return new double[] {tAuto, tReview, tVeto};
-    }
-
-    private record Report(ObjectNode node, Map<String, Confusion> confusions,
-                          List<String> anchorViolations) {
+    private static List<MpiWeightEstimator.LabeledPair> labeled(List<MpiCorpus.Pair> pairs) {
+        return pairs.stream()
+                .map(p -> new MpiWeightEstimator.LabeledPair(p.match(), p.toMatchPair()))
+                .toList();
     }
 
     /** 参评引擎（报告键 / 标签 / seam 实现），加引擎只加一行。 */
     private record Engine(String key, String label, PairScorer scorer) {
     }
 
-    private Report report(List<Pair> evalSet, MpiWeights weights) throws IOException {
+    private Report report(List<MpiCorpus.Pair> evalSet, MpiWeights weights) throws IOException {
         var engines = List.of(
                 new Engine("v1", "V1 规则", new MpiRuleMatcher()),
                 new Engine("v2", "V2 评分", new MpiScoreMatcher(weights)),
@@ -193,7 +107,7 @@ class MpiEvalHarnessTests {
             confusions.put(engine.key(), confusion);
         }
 
-        var anchors = anchors();
+        var anchors = corpus.anchors(CORPUS);
         var violations = new ArrayList<String>();
         var anchorRows = json.createArrayNode();
         for (var anchor : anchors) {
@@ -214,7 +128,7 @@ class MpiEvalHarnessTests {
         node.put("corpus", "eval/corpus/evalset.jsonl (seed 20260828)");
         confusions.forEach((key, confusion) -> node.set(key, confusion.toJson(json)));
         node.put("positivesBlockingReachable", positivesBlockingReachable);
-        node.put("positives", evalSet.stream().filter(Pair::match).count());
+        node.put("positives", evalSet.stream().filter(MpiCorpus.Pair::match).count());
         node.set("anchors", anchorRows);
         var thresholds = json.createObjectNode();
         thresholds.put("tAuto", weights.tAuto());
@@ -228,7 +142,7 @@ class MpiEvalHarnessTests {
 
     /** T_AUTO 敏感度：放宽错误 AUTO 允许量 k 时的召回/负担变化（诚实呈现
      *  零误并约束的代价曲线；生产策略仍取 k=0）。 */
-    private ArrayNode sensitivitySweep(List<Pair> evalSet, MpiWeights weights) {
+    private ArrayNode sensitivitySweep(List<MpiCorpus.Pair> evalSet, MpiWeights weights) {
         var matcher = new MpiScoreMatcher(weights);
         var matchScores = new ArrayList<Double>();
         var nonMatchScores = new ArrayList<Double>();
@@ -236,8 +150,8 @@ class MpiEvalHarnessTests {
             double score = matcher.evaluate(pair.toMatchPair()).score();
             (pair.match() ? matchScores : nonMatchScores).add(score);
         }
-        matchScores.sort(Comparator.reverseOrder());
-        nonMatchScores.sort(Comparator.reverseOrder());
+        matchScores.sort(java.util.Comparator.reverseOrder());
+        nonMatchScores.sort(java.util.Comparator.reverseOrder());
         var sweep = json.createArrayNode();
         for (int allowedFalseAuto : new int[] {0, 1, 2, 5}) {
             double tAuto = allowedFalseAuto == 0
@@ -257,7 +171,7 @@ class MpiEvalHarnessTests {
 
     /** T_VETO 敏感度：否决下限取不同值时的误否（同人对被否决掉）与复核
      *  减免（非同人被免除）——诚实呈现零误否约束下的负担削减曲线。 */
-    private ArrayNode vetoSensitivitySweep(List<Pair> evalSet, MpiWeights weights) {
+    private ArrayNode vetoSensitivitySweep(List<MpiCorpus.Pair> evalSet, MpiWeights weights) {
         var rules = new MpiRuleMatcher();
         var scorer = new MpiScoreMatcher(weights);
         record Row(boolean match, Outcome v1, double score) {
@@ -355,69 +269,15 @@ class MpiEvalHarnessTests {
         }
     }
 
+    private record Report(ObjectNode node, Map<String, Confusion> confusions,
+                          List<String> anchorViolations) {
+    }
+
     private void writeReport(ObjectNode node) throws IOException {
         var dir = Path.of("eval", "reports");
         Files.createDirectories(dir);
         Files.writeString(dir.resolve("eval-report.json"),
                 json.writerWithDefaultPrettyPrinter().writeValueAsString(node) + "\n");
-    }
-
-    private List<Pair> load(Path path) throws IOException {
-        var pairs = new ArrayList<Pair>();
-        for (String line : Files.readAllLines(path)) {
-            var node = json.readTree(line);
-            pairs.add(new Pair(
-                    node.get("id").asText(),
-                    "MATCH".equals(node.get("label").asText()),
-                    node.get("kind").asText(),
-                    node.get("blockingReachable").asBoolean(),
-                    side(node.get("a")), side(node.get("b"))));
-        }
-        assertThat(pairs).isNotEmpty();
-        return pairs;
-    }
-
-    private record Anchor(String id, boolean match, Pair pair) {
-    }
-
-    private List<Anchor> anchors() throws IOException {
-        var anchors = new ArrayList<Anchor>();
-        for (String line : Files.readAllLines(CORPUS.resolve("anchors.jsonl"))) {
-            var node = json.readTree(line);
-            boolean same = "SAME_PERSON".equals(node.get("resolution").asText());
-            String id = "anchor-" + node.get("pairId").asText();
-            anchors.add(new Anchor(id, same,
-                    new Pair(id, same, "human-anchor", false,
-                            side(node.get("a")), side(node.get("b")))));
-        }
-        return anchors;
-    }
-
-    private ToDoubleFunction<String> nameFrequency() throws IOException {
-        Map<String, Integer> counts = new HashMap<>();
-        int total = 0;
-        for (String line : Files.readAllLines(CORPUS.resolve("snapshot.jsonl"))) {
-            var node = json.readTree(line);
-            counts.merge(node.get("name").asText(), 1, Integer::sum);
-            total++;
-        }
-        assertThat(total).isGreaterThan(0);
-        final int denominator = total;
-        Map<String, Double> frozen = new HashMap<>();
-        counts.forEach((name, count) -> frozen.put(name, (double) count / denominator));
-        return name -> frozen.getOrDefault(name, frozen.values().stream()
-                .mapToDouble(Double::doubleValue).average().orElse(0.4));
-    }
-
-    private static MatchPair.Side side(JsonNode node) {
-        return new MatchPair.Side(node.get("institution").asText(null), node.get("patientId").asText(null),
-                nullsToNull(node.get("card")), node.get("name").asText(null),
-                nullsToNull(node.get("gender")), nullsToNull(node.get("contactHash")));
-    }
-
-    /** JSON null → Java null（缺失语义在比较级里承载）。 */
-    private static String nullsToNull(JsonNode node) {
-        return node == null || node.isNull() ? null : node.asText();
     }
 
     private void assertFieldEquals(String field, MpiWeights.FieldWeights estimated,
