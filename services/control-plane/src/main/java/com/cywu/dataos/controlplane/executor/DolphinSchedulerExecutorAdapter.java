@@ -121,6 +121,31 @@ public class DolphinSchedulerExecutorAdapter implements ExecutorAdapter {
     }
 
     @Override
+    public boolean configured() {
+        return !baseUrl.isBlank();
+    }
+
+    @Override
+    public java.util.Optional<String> readinessEndpoint() {
+        return configured() ? java.util.Optional.of(baseUrl + "/actuator/health") : java.util.Optional.empty();
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public Map<String, String> healthFacts() {
+        if (!configured()) return Map.of();
+        Map<String, Object> response = restClient.get().uri(baseUrl + "/actuator/health")
+                .retrieve().body(Map.class);
+        var status = response == null ? null : response.get("status");
+        var facts = new HashMap<String, String>();
+        if (status != null && !String.valueOf(status).isBlank()) {
+            facts.put("健康状态", String.valueOf(status));
+        }
+        facts.put("探针", "actuator/health");
+        return facts;
+    }
+
+    @Override
     public AdapterSubmission submit(IngestionJob job, Map<String, Object> requestConfig) {
         return submit(job, requestConfig, null);
     }

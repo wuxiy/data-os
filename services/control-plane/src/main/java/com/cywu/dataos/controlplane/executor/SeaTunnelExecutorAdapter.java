@@ -71,6 +71,34 @@ public class SeaTunnelExecutorAdapter implements ExecutorAdapter {
     }
 
     @Override
+    public boolean configured() {
+        return !baseUrl.isBlank();
+    }
+
+    @Override
+    public java.util.Optional<String> readinessEndpoint() {
+        return configured() ? java.util.Optional.of(baseUrl + "/overview") : java.util.Optional.empty();
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public Map<String, String> healthFacts() {
+        if (!configured()) return Map.of();
+        // /overview 是 SeaTunnel 的集群概要端点（版本/集群名/节点数词表归此处）。
+        Map<String, Object> response = restClient.get().uri(baseUrl + "/overview").retrieve().body(Map.class);
+        if (response == null) return Map.of();
+        var facts = new HashMap<String, String>();
+        putFact(facts, "版本", response.get("projectVersion"));
+        putFact(facts, "集群", response.get("clusterName"));
+        putFact(facts, "节点", AdapterHttp.first(response, "workerCount", "workerNum", "memberCount"));
+        return facts;
+    }
+
+    private static void putFact(Map<String, String> target, String label, Object value) {
+        if (value != null && !String.valueOf(value).isBlank()) target.put(label, String.valueOf(value));
+    }
+
+    @Override
     public AdapterSubmission submit(IngestionJob job, Map<String, Object> requestConfig) {
         return submit(job, requestConfig, null);
     }

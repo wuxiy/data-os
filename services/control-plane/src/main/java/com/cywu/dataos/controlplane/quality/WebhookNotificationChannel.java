@@ -54,6 +54,20 @@ public class WebhookNotificationChannel implements NotificationChannel {
     }
 
     @Override
+    public boolean configured() {
+        return !webhookUrl.isBlank() && secrets.current().length() >= 32;
+    }
+
+    @Override
+    public String configurationProblem() {
+        if (webhookUrl.isBlank()) return "责任人 Webhook 未配置，通知只会记录为 SKIPPED";
+        var secret = secrets.current();
+        if (secret.isBlank()) return "责任人 Webhook 签名密钥缺失，通知不会发送";
+        if (secret.length() < 32) return "责任人 Webhook 签名密钥强度不足，通知不会发送";
+        return "";
+    }
+
+    @Override
     public NotificationDeliveryResult send(GovernanceNotification notification) {
         if (webhookUrl.isBlank()) {
             return new NotificationDeliveryResult("SKIPPED", "责任人签名 Webhook 未配置");

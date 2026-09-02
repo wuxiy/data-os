@@ -1,12 +1,34 @@
 package com.cywu.dataos.controlplane.executor;
 
 import java.util.Map;
+import java.util.Optional;
 
 import com.cywu.dataos.controlplane.job.IngestionJob;
 
 public interface ExecutorAdapter {
 
     boolean supports(String executor);
+
+    /**
+     * 「是否配置好」由执行器自答（base-url 等装配前提）——消费方
+     * （运行状态、平台巡检）按名询问，不自行读取执行器配置键。
+     */
+    default boolean configured() {
+        return false;
+    }
+
+    /** 就绪探测端点（绝对 URL）；空 = 无独立探针，configured 即视为就绪。 */
+    default Optional<String> readinessEndpoint() {
+        return Optional.empty();
+    }
+
+    /**
+     * 平台巡检事实（厂商字段词表归 adapter；键为展示标签，值为展示值）。
+     * 未配置返回空 Map；不可达抛 RuntimeException 由巡检方记 DOWN。
+     */
+    default Map<String, String> healthFacts() {
+        return Map.of();
+    }
 
     AdapterSubmission submit(IngestionJob job, Map<String, Object> config);
 

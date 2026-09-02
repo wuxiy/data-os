@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.cywu.dataos.controlplane.executor.AdapterHttp;
+import com.cywu.dataos.controlplane.executor.ExecutorAdapter;
 import com.cywu.dataos.controlplane.operational.OperationalFacts;
 import com.cywu.dataos.controlplane.operational.OperationalFactsRegistry;
 import com.cywu.dataos.controlplane.quality.QualityRuleExecutor;
@@ -29,12 +30,11 @@ import org.springframework.web.client.RestClientResponseException;
 public final class PlatformOperationsService {
 
     private final RestClient restClient;
-    private final String seatunnelBaseUrl;
+    private final List<ExecutorAdapter> executorAdapters;
     private final String qualityExecutor;
     private final List<QualityRuleExecutor> qualityExecutors;
     private final String notificationHealthUrl;
     private final String seatunnelUiUrl;
-    private final String dolphinschedulerBaseUrl;
     private final String dolphinschedulerUiUrl;
     private final String rustfsEndpoint;
     private final String rustfsConsoleUrl;
@@ -42,23 +42,21 @@ public final class PlatformOperationsService {
 
     public PlatformOperationsService(
             RestClient.Builder builder,
-            @Value("${data-os.seatunnel.base-url:}") String seatunnelBaseUrl,
+            List<ExecutorAdapter> executorAdapters,
             @Value("${data-os.quality.executor:HTTP}") String qualityExecutor,
             List<QualityRuleExecutor> qualityExecutors,
             @Value("${data-os.notification.health-url:}") String notificationHealthUrl,
             @Value("${data-os.platform.seatunnel-ui-url:}") String seatunnelUiUrl,
-            @Value("${data-os.dolphinscheduler.base-url:}") String dolphinschedulerBaseUrl,
             @Value("${data-os.platform.dolphinscheduler-ui-url:}") String dolphinschedulerUiUrl,
             @Value("${data-os.platform.rustfs-endpoint:}") String rustfsEndpoint,
             @Value("${data-os.platform.rustfs-console-url:}") String rustfsConsoleUrl,
             OperationalFactsRegistry operationalFacts) {
         this.restClient = AdapterHttp.restClient(builder, Duration.ofSeconds(2), Duration.ofSeconds(4));
-        this.seatunnelBaseUrl = AdapterHttp.normalizeBaseUrl(seatunnelBaseUrl);
+        this.executorAdapters = executorAdapters;
         this.qualityExecutor = qualityExecutor == null ? "HTTP" : qualityExecutor.trim().toUpperCase(java.util.Locale.ROOT);
         this.qualityExecutors = qualityExecutors;
         this.notificationHealthUrl = AdapterHttp.normalizeBaseUrl(notificationHealthUrl);
         this.seatunnelUiUrl = browserUrl(seatunnelUiUrl);
-        this.dolphinschedulerBaseUrl = AdapterHttp.normalizeBaseUrl(dolphinschedulerBaseUrl);
         this.dolphinschedulerUiUrl = browserUrl(dolphinschedulerUiUrl);
         this.rustfsEndpoint = AdapterHttp.normalizeBaseUrl(rustfsEndpoint);
         this.rustfsConsoleUrl = browserUrl(rustfsConsoleUrl);
@@ -106,43 +104,33 @@ public final class PlatformOperationsService {
         }
     }
 
-    private PlatformServiceStatus probeSeaTunnel(Instant checkedAt) {
-        if (seatunnelBaseUrl.isBlank()) {
-            return notConfigured("seatunnel", "SeaTunnel", "采集执行器", "中心采集任务的运行态与版本信息。",
-                    checkedAt, seatunnelUiUrl);
+    /** 采集执行器是否配置好、健康事实是什么，由 adapter 自答——厂商端点
+     *  与字段词表不进平台巡检。 */
+    private PlatformServiceStatus probeExecutor(String key, String name, String role, String description,
+                                                Instant checkedAt, String uiUrl, String executorName,
+                                                String upDetail) {
+        var adapter = executorAdapters.stream()
+                .filter(item -> item.supports(executorName)).findFirst();
+        if (adapter.isEmpty() || !adapter.get().configured()) {
+            return notConfigured(key, name, role, description, checkedAt, uiUrl);
         }
         try {
-            var response = get(seatunnelBaseUrl + "/overview");
-            var metrics = new LinkedHashMap<String, String>();
-            put(metrics, "版本", response.get("projectVersion"));
-            put(metrics, "集群", response.get("clusterName"));
-            put(metrics, "节点", AdapterHttp.first(response, "workerCount", "workerNum", "memberCount"));
-            return up("seatunnel", "SeaTunnel", "采集执行器", "中心采集任务的运行态与版本信息。",
-                    checkedAt, "overview 探针返回正常", seatunnelUiUrl, metrics);
+            return up(key, name, role, description, checkedAt, upDetail, uiUrl,
+                    adapter.get().healthFacts());
         } catch (RestClientException exception) {
-            return down("seatunnel", "SeaTunnel", "采集执行器", "中心采集任务的运行态与版本信息。",
-                    checkedAt, errorDetail(exception), seatunnelUiUrl);
+            return down(key, name, role, description, checkedAt, errorDetail(exception), uiUrl);
         }
     }
 
+    private PlatformServiceStatus probeSeaTunnel(Instant checkedAt) {
+        return probeExecutor("seatunnel", "SeaTunnel", "采集执行器", "中心采集任务的运行态与版本信息。",
+                checkedAt, seatunnelUiUrl, "SEATUNNEL", "overview 探针返回正常");
+    }
+
     private PlatformServiceStatus probeDolphinScheduler(Instant checkedAt) {
-        if (dolphinschedulerBaseUrl.isBlank()) {
-            return notConfigured("dolphinscheduler", "DolphinScheduler", "编排调度器",
-                    "已发布工作流、调度实例与补数编排的技术入口。", checkedAt, dolphinschedulerUiUrl);
-        }
-        try {
-            var response = get(dolphinschedulerBaseUrl + "/actuator/health");
-            var metrics = new LinkedHashMap<String, String>();
-            put(metrics, "健康状态", response.get("status"));
-            put(metrics, "探针", "actuator/health");
-            return up("dolphinscheduler", "DolphinScheduler", "编排调度器",
-                    "已发布工作流、调度实例与补数编排的技术入口。", checkedAt,
-                    "健康探针返回正常", dolphinschedulerUiUrl, metrics);
-        } catch (RestClientException exception) {
-            return down("dolphinscheduler", "DolphinScheduler", "编排调度器",
-                    "已发布工作流、调度实例与补数编排的技术入口。", checkedAt,
-                    errorDetail(exception), dolphinschedulerUiUrl);
-        }
+        return probeExecutor("dolphinscheduler", "DolphinScheduler", "编排调度器",
+                "已发布工作流、调度实例与补数编排的技术入口。", checkedAt, dolphinschedulerUiUrl,
+                "DOLPHINSCHEDULER", "健康探针返回正常");
     }
 
     private PlatformServiceStatus probeRustFs(Instant checkedAt) {
@@ -171,6 +159,10 @@ public final class PlatformOperationsService {
         return body == null ? Map.of() : body;
     }
 
+    private void put(Map<String, String> target, String label, Object value) {
+        if (value != null && !String.valueOf(value).isBlank()) target.put(label, String.valueOf(value));
+    }
+
     private PlatformServiceStatus up(String key, String name, String role, String description, Instant checkedAt,
                                      String detail, String uiUrl, Map<String, String> metrics) {
         return new PlatformServiceStatus(key, name, role, "UP", description, checkedAt, detail, uiUrl, metrics);
@@ -192,10 +184,6 @@ public final class PlatformOperationsService {
             return "HTTP " + responseException.getStatusCode().value();
         }
         return "探针请求失败";
-    }
-
-    private void put(Map<String, String> target, String label, Object value) {
-        if (value != null && !String.valueOf(value).isBlank()) target.put(label, String.valueOf(value));
     }
 
     private String browserUrl(String value) {
