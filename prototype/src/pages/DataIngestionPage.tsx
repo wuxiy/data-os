@@ -122,16 +122,19 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
   const [workflowTemplates, setWorkflowTemplates] = useState<WorkflowTemplateApiItem[]>([])
   const [latestRuns, setLatestRuns] = useState<Record<string, IngestionRunApiItem>>({})
   const [state, setState] = useState<'loading' | 'live' | 'unavailable'>('loading')
-  const { pendingKey: runningJob, run: runJobAction } = useAction(onNotice)
+  const { pendingKey, run: runJobAction } = useAction(onNotice)
+  // 派生 busy：创建任务 / 保存配置 / 源检查三组 Drawer 动作共用互斥机。
+  const creatingJob = pendingKey === 'create-job'
+  const configSaving = pendingKey === 'save-config'
+  const sourceCheckLoading = pendingKey === 'source-check'
+  const runningJob = pendingKey
   const [sourceFormOpen, setSourceFormOpen] = useState(false)
   const [sourceForm, setSourceForm] = useState({ name: '', systemType: 'LIS', protocol: 'JDBC' })
   const [creatingSource, setCreatingSource] = useState(false)
   const [jobFormOpen, setJobFormOpen] = useState(false)
   const [jobForm, setJobForm] = useState<JobFormState>(newJobForm())
-  const [creatingJob, setCreatingJob] = useState(false)
   const [configuringJob, setConfiguringJob] = useState<IngestionJobApiItem | null>(null)
   const [configLoading, setConfigLoading] = useState(false)
-  const [configSaving, setConfigSaving] = useState(false)
   const [configError, setConfigError] = useState<string | null>(null)
   const [configTemplateKey, setConfigTemplateKey] = useState(DEFAULT_TEMPLATE_KEY)
   const [configTemplateVersion, setConfigTemplateVersion] = useState(DEFAULT_TEMPLATE_VERSION)
@@ -142,7 +145,6 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
   const [detailsError, setDetailsError] = useState<string | null>(null)
   const [checkingSource, setCheckingSource] = useState<SourceApiItem | null>(null)
   const [sourceCheckText, setSourceCheckText] = useState('')
-  const [sourceCheckLoading, setSourceCheckLoading] = useState(false)
   const [sourceCheckError, setSourceCheckError] = useState<string | null>(null)
   // 主载入有意手写（不用 useApiResource）：列表先落位进入 live、各作业最新
   // 运行随后补齐的两段渐进 UX 需要在 onData 之后继续持有同一中止信号。
@@ -319,18 +321,12 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
       setSourceCheckError(error instanceof Error ? error.message : '检查配置 JSON 不合法')
       return
     }
-    setSourceCheckLoading(true)
-    setSourceCheckError(null)
-    try {
+    void runJobAction('source-check', '数据源检查失败，请稍后重试', async () => {
       const updated = await checkSource(checkingSource.id, config)
       setSources((current) => current.map((item) => item.id === updated.id ? updated : item))
       setCheckingSource(updated)
       onNotice(`数据源检查完成：${sourceStatusLabel(updated.status).label}`)
-    } catch (error) {
-      setSourceCheckError(error instanceof Error ? error.message : '数据源检查失败，请稍后重试')
-    } finally {
-      setSourceCheckLoading(false)
-    }
+    }, (message) => setSourceCheckError(message))
   }
 
   async function submitSource(event: FormEvent<HTMLFormElement>) {
@@ -372,8 +368,7 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
       onNotice(error instanceof Error ? error.message : '配置 JSON 不合法')
       return
     }
-    setCreatingJob(true)
-    try {
+    void runJobAction('create-job', '采集任务创建失败，请检查配置内容与控制面日志', async () => {
       const job = await createIngestionJob({
         sourceId: jobForm.sourceId,
         name: jobForm.name.trim(),
@@ -387,11 +382,7 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
       setJobForm(newJobForm(jobForm.sourceId))
       setJobFormOpen(false)
       onNotice(`采集任务已创建：${job.name}`)
-    } catch (error) {
-      onNotice(error instanceof Error ? error.message : '采集任务创建失败，请检查配置内容与控制面日志')
-    } finally {
-      setCreatingJob(false)
-    }
+    })
   }
 
   async function openJobConfig(job: IngestionJobApiItem) {
@@ -432,9 +423,7 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
       setConfigError(error instanceof Error ? error.message : '配置 JSON 不合法')
       return
     }
-    setConfigSaving(true)
-    setConfigError(null)
-    try {
+    void runJobAction('save-config', '配置保存失败。请确认 JSON 结构正确，且未填写明文密码或密钥。', async () => {
       const saved = await saveJobConfig(configuringJob.id, {
         templateKey: configTemplateKey,
         templateVersion: configTemplateVersion,
@@ -445,11 +434,7 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
         : item))
       setConfiguringJob((current) => current ? { ...current, configured: true, templateKey: saved.templateKey, templateVersion: saved.templateVersion } : current)
       onNotice(`任务配置已保存：${saved.templateKey} v${saved.templateVersion}`)
-    } catch (error) {
-      setConfigError(error instanceof Error ? error.message : '配置保存失败。请确认 JSON 结构正确，且未填写明文密码或密钥。')
-    } finally {
-      setConfigSaving(false)
-    }
+    }, (message) => setConfigError(message))
   }
 
   function openRunDetails(job: IngestionJobApiItem) {

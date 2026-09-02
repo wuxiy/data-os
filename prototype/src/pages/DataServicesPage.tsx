@@ -1,5 +1,6 @@
 import { Boxes, RefreshCw } from 'lucide-react'
 import { useState } from 'react'
+import { useAction } from '../hooks/useAction'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Button, StatusTag } from '../components/ui/Primitives'
 import {
@@ -82,7 +83,10 @@ function DataServicesLive({ onNotice }: { onNotice: (message: string) => void })
     setRefreshTick((tick) => tick + 1)
   }
 
-  async function submitCreate() {
+  // 动作互斥与错误归置统一（创建/发布/下线/发放/吊销）。
+  const { pendingKey, run: runAction } = useAction((message) => onNotice(message))
+
+  function submitCreate() {
     if (!form.code.trim() || !form.name.trim() || !form.sqlTemplate.trim() || !form.owner.trim()) {
       onNotice('请完整填写代码、名称、负责人与 SQL 模板')
       return
@@ -96,7 +100,7 @@ function DataServicesLive({ onNotice }: { onNotice: (message: string) => void })
       onNotice('参数契约与列契约必须是合法 JSON 数组')
       return
     }
-    try {
+    void runAction('create-service', '创建失败', async () => {
       const created = await createDataService({
         code: form.code.trim(),
         name: form.name.trim(),
@@ -112,29 +116,23 @@ function DataServicesLive({ onNotice }: { onNotice: (message: string) => void })
       setCreating(false)
       setSelectedId(created.id)
       refresh()
-    } catch (error) {
-      onNotice(error instanceof Error ? error.message : '创建失败')
-    }
+    })
   }
 
-  async function publish(service: DataService) {
-    try {
+  function publish(service: DataService) {
+    void runAction(`publish-${service.id}`, '发布失败', async () => {
       const updated = await publishDataService(service.id)
       onNotice(`${updated.code} 已发布（执行面 30s 内生效）`)
       refresh()
-    } catch (error) {
-      onNotice(error instanceof Error ? error.message : '发布失败')
-    }
+    })
   }
 
-  async function deprecate(service: DataService) {
-    try {
+  function deprecate(service: DataService) {
+    void runAction(`deprecate-${service.id}`, '下线失败', async () => {
       const updated = await deprecateDataService(service.id)
       onNotice(`${updated.code} 已下线`)
       refresh()
-    } catch (error) {
-      onNotice(error instanceof Error ? error.message : '下线失败')
-    }
+    })
   }
 
   if (listState !== 'live') {
@@ -264,6 +262,7 @@ function DataServiceDetailPanel({ service, onNotice, onChanged, onPublish, onDep
   onDeprecate: () => void
 }) {
   const [detail, setDetail] = useState<DataServiceDetail | null>(null)
+  const { pendingKey, run: runAction } = useAction((message) => onNotice(message))
   const [calls, setCalls] = useState<DataServiceCallItem[]>([])
   const [issuedKey, setIssuedKey] = useState('')
   const [keyForm, setKeyForm] = useState({ callerName: '', quota: '100', hospitals: '*' })
@@ -294,7 +293,7 @@ function DataServiceDetailPanel({ service, onNotice, onChanged, onPublish, onDep
       onNotice('请填写调用方名称')
       return
     }
-    try {
+    void runAction('issue-key', '发放失败', async () => {
       const issued = await issueDataServiceKey(
         service.id,
         keyForm.callerName.trim(),
@@ -306,20 +305,16 @@ function DataServiceDetailPanel({ service, onNotice, onChanged, onPublish, onDep
       setKeyForm({ callerName: '', quota: '100', hospitals: '*' })
       setRefreshTick((tick) => tick + 1)
       onChanged()
-    } catch (error) {
-      onNotice(error instanceof Error ? error.message : '发放失败')
-    }
+    })
   }
 
-  async function revoke(keyId: string) {
-    try {
+  function revoke(keyId: string) {
+    void runAction(`revoke-${keyId}`, '吊销失败', async () => {
       await revokeDataServiceKey(service.id, keyId)
       onNotice('Key 已吊销（执行面 30s 缓存窗口后生效）')
       setRefreshTick((tick) => tick + 1)
       onChanged()
-    } catch (error) {
-      onNotice(error instanceof Error ? error.message : '吊销失败')
-    }
+    })
   }
 
   return (

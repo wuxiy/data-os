@@ -16,6 +16,7 @@ import {
   type AIDataProductDetail,
   type AIEvaluationFeedbackItem,
 } from '../data/aiDataApi'
+import { useAction } from '../hooks/useAction'
 import { useKeyedResource } from '../hooks/useKeyedResource'
 import styles from './IntegrationPages.module.css'
 
@@ -53,28 +54,27 @@ export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, 
     },
   })
 
-  async function handleSubmitCertification() {
-    try {
+  // 动作互斥与错误归置统一（认证提交/反馈处置/反馈提交/审批）。
+  const { run: runAction } = useAction((message) => onNotice(message))
+
+  function handleSubmitCertification() {
+    void runAction('submit-certification', '提交失败', async () => {
       await submitCertification(productId)
       onNotice('认证审批已提交（等待审批）')
       onChanged?.()
-    } catch (error) {
-      onNotice(error instanceof Error ? error.message : '提交失败')
-    }
+    })
   }
 
-  async function handleResolveFeedback(feedbackId: string, consume: boolean) {
-    try {
+  function handleResolveFeedback(feedbackId: string, consume: boolean) {
+    void runAction(`resolve-${feedbackId}`, '处置失败', async () => {
       await resolveFeedback(feedbackId, consume, consume ? '已吸收进下一版本改进' : '证据不足驳回')
       onNotice(consume ? '反馈已标记吸收（由人工触发新版本与语料调整）' : '反馈已驳回')
       onChanged?.()
-    } catch (error) {
-      onNotice(error instanceof Error ? error.message : '处置失败')
-    }
+    })
   }
 
-  async function handleSubmitFeedback() {
-    try {
+  function handleSubmitFeedback() {
+    void runAction('submit-feedback', '提交失败', async () => {
       await submitFeedback(productId, {
         question: window.prompt('失败样本问题（评测明细中的问题）') ?? '',
         metric: 'faithfulness',
@@ -82,19 +82,15 @@ export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, 
       })
       onNotice('反馈已提交（进入 Learning Plane 队列）')
       onChanged?.()
-    } catch (error) {
-      onNotice(error instanceof Error ? error.message : '提交失败')
-    }
+    })
   }
 
-  async function handleDecision(request: AICertificationRequest, approve: boolean) {
-    try {
+  function handleDecision(request: AICertificationRequest, approve: boolean) {
+    void runAction(`decide-${request.id}`, '审批失败', async () => {
       await decideCertification(request.id, approve, approve ? '同意认证' : '退回：证据不足')
       onNotice(approve ? '已批准，产品进入「已认证」' : '已退回，保持「已评估」')
       onChanged?.()
-    } catch (error) {
-      onNotice(error instanceof Error ? error.message : '审批失败')
-    }
+    })
   }
 
   if (state === 'loading' || state === 'error' || !detail) {

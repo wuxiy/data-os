@@ -8,50 +8,16 @@ import {
   fetchMpiCandidates,
   fetchMpiMetrics,
   fetchMpiPerson,
+  mpiEvidenceFieldLabel,
+  mpiRuleLabel,
   rebuildMpi,
   splitMpiPerson,
   type MpiCandidateItem,
   type MpiDecisionResponse,
   type MpiPersonDetail,
 } from '../data/mpiApi'
+import { useAction } from '../hooks/useAction'
 import styles from './Pages.module.css'
-
-const RULE_LABELS: Record<string, string> = {
-  'M-ep1': '同机构同主键同人',
-  'M-ep2': '同卡同人（自动合并）',
-  'P-ep1': '卡号复用冲突',
-  'P-ep2': '同名同性别待核',
-  'H-ep1': '人工已判不同人',
-  'H-ep2': '人工已拆分',
-  'P-fallback': '弱证据待核',
-}
-
-const FIELD_LABELS: Record<string, string> = {
-  institution: '机构',
-  patientId: '患者主键',
-  cardNo: '卡号',
-  name: '姓名',
-  gender: '性别',
-  contact: '联系方式',
-  // G14 影子评分：valueA=分数(bit)、valueB=V2 三态；「一致/不一致」= V2 与规则层结论是否一致。
-  v2Score: 'V2 影子评分',
-}
-
-interface EvidenceItem {
-  field: string
-  valueA: string
-  valueB: string
-  match: boolean
-}
-
-function parseEvidence(raw: string): EvidenceItem[] {
-  try {
-    const parsed = JSON.parse(raw) as EvidenceItem[]
-    return Array.isArray(parsed) ? parsed : []
-  } catch {
-    return []
-  }
-}
 
 /**
  * 主索引复核工作台（真实数据）：候选队列 → 双侧身份对比 → 匹配证据 →
@@ -64,10 +30,9 @@ export function MpiReviewLive({ onNotice }: { onNotice: (message: string) => voi
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [confirmed, setConfirmed] = useState(false)
-  const [decisionError, setDecisionError] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
-  const [rebuilding, setRebuilding] = useState(false)
   const [personDrawerId, setPersonDrawerId] = useState<string | null>(null)
+  // 动作互斥与错误归置统一（决策/重算/拆分共用一台互斥机）。
+  const { pendingKey, error: decisionError, run: runAction } = useAction()
 
   const reload = useCallback((signal?: AbortSignal) => Promise.all([
     fetchMpiMetrics(signal),
@@ -95,7 +60,7 @@ export function MpiReviewLive({ onNotice }: { onNotice: (message: string) => voi
     () => candidates.find((item) => item.taskId === selectedTaskId) ?? candidates[0] ?? null,
     [candidates, selectedTaskId],
   )
-  const evidence = selected ? parseEvidence(selected.evidence) : []
+  const evidence = selected?.evidence ?? []
   const visibleCandidates = useMemo(() => {
     const keyword = query.trim().toLowerCase()
     if (!keyword) return candidates
@@ -111,11 +76,9 @@ export function MpiReviewLive({ onNotice }: { onNotice: (message: string) => voi
     setConfirmed(false)
   }
 
-  async function submitDecision(resolution: 'SAME_PERSON' | 'DIFFERENT_PERSON') {
+  function submitDecision(resolution: 'SAME_PERSON' | 'DIFFERENT_PERSON') {
     if (!selected) return
-    setBusy(true)
-    setDecisionError(null)
-    try {
+    void runAction(`decision-${resolution}`, '决策提交失败', async () => {
       const result: MpiDecisionResponse = await decideMpiTask(
         selected.taskId, resolution, resolution === 'SAME_PERSON' ? '工作台人工确认同人' : '工作台人工确认不同人')
       await refreshAfterAction()
@@ -125,25 +88,15 @@ export function MpiReviewLive({ onNotice }: { onNotice: (message: string) => voi
       } else {
         onNotice('已确认不同人：该候选对不再自动进入复核（人工否决生效）')
       }
-    } catch (error) {
-      setDecisionError(error instanceof Error ? error.message : '决策提交失败')
-    } finally {
-      setBusy(false)
-    }
+    })
   }
 
-  async function triggerRebuild() {
-    setRebuilding(true)
-    setDecisionError(null)
-    try {
+  function triggerRebuild() {
+    void runAction('rebuild', '重算失败', async () => {
       const result = await rebuildMpi()
       onNotice(`重算完成：${result.identitiesLoaded} 身份 / ${result.candidatePairs} 候选对 / 自动匹配 ${result.outcomes.autoMatch}`)
       await refreshAfterAction()
-    } catch (error) {
-      setDecisionError(error instanceof Error ? error.message : '重算失败')
-    } finally {
-      setRebuilding(false)
-    }
+    })
   }
 
   const identityRows = selected ? [
@@ -183,9 +136,9 @@ export function MpiReviewLive({ onNotice }: { onNotice: (message: string) => voi
             <ul className={styles.queue}>
               {visibleCandidates.map((candidate) => (
                 <li key={candidate.taskId}>
-                  <button className={selected?.taskId === candidate.taskId ? styles.selected : ''} onClick={() => { setSelectedTaskId(candidate.taskId); setConfirmed(false); setDecisionError(null) }}>
+                  <button className={selected?.taskId === candidate.taskId ? styles.selected : ''} onClick={() => { setSelectedTaskId(candidate.taskId); setConfirmed(false) }}>
                     <span className={styles.queueTop}>
-                      <span className={styles.queueId}>{RULE_LABELS[candidate.ruleId] ?? candidate.ruleId}</span>
+                      <span className={styles.queueId}>{mpiRuleLabel[candidate.ruleId] ?? candidate.ruleId}</span>
                       <StatusTag tone="warning">{candidate.ruleId}</StatusTag>
                     </span>
                     <span className={styles.queueTitle}>{candidate.identityA.name} ↔ {candidate.identityB.name}</span>
@@ -196,7 +149,7 @@ export function MpiReviewLive({ onNotice }: { onNotice: (message: string) => voi
               {visibleCandidates.length === 0 ? <li className={styles.emptyState}>当前没有待复核候选</li> : null}
             </ul>
             <div className={styles.railActions}>
-              <Button onClick={triggerRebuild} disabled={rebuilding}><RefreshCw size={14} className={rebuilding ? styles.spin : undefined} />{rebuilding ? '重算中…' : '重算主索引'}</Button>
+              <Button onClick={triggerRebuild} disabled={pendingKey !== null}><RefreshCw size={14} className={pendingKey === 'rebuild' ? styles.spin : undefined} />{pendingKey === 'rebuild' ? '重算中…' : '重算主索引'}</Button>
             </div>
           </aside>
 
@@ -207,7 +160,7 @@ export function MpiReviewLive({ onNotice }: { onNotice: (message: string) => voi
                   <div>
                     <StatusTag tone="warning">需人工确认</StatusTag>
                     <h2>{selected.identityA.name} 与 {selected.identityB.name}</h2>
-                    <p>{RULE_LABELS[selected.ruleId] ?? selected.ruleId} · 候选对 {selected.pairId} · 规则版本 v1</p>
+                    <p>{mpiRuleLabel[selected.ruleId] ?? selected.ruleId} · 候选对 {selected.pairId} · 规则版本 v1</p>
                   </div>
                 </div>
                 <div className={styles.compareWrap}>
@@ -227,7 +180,7 @@ export function MpiReviewLive({ onNotice }: { onNotice: (message: string) => voi
                       {evidence.map((item) => (
                         <li key={item.field}>
                           {item.match ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
-                          {FIELD_LABELS[item.field] ?? item.field}：{item.valueA ?? '—'} / {item.valueB ?? '—'} {item.match ? '一致' : '不一致'}
+                          {mpiEvidenceFieldLabel[item.field] ?? item.field}：{item.valueA ?? '—'} / {item.valueB ?? '—'} {item.match ? '一致' : '不一致'}
                         </li>
                       ))}
                     </ul>
@@ -244,12 +197,12 @@ export function MpiReviewLive({ onNotice }: { onNotice: (message: string) => voi
                 {decisionError ? <div className={styles.connectionNotice} role="alert"><CircleAlert size={17} /><div><strong>操作失败</strong><span>{decisionError}</span></div></div> : null}
                 <div className={styles.mpiActions}>
                   <label className={styles.confirmCheck}>
-                    <input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} disabled={busy} />
+                    <input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} disabled={pendingKey !== null} />
                     <span>我已核对身份属性与证据。错误合并的临床风险高于漏合并——弱证据冲突请确认不同人。</span>
                   </label>
                   <div className={styles.actionGroup}>
-                    <Button onClick={() => submitDecision('DIFFERENT_PERSON')} disabled={busy}><GitPullRequestArrow size={14} />确认不同人</Button>
-                    <Button variant="primary" disabled={!confirmed || busy} onClick={() => submitDecision('SAME_PERSON')}>{busy ? <LoaderCircle size={14} className={styles.spin} /> : <GitMerge size={14} />}确认同人并合并</Button>
+                    <Button onClick={() => submitDecision('DIFFERENT_PERSON')} disabled={pendingKey !== null}><GitPullRequestArrow size={14} />确认不同人</Button>
+                    <Button variant="primary" disabled={!confirmed || pendingKey !== null} onClick={() => submitDecision('SAME_PERSON')}>{pendingKey !== null ? <LoaderCircle size={14} className={styles.spin} /> : <GitMerge size={14} />}确认同人并合并</Button>
                   </div>
                 </div>
               </>
@@ -267,8 +220,7 @@ export function MpiReviewLive({ onNotice }: { onNotice: (message: string) => voi
 
 function MpiPersonDrawer({ personId, onClose, onNotice, onSplit }: { personId: string; onClose: () => void; onNotice: (message: string) => void; onSplit: () => Promise<void> }) {
   const [person, setPerson] = useState<MpiPersonDetail | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
+  const { pendingKey, error, run: runAction } = useAction()
 
   const apiState = useApiResource({
     load: (signal) => fetchMpiPerson(personId, signal),
@@ -276,20 +228,14 @@ function MpiPersonDrawer({ personId, onClose, onNotice, onSplit }: { personId: s
     timeoutMs: 10000,
   })
 
-  async function splitIdentity(identityGroup: string) {
-    setBusy(true)
-    setError(null)
-    try {
+  function splitIdentity(identityGroup: string) {
+    void runAction(`split-${identityGroup}`, '拆分失败', async () => {
       await splitMpiPerson(personId, identityGroup, '工作台人工拆分')
       onNotice('已拆分为独立黄金人：该身份与原黄金人的组合永不再自动合并')
       await onSplit()
       const refreshed = await fetchMpiPerson(personId).catch(() => null)
       setPerson(refreshed)
-    } catch (splitError) {
-      setError(splitError instanceof Error ? splitError.message : '拆分失败')
-    } finally {
-      setBusy(false)
-    }
+    })
   }
 
   return (
@@ -313,7 +259,7 @@ function MpiPersonDrawer({ personId, onClose, onNotice, onSplit }: { personId: s
                   <tr key={link.sourceIdentifier}>
                     <td>{link.sourceIdentifier}</td>
                     <td>{link.decisionSource === 'MANUAL' ? '人工' : '规则'}</td>
-                    <td><Button onClick={() => splitIdentity(link.sourceIdentifier)} disabled={busy || person.links.filter((item) => item.linkStatus === 'ACTIVE').length <= 1}>拆分</Button></td>
+                    <td><Button onClick={() => splitIdentity(link.sourceIdentifier)} disabled={pendingKey !== null || person.links.filter((item) => item.linkStatus === 'ACTIVE').length <= 1}>拆分</Button></td>
                   </tr>
                 ))}
               </tbody>

@@ -16,6 +16,7 @@ import {
   type AIDataProductType,
 } from '../data/aiDataApi'
 import { PortalHttpError } from '../data/http'
+import { useAction } from '../hooks/useAction'
 import { frontendDemoMode } from '../data/runtimeMode'
 import { useApiResource } from '../hooks/useApiResource'
 import type { AIOverview } from '../data/aiDataApi'
@@ -80,12 +81,23 @@ function AIDataLive({ onNotice }: { onNotice: (message: string) => void }) {
     setRefreshTick((tick) => tick + 1)
   }
 
-  async function submitCreate() {
+  // 动作互斥统一；错误通道按 cause 特判引擎守护（未配置/不可达）。
+  const { pendingKey, run: runAction } = useAction((message, cause) => {
+    if (cause instanceof PortalHttpError && cause.code === 'AI_READY_ENGINE_NOT_CONFIGURED') {
+      onNotice('评估引擎未配置（data-os.ai-ready.base-url）：build 不伪造成功')
+    } else if (cause instanceof PortalHttpError && cause.status === 503) {
+      onNotice('评估引擎暂不可达，请稍后重试')
+    } else {
+      onNotice(message)
+    }
+  })
+
+  function submitCreate() {
     if (!form.name.trim() || !form.owner.trim() || !form.source.trim()) {
       onNotice('请完整填写名称、负责人与数据来源')
       return
     }
-    try {
+    void runAction('create', '创建失败', async () => {
       const product = await createAIDataProduct({
         name: form.name.trim(),
         type: form.type,
@@ -98,62 +110,46 @@ function AIDataLive({ onNotice }: { onNotice: (message: string) => void }) {
       setForm((current) => ({ ...current, name: '', owner: '', source: '' }))
       setSelectedId(product.id)
       refresh()
-    } catch (error) {
-      onNotice(error instanceof Error ? error.message : '创建失败')
-    }
+    })
   }
 
-  async function advance(product: AIDataProduct) {
+  function advance(product: AIDataProduct) {
     const target = nextLifecycleTarget(product.lifecycle)
     if (!target) {
       onNotice(`${lifecycleLabel[product.lifecycle]}状态没有主链下一步`)
       return
     }
-    try {
+    void runAction(`advance-${product.id}`, '流转失败', async () => {
       await transitionAIDataProduct(product.id, target)
       onNotice(`${product.name} 已流转到「${lifecycleLabel[target]}」`)
       refresh()
-    } catch (error) {
-      onNotice(error instanceof Error ? error.message : '流转失败')
-    }
+    })
   }
 
-  async function deprecate(product: AIDataProduct) {
-    try {
+  function deprecate(product: AIDataProduct) {
+    void runAction(`deprecate-${product.id}`, '弃用失败', async () => {
       await transitionAIDataProduct(product.id, 'DEPRECATED')
       onNotice(`${product.name} 已弃用`)
       refresh()
-    } catch (error) {
-      onNotice(error instanceof Error ? error.message : '弃用失败')
-    }
+    })
   }
 
-  async function runEvaluation(product: AIDataProduct) {
-    try {
+  function runEvaluation(product: AIDataProduct) {
+    void runAction(`evaluate-${product.id}`, '评测失败', async () => {
       const report = await evaluateAIDataProduct(product.id)
       onNotice(`评测完成：MRR ${report.mrr?.toFixed?.(2) ?? '—'} · Recall@5 ${report.retrieval_recall_at_5?.toFixed?.(2) ?? '—'}（已并入版本报告）`)
       setSelectedId(product.id)
       refresh()
-    } catch (error) {
-      onNotice(error instanceof Error ? error.message : '评测失败')
-    }
+    })
   }
 
-  async function build(product: AIDataProduct) {
-    try {
+  function build(product: AIDataProduct) {
+    void runAction(`build-${product.id}`, '构建失败', async () => {
       const summary = await buildAIDataProduct(product.id)
       onNotice(`评估完成：Overall ${summary.overall?.toFixed?.(2) ?? '—'} · ${summary.certification ?? ''}（已回写 ${product.currentVersion}）`)
       setSelectedId(product.id)
       refresh()
-    } catch (error) {
-      if (error instanceof PortalHttpError && error.code === 'AI_READY_ENGINE_NOT_CONFIGURED') {
-        onNotice('评估引擎未配置（data-os.ai-ready.base-url）：build 不伪造成功')
-      } else if (error instanceof PortalHttpError && error.status === 503) {
-        onNotice('评估引擎暂不可达，请稍后重试')
-      } else {
-        onNotice(error instanceof Error ? error.message : '构建失败')
-      }
-    }
+    })
   }
 
   if (listState !== 'live') {
