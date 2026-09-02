@@ -19,8 +19,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * 归并格子（单一属主 MpiPersonService.unite）的不变量：
- * MANUAL 并人保 personA（按侧显式声明）、链接与 Doris 投影回写只走格子、
- * 幂等早退补投影但不产生新链接/审计。
+ * 并人统一保留创建较早者（earlierOf，与入口/发起方向无关）、链接与
+ * Doris 投影回写只走格子、幂等早退补投影但不产生新链接/审计。
  */
 @ActiveProfiles("test")
 @SpringBootTest
@@ -86,28 +86,34 @@ class MpiPersonUniteTests {
     }
 
     @Test
-    void manualMergeKeepsPersonAAndWritesBackProjection() {
+    void manualMergeKeepsEarlierPersonAndWritesBackProjection() {
         seed();
         var personA = personIdOf("H0001|EP|1");
         var personB = personIdOf("H0001|EP|2");
+        // 统一不变量：存活者 = 创建较早者（created_at 决胜，id 兜底防平局）。
+        var expected = pg.queryForObject("""
+                SELECT id FROM data_os_mpi.mpi_person
+                WHERE id IN (?, ?) AND status = 'ACTIVE'
+                ORDER BY created_at ASC, id ASC LIMIT 1
+                """, String.class, personA, personB);
+        var dropped = expected.equals(personA) ? personB : personA;
 
         var survivor = persons.uniteManual("default", "demo-hospital",
                 "H0001|EP|1", "H0001|EP|2", "reviewer");
 
-        // 显式声明的差异：MANUAL 并人保 personA。
-        assertThat(survivor).isEqualTo(personA);
+        assertThat(survivor).isEqualTo(expected);
         assertThat(pg.queryForObject("""
                 SELECT status FROM data_os_mpi.mpi_person WHERE id = ?
-                """, String.class, personB)).isEqualTo("MERGED");
+                """, String.class, dropped)).isEqualTo("MERGED");
         // 被并人的全部身份改挂存活者（EP|8 随 personB 迁移）。
         assertThat(pg.queryForList("""
                 SELECT DISTINCT person_id FROM data_os_mpi.mpi_person_link
                 WHERE valid_to IS NULL AND link_status = 'ACTIVE'
-                """, String.class)).containsExactly(personA);
+                """, String.class)).containsExactly(expected);
         // Doris 投影回写经格子单点发生：对内两个身份 + 迁移身份全部指向存活者。
-        assertThat(personIdOf("H0001|EP|1")).isEqualTo(personA);
-        assertThat(personIdOf("H0001|EP|2")).isEqualTo(personA);
-        assertThat(personIdOf("H0001|EP|8")).isEqualTo(personA);
+        assertThat(personIdOf("H0001|EP|1")).isEqualTo(expected);
+        assertThat(personIdOf("H0001|EP|2")).isEqualTo(expected);
+        assertThat(personIdOf("H0001|EP|8")).isEqualTo(expected);
         assertThat(pg.queryForObject(
                 "SELECT COUNT(*) FROM data_os_mpi.mpi_audit_event WHERE action = 'MERGE'",
                 Integer.class)).isEqualTo(1);

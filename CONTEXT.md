@@ -18,7 +18,7 @@
 
 - **源身份（Source Identity）**：单一来源系统中的一个患者登记（机构 + 源主键/卡号 + 标准化属性），自 Doris ods 层装载，按源键幂等去重。复合键 `机构|源系统|源主键` 的格式唯一属主是 `SourceIdentity` 值对象（SQL 投影与 Java 解析同源声明，两侧不得手工拼写 CONCAT/split）。
 - **黄金人（Golden Person）**：一组被判定为同一自然人的源身份的归一主体（`mpi_person`）；Merge/Split 改变其成员构成，全程留痕可逆。
-- **归并格子（Unite Grid）**：把两个源身份归入同一黄金人的四分支判定（无链接建人/一方收编/已同人幂等补投影/双方并人），单一属主为 `MpiPersonService`；链接与 Doris 投影回写只经格子发生。RULE 与 MANUAL 两侧差异（并人保谁：RULE 保留创建较早者、MANUAL 保留 personA；建人属性来源与决策元数据）经 `UnitePlan` 显式声明，不做隐性分叉。
+- **归并格子（Unite Grid）**：把两个源身份归入同一黄金人的四分支判定（无链接建人/一方收编/已同人幂等补投影/双方并人），单一属主为 `MpiPersonService`；链接与 Doris 投影回写只经格子发生。**并人赢家统一为 earlierOf（保留创建较早者，2026-09-02 决策）**——与入口（RULE/MANUAL）和发起方向无关的确定不变量，重放/审计不依赖参数顺序；操作者要显式指定存活者走 `MpiPersonController` 的 keep/drop 合并端点。两侧仍经 `UnitePlan` 显式声明的差异：建人属性来源与决策元数据。
 - **候选对（Candidate Pair）**：候选召回阶段产出的待判定身份对，跨召回规则按 pair 去重。
 - **候选召回（Blocking）**：用确定性键（机构+源主键、机构+卡号、姓名+性别）缩小候选集合的 SQL 阶段；只负责召回，判定交给规则层。
 - **匹配引擎（Pair Scorer）**：判定候选对的算法层。三个实现（V1 确定性规则 `MpiRuleMatcher` / V2 Fellegi-Sunter 评分 `MpiScoreMatcher` / T5 混合 `MpiHybridMatcher`——守卫定 AUTO + 分数否决带）统一走 `PairScorer` seam——输入 `MatchPair`、产出三态 `Outcome`，生产编排与评测 harness 的适配只有一份。**决策权在 T5 混合引擎**（rule_version `v1+v2`，G15 经冻结评测严格占优 + dev 影子核验后切换）：合取守卫单独决定 AUTO（分数不守门），V2 分数低于 tVeto 的复核对直接 NO_MATCH（否决对 rule_id 带 `/V2-VETO`）；硬约束（人工否决/拆分）仍前置高于引擎。纯 V2 三态保留为对照证据行。
