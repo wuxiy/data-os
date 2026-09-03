@@ -23,6 +23,8 @@ sink:
 workflowConfig:
   openMetadataServerConfig:
     hostPort: http://openmetadata:8585/api
-    authProvider: openmetadata
+    authProvider: custom-oidc
     securityConfig:
-      jwtToken: __OM_JWT__
+      clientId: dataos-om-ingest
+      clientSecret: __OM_INGEST_SECRET__
+      tokenEndpoint: http://keycloak:8080/auth/realms/data-platform/protocol/openid-connect/token

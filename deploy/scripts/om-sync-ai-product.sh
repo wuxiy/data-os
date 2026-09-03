@@ -124,7 +124,10 @@ description = "；".join(summary_lines) + "。（data-os 控制面回写）"
 status, existing = call("GET", f"/glossaryTerms/name/ai-data-products.{term_name}")
 if status != 200:
     status, body = call("POST", "/glossaryTerms", {
-        "glossary": glossary["id"], "name": term_name,
+        # glossary 引用必须用名字（"ai-data-products"）：UUID 形态在 OM
+        # 1.5.11 与 1.6.0 实测均报 "glossary instance ... not found"
+        # （H1 升级探针实证，2026-09-04）。
+        "glossary": "ai-data-products", "name": term_name,
         "displayName": product, "description": description})
     if status not in (200, 201):
         reason = body.get("message", status)

@@ -46,3 +46,24 @@
 1. G6 对账脚本在 dev 网络 SSH 抖动期被截断（对账侧 Doris 查询容器空返回致 1 个表误报 FAIL；API 复查该表 12 列一致）——以 API 抽查替代完整脚本对账；
 2. 升级采用就地迁移（非全新卷重建）：保留 Keycloak OIDC 配置/bot/历史资产，mysqldump 兜底；
 3. dev 侧 medical-platform 仓库不在 git 管理（sed 原地改 compose image 版本）。
+
+
+## 五、余项追记（2026-09-04，H1 收尾会话）
+
+### glossaryTerms 写路径：修复实证 + 真相（重要 API 事实）
+
+POST /glossaryTerms 的 glossary 引用形态鉴别（升级后探针）：
+- **UUID 引用（{"id": gid} 或裸 id 字符串）：1.5.11 与 1.6.0 均报 `glossary instance ... not found`**——G11 受阻的「实例级缺陷」真身是 UUID 引用解析失败，跨版本持续；
+- **名字引用（"glossary": "ai-data-products"）：1.6.0 上 POST 201 / GET 200 / DELETE 200 全通**——写路径可用。
+
+仓库侧已修 `om-sync-ai-product.sh`（term 的 glossary 引用改名字）。G11 面重放（真实产品回写）待 G11 语义批次执行。
+
+### dbt 摄取全量恢复：未竟（余项保留）
+
+1.6 ingestion 工作流可跑、产物链兼容，但 TestCase/DataModel 落库未恢复（tc=11/dm=1 维持），七次重跑收敛线索：
+- 前 2 次：静态 JWT 过期（97 errors 连锁）——已修：模板切 custom-oidc clientId/clientSecret/tokenEndpoint 自动刷新（仓库+dev 双侧）；
+- 中 3 次：补丁脚本渲染作用域 bug（OM_SECRET 导出 / os.environ）——已修；
+- 第 6 次：docker cp 目标目录存在性差异致 /work 路径断（脚本自身对 /tmp/om-g7-project 预存在敏感）——已清；
+- 第 7 次：到达 ingestion 1.6 auth 配置形态层（custom-oidc 凭据组合报错，回显 OM 内置 admin JWT）——**未解**，需对 OM 1.6 ingestion 的 authProvider/securityConfig 形态做专项调试（可能需 audience/secretKey 参数或 OM 自签 bot token 通道）。日志：dev /tmp/om16-g7-retry*.log。
+
+**判定**：此项从「重跑即愈」升级为「ingestion 1.6 认证形态适配」工程项，估 0.5-1 人日，保留 P3 余项。不阻塞 H1 主体验收（三个受阻面中两个已修复实证、G6 零回归）。

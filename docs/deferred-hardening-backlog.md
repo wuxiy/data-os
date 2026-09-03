@@ -25,6 +25,7 @@
 | S6 | 源库凭据面收敛复查：DM EP_TEST（可写测试账号）、各服务账号授权最小化复核 — **quality_ro 残留项完成 2026-09-02**：dev Doris 已 REVOKE 其对 `dataos_quality_acceptance` 的 SELECT，正负对照 + 失败路径复检验证（证据全部走 audit 表；发现并修正 dev runner 镜像钉旧 G5 tag 的漂移）；余项为全账号面复查 | G3/G5 已按分层授权交付（dataos_om_ro 等），未做全面审计 | 余项生产化批 |
 | S7 | ai-ready 服务间 OIDC — **完成 2026-08-27**：client+audience mapper+issuer 网关对齐；JWKS 容自签为 dev 口径（生产化换 truststore） | 安全收敛批报告 | 完成（truststore 项归生产化） |
 | S8 | data-api `/internal/**` 强制 OIDC 服务 token — dev control-plane 为 DISABLED 直通（与 /api 同水平）；切 ENFORCED 时建 Keycloak client `dataos-data-api` + audience mapper（S7 模式，compose 键位已预留） | G13 验收报告 | 认证批次 |
+| S9 | data-api 行级授权 fail-open 缺口：`_hospitals_of`（services/data-api/app/api.py:70）解析 `allowedHospitals` 坏 JSON 时静默回退 `["*"]`（全院放行），零直接测试；同文件 catalog 端点绕过 `_require_key` 内联复制 401 分支、`report_call` 4 处手调。修复建议随「CallSession 调决深化」（架构评审候选 1）一并收敛，医院解析改 fail-closed | 2026-09-04 全库架构走查实锤（报告见临时目录 architecture-review-20260904） | H3（Data API 批） |
 
 ## 二、生产加固类
 
@@ -69,3 +70,5 @@
 - 2026-09-03（G16e 交付）：消费面深化——Superset 4 数据集+4 图表挂 dashboard 2、Data API 两数据集（科室日汇总/用药日汇总）实调对账零误差（docs/validation/gate-ep-g16e-20260903.md）。无新增延后项；data-api registry 缓存 30s（新 Key 延迟可见）为运维口径记录。
 - 2026-09-03（生产化批次评审）：产出 docs/production-hardening-batch-plan-20260903.md——备忘账 17 条活跃项划分为 H1（OM 升级）/H2（认证）/H3（Data API）/H4（编排运维）/H5（测试工程）五批次（26-40 人日），含四项事实核查与依赖关系；T5 条目行同步 §四 完成状态。批次执行仍待用户逐批明示；阶段定位提醒已按 AGENTS.md 纪律向用户正式提出。
 - 2026-09-04（H1 批次·用户批准）：OM 1.5.11→1.6.0 升级执行完毕（gate-om-upgrade-h1-20260904.md）——P3 主体关闭，三项余项留条目；AGENTS.md 阶段定位切换为「生产化收口与功能迭代并行」（用户裁决）。载荷坑入记忆：crash-loop 容器内 exec 跑 migrate 会被重启杀死（须 compose run --rm）；1.6 首启 ES 重建约 5-8 分钟。
+- 2026-09-04（文档对齐 + 架构走查）：README/docs 一致性核对修正 4 份文档（CONTEXT.md 证据形状、environment-access-reference 的 Doris 库范围与 dataos_quality_ro 边界、technical-architecture 的 MPI 基线 HAPI FHIR→mpi-service 与分析端点、deploy/production/README 通知必配项 HEALTH_URL 改可选）；全库架构走查（improve-codebase-architecture）产出 7 候选报告（浏览器临时文件，未入仓），**新增 S9**（data-api fail-open 实锤，归 H3）。
+- 2026-09-04（H1 余项追记）：glossaryTerms 写路径修复实证——**UUID 引用跨版本解析失败、名字引用可用**（重要 API 事实，om-sync-ai-product.sh 已修仓库侧）；dbt 摄取恢复升级为「ingestion 1.6 认证形态适配」工程项（0.5-1 人日，七次重跑线索齐全 dev /tmp/om16-g7-retry*.log），保留 P3 余项；om-ingest 三脚本默认镜像已切 1.6.0（仓库侧）。

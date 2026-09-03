@@ -33,7 +33,7 @@ fi
 KEYCLOAK_TOKEN_URL="${KEYCLOAK_TOKEN_URL:-http://localhost:8180/auth/realms/data-platform/protocol/openid-connect/token}"
 OM_API_BASE="${OM_API_BASE:-https://localhost:8445/api/v1}"
 OM_NETWORK="${OM_NETWORK:-medical-platform_platform-net}"
-INGESTION_IMAGE="${INGESTION_IMAGE:-openmetadata/ingestion:1.5.11}"
+INGESTION_IMAGE="${INGESTION_IMAGE:-openmetadata/ingestion:1.6.0}"
 SERVICE_NAME="superset-dataos"
 
 om_api() { # om_api METHOD PATH [JSON_BODY]

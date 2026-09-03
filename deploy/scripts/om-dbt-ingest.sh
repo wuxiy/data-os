@@ -30,7 +30,7 @@ fi
 KEYCLOAK_TOKEN_URL="${KEYCLOAK_TOKEN_URL:-http://localhost:8180/auth/realms/data-platform/protocol/openid-connect/token}"
 OM_API_BASE="${OM_API_BASE:-https://localhost:8445/api/v1}"
 OM_NETWORK="${OM_NETWORK:-medical-platform_platform-net}"
-INGESTION_IMAGE="${INGESTION_IMAGE:-openmetadata/ingestion:1.5.11}"
+INGESTION_IMAGE="${INGESTION_IMAGE:-openmetadata/ingestion:1.6.0}"
 RUNNER_CONTAINER="${RUNNER_CONTAINER:-data-os-dev-quality-runner-1}"
 DBT_PROJECT_DIR="${DBT_PROJECT_DIR:-/opt/dataos/quality/dbt}"
 DBT_TARGET="${DBT_TARGET:-quality}"
@@ -128,11 +128,12 @@ if [ "${CHECK_ONLY:-0}" != "1" ]; then
   trap 'cp "$YAML" /tmp/om-g7-last-rendered.yaml 2>/dev/null; chmod 600 /tmp/om-g7-last-rendered.yaml; rm -f "$YAML"' EXIT
   chmod 600 "$YAML"
   # 渲染令牌与可选的 run_results 行（缩进敏感：RUN_RESULTS_LINE 已含 8 空格前导）。
+  export OM_SECRET
   python3 - "$SCRIPT_DIR/../config/openmetadata/dbt-quality-runner-ingestion.yaml.template" \
     "$OM_JWT" "$RUN_RESULTS_LINE" "$YAML" <<'PY'
-import sys
+import os, sys
 template, jwt, run_results_line, out = sys.argv[1:5]
-text = open(template).read().replace("__OM_JWT__", jwt)
+text = open(template).read().replace("__OM_JWT__", jwt).replace("__OM_INGEST_SECRET__", os.environ["OM_SECRET"])
 text = text.replace("__DBT_RUN_RESULTS_LINE__", run_results_line)
 open(out, "w").write(text)
 PY
