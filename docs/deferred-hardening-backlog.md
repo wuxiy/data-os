@@ -32,7 +32,7 @@
 | --- | --- | --- | --- |
 | P1 | MiNiFi 生产化三收敛：部署完全脚本化、黑盒监控（位点滞后 / 桶断流 / 队列深度告警，补静默失败）、版本冻结 | G5 复盘结论：架构选型对、实现体验差；保留但设条件 | 生产化批 |
 | P2 | OM 摄取 / dbt 摄取 / 声明式血缘登记编排进控制面「外部运行」统一状态机（现为脚本触发） | G1 延后项，G6/G7 沿用脚本（om-ingest-doris-assets.sh 等） | 生产化批 |
-| P3 | **OM 1.5.11 testDefinitions/glossaryTerms 端点缺陷（诊断定案 2026-08-27）**：DB seed 完好（35 定义）、ES 健康、**容器重建（全新 JVM）后症状不变**——排除运行态，为版本级缺陷（升级才修）。修复路径：OM ≥1.6 升级 + 数据卷迁移重放（或全新卷重建）；升压前置：Keycloak/Superset 联动面检查。**范围扩大（2026-09-03，G16c 复查）**：dbt 资产化面（TestCase + DataModel 挂靠）在 OM 1.5.11 上实效为零——实体面查询 DataModel 全局 0、TestCase 0，工作流「Processed/Success」为内部计数非落库实体；G6 表结构资产面不受影响。升级后须一并验证 G7 面恢复。关联受阻项：G7 TestCase registrar、G11 term 回写（脚本 best-effort 段就绪） | G7/G11 偏差 + 本批诊断实录 + G16c 复查 | 生产化批（升级窗口） |
+| P3 | **OM 升级完成（2026-09-04，H1 批次）**：1.5.11→1.6.0（迁移 263 条 SQL、G6 面零回归、认证链完好）；**端点缺陷消除**：glossaryTerms 200、testDefinition 内置 85 条。**余项**：① dbt 资产化全量恢复（重跑 token 过期 + 97 errors 排查，半日）；② glossary 35 条词表 seed 重放；③ om-ingest 脚本默认镜像版本更新。原记录（2026-08-27 诊断）：：DB seed 完好（35 定义）、ES 健康、**容器重建（全新 JVM）后症状不变**——排除运行态，为版本级缺陷（升级才修）。修复路径：OM ≥1.6 升级 + 数据卷迁移重放（或全新卷重建）；升压前置：Keycloak/Superset 联动面检查。**范围扩大（2026-09-03，G16c 复查）**：dbt 资产化面（TestCase + DataModel 挂靠）在 OM 1.5.11 上实效为零——实体面查询 DataModel 全局 0、TestCase 0，工作流「Processed/Success」为内部计数非落库实体；G6 表结构资产面不受影响。升级后须一并验证 G7 面恢复。关联受阻项：G7 TestCase registrar、G11 term 回写（脚本 best-effort 段就绪） | G7/G11 偏差 + 本批诊断实录 + G16c 复查 | 生产化批（升级窗口） |
 | P4 | 遗留服务 `doris-medical` 的 root 连接收敛（data-ops 遗留资产处置） | G1 延后项 | 生产化批 |
 | P5 | 断网缓冲容量上限与中转桶生命周期策略（演示验证至 10 分钟缩比，未测长时间大缓冲与桶清理） | G5 L2 缩比口径 | 生产化批 |
 | P7 | 数据 API 大结果集异步导出至对象存储 + 下载 URL（§5.8 完整形态；当前 maxRows 截断挡住） | G13 方案 §九 | 生产化批 |
@@ -68,3 +68,4 @@
 - 2026-09-03（T5b §四 执行）：重标定完成——packaged 更新（tVeto 0.42→-1.09 等）、估计器双参安全审计口径入仓库、57/57 全绿、dev rebuild 否决 115→26（误否修复）、AUTO 360 不动。**T5 全项关闭**（下一真实来源系统接入后按手册重走触发评估）。详见 docs/validation/t5b-reanchor-20260903.md §七。
 - 2026-09-03（G16e 交付）：消费面深化——Superset 4 数据集+4 图表挂 dashboard 2、Data API 两数据集（科室日汇总/用药日汇总）实调对账零误差（docs/validation/gate-ep-g16e-20260903.md）。无新增延后项；data-api registry 缓存 30s（新 Key 延迟可见）为运维口径记录。
 - 2026-09-03（生产化批次评审）：产出 docs/production-hardening-batch-plan-20260903.md——备忘账 17 条活跃项划分为 H1（OM 升级）/H2（认证）/H3（Data API）/H4（编排运维）/H5（测试工程）五批次（26-40 人日），含四项事实核查与依赖关系；T5 条目行同步 §四 完成状态。批次执行仍待用户逐批明示；阶段定位提醒已按 AGENTS.md 纪律向用户正式提出。
+- 2026-09-04（H1 批次·用户批准）：OM 1.5.11→1.6.0 升级执行完毕（gate-om-upgrade-h1-20260904.md）——P3 主体关闭，三项余项留条目；AGENTS.md 阶段定位切换为「生产化收口与功能迭代并行」（用户裁决）。载荷坑入记忆：crash-loop 容器内 exec 跑 migrate 会被重启杀死（须 compose run --rm）；1.6 首启 ES 重建约 5-8 分钟。
