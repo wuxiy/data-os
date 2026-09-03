@@ -44,7 +44,7 @@
 | --- | --- | --- | --- |
 | T1 | 全链路压测：SeaTunnel 摄取吞吐、Doris 写入与查询并发、门户 BFF 延迟基线 | 未做过系统性压测（各 gate 为功能验收） | 测试工程批 |
 | T2 | MPI 匹配算法效果系统性评测（准确率/召回率评测集与阈值标定；现为规则演示档 + 合成数据） | **完成 2026-08-28（G14）**：冻结评测集 + FS 标定 + V2 影子评分上线（docs/validation/gate-mpi-g14-20260828.md） | 完成 |
-| T5 | MPI 决策权混合策略与多源重标定 — **T5a 完成 2026-09-02（G15）含决策权切换**（docs/validation/gate-mpi-g15-20260902.md §五之二）；**重标定机制就绪 2026-09-02**：`MpiWeightEstimator`（估计数学单一属主）+ 报告式漂移检测 `MpiDriftReportTests`（-Ddrift.corpus 门控）+ 运行手册 docs/mpi-recalibration-runbook.md + dev 基线跑通（DRIFT 9/27 判为重采样噪声，判据沉淀在手册 §六）；**余项**：真实多源接入后按手册执行重标定 + 锚点补充 | G14 结论：加性 FS 自动化率结构性低于合取规则，切换需混合策略；评测为半合成口径，真实脏数据分布待多源验证 | 余项生产化批 |
+| T5 | MPI 决策权混合策略与多源重标定 — **T5a 完成 2026-09-02（G15）含决策权切换**（docs/validation/gate-mpi-g15-20260902.md §五之二）；**重标定机制就绪 2026-09-02**：`MpiWeightEstimator`（估计数学单一属主）+ 报告式漂移检测 `MpiDriftReportTests`（-Ddrift.corpus 门控）+ 运行手册 docs/mpi-recalibration-runbook.md + dev 基线跑通（DRIFT 9/27 判为重采样噪声，判据沉淀在手册 §六）；**余项已收敛（2026-09-03 §四执行完毕）**：EP-REG 弱多源重锚 + 重标定完成（tVeto 0.42→-1.09，dev 否决 115→26 误否修复，T5 全项关闭，见 docs/validation/t5b-reanchor-20260903.md §七）；**待真实多源系统**（非同库跨表）接入后按手册重走触发评估 | G14 结论：加性 FS 自动化率结构性低于合取规则，切换需混合策略；评测为半合成口径，真实脏数据分布待多源验证 | 完成（弱多源）；真多源另触发 |
 | T3 | 跨服务契约测试自动化（control-plane ↔ quality-runner ↔ mpi-service ↔ SeaTunnel/OM），替代各 gate 手工验收 | 各批 gate 清单手工执行 | 测试工程批 |
 | T4 | 故障注入回归：断网/重启循环、组件不可达降级（503 面）、幂等重放等场景的自动化套件 | G5 L2/L3 手工演练过一轮 | 测试工程批 |
 
@@ -67,3 +67,4 @@
 - 2026-09-03（T5b 重锚）：语料 NEG_RATIO 重锚 + 跨流真实正样本 + 4 条派生锚点入仓库（57/57 全绿）；重锚后 DRIFT 23/27（真实信号：name.mAgree→0.804、gender.mDisagree→0.152、tVeto 零误否界→-1.09），锚点实证现行 tVeto 双流误否。**T5 余项收敛为单项：§四 重标定执行（人工决策，证据与建议见 docs/validation/t5b-reanchor-20260903.md §五）**。
 - 2026-09-03（T5b §四 执行）：重标定完成——packaged 更新（tVeto 0.42→-1.09 等）、估计器双参安全审计口径入仓库、57/57 全绿、dev rebuild 否决 115→26（误否修复）、AUTO 360 不动。**T5 全项关闭**（下一真实来源系统接入后按手册重走触发评估）。详见 docs/validation/t5b-reanchor-20260903.md §七。
 - 2026-09-03（G16e 交付）：消费面深化——Superset 4 数据集+4 图表挂 dashboard 2、Data API 两数据集（科室日汇总/用药日汇总）实调对账零误差（docs/validation/gate-ep-g16e-20260903.md）。无新增延后项；data-api registry 缓存 30s（新 Key 延迟可见）为运维口径记录。
+- 2026-09-03（生产化批次评审）：产出 docs/production-hardening-batch-plan-20260903.md——备忘账 17 条活跃项划分为 H1（OM 升级）/H2（认证）/H3（Data API）/H4（编排运维）/H5（测试工程）五批次（26-40 人日），含四项事实核查与依赖关系；T5 条目行同步 §四 完成状态。批次执行仍待用户逐批明示；阶段定位提醒已按 AGENTS.md 纪律向用户正式提出。
