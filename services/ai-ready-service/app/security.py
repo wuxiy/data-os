@@ -51,10 +51,17 @@ class Authenticator:
     def _load_jwks(self) -> dict[str, Any]:
         if self._jwks and self._jwks_expires_at > time.time():
             return self._jwks
-        discovery = self._settings.oidc_issuer.rstrip("/") + "/.well-known/openid-configuration"
-        # 内网 dev 口径：Keycloak 经网关自签证书暴露 discovery/JWKS（生产化换 truststore，备忘）
-        with httpx.Client(timeout=3.0, verify=False) as client:
-            config = client.get(discovery).raise_for_status().json()
-            self._jwks = client.get(config["jwks_uri"]).raise_for_status().json()
+        if self._settings.oidc_jwks_uri:
+            # S7：内网 JWKS 直连（http://keycloak:8080/...），issuer 声明仍按
+            # oidc_issuer（网关值）校验；TLS 免除自签证书依赖。
+            with httpx.Client(timeout=3.0) as client:
+                self._jwks = client.get(self._settings.oidc_jwks_uri).raise_for_status().json()
+        else:
+            discovery = self._settings.oidc_issuer.rstrip("/") + "/.well-known/openid-configuration"
+            # 内网 dev 口径：Keycloak 经网关自签证书暴露 discovery/JWKS（生产化换
+            # JWKS 直连或 truststore，备忘）
+            with httpx.Client(timeout=3.0, verify=False) as client:
+                config = client.get(discovery).raise_for_status().json()
+                self._jwks = client.get(config["jwks_uri"]).raise_for_status().json()
         self._jwks_expires_at = time.time() + 300
         return self._jwks

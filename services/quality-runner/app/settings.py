@@ -22,6 +22,9 @@ class Settings:
     auth_mode: str = field(default_factory=lambda: _env("QUALITY_RUNNER_AUTH_MODE", "ENFORCED").upper())
     oidc_issuer: str = field(default_factory=lambda: _env("QUALITY_RUNNER_OIDC_ISSUER"))
     oidc_audience: str = field(default_factory=lambda: _env("QUALITY_RUNNER_OIDC_AUDIENCE", "dataos-quality-runner"))
+    # JWKS 直连（S7）：issuer 为网关自签 HTTPS 时从内网 Keycloak 直取
+    # （http://keycloak:8080/.../certs）；空值走 issuer discovery。
+    oidc_jwks_uri: str = field(default_factory=lambda: _env("QUALITY_RUNNER_OIDC_JWKS_URI"))
     db_url: str = field(default_factory=lambda: _env(
         "QUALITY_RUNNER_DB_URL", "postgresql+psycopg://data_os:change-me@postgres:5432/data_os"
     ))

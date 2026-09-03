@@ -25,6 +25,7 @@ class SupersetGuestTokenServiceTest {
     private final AtomicReference<String> guestAuth = new AtomicReference<>();
     private final AtomicReference<String> guestCsrf = new AtomicReference<>();
     private final AtomicReference<String> guestCookie = new AtomicReference<>();
+    private final java.util.concurrent.atomic.AtomicInteger guestCalls = new java.util.concurrent.atomic.AtomicInteger();
 
     @BeforeEach
     void startStub() throws IOException {
@@ -43,6 +44,7 @@ class SupersetGuestTokenServiceTest {
             }
         });
         server.createContext("/api/v1/security/guest_token/", exchange -> {
+            guestCalls.incrementAndGet();
             guestBody.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
             guestAuth.set(exchange.getRequestHeaders().getFirst("Authorization"));
             guestCsrf.set(exchange.getRequestHeaders().getFirst("X-CSRFToken"));
@@ -74,7 +76,7 @@ class SupersetGuestTokenServiceTest {
 
     @Test
     void issuesGuestTokenForWhitelistedDashboard() {
-        var token = service.issue("2");
+        var token = service.issue("2", "zhang.san");
 
         assertThat(token.token()).isEqualTo("guest-token-xyz");
         assertThat(token.dashboardId()).isEqualTo("2");
@@ -85,23 +87,42 @@ class SupersetGuestTokenServiceTest {
         assertThat(loginBody.get()).contains("dataos-spike").contains("spike-secret");
         assertThat(guestBody.get()).contains("\"role\":\"Viewer\"");
         assertThat(guestBody.get()).contains("\"id\":\"2\"");
-        assertThat(guestBody.get()).contains("portal-guest").contains("\"rls\":[]");
+        assertThat(guestBody.get()).contains("portal-zhang.san").contains("\"rls\":[]");
     }
 
     @Test
     void cachesAdminTokenAcrossGuestTokenCalls() {
-        service.issue("2");
-        service.issue("2");
+        service.issue("2", "zhang.san");
+        service.issue("2", "zhang.san");
 
         assertThat(loginBody.get()).isNotNull();
     }
 
     @Test
     void rejectsDashboardOutsideWhitelist() {
-        assertThatThrownBy(() -> service.issue("9"))
+        assertThatThrownBy(() -> service.issue("9", "zhang.san"))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("白名单");
         assertThat(loginBody.get()).isNull();
+    }
+
+    @Test
+    void cachesGuestTokenPerUserAndDashboard() {
+        // S4：同用户同仪表盘命中缓存（只打一次 Superset）；换用户重新签发
+        service.issue("2", "zhang.san");
+        service.issue("2", "zhang.san");
+        assertThat(guestCalls.get()).isEqualTo(1);
+        service.issue("2", "li.si");
+        assertThat(guestCalls.get()).isEqualTo(2);
+        assertThat(guestBody.get()).contains("portal-li.si");
+    }
+
+    @Test
+    void portalUsernameIsNamespacedAndSanitized() {
+        assertThat(SupersetGuestTokenService.portalUsername("admin")).isEqualTo("portal-admin");
+        assertThat(SupersetGuestTokenService.portalUsername("张三")).isEqualTo("portal-__");
+        assertThat(SupersetGuestTokenService.portalUsername(null)).isEqualTo("portal-guest");
+        assertThat(SupersetGuestTokenService.portalUsername("  ")).isEqualTo("portal-guest");
     }
 
     @Test
@@ -111,6 +132,6 @@ class SupersetGuestTokenServiceTest {
         properties.setAllowedDashboards(List.of("2"));
         var offline = new SupersetGuestTokenService(RestClient.builder(), properties);
 
-        assertThatThrownBy(() -> offline.issue("2")).isInstanceOf(AdapterUnavailableException.class);
+        assertThatThrownBy(() -> offline.issue("2", "zhang.san")).isInstanceOf(AdapterUnavailableException.class);
     }
 }

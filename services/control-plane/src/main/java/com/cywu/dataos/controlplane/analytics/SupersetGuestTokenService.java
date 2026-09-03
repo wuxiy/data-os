@@ -3,6 +3,7 @@ package com.cywu.dataos.controlplane.analytics;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 
 import com.cywu.dataos.controlplane.executor.AdapterUnavailableException;
@@ -13,15 +14,28 @@ import org.springframework.web.util.DefaultUriBuilderFactory;
 /**
  * Superset 访客令牌签发：管理员登录（短缓存）→ guest_token（Viewer、限仪表盘、
  * 短时效）。管理员凭据与 access token 永不离开本服务；浏览器只拿到 guest token。
+ *
+ * S4：签发按（用户 × 仪表盘）维度短缓存——同用户刷新页面不重复压 Superset；
+ * 令牌用户名带 portal- 前缀（与 Superset 真实账号隔离，审计可区分门户用户）。
  */
 public class SupersetGuestTokenService {
 
     private record AdminToken(String value, Instant expiresAt) {
     }
 
+    private record CachedGuestToken(GuestToken token, Instant expiresAt) {
+    }
+
+    /** 缓存上限（白名单仪表盘 × 门户用户数的保守界；超限先清过期再整体让位）。 */
+    private static final int MAX_CACHE_ENTRIES = 1000;
+
+    /** 缓存命中窗口在令牌时效基础上预留的安全边际（秒）。 */
+    private static final int CACHE_SAFETY_MARGIN_SECONDS = 30;
+
     private final RestClient restClient;
     private final AnalyticsProperties properties;
     private final AtomicReference<AdminToken> cachedAdmin = new AtomicReference<>();
+    private final ConcurrentHashMap<String, CachedGuestToken> cachedGuestTokens = new ConcurrentHashMap<>();
 
     public SupersetGuestTokenService(RestClient.Builder builder, AnalyticsProperties properties) {
         var factory = new DefaultUriBuilderFactory(properties.getBaseUrl());
@@ -30,25 +44,49 @@ public class SupersetGuestTokenService {
         this.properties = properties;
     }
 
-    /** 为白名单内仪表盘签发访客令牌。白名单外或不可达分别抛 404/503 语义异常。 */
-    public GuestToken issue(String dashboardId) {
+    /** 为白名单内仪表盘签发访客令牌（按用户维度缓存）。白名单外或不可达分别抛 404/503 语义异常。 */
+    public GuestToken issue(String dashboardId, String username) {
         if (!properties.allowsDashboard(dashboardId)) {
             throw new IllegalStateException("仪表盘不在嵌入白名单内：" + dashboardId);
         }
-        var token = post("/api/v1/security/guest_token/", Map.of(
+        var cacheKey = dashboardId.trim() + "\u0000" + portalUsername(username);
+        var now = Instant.now();
+        var cached = cachedGuestTokens.get(cacheKey);
+        if (cached != null && cached.expiresAt().isAfter(now)) {
+            return cached.token();
+        }
+        var value = post("/api/v1/security/guest_token/", Map.of(
                 "user", Map.of(
-                        "username", "portal-guest",
+                        "username", portalUsername(username),
                         "first_name", "Portal",
                         "last_name", "Guest"),
                 "role", properties.getGuestRole(),
                 "resources", List.of(Map.of("type", "dashboard", "id", dashboardId)),
                 "rls", List.of()),
                 adminToken(), csrfHeaders(adminToken()));
-        var value = String.valueOf(token.getOrDefault("token", ""));
-        if (value.isBlank()) {
+        var tokenValue = String.valueOf(value.getOrDefault("token", ""));
+        if (tokenValue.isBlank()) {
             throw new AdapterUnavailableException("Superset 访客令牌响应缺少 token");
         }
-        return new GuestToken(value, dashboardId, properties.getGuestTokenTtlSeconds());
+        var token = new GuestToken(tokenValue, dashboardId, properties.getGuestTokenTtlSeconds());
+        var ttl = Math.max(properties.getGuestTokenTtlSeconds() - CACHE_SAFETY_MARGIN_SECONDS, 0);
+        if (cachedGuestTokens.size() >= MAX_CACHE_ENTRIES) {
+            cachedGuestTokens.values().removeIf(entry -> !entry.expiresAt().isAfter(now));
+            if (cachedGuestTokens.size() >= MAX_CACHE_ENTRIES) {
+                cachedGuestTokens.clear();
+            }
+        }
+        cachedGuestTokens.put(cacheKey, new CachedGuestToken(token, now.plusSeconds(ttl)));
+        return token;
+    }
+
+    /**
+     * 门户用户名 → Superset 访客用户名：portal- 前缀防与 Superset 真实账号
+     * （如 admin）撞名提权；非法字符收敛为下划线，空身份回落共享访客。
+     */
+    static String portalUsername(String username) {
+        var sanitized = (username == null ? "" : username).trim().replaceAll("[^A-Za-z0-9_.-]", "_");
+        return sanitized.isBlank() ? "portal-guest" : "portal-" + sanitized;
     }
 
     private String adminToken() {

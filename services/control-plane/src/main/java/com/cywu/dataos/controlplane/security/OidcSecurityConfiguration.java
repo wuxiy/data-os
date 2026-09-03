@@ -13,8 +13,14 @@ import java.util.Set;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Condition;
+import org.springframework.context.annotation.ConditionContext;
+import org.springframework.context.annotation.Conditional;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.core.convert.converter.Converter;
+import org.springframework.core.env.Environment;
+import org.springframework.core.type.AnnotatedTypeMetadata;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
@@ -47,7 +53,7 @@ import jakarta.servlet.http.HttpServletResponse;
 public class OidcSecurityConfiguration {
 
     @Bean
-    @ConditionalOnProperty(name = "data-os.auth.mode", havingValue = "ENFORCED")
+    @Conditional(AuthBeansActiveCondition.class)
     JwtDecoder jwtDecoder(AuthProperties properties) {
         if (properties.getIssuerUri() == null || properties.getIssuerUri().isBlank()) {
             throw new IllegalStateException("生产认证必须配置 DATAOS_OIDC_ISSUER_URI");
@@ -58,9 +64,13 @@ public class OidcSecurityConfiguration {
         if (properties.getClockSkewSeconds() < 0 || properties.getClockSkewSeconds() > 300) {
             throw new IllegalStateException("DATAOS_OIDC_CLOCK_SKEW_SECONDS 必须在 0 到 300 秒之间");
         }
-        var decoder = JwtDecoders.fromIssuerLocation(properties.getIssuerUri().trim());
+        // jwk-set-uri 直连（S8/S7）：issuer 为网关自签 HTTPS 时，从内网 Keycloak
+        // 直取 JWKS（http://keycloak:8080/.../certs），issuer 声明仍按网关值校验。
+        var issuer = properties.getIssuerUri().trim();
+        JwtDecoder decoder = properties.getJwkSetUri().isBlank()
+                ? JwtDecoders.fromIssuerLocation(issuer)
+                : NimbusJwtDecoder.withJwkSetUri(properties.getJwkSetUri()).build();
         if (decoder instanceof NimbusJwtDecoder nimbus) {
-            var issuer = properties.getIssuerUri().trim();
             var timestamp = new JwtTimestampValidator(Duration.ofSeconds(properties.getClockSkewSeconds()));
             nimbus.setJwtValidator(new org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator<>(
                     new JwtIssuerValidator(issuer), timestamp,
@@ -133,6 +143,37 @@ public class OidcSecurityConfiguration {
         return http.build();
     }
 
+    /**
+     * S8：/internal/** 面在全局 DISABLED（开发态）下独立强制 OIDC——data-api 等
+     * 服务间通道与门户用户登录解耦；仅当全局未 ENFORCED 时挂载（全局 ENFORCED
+     * 由主链的 /internal 规则覆盖）。须排在 permitAll 链之前。
+     */
+    @Bean
+    @Order(1)
+    @Conditional(InternalOnlyEnforcedCondition.class)
+    SecurityFilterChain internalApiSecurity(HttpSecurity http, JwtDecoder decoder,
+                                            Converter<Jwt, ? extends org.springframework.security.authentication.AbstractAuthenticationToken> jwtConverter)
+            throws Exception {
+        http
+                .securityMatcher("/internal/**")
+                .csrf(AbstractHttpConfigurer::disable)
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth.anyRequest().authenticated())
+                .oauth2ResourceServer(oauth -> oauth
+                        .authenticationEntryPoint(jsonAuthenticationEntryPoint())
+                        .accessDeniedHandler(jsonAccessDeniedHandler())
+                        .jwt(jwt -> jwt.decoder(decoder).jwtAuthenticationConverter(jwtConverter)))
+                .exceptionHandling(exceptions -> exceptions
+                        .authenticationEntryPoint(jsonAuthenticationEntryPoint())
+                        .accessDeniedHandler(jsonAccessDeniedHandler()))
+                .headers(headers -> headers
+                        .contentTypeOptions(content -> {})
+                        .frameOptions(frame -> frame.deny())
+                        .httpStrictTransportSecurity(hsts -> hsts.includeSubDomains(true).maxAgeInSeconds(31536000)))
+                .anonymous(anonymous -> anonymous.disable());
+        return http.build();
+    }
+
     @Bean
     @ConditionalOnProperty(name = "data-os.auth.mode", havingValue = "DISABLED", matchIfMissing = true)
     SecurityFilterChain localDevelopmentSecurity(HttpSecurity http) throws Exception {
@@ -147,7 +188,7 @@ public class OidcSecurityConfiguration {
     }
 
     @Bean
-    @ConditionalOnProperty(name = "data-os.auth.mode", havingValue = "ENFORCED")
+    @Conditional(AuthBeansActiveCondition.class)
     Converter<Jwt, ? extends org.springframework.security.authentication.AbstractAuthenticationToken> jwtAuthenticationConverter(
             AuthProperties properties) {
         var converter = new JwtAuthenticationConverter();
@@ -201,7 +242,6 @@ public class OidcSecurityConfiguration {
 
     /** Validates the OIDC audience in addition to issuer and temporal claims. */
     static final class AudienceValidator implements OAuth2TokenValidator<Jwt> {
-
         private static final OAuth2Error INVALID_AUDIENCE = new OAuth2Error("invalid_token",
                 "The required audience is missing", null);
         private final String expectedAudience;
@@ -216,6 +256,34 @@ public class OidcSecurityConfiguration {
                     ? OAuth2TokenValidatorResult.success()
                     : OAuth2TokenValidatorResult.failure(INVALID_AUDIENCE);
         }
+    }
+
+    /** OIDC bean 装配条件：全局 ENFORCED，或 /internal 面独立 ENFORCED（S8）。 */
+    static final class AuthBeansActiveCondition implements Condition {
+        @Override
+        public boolean matches(ConditionContext context, AnnotatedTypeMetadata metadata) {
+            var environment = context.getEnvironment();
+            var mode = normalized(environment, "data-os.auth.mode", "ENFORCED");
+            var internal = normalized(environment, "data-os.auth.internal-mode", "");
+            return "ENFORCED".equals(mode) || "ENFORCED".equals(internal);
+        }
+    }
+
+    /** /internal 独立强制链的挂载条件：internal 面有效 ENFORCED 且全局未 ENFORCED。 */
+    static final class InternalOnlyEnforcedCondition implements Condition {
+        @Override
+        public boolean matches(ConditionContext context, AnnotatedTypeMetadata metadata) {
+            var environment = context.getEnvironment();
+            var mode = normalized(environment, "data-os.auth.mode", "ENFORCED");
+            var internal = normalized(environment, "data-os.auth.internal-mode", "");
+            var internalEnforced = internal.isEmpty() ? "ENFORCED".equals(mode) : "ENFORCED".equals(internal);
+            return internalEnforced && !"ENFORCED".equals(mode);
+        }
+    }
+
+    private static String normalized(Environment environment, String key, String fallback) {
+        var value = environment.getProperty(key);
+        return (value == null || value.isBlank() ? fallback : value).trim().toUpperCase(Locale.ROOT);
     }
 
     private void addRoles(Set<String> roles, Object value) {

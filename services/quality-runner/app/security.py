@@ -27,10 +27,14 @@ class OidcVerifier:
     def _load_jwks(self) -> dict[str, Any]:
         if self._jwks and self._expires_at > time.time():
             return self._jwks
-        discovery = settings.oidc_issuer.rstrip("/") + "/.well-known/openid-configuration"
         with httpx.Client(timeout=3.0) as client:
-            config = client.get(discovery).raise_for_status().json()
-            jwks = client.get(config["jwks_uri"]).raise_for_status().json()
+            if settings.oidc_jwks_uri:
+                # S7：内网 JWKS 直连（issuer 声明仍按 oidc_issuer 校验）
+                jwks = client.get(settings.oidc_jwks_uri).raise_for_status().json()
+            else:
+                discovery = settings.oidc_issuer.rstrip("/") + "/.well-known/openid-configuration"
+                config = client.get(discovery).raise_for_status().json()
+                jwks = client.get(config["jwks_uri"]).raise_for_status().json()
         self._jwks = jwks
         self._expires_at = time.time() + 300
         return jwks

@@ -1,5 +1,6 @@
 package com.cywu.dataos.controlplane.analytics;
 
+import java.util.List;
 import java.util.Map;
 
 import com.cywu.dataos.controlplane.executor.AdapterUnavailableException;
@@ -31,13 +32,28 @@ public class AnalyticsController {
     }
 
     @PostMapping("/guest-token")
-    public Map<String, Object> guestToken(@RequestBody Map<String, String> request) {
+    public Map<String, Object> guestToken(@RequestBody Map<String, String> request,
+                                          java.security.Principal principal) {
         var dashboardId = request.getOrDefault("dashboardId", "");
-        var token = requireService().issue(dashboardId);
+        var token = requireService().issue(dashboardId, usernameOf(principal));
         return Map.of(
                 "token", token.token(),
                 "dashboardId", token.dashboardId(),
                 "expiresInSeconds", token.expiresInSeconds());
+    }
+
+    /** ENFORCED 取 JWT 身份（preferred_username 优先）；DISABLED/匿名回落共享访客。 */
+    private static String usernameOf(java.security.Principal principal) {
+        if (principal instanceof org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken jwtAuth) {
+            var claims = jwtAuth.getToken().getClaims();
+            for (var claim : List.of("preferred_username", "sub")) {
+                var value = claims.get(claim);
+                if (value != null && !String.valueOf(value).isBlank() && !"null".equals(value)) {
+                    return String.valueOf(value);
+                }
+            }
+        }
+        return "portal-guest";
     }
 
     private SupersetGuestTokenService requireService() {

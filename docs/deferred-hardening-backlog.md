@@ -20,11 +20,11 @@
 | S1 | 口令轮换批 — **部分完成 2026-08-27**：OM bot secret/OM demo/Superset spike/Doris root ✅（各闭环验证）；**RustFS AK/SK 残留**：被 SeaTunnel 运行中作业定义+双服务引用，需停机窗口 | 安全收敛批报告 | 维护窗口 |
 | S2 | .env root 口令清理 — **完成 2026-08-27**：DORIS_PASSWORD 复位 quality_ro（重建隐患消除）、root 移 0600 文件、零残留复检 | 安全收敛批报告 | 完成 |
 | S3 | Superset CSP 收紧 — **评估延后**：同源嵌入+Referer 白名单+allowed_domains 三层在位；显式 frame-ancestors 待生产域名定稿（G4 前鉴） | 安全收敛批报告 | 生产化批 |
-| S4 | guest-token 缓存/限流 — **限流完成 2026-08-27**（nginx 10r/m burst5，200→503 实测）；按用户维度重设计仍待认证批次 | 安全收敛批报告 | 认证批次（余项） |
+| S4 | guest-token 缓存/限流 — **完成（2026-09-04，H2）**：限流（nginx 10r/m burst5）+ 按用户维度重设计——（用户 × 仪表盘）TTL 缓存（TTL-30s 安全边际、1000 条上限清过期）、令牌用户名 `portal-` 前缀隔离 Superset 真实账号、ENFORCED 取 JWT 身份 / DISABLED 回落共享访客；dev 实证签发+缓存命中 | 安全收敛批报告 + H2 批次 | **完成** |
 | S5 | 网络隔离持久化 — **完成 2026-08-27**：edge-isolation-rules.sh 幂等 + systemd 自启 | 安全收敛批报告 | 完成 |
 | S6 | 源库凭据面收敛复查：DM EP_TEST（可写测试账号）、各服务账号授权最小化复核 — **quality_ro 残留项完成 2026-09-02**：dev Doris 已 REVOKE 其对 `dataos_quality_acceptance` 的 SELECT，正负对照 + 失败路径复检验证（证据全部走 audit 表；发现并修正 dev runner 镜像钉旧 G5 tag 的漂移）；余项为全账号面复查 | G3/G5 已按分层授权交付（dataos_om_ro 等），未做全面审计 | 余项生产化批 |
-| S7 | ai-ready 服务间 OIDC — **完成 2026-08-27**：client+audience mapper+issuer 网关对齐；JWKS 容自签为 dev 口径（生产化换 truststore） | 安全收敛批报告 | 完成（truststore 项归生产化） |
-| S8 | data-api `/internal/**` 强制 OIDC 服务 token — dev control-plane 为 DISABLED 直通（与 /api 同水平）；切 ENFORCED 时建 Keycloak client `dataos-data-api` + audience mapper（S7 模式，compose 键位已预留） | G13 验收报告 | 认证批次 |
+| S7 | ai-ready 服务间 OIDC — **完成（truststore 余项收口 2026-09-04，H2）**：client+audience mapper+issuer 网关对齐；JWKS 自签容错以**内网 JWKS URI 直连**替代（AI_READY/QUALITY_RUNNER/control-plane 三处 jwks-uri 配置，issuer 声明仍按网关值校验；dev compose 已接内网 Keycloak）——免 truststore 工件与证书轮换耦合，truststore 方案留作生产拓扑需要 TLS JWKS 时的替代。注：mpi-service 同型代码未接（dev DISABLED/issuer 空，无现实通道），接线配方一行即成，留 H4 复查 | 安全收敛批报告 + H2 批次 | **完成** |
+| S8 | data-api `/internal/**` 强制 OIDC 服务 token — **完成（2026-09-04，H2）**：控制面新增 `data-os.auth.internal-mode`（空值跟随全局；dev 全局 DISABLED 下 /internal/** 独立 ENFORCED，门户免登录迭代不受影响）；Keycloak client `dataos-data-api` + audience mapper（aud=data-os）；dev 实证：无 token 401 / aud=account 拒 401 / 真 token 200，X-API-Key 查询全链（OIDC registry 拉取 + Doris + 审计回写落库）通过；生产全局 ENFORCED 由既有主链承担 | G13 验收报告 + H2 批次 | **完成** |
 | S9 | data-api 行级授权 fail-open 缺口：`_hospitals_of`（services/data-api/app/api.py:70）解析 `allowedHospitals` 坏 JSON 时静默回退 `["*"]`（全院放行），零直接测试；同文件 catalog 端点绕过 `_require_key` 内联复制 401 分支、`report_call` 4 处手调。修复建议随「CallSession 调决深化」（架构评审候选 1）一并收敛，医院解析改 fail-closed | 2026-09-04 全库架构走查实锤（报告见临时目录 architecture-review-20260904） | H3（Data API 批） |
 
 ## 二、生产加固类

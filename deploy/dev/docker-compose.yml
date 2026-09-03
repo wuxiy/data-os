@@ -11,7 +11,12 @@ services:
       DATAOS_DB_POOL_SIZE: ${DATAOS_DB_POOL_SIZE:-10}
       DATAOS_RUNTIME_ENV: ${DATAOS_RUNTIME_ENV:-development}
       DATAOS_AUTH_MODE: ${DATAOS_AUTH_MODE:-DISABLED}
-      DATAOS_OIDC_ISSUER_URI: ${DATAOS_OIDC_ISSUER_URI:-}
+      # S8：/internal/** 面独立强制 OIDC（空值跟随 AUTH_MODE）——dev 门户免登录
+      # 迭代不受影响，data-api 服务间通道走真实 Keycloak client token。
+      DATAOS_AUTH_INTERNAL_MODE: ${DATAOS_AUTH_INTERNAL_MODE:-ENFORCED}
+      DATAOS_OIDC_ISSUER_URI: ${DATAOS_OIDC_ISSUER_URI:-https://172.16.65.59:8443/auth/realms/data-platform}
+      # S7：JWKS 走内网 Keycloak 直取，issuer 声明仍按网关 URL 校验
+      DATAOS_OIDC_JWK_SET_URI: ${DATAOS_OIDC_JWK_SET_URI:-http://keycloak:8080/auth/realms/data-platform/protocol/openid-connect/certs}
       DATAOS_OIDC_AUDIENCE: ${DATAOS_OIDC_AUDIENCE:-data-os}
       DATAOS_DEFAULT_SCOPE_ENABLED: ${DATAOS_DEFAULT_SCOPE_ENABLED:-true}
       DATAOS_DEFAULT_TENANT_ID: ${DATAOS_DEFAULT_TENANT_ID:-default}
@@ -141,6 +146,8 @@ services:
       AI_READY_API_TOKEN: ${DATAOS_AI_READY_API_TOKEN:-}
       AI_READY_OIDC_ISSUER: ${DATAOS_AI_READY_OIDC_ISSUER:-https://172.16.65.59:8443/auth/realms/data-platform}
       AI_READY_OIDC_AUDIENCE: ${DATAOS_AI_READY_OIDC_AUDIENCE:-dataos-ai-ready}
+      # S7 余项收口：JWKS 内网直取，替代 discovery 的 verify=False dev 口径
+      AI_READY_OIDC_JWKS_URI: ${DATAOS_AI_READY_OIDC_JWKS_URI:-http://keycloak:8080/auth/realms/data-platform/protocol/openid-connect/certs}
       DATAOS_RUSTFS_ENDPOINT: http://rustfs:9000
       DATAOS_RUSTFS_ACCESS_KEY: ${DATAOS_RUSTFS_ACCESS_KEY:?请在远程 .env 中提供 DATAOS_RUSTFS_ACCESS_KEY}
       DATAOS_RUSTFS_SECRET_KEY: ${DATAOS_RUSTFS_SECRET_KEY:?请在远程 .env 中提供 DATAOS_RUSTFS_SECRET_KEY}
@@ -160,11 +167,12 @@ services:
     image: ${DATAOS_DATA_API_IMAGE:-medical-platform/data-os-data-api:0.1.0-dev}
     environment:
       CONTROL_PLANE_BASE_URL: http://control-plane:8080
-      # dev：control-plane 为 AUTH_MODE=DISABLED，/internal/** 直通——用静态内部令牌满足
-      # 启动校验即可；生产切 ENFORCED 后改配 OIDC client dataos-data-api（S7 模式）
+      # S8：控制面 /internal/** 已独立 ENFORCED——client_credentials 换取
+      # audience=data-os 的服务 token（Keycloak client dataos-data-api +
+      # audience mapper，S7 模式）；secret 见远程 .env DATAOS_DATA_API_CLIENT_SECRET。
       DATA_API_INTERNAL_TOKEN: ${DATAOS_DATA_API_INTERNAL_TOKEN:-dev-internal-data-api}
       DATA_API_OIDC_TOKEN_URI: http://keycloak:8080/auth/realms/data-platform/protocol/openid-connect/token
-      DATA_API_OIDC_CLIENT_ID: ${DATAOS_DATA_API_OIDC_CLIENT_ID:-}
+      DATA_API_OIDC_CLIENT_ID: ${DATAOS_DATA_API_OIDC_CLIENT_ID:-dataos-data-api}
       DATA_API_OIDC_CLIENT_SECRET: ${DATAOS_DATA_API_CLIENT_SECRET:-}
       DORIS_HOST: ${DATAOS_DATA_API_DORIS_FE_HOST:-172.16.66.8}
       DORIS_PORT: "9030"
@@ -232,6 +240,8 @@ services:
       QUALITY_RUNNER_AUTH_MODE: ${QUALITY_RUNNER_AUTH_MODE:-DISABLED}
       QUALITY_RUNNER_OIDC_ISSUER: ${QUALITY_RUNNER_OIDC_ISSUER:-}
       QUALITY_RUNNER_OIDC_AUDIENCE: ${QUALITY_RUNNER_OIDC_AUDIENCE:-dataos-quality-runner}
+      # S7：JWKS 内网直取（与 control-plane 的 DATAOS_OIDC_JWK_SET_URI 同模式）
+      QUALITY_RUNNER_OIDC_JWKS_URI: ${QUALITY_RUNNER_OIDC_JWKS_URI:-}
       QUALITY_RUNNER_OIDC_REQUIRED_SCOPES: ${QUALITY_RUNNER_OIDC_REQUIRED_SCOPES:-quality:submit quality:read}
       # The runner shares the dev data_os schema. Override this with the
       # actual keycloak-db password in the host .env; the default is only a

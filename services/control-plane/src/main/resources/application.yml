@@ -33,7 +33,14 @@ data-os:
     external-https-terminated: ${DATAOS_EXTERNAL_HTTPS_TERMINATED:false}
   auth:
     mode: ${DATAOS_AUTH_MODE:ENFORCED}
+    # S8：/internal/** 面可独立强制 OIDC（空值跟随 mode）——dev 全局 DISABLED 时
+    # 服务间通道（data-api registry/审计回写）仍走真实 Keycloak client token。
+    internal-mode: ${DATAOS_AUTH_INTERNAL_MODE:}
     issuer-uri: ${DATAOS_OIDC_ISSUER_URI:}
+    # S7 余项：issuer 为网关自签 HTTPS 时，JWKS 从内网 Keycloak 直取
+    # （如 http://keycloak:8080/auth/realms/data-platform/protocol/openid-connect/certs）；
+    # issuer 声明仍按 issuer-uri 校验。空值走 issuer discovery。
+    jwk-set-uri: ${DATAOS_OIDC_JWK_SET_URI:}
     audience: ${DATAOS_OIDC_AUDIENCE:data-os}
     clock-skew-seconds: ${DATAOS_OIDC_CLOCK_SKEW_SECONDS:60}
     default-tenant-id: ${DATAOS_DEFAULT_TENANT_ID:default}

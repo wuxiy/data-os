@@ -146,7 +146,10 @@ public class DataApiAdminService {
                 "published", published,
                 "draft", services.size() - published,
                 "activeKeys", activeKeys,
-                "callsToday", repository.countCallsSince(LocalDate.now().atStartOfDay().toInstant(UTC)));
+                // 当日窗口与 usedToday（dailyUsageByKeyHash 的本地午夜口径）对齐：
+                // 原实现把本地日期墙钟当 UTC 午夜，00:00-08:00 CST 会漏计当日调用。
+                "callsToday", repository.countCallsSince(
+                        LocalDate.now().atStartOfDay(java.time.ZoneId.systemDefault()).toInstant()));
     }
 
     // ---- 内部面（执行面 data-api 专用） ----
@@ -245,8 +248,6 @@ public class DataApiAdminService {
         RANDOM.nextBytes(buffer);
         return HexFormat.of().formatHex(buffer);
     }
-
-    private static final java.time.ZoneOffset UTC = java.time.ZoneOffset.UTC;
 
     public record DataServiceDetail(DataServiceDefinition service, List<Map<String, Object>> keys, long totalCalls) {
     }

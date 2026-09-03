@@ -37,6 +37,9 @@ class Settings:
     # 服务间认证：优先 OIDC（issuer 非空启用 JWKS 验签）；否则共享静态令牌。
     oidc_issuer: str = field(default_factory=lambda: _env("AI_READY_OIDC_ISSUER"))
     oidc_audience: str = field(default_factory=lambda: _env("AI_READY_OIDC_AUDIENCE", "dataos-ai-ready"))
+    # JWKS 直连（S7）：issuer 为网关自签 HTTPS 时从内网 Keycloak 直取；空值走
+    # issuer discovery（其 verify=False 仅为网关自签的 dev 兜底）。
+    oidc_jwks_uri: str = field(default_factory=lambda: _env("AI_READY_OIDC_JWKS_URI"))
     api_token: str = field(default_factory=lambda: _env("AI_READY_API_TOKEN"))
 
     def validate(self) -> None:
