@@ -67,3 +67,42 @@ POST /glossaryTerms 的 glossary 引用形态鉴别（升级后探针）：
 - 第 7 次：到达 ingestion 1.6 auth 配置形态层（custom-oidc 凭据组合报错，回显 OM 内置 admin JWT）——**未解**，需对 OM 1.6 ingestion 的 authProvider/securityConfig 形态做专项调试（可能需 audience/secretKey 参数或 OM 自签 bot token 通道）。日志：dev /tmp/om16-g7-retry*.log。
 
 **判定**：此项从「重跑即愈」升级为「ingestion 1.6 认证形态适配」工程项，估 0.5-1 人日，保留 P3 余项。不阻塞 H1 主体验收（三个受阻面中两个已修复实证、G6 零回归）。
+
+## 六、终局收口（2026-09-04，H1 关闭）
+
+### dbt 资产化全量恢复：完成（§五余项关闭 + 记录纠正）
+
+**§五「未解」项的真相（容器内 pydantic 模型实证）**：OM 1.6.0 的 WorkflowConfig schema 中
+`openMetadataServerConfig.securityConfig` 只接受 `OpenMetadataJWTClientConfig`（jwtToken）——
+custom-oidc 的 clientId/clientSecret/tokenEndpoint（连 secretKey 也一样）一律 `extra_forbidden`
+拒绝。§五第 7 次看到的「内置 admin JWT」是失败帮助文本中的文档示例，非实际加载配置。
+**custom-oidc 模板修复方向错误，已回退为 jwtToken 形态**（与 om-ingest-doris/superset 两脚本一致）。
+
+令牌时效的正解：**Keycloak per-client `access.token.lifespan`**（dataos-om-ingest=1800s，
+realm 默认 300s 不动）。静态令牌整跑实测 412s 在 51.53% 处过期（与 H1 首跑复现一致）；
+1800s 后全量窗口充足（最终全量 run 实测 15m28s）。
+
+**根因链（载荷性）**：① 1.6.0 内置 dbt-artifacts-parser **原生吃 v12/v6**，但拒收 dbt 1.10
+metadata 新增键（`invocation_started_at`/`quoting`，extra_forbidden）——剥离后直通，**v11/v5
+双源降维链（dbt-1.7 临时容器 + 两个 compat 脚本）整体退役**；降维产物只建 TestSuite 不建
+TestCase 是当年「实效为零」的直接原因。② 期间 dev 的 ES `DiskThresholdMonitor` 卡死（磁盘
+94% 水位期触发，每 30s「skipping monitor」），master 集群事件队列被堵、put-mapping/create-index
+全 1m 超时——清理磁盘（→75%）+ 重启 ES 后恢复（scratch 索引 create/delete 即时 200）。
+③ TestCase 端点 1.6.0 移至 `/dataQuality/testCases`（`/testCases` 404），对账脚本已切换。
+
+**验收（dev 实测）**：工作流 87 records / 0 errors / Success 100%；OM TestCase 11 → **96**
+（含 G16 EP 四锚点规则全 OK；DB 计数=API 计数=96）。脚本重写为「原生产物 + scrub」形态并
+端到端重跑验证。**残留**：DataModel 实体面仍为 0（catalog 未喂；若需补，喂 runner 原生
+dbt docs generate 的 catalog 并按同法 scrub 后验证）——记备忘 P3。
+
+### 「35 条词表 seed 重放」：伪命题闭环
+
+升级前 mysqldump 备份中 `glossary_term` 插入行数为 **0**——「35 条」实为 testDefinition 在
+1.5.11 的内置数（1.6.0 已 85 条），glossary 词表从未有过 35 条数据。`ai-data-products` 词表
+本体迁移后完好（API 可见）。G11 产品 term 回写归 G11 面独立执行（§五已记）。
+
+### H1 关闭判定
+
+三个受阻面（glossaryTerms 端点、testDefinitions、dbt 资产化）全部修复实证；G6 零回归；
+词表伪命题澄清；余项清偿完毕。**H1 关闭。**
+

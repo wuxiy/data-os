@@ -1,11 +1,12 @@
 # OpenMetadata dbt 摄取配置（挂在 doris-dataos 服务上：质量测试 TestCase），
 # 见 docs/dbt-lineage-g7-review-and-plan-20260822.md 决策 G7-1/G7-2。
 #
-# 由 deploy/scripts/om-dbt-ingest.sh 渲染后执行。OM 1.5 的 dbt 摄取不需要
-# 独立服务实体：sourceConfig.config.type=DBT，dbt 配置（DbtLocalConfig）随
-# workflow 提供；TestCase/DataModel 挂到 serviceName 所指服务的表。
-# manifest/catalog/run_results 由脚本先在 quality-runner 容器生成并挂载到
-# /opt/dbt-artifacts（本模板不含口令，可安全进 Git）。
+# 由 deploy/scripts/om-dbt-ingest.sh 渲染后执行。OM 1.6.0 不需要独立服务
+# 实体：sourceConfig.config.type=DBT，dbt 配置（DbtLocalConfig）随 workflow
+# 提供；TestCase 挂到 serviceName 所指服务的表。产物（v12/v6，经 metadata
+# 键剥离）由脚本在 quality-runner 容器生成并挂载到 /opt/dbt-artifacts
+# （本模板不含口令，可安全进 Git）。catalog 未喂：DataModel 实体面为 0
+# （备忘 P3）。
 source:
   type: dbt
   serviceName: doris-dataos
@@ -15,7 +16,6 @@ source:
       dbtConfigSource:
         dbtConfigType: local
         dbtManifestFilePath: /opt/dbt-artifacts/manifest.json
-        dbtCatalogFilePath: /opt/dbt-artifacts/catalog.json
 __DBT_RUN_RESULTS_LINE__
 sink:
   type: metadata-rest
@@ -23,8 +23,11 @@ sink:
 workflowConfig:
   openMetadataServerConfig:
     hostPort: http://openmetadata:8585/api
-    authProvider: custom-oidc
+    # OM 1.6.0 的 WorkflowConfig schema 只收 jwtToken：custom-oidc 的
+    # clientId/secretKey/tokenEndpoint 实测被 securityConfig 拒绝（extra
+    # parameter，2026-09-04 探针）。令牌时效靠 Keycloak per-client
+    # access.token.lifespan（dataos-om-ingest=1800s，realm 默认 300s 不动）
+    # 承载——整跑约 7 分钟，300s 令牌会在 ~51% 处过期（H1 实测复现）。
+    authProvider: openmetadata
     securityConfig:
-      clientId: dataos-om-ingest
-      clientSecret: __OM_INGEST_SECRET__
-      tokenEndpoint: http://keycloak:8080/auth/realms/data-platform/protocol/openid-connect/token
+      jwtToken: __OM_JWT__
