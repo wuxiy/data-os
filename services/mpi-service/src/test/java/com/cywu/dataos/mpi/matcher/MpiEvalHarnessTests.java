@@ -43,8 +43,9 @@ class MpiEvalHarnessTests {
     @Test
     void calibrateEstimateMatchesPackagedWeights() throws IOException {
         var calibration = corpus.load(CORPUS.resolve("calibration.jsonl"));
+        var evalSet = corpus.load(CORPUS.resolve("evalset.jsonl"));
         var frequency = corpus.nameFrequency(CORPUS.resolve("snapshot.jsonl"));
-        var estimated = new MpiWeightEstimator(frequency).estimate(labeled(calibration));
+        var estimated = new MpiWeightEstimator(frequency).estimate(labeled(calibration), labeled(evalSet));
         var packaged = MpiWeights.packaged().withNameUFrequency(frequency);
 
         assertFieldEquals("card", estimated.card(), packaged.card());

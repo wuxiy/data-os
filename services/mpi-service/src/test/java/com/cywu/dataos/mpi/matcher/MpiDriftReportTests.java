@@ -37,9 +37,13 @@ class MpiDriftReportTests {
     void driftReportComparingFreshEstimateWithPackaged() throws IOException {
         var dir = Path.of(System.getProperty("drift.corpus"));
         var calibration = corpus.load(dir.resolve("calibration.jsonl"));
+        var evalSet = corpus.load(dir.resolve("evalset.jsonl"));
         var frequency = corpus.nameFrequency(dir.resolve("snapshot.jsonl"));
         var estimated = new MpiWeightEstimator(frequency).estimate(
                 calibration.stream()
+                        .map(p -> new MpiWeightEstimator.LabeledPair(p.match(), p.toMatchPair()))
+                        .toList(),
+                evalSet.stream()
                         .map(p -> new MpiWeightEstimator.LabeledPair(p.match(), p.toMatchPair()))
                         .toList());
         var packaged = MpiWeights.packaged().withNameUFrequency(frequency);

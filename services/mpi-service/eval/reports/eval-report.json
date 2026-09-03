@@ -2,42 +2,42 @@
   "corpus" : "eval/corpus/evalset.jsonl (seed 20260828)",
   "v1" : {
     "engine" : "V1 规则",
-    "autoTp" : 314,
+    "autoTp" : 500,
     "autoFalse" : 0,
-    "matchSentToReview" : 403,
+    "matchSentToReview" : 1663,
     "matchLostNoMatch" : 0,
-    "nonMatchSentToReview" : 1027,
-    "nonMatchNoMatch" : 398,
+    "nonMatchSentToReview" : 1596,
+    "nonMatchNoMatch" : 1281,
     "autoPrecision" : 1.0,
-    "autoRecall" : 0.44,
-    "f1" : 0.61
+    "autoRecall" : 0.23,
+    "f1" : 0.38
   },
   "v2" : {
     "engine" : "V2 评分",
-    "autoTp" : 12,
+    "autoTp" : 0,
     "autoFalse" : 0,
-    "matchSentToReview" : 700,
-    "matchLostNoMatch" : 5,
-    "nonMatchSentToReview" : 226,
-    "nonMatchNoMatch" : 1199,
+    "matchSentToReview" : 2151,
+    "matchLostNoMatch" : 12,
+    "nonMatchSentToReview" : 758,
+    "nonMatchNoMatch" : 2119,
     "autoPrecision" : 1.0,
-    "autoRecall" : 0.02,
-    "f1" : 0.03
+    "autoRecall" : 0.0,
+    "f1" : 0.0
   },
   "hybrid" : {
     "engine" : "V1+V2 混合",
-    "autoTp" : 314,
+    "autoTp" : 500,
     "autoFalse" : 0,
-    "matchSentToReview" : 403,
+    "matchSentToReview" : 1663,
     "matchLostNoMatch" : 0,
-    "nonMatchSentToReview" : 212,
-    "nonMatchNoMatch" : 1213,
+    "nonMatchSentToReview" : 618,
+    "nonMatchNoMatch" : 2259,
     "autoPrecision" : 1.0,
-    "autoRecall" : 0.44,
-    "f1" : 0.61
+    "autoRecall" : 0.23,
+    "f1" : 0.38
   },
-  "positivesBlockingReachable" : 522,
-  "positives" : 717,
+  "positivesBlockingReachable" : 1018,
+  "positives" : 2163,
   "anchors" : [ {
     "id" : "anchor--7038355502812523134",
     "human" : "DIFFERENT_PERSON",
@@ -66,8 +66,8 @@
     "id" : "anchor-1569541917",
     "human" : "SAME_PERSON",
     "v1" : "REVIEW",
-    "v2" : "NO_MATCH",
-    "hybrid" : "NO_MATCH"
+    "v2" : "REVIEW",
+    "hybrid" : "REVIEW"
   }, {
     "id" : "anchor-770419785",
     "human" : "SAME_PERSON",
@@ -88,88 +88,88 @@
     "hybrid" : "NO_MATCH"
   } ],
   "thresholds" : {
-    "tAuto" : 16.54,
-    "tReview" : 0.62,
-    "tVeto" : 0.42
+    "tAuto" : 17.62,
+    "tReview" : -0.01,
+    "tVeto" : -1.09
   },
   "tAutoSensitivity" : [ {
     "allowedFalseAuto" : 0,
-    "tAuto" : 16.54,
-    "matchAuto" : 12,
-    "matchReview" : 700,
-    "autoRecall" : 0.02
+    "tAuto" : 17.62,
+    "matchAuto" : 0,
+    "matchReview" : 2151,
+    "autoRecall" : 0.0
   }, {
     "allowedFalseAuto" : 1,
-    "tAuto" : 15.89,
-    "matchAuto" : 67,
-    "matchReview" : 645,
-    "autoRecall" : 0.09
+    "tAuto" : 17.61,
+    "matchAuto" : 80,
+    "matchReview" : 2071,
+    "autoRecall" : 0.04
   }, {
     "allowedFalseAuto" : 2,
-    "tAuto" : 10.91,
-    "matchAuto" : 128,
-    "matchReview" : 584,
-    "autoRecall" : 0.18
+    "tAuto" : 17.61,
+    "matchAuto" : 80,
+    "matchReview" : 2071,
+    "autoRecall" : 0.04
   }, {
     "allowedFalseAuto" : 5,
-    "tAuto" : 10.91,
-    "matchAuto" : 128,
-    "matchReview" : 584,
-    "autoRecall" : 0.18
+    "tAuto" : 17.54,
+    "matchAuto" : 119,
+    "matchReview" : 2032,
+    "autoRecall" : 0.06
   } ],
   "tVetoSensitivity" : [ {
-    "tVeto" : 0.62,
+    "tVeto" : -0.01,
     "calibrated" : false,
-    "matchVetoed" : 5,
-    "nonMatchReviewRelieved" : 815,
-    "nonMatchSentToReview" : 212
+    "matchVetoed" : 12,
+    "nonMatchReviewRelieved" : 1006,
+    "nonMatchSentToReview" : 590
   }, {
     "tVeto" : 0.0,
     "calibrated" : false,
-    "matchVetoed" : 0,
-    "nonMatchReviewRelieved" : 796,
-    "nonMatchSentToReview" : 231
+    "matchVetoed" : 12,
+    "nonMatchReviewRelieved" : 1006,
+    "nonMatchSentToReview" : 590
   }, {
     "tVeto" : -2.0,
     "calibrated" : false,
     "matchVetoed" : 0,
-    "nonMatchReviewRelieved" : 793,
-    "nonMatchSentToReview" : 234
+    "nonMatchReviewRelieved" : 907,
+    "nonMatchSentToReview" : 689
   }, {
     "tVeto" : -4.0,
     "calibrated" : false,
     "matchVetoed" : 0,
-    "nonMatchReviewRelieved" : 792,
-    "nonMatchSentToReview" : 235
+    "nonMatchReviewRelieved" : 816,
+    "nonMatchSentToReview" : 780
   }, {
     "tVeto" : -6.0,
     "calibrated" : false,
     "matchVetoed" : 0,
-    "nonMatchReviewRelieved" : 785,
-    "nonMatchSentToReview" : 242
+    "nonMatchReviewRelieved" : 770,
+    "nonMatchSentToReview" : 826
   }, {
     "tVeto" : -8.0,
     "calibrated" : false,
     "matchVetoed" : 0,
-    "nonMatchReviewRelieved" : 776,
-    "nonMatchSentToReview" : 251
+    "nonMatchReviewRelieved" : 394,
+    "nonMatchSentToReview" : 1202
   }, {
     "tVeto" : -10.0,
     "calibrated" : false,
     "matchVetoed" : 0,
-    "nonMatchReviewRelieved" : 708,
-    "nonMatchSentToReview" : 319
+    "nonMatchReviewRelieved" : 0,
+    "nonMatchSentToReview" : 1596
   }, {
     "tVeto" : -12.0,
     "calibrated" : false,
     "matchVetoed" : 0,
-    "nonMatchReviewRelieved" : 264,
-    "nonMatchSentToReview" : 763
+    "nonMatchReviewRelieved" : 0,
+    "nonMatchSentToReview" : 1596
   }, {
-    "tVeto" : 0.42,
+    "tVeto" : -1.09,
     "calibrated" : true,
     "matchVetoed" : 0,
-    "nonMatchReviewRelieved" : 815,
-    "nonMatchSentToReview" : 212
+    "nonMatchReviewRelieved" : 978,
+    "nonMatchSentToReview" : 618
   } ]
 }

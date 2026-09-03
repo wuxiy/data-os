@@ -17,39 +17,42 @@
     "genderU": 0.08
   },
   "negativeMix": {
-    "card-reuse": 0.6,
-    "same-name-hard": 0.12,
-    "random": 0.28
+    "card-reuse": 0.74,
+    "same-name-hard": 0.18,
+    "random": 0.08
   },
   "negativesPerPositive": 2.0,
+  "negativeMixDerivation": "2026-09-03 双流 dev 候选构成 B3=1441/B4=42/B6=10；负样本层 B4:B6=0.81:0.19，random 保留 0.08 地板",
   "counts": {
     "calibration": {
-      "total": 2141,
+      "total": 5036,
       "labels": {
-        "MATCH": 716,
-        "NON_MATCH": 1425
+        "MATCH": 2160,
+        "NON_MATCH": 2876
       },
       "kinds": {
-        "synthetic-variant": 716,
-        "same-name-hard": 178,
-        "card-reuse": 850,
-        "random": 397
+        "synthetic-variant": 1440,
+        "same-name-hard": 531,
+        "card-reuse": 2103,
+        "random": 242,
+        "cross-stream-real": 720
       },
-      "positivesBlockingReachable": 524
+      "positivesBlockingReachable": 966
     },
     "eval": {
-      "total": 2142,
+      "total": 5040,
       "labels": {
-        "MATCH": 717,
-        "NON_MATCH": 1425
+        "MATCH": 2163,
+        "NON_MATCH": 2877
       },
       "kinds": {
-        "synthetic-variant": 717,
-        "same-name-hard": 179,
-        "card-reuse": 848,
-        "random": 398
+        "synthetic-variant": 1442,
+        "same-name-hard": 544,
+        "card-reuse": 2094,
+        "random": 239,
+        "cross-stream-real": 721
       },
-      "positivesBlockingReachable": 522
+      "positivesBlockingReachable": 1018
     }
   }
 }

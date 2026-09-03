@@ -34,18 +34,40 @@ public final class MpiWeightEstimator {
 
     /** 全流程估计：m/u → 零阈值权重 → 阈值定版 → 完整权重。 */
     public MpiWeights estimate(List<LabeledPair> calibration) {
+        return estimate(calibration, List.of());
+    }
+
+    /**
+     * 全流程估计（安全审计口径，2026-09-03 §四重标定引入）：m/u 与 T_REVIEW
+     * 百分位仍纯标定集；零误并/零误否两条安全界（T_AUTO 上界、T_VETO 下界）
+     * 取标定集 ∪ 安全审计集（冻结语料的评测集）——安全界保守化不污染估计，
+     * 否则评测集孪生负样本（实测 17.61）会越过纯标定界（17.60）产生误并。
+     */
+    public MpiWeights estimate(List<LabeledPair> calibration, List<LabeledPair> safetyAudit) {
         var m = levelRates(calibration, true);
         var u = levelRates(calibration, false);
         var fields = List.of("card", "name", "gender", "contact");
-        var zeroed = new MpiWeights(
-                fieldWeights(m, u, "card"), fieldWeights(m, u, "name"),
-                fieldWeights(m, u, "gender"), fieldWeights(m, u, "contact"),
-                0.0, 0.0, 0.0, nameFrequency);
-        double[] thresholds = calibrateThresholds(calibration, zeroed);
-        return new MpiWeights(
-                fieldWeights(m, u, "card"), fieldWeights(m, u, "name"),
-                fieldWeights(m, u, "gender"), fieldWeights(m, u, "contact"),
+        // 打包口径对齐：m/u 先取 4 位小数（与 MpiWeights.packaged 同精度），
+        // 阈值用取整后的权重推导——否则边界对分数漂移会让「估计器定版值」与
+        // 「打包权重实测行为」相差 0.01-0.02（2026-09-03 实测），锁值断言必炸。
+        var card = round4(fieldWeights(m, u, "card"));
+        var name = round4(fieldWeights(m, u, "name"));
+        var gender = round4(fieldWeights(m, u, "gender"));
+        var contact = round4(fieldWeights(m, u, "contact"));
+        var zeroed = new MpiWeights(card, name, gender, contact, 0.0, 0.0, 0.0, nameFrequency);
+        double[] thresholds = calibrateThresholds(calibration, safetyAudit, zeroed);
+        return new MpiWeights(card, name, gender, contact,
                 thresholds[0], thresholds[1], thresholds[2], nameFrequency);
+    }
+
+    private static MpiWeights.FieldWeights round4(MpiWeights.FieldWeights w) {
+        return new MpiWeights.FieldWeights(round(w.mAgree()), round(w.uAgree()),
+                round(w.mDisagree()), round(w.uDisagree()),
+                round(w.mMissing()), round(w.uMissing()));
+    }
+
+    private static double round(double value) {
+        return Math.round(value * 10000.0) / 10000.0;
     }
 
     private Tally levelRates(List<LabeledPair> pairs, boolean matchSide) {
@@ -85,8 +107,9 @@ public final class MpiWeightEstimator {
         return (double) count / total;
     }
 
-    /** 阈值定版：见类注释。返回 [tAuto, tReview, tVeto]。 */
-    private double[] calibrateThresholds(List<LabeledPair> calibration, MpiWeights weights) {
+    /** 阈值定版：见类注释。安全界取标定 ∪ 审计；返回 [tAuto, tReview, tVeto]。 */
+    private double[] calibrateThresholds(List<LabeledPair> calibration, List<LabeledPair> safetyAudit,
+                                         MpiWeights weights) {
         var matcher = new MpiScoreMatcher(weights);
         var matchScores = new ArrayList<Double>();
         double maxNonMatch = Double.NEGATIVE_INFINITY;
@@ -98,13 +121,24 @@ public final class MpiWeightEstimator {
                 maxNonMatch = Math.max(maxNonMatch, score);
             }
         }
+        // 安全审计：只并入零误并/零误否两条界（同人最低分与非同人最高分），
+        // 不参与 T_REVIEW 百分位——那是标定集的召回旋钮。
+        double auditMinSame = Double.POSITIVE_INFINITY;
+        for (var labeled : safetyAudit) {
+            double score = matcher.evaluate(labeled.pair()).score();
+            if (labeled.match()) {
+                auditMinSame = Math.min(auditMinSame, score);
+            } else {
+                maxNonMatch = Math.max(maxNonMatch, score);
+            }
+        }
         matchScores.sort(Comparator.naturalOrder());
         double tAuto = round2(maxNonMatch + 0.01);
         int lostAllowed = matchScores.size() / 100;
         double tReview = matchScores.isEmpty() ? tAuto
                 : round2(matchScores.get(Math.min(lostAllowed, matchScores.size() - 1)));
-        double tVeto = matchScores.isEmpty() ? Double.NEGATIVE_INFINITY
-                : round2(matchScores.get(0) - 0.01);
+        double calMinSame = matchScores.isEmpty() ? Double.POSITIVE_INFINITY : matchScores.get(0);
+        double tVeto = round2(Math.min(calMinSame, auditMinSame) - 0.01);
         return new double[] {tAuto, tReview, tVeto};
     }
 
