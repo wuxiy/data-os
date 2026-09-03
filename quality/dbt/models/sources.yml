@@ -183,3 +183,158 @@ sources:
                   arguments:
                     to: source('ep_domain', 'ep_mz_cfzb')
                     field: ID
+
+  # G16c 二批：ORDER 交易域 6 表（源表 ORDER 为保留字，Doris 侧统一 ep_ 前缀，
+  # 见 init-ods-ep-g16c.sql 命名偏差记录）。2026-09-03 源库预检：PK 与 ORDER.SN
+  # 全唯一、七条外键边全部 0 孤儿；关联键为业务串 ORDER_SN（非 ID 外键）。
+  - name: ep_transaction
+    schema: "{{ env_var('DORIS_EP_DATABASE', 'ods_ep') }}"
+    tables:
+      - name: ep_order
+        columns:
+          - name: ID
+            description: 订单主键
+            data_tests:
+              - unique:
+                  name: quality_ep_order_id_unique
+              - not_null:
+                  name: quality_ep_order_id_not_null
+          - name: EP_ID
+            description: 处方外键（源库预检 0 孤儿）
+            data_tests:
+              - relationships:
+                  name: quality_ep_order_epid_fk
+                  arguments:
+                    to: source('ep_domain', 'ep_mz_cfzb')
+                    field: ID
+          - name: PATIENT_ID
+            description: 患者外键（源库预检 0 孤儿）
+            data_tests:
+              - relationships:
+                  name: quality_ep_order_patientid_fk
+                  arguments:
+                    to: source('ep_domain', 'patient')
+                    field: ID
+          - name: PAY_STATUS
+            description: 支付状态（源库实测值域 {10,15,16,18,20}）
+            data_tests:
+              - accepted_values:
+                  name: quality_ep_order_paystatus_values
+                  arguments:
+                    values: [10, 15, 16, 18, 20]
+      - name: ep_order_item
+        columns:
+          - name: ID
+            description: 订单药品主键
+            data_tests:
+              - unique:
+                  name: quality_ep_order_item_id_unique
+              - not_null:
+                  name: quality_ep_order_item_id_not_null
+          - name: ORDER_SN
+            description: 订单业务号外键（源库预检 0 孤儿）
+            data_tests:
+              - relationships:
+                  name: quality_ep_order_item_ordersn_fk
+                  arguments:
+                    to: source('ep_transaction', 'ep_order')
+                    field: SN
+      - name: ep_order_flow
+        columns:
+          - name: ID
+            description: 订单流水主键
+            data_tests:
+              - unique:
+                  name: quality_ep_order_flow_id_unique
+              - not_null:
+                  name: quality_ep_order_flow_id_not_null
+          - name: ORDER_SN
+            description: 订单业务号外键（源库预检 0 孤儿）
+            data_tests:
+              - relationships:
+                  name: quality_ep_order_flow_ordersn_fk
+                  arguments:
+                    to: source('ep_transaction', 'ep_order')
+                    field: SN
+      - name: ep_order_trade
+        columns:
+          - name: ID
+            description: 交易主键
+            data_tests:
+              - unique:
+                  name: quality_ep_order_trade_id_unique
+              - not_null:
+                  name: quality_ep_order_trade_id_not_null
+          - name: ORDER_SN
+            description: 订单业务号外键（源库预检 0 孤儿）
+            data_tests:
+              - relationships:
+                  name: quality_ep_order_trade_ordersn_fk
+                  arguments:
+                    to: source('ep_transaction', 'ep_order')
+                    field: SN
+      - name: ep_order_relationship
+        columns:
+          - name: ID
+            description: 订单-处方关联主键
+            data_tests:
+              - unique:
+                  name: quality_ep_order_relationship_id_unique
+              - not_null:
+                  name: quality_ep_order_relationship_id_not_null
+          - name: EP_ID
+            description: 处方外键（源库预检 0 孤儿）
+            data_tests:
+              - relationships:
+                  name: quality_ep_order_relationship_epid_fk
+                  arguments:
+                    to: source('ep_domain', 'ep_mz_cfzb')
+                    field: ID
+          - name: VALID
+            description: 有效标记（源库实测值域 {0,1}，NUMBER 类型）
+            data_tests:
+              - accepted_values:
+                  name: quality_ep_order_relationship_valid_values
+                  arguments:
+                    values: [0, 1]
+      - name: ep_order_after_sale
+        columns:
+          - name: ID
+            description: 售后单主键
+            data_tests:
+              - unique:
+                  name: quality_ep_order_after_sale_id_unique
+              - not_null:
+                  name: quality_ep_order_after_sale_id_not_null
+          - name: ORDER_SN
+            description: 订单业务号外键（源库预检 0 孤儿）
+            data_tests:
+              - relationships:
+                  name: quality_ep_order_after_sale_ordersn_fk
+                  arguments:
+                    to: source('ep_transaction', 'ep_order')
+                    field: SN
+
+  # G16c 二批：机构维度 2 表（INSTITUTION 有 CODE 列，为患者域/处方域机构码的
+  # 主数据桥梁；INSTITUTION_INFO 为扩展信息）。
+  - name: ep_institution
+    schema: "{{ env_var('DORIS_EP_DATABASE', 'ods_ep') }}"
+    tables:
+      - name: institution
+        columns:
+          - name: ID
+            description: 机构主键
+            data_tests:
+              - unique:
+                  name: quality_institution_id_unique
+              - not_null:
+                  name: quality_institution_id_not_null
+      - name: institution_info
+        columns:
+          - name: ID
+            description: 机构扩展信息主键
+            data_tests:
+              - unique:
+                  name: quality_institution_info_id_unique
+              - not_null:
+                  name: quality_institution_info_id_not_null

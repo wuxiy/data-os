@@ -50,6 +50,36 @@ EP_DOMAIN_RULES = {
     "quality_patient_ep_record_epid_fk": "ods_ep.patient_ep_record",
 }
 
+# G16c 二批规则包：ORDER 交易域（源表 ORDER 为保留字，Doris 侧 ep_ 前缀）
+# + 机构维度。七条外键边源库预检全部 0 孤儿，全部在册。
+EP_TRANSACTION_RULES = {
+    "quality_ep_order_id_not_null": "ods_ep.ep_order",
+    "quality_ep_order_id_unique": "ods_ep.ep_order",
+    "quality_ep_order_epid_fk": "ods_ep.ep_order",
+    "quality_ep_order_patientid_fk": "ods_ep.ep_order",
+    "quality_ep_order_paystatus_values": "ods_ep.ep_order",
+    "quality_ep_order_item_id_not_null": "ods_ep.ep_order_item",
+    "quality_ep_order_item_id_unique": "ods_ep.ep_order_item",
+    "quality_ep_order_item_ordersn_fk": "ods_ep.ep_order_item",
+    "quality_ep_order_flow_id_not_null": "ods_ep.ep_order_flow",
+    "quality_ep_order_flow_id_unique": "ods_ep.ep_order_flow",
+    "quality_ep_order_flow_ordersn_fk": "ods_ep.ep_order_flow",
+    "quality_ep_order_trade_id_not_null": "ods_ep.ep_order_trade",
+    "quality_ep_order_trade_id_unique": "ods_ep.ep_order_trade",
+    "quality_ep_order_trade_ordersn_fk": "ods_ep.ep_order_trade",
+    "quality_ep_order_relationship_id_not_null": "ods_ep.ep_order_relationship",
+    "quality_ep_order_relationship_id_unique": "ods_ep.ep_order_relationship",
+    "quality_ep_order_relationship_epid_fk": "ods_ep.ep_order_relationship",
+    "quality_ep_order_relationship_valid_values": "ods_ep.ep_order_relationship",
+    "quality_ep_order_after_sale_id_not_null": "ods_ep.ep_order_after_sale",
+    "quality_ep_order_after_sale_id_unique": "ods_ep.ep_order_after_sale",
+    "quality_ep_order_after_sale_ordersn_fk": "ods_ep.ep_order_after_sale",
+    "quality_institution_id_not_null": "ods_ep.institution",
+    "quality_institution_id_unique": "ods_ep.institution",
+    "quality_institution_info_id_not_null": "ods_ep.institution_info",
+    "quality_institution_info_id_unique": "ods_ep.institution_info",
+}
+
 
 def _collect_test_names(node: Any, found: set[str]) -> None:
     if isinstance(node, dict):
@@ -106,3 +136,20 @@ def test_ep_domain_rule_pack_registered():
             phi_columns = {"NAME", "PHONE", "CARD_NUMBER", "PATIENT_NAME", "PATIENT_IDENTITY"}
             listed = {str(col.get("name", "")).upper() for col in rule.evidence.get("columns", [])}
             assert not (listed & phi_columns), f"{selector} 证据列含 PHI：{listed & phi_columns}"
+
+
+def test_ep_transaction_rule_pack_registered():
+    catalog = RuleCatalog(str(RULES_FILE))
+    by_selector = {rule.selector: rule for rule in catalog.all()}
+    for selector, dataset_id in EP_TRANSACTION_RULES.items():
+        rule = by_selector.get(selector)
+        assert rule is not None, f"G16c 规则缺失：{selector}"
+        assert rule.dataset_id == dataset_id
+        assert rule.evidence["kind"] in {"not_null", "unique", "accepted_values", "relationships"}
+        assert rule.evidence["column"]
+    # 交易域证据列白名单不得含患者/收货人身份值列
+    for selector in EP_TRANSACTION_RULES:
+        rule = by_selector[selector]
+        phi_columns = {"PATIENT_NAME", "CONSIGNEE_NAME", "CONSIGNEE_MOBILE", "PATIENT_IDENTITY"}
+        listed = {str(col.get("name", "")).upper() for col in rule.evidence.get("columns", [])}
+        assert not (listed & phi_columns), f"{selector} 证据列含 PHI：{listed & phi_columns}"
