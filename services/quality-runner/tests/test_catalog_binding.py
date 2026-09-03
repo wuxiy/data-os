@@ -80,6 +80,47 @@ EP_TRANSACTION_RULES = {
     "quality_institution_info_id_unique": "ods_ep.institution_info",
 }
 
+# G16d 三批规则包：14 表 PK + 6 条干净 FK 边 + 1 值域。脏边（verify_detail→verify
+# 1 孤儿、record→drug_catalog 1 孤儿、drug_catalog→institution_drug_catalog 438
+# 悬挂）刻意不在册，作为数据质量发现记录于 gate 报告。
+EP_DRUG_DOMAIN_RULES = {
+    "quality_institution_drug_catalog_id_not_null": "ods_ep.institution_drug_catalog",
+    "quality_institution_drug_catalog_id_unique": "ods_ep.institution_drug_catalog",
+    "quality_institution_drug_catalog_detail_id_not_null": "ods_ep.institution_drug_catalog_detail",
+    "quality_institution_drug_catalog_detail_id_unique": "ods_ep.institution_drug_catalog_detail",
+    "quality_institution_drug_catalog_record_id_not_null": "ods_ep.institution_drug_catalog_record",
+    "quality_institution_drug_catalog_record_id_unique": "ods_ep.institution_drug_catalog_record",
+    "quality_institution_drug_catalog_submit_id_not_null": "ods_ep.institution_drug_catalog_submit",
+    "quality_institution_drug_catalog_submit_id_unique": "ods_ep.institution_drug_catalog_submit",
+    "quality_institution_drug_catalog_submit_log_id_not_null": "ods_ep.institution_drug_catalog_submit_log",
+    "quality_institution_drug_catalog_submit_log_id_unique": "ods_ep.institution_drug_catalog_submit_log",
+    "quality_institution_drug_catalog_verify_id_not_null": "ods_ep.institution_drug_catalog_verify",
+    "quality_institution_drug_catalog_verify_id_unique": "ods_ep.institution_drug_catalog_verify",
+    "quality_institution_drug_catalog_verify_detail_id_not_null": "ods_ep.institution_drug_catalog_verify_detail",
+    "quality_institution_drug_catalog_verify_detail_id_unique": "ods_ep.institution_drug_catalog_verify_detail",
+    "quality_drug_database_id_not_null": "ods_ep.drug_database",
+    "quality_drug_database_id_unique": "ods_ep.drug_database",
+    "quality_drug_catalog_id_not_null": "ods_ep.drug_catalog",
+    "quality_drug_catalog_id_unique": "ods_ep.drug_catalog",
+    "quality_drug_category_id_not_null": "ods_ep.drug_category",
+    "quality_drug_category_id_unique": "ods_ep.drug_category",
+    "quality_drugstore_id_not_null": "ods_ep.drugstore",
+    "quality_drugstore_id_unique": "ods_ep.drugstore",
+    "quality_disease_catalog_id_not_null": "ods_ep.disease_catalog",
+    "quality_disease_catalog_id_unique": "ods_ep.disease_catalog",
+    "quality_patient_medicine_id_not_null": "ods_ep.patient_medicine",
+    "quality_patient_medicine_id_unique": "ods_ep.patient_medicine",
+    "quality_patient_address_id_not_null": "ods_ep.patient_address",
+    "quality_patient_address_id_unique": "ods_ep.patient_address",
+    "quality_institution_drug_catalog_detail_submit_id_fk": "ods_ep.institution_drug_catalog_detail",
+    "quality_institution_drug_catalog_submit_log_submit_id_fk": "ods_ep.institution_drug_catalog_submit_log",
+    "quality_institution_drug_catalog_verify_submit_id_fk": "ods_ep.institution_drug_catalog_verify",
+    "quality_patient_medicine_patient_id_fk": "ods_ep.patient_medicine",
+    "quality_patient_address_patient_id_fk": "ods_ep.patient_address",
+    "quality_institution_drug_catalog_institution_id_fk": "ods_ep.institution_drug_catalog",
+    "quality_patient_address_default_address_values": "ods_ep.patient_address",
+}
+
 
 def _collect_test_names(node: Any, found: set[str]) -> None:
     if isinstance(node, dict):
@@ -153,3 +194,18 @@ def test_ep_transaction_rule_pack_registered():
         phi_columns = {"PATIENT_NAME", "CONSIGNEE_NAME", "CONSIGNEE_MOBILE", "PATIENT_IDENTITY"}
         listed = {str(col.get("name", "")).upper() for col in rule.evidence.get("columns", [])}
         assert not (listed & phi_columns), f"{selector} 证据列含 PHI：{listed & phi_columns}"
+
+
+def test_ep_drug_domain_rule_pack_registered():
+    catalog = RuleCatalog(str(RULES_FILE))
+    by_selector = {rule.selector: rule for rule in catalog.all()}
+    for selector, dataset_id in EP_DRUG_DOMAIN_RULES.items():
+        rule = by_selector.get(selector)
+        assert rule is not None, f"G16d 规则缺失：{selector}"
+        assert rule.dataset_id == dataset_id
+        assert rule.evidence["kind"] in {"not_null", "unique", "accepted_values", "relationships"}
+        assert rule.evidence["column"]
+    # 患者地址表为 PHI 表：证据列白名单不含 CONTACT/PHONE/ADDRESS
+    addr = by_selector["quality_patient_address_id_unique"]
+    listed = {str(col.get("name", "")).upper() for col in addr.evidence.get("columns", [])}
+    assert not (listed & {"CONTACT", "PHONE", "ADDRESS"}), f"地址表证据列含 PHI：{listed}"

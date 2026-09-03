@@ -338,3 +338,196 @@ sources:
                   name: quality_institution_info_id_unique
               - not_null:
                   name: quality_institution_info_id_not_null
+
+  # G16d 三批：机构药品目录系 + 药品主数据。2026-09-03 源库预检：14 表 PK 全
+  # 唯一；FK 只注册干净边（6 条），verify_detail→verify（1 孤儿）、record→
+  # drug_catalog（1 孤儿）、drug_catalog→institution_drug_catalog（438 悬挂）
+  # 记为数据质量发现，见 docs/validation/gate-ep-g16d-20260903.md §三。
+  - name: ep_drug_domain
+    schema: "{{ env_var('DORIS_EP_DATABASE', 'ods_ep') }}"
+    tables:
+      - name: institution_drug_catalog
+        columns:
+          - name: ID
+            description: 机构药品目录主表主键
+            data_tests:
+              - unique:
+                  name: quality_institution_drug_catalog_id_unique
+              - not_null:
+                  name: quality_institution_drug_catalog_id_not_null
+          - name: INSTITUTION_ID
+            description: 外键（源库预检 0 孤儿）
+            data_tests:
+              - relationships:
+                  name: quality_institution_drug_catalog_institution_id_fk
+                  arguments:
+                    to: source('ep_institution', 'institution')
+                    field: ID
+      - name: institution_drug_catalog_detail
+        columns:
+          - name: ID
+            description: 目录提交明细（外键 SUBMIT_ID 干净边）主键
+            data_tests:
+              - unique:
+                  name: quality_institution_drug_catalog_detail_id_unique
+              - not_null:
+                  name: quality_institution_drug_catalog_detail_id_not_null
+          - name: SUBMIT_ID
+            description: 外键（源库预检 0 孤儿）
+            data_tests:
+              - relationships:
+                  name: quality_institution_drug_catalog_detail_submit_id_fk
+                  arguments:
+                    to: source('ep_drug_domain', 'institution_drug_catalog_submit')
+                    field: ID
+      - name: institution_drug_catalog_record
+        columns:
+          - name: ID
+            description: 目录操作记录主键
+            data_tests:
+              - unique:
+                  name: quality_institution_drug_catalog_record_id_unique
+              - not_null:
+                  name: quality_institution_drug_catalog_record_id_not_null
+      - name: institution_drug_catalog_submit
+        columns:
+          - name: ID
+            description: 目录提交单（外键目标）主键
+            data_tests:
+              - unique:
+                  name: quality_institution_drug_catalog_submit_id_unique
+              - not_null:
+                  name: quality_institution_drug_catalog_submit_id_not_null
+      - name: institution_drug_catalog_submit_log
+        columns:
+          - name: ID
+            description: 提交流转日志（增量水位 CREATE_TIME）主键
+            data_tests:
+              - unique:
+                  name: quality_institution_drug_catalog_submit_log_id_unique
+              - not_null:
+                  name: quality_institution_drug_catalog_submit_log_id_not_null
+          - name: SUBMIT_ID
+            description: 外键（源库预检 0 孤儿）
+            data_tests:
+              - relationships:
+                  name: quality_institution_drug_catalog_submit_log_submit_id_fk
+                  arguments:
+                    to: source('ep_drug_domain', 'institution_drug_catalog_submit')
+                    field: ID
+      - name: institution_drug_catalog_verify
+        columns:
+          - name: ID
+            description: 药店审核单（外键 SUBMIT_ID 干净边）主键
+            data_tests:
+              - unique:
+                  name: quality_institution_drug_catalog_verify_id_unique
+              - not_null:
+                  name: quality_institution_drug_catalog_verify_id_not_null
+          - name: SUBMIT_ID
+            description: 外键（源库预检 0 孤儿）
+            data_tests:
+              - relationships:
+                  name: quality_institution_drug_catalog_verify_submit_id_fk
+                  arguments:
+                    to: source('ep_drug_domain', 'institution_drug_catalog_submit')
+                    field: ID
+      - name: institution_drug_catalog_verify_detail
+        columns:
+          - name: ID
+            description: 审核明细（verify_id 有 1 孤儿，不注册 FK）主键
+            data_tests:
+              - unique:
+                  name: quality_institution_drug_catalog_verify_detail_id_unique
+              - not_null:
+                  name: quality_institution_drug_catalog_verify_detail_id_not_null
+      - name: drug_database
+        columns:
+          - name: ID
+            description: 药品标准数据库主键
+            data_tests:
+              - unique:
+                  name: quality_drug_database_id_unique
+              - not_null:
+                  name: quality_drug_database_id_not_null
+      - name: drug_catalog
+        columns:
+          - name: ID
+            description: 药品目录（institution_drug_catalog_id 438 悬挂引用，不注册 FK）主键
+            data_tests:
+              - unique:
+                  name: quality_drug_catalog_id_unique
+              - not_null:
+                  name: quality_drug_catalog_id_not_null
+      - name: drug_category
+        columns:
+          - name: ID
+            description: 药品分类主键
+            data_tests:
+              - unique:
+                  name: quality_drug_category_id_unique
+              - not_null:
+                  name: quality_drug_category_id_not_null
+      - name: drugstore
+        columns:
+          - name: ID
+            description: 药店主数据主键
+            data_tests:
+              - unique:
+                  name: quality_drugstore_id_unique
+              - not_null:
+                  name: quality_drugstore_id_not_null
+      - name: disease_catalog
+        columns:
+          - name: ID
+            description: 病种目录主键
+            data_tests:
+              - unique:
+                  name: quality_disease_catalog_id_unique
+              - not_null:
+                  name: quality_disease_catalog_id_not_null
+
+  - name: ep_patient_ext
+    schema: "{{ env_var('DORIS_EP_DATABASE', 'ods_ep') }}"
+    tables:
+      - name: patient_medicine
+        columns:
+          - name: ID
+            description: 患者用药记录（外键 PATIENT_ID 干净边）主键
+            data_tests:
+              - unique:
+                  name: quality_patient_medicine_id_unique
+              - not_null:
+                  name: quality_patient_medicine_id_not_null
+          - name: PATIENT_ID
+            description: 外键（源库预检 0 孤儿）
+            data_tests:
+              - relationships:
+                  name: quality_patient_medicine_patient_id_fk
+                  arguments:
+                    to: source('ep_domain', 'patient')
+                    field: ID
+      - name: patient_address
+        columns:
+          - name: ID
+            description: 患者收货地址（PHI：CONTACT/PHONE/ADDRESS 仓内有 API 面无）主键
+            data_tests:
+              - unique:
+                  name: quality_patient_address_id_unique
+              - not_null:
+                  name: quality_patient_address_id_not_null
+          - name: PATIENT_ID
+            description: 外键（源库预检 0 孤儿）
+            data_tests:
+              - relationships:
+                  name: quality_patient_address_patient_id_fk
+                  arguments:
+                    to: source('ep_domain', 'patient')
+                    field: ID
+          - name: DEFAULT_ADDRESS
+            description: 默认地址标记（源库实测值域 {0,1}）
+            data_tests:
+              - accepted_values:
+                  name: quality_patient_address_default_address_values
+                  arguments:
+                    values: [0, 1]
