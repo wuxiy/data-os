@@ -32,7 +32,7 @@
 | --- | --- | --- | --- |
 | P1 | MiNiFi 生产化三收敛：部署完全脚本化、黑盒监控（位点滞后 / 桶断流 / 队列深度告警，补静默失败）、版本冻结 | G5 复盘结论：架构选型对、实现体验差；保留但设条件 | 生产化批 |
 | P2 | OM 摄取 / dbt 摄取 / 声明式血缘登记编排进控制面「外部运行」统一状态机（现为脚本触发） | G1 延后项，G6/G7 沿用脚本（om-ingest-doris-assets.sh 等） | 生产化批 |
-| P3 | **OM 1.5.11 testDefinitions/glossaryTerms 端点缺陷（诊断定案 2026-08-27）**：DB seed 完好（35 定义）、ES 健康、**容器重建（全新 JVM）后症状不变**——排除运行态，为版本级缺陷（升级才修）。修复路径：OM ≥1.6 升级 + 数据卷迁移重放（或全新卷重建）；升压前置：Keycloak/Superset 联动面检查。关联受阻项：G7 TestCase registrar、G11 term 回写（脚本 best-effort 段就绪） | G7/G11 偏差 + 本批诊断实录 | 生产化批（升级窗口） |
+| P3 | **OM 1.5.11 testDefinitions/glossaryTerms 端点缺陷（诊断定案 2026-08-27）**：DB seed 完好（35 定义）、ES 健康、**容器重建（全新 JVM）后症状不变**——排除运行态，为版本级缺陷（升级才修）。修复路径：OM ≥1.6 升级 + 数据卷迁移重放（或全新卷重建）；升压前置：Keycloak/Superset 联动面检查。**范围扩大（2026-09-03，G16c 复查）**：dbt 资产化面（TestCase + DataModel 挂靠）在 OM 1.5.11 上实效为零——实体面查询 DataModel 全局 0、TestCase 0，工作流「Processed/Success」为内部计数非落库实体；G6 表结构资产面不受影响。升级后须一并验证 G7 面恢复。关联受阻项：G7 TestCase registrar、G11 term 回写（脚本 best-effort 段就绪） | G7/G11 偏差 + 本批诊断实录 + G16c 复查 | 生产化批（升级窗口） |
 | P4 | 遗留服务 `doris-medical` 的 root 连接收敛（data-ops 遗留资产处置） | G1 延后项 | 生产化批 |
 | P5 | 断网缓冲容量上限与中转桶生命周期策略（演示验证至 10 分钟缩比，未测长时间大缓冲与桶清理） | G5 L2 缩比口径 | 生产化批 |
 | P7 | 数据 API 大结果集异步导出至对象存储 + 下载 URL（§5.8 完整形态；当前 maxRows 截断挡住） | G13 方案 §九 | 生产化批 |
@@ -62,3 +62,4 @@
 - 2026-09-02（G15）：T5a 完成（混合引擎+评测+影子上线）；T5b（切换裁决与多源重标定）留条目。
 - 2026-09-02（G16a 盘点）：无新增安全/生产加固/深度测试项；EP_TEST 盘点确认 `PATIENT` 表含 `PASSWORD`/`CREDENTIALS`/`WECHAT_OPEN_ID` 敏感列，作为 G16b 采集作业级排除约束处理（写入主线计划 §4.1），不立延后项；T5 触发条件部分成立——患者域（C 端注册路径）与门诊路径构成弱多源，待 G16b 入仓后按手册执行。
 - 2026-09-03（G16b 交付）：**T5 弱多源首轮读数完成**——EP-REG 第二身份流上线、双流 rebuild（1,493 对）、漂移报告 DRIFT 18/27（card 结构性缺失主导），按手册 §三裁决不更新 packaged；**T5 余项**收敛为：语料生成器按双流真实候选构成重锚（NEG_RATIO 单源锚定失效）+ 注册流人工锚点补充 + 重锚后再评估重标定（`docs/validation/gate-ep-g16b-20260903.md` §四）。S5 隔离脚本按既定豁免机制扩展（SeaTunnel 静态 IP 单项白名单，防横向语义不变），非安全削弱，不立新条目。新增小项：双流 rebuild 同步端点耗时约 5 分钟（1,493 对），规模增长时接外部运行生命周期（P2 编排项顺带）。
+- 2026-09-03（G16c 交付）：8 表（ORDER 交易域+机构维度）+ ep_mz_ypcfmx 现代化全链验收（docs/validation/gate-ep-g16c-20260903.md）；**P3 范围扩大**——OM dbt 资产化面（DataModel+TestCase）实效为零，升级窗口一并验证；rr 降维工具收敛上限补丁（batch_results 预剥离）已入库；G16b 报告 DataModel 表述已更正。G16d 候选：INSTITUTION_DRUG_CATALOG 系 + 药品主数据 + PATIENT_MEDICINE/ADDRESS。

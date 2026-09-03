@@ -35,6 +35,12 @@ def remove_key(obj, dotted):
 
 tmp = "/tmp/rr-iter.json"
 removed = set()
+# 预剥离（G16c 教训）：dbt 1.10 对每条 result 都带 batch_results，迭代式每轮
+# 只能剥 3 个键、15 轮上限——测试数超过 ~45 后无法收敛（60 条实测翻车）。
+# 该字段对 v5 语义无贡献，统一前置删除，迭代循环只兜其余零星键。
+for _i, _r in enumerate(doc.get("results", [])):
+    if isinstance(_r, dict) and _r.pop("batch_results", None) is not None:
+        removed.add(f"results.{_i}.batch_results")
 for _ in range(15):
     json.dump(doc, open(tmp, "w"))
     out = subprocess.run(
