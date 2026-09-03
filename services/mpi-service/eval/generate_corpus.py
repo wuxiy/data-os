@@ -36,7 +36,11 @@ NOISE_GENDER_U = 0.08
 TWIN_CONTACT_SHARE = 0.05
 # 负样本配比锚定决策层真实构成：真实 45 候选中 B4（同卡）占 93%（其中
 # 卡复用不同名 33 对为主），B6（同名+联系方式）仅 3 对——卡复用占主导。
-NEG_RATIO = {"card-reuse": 0.60, "same-name-hard": 0.12, "random": 0.28}
+# 重锚（2026-09-03，T5b 余项）：双流 rebuild 后真实决策层候选构成
+# B3=1441 / B4=42 / B6=10（dev，1,493 对）——B3 跨流同键对为构造性正样本；
+# 负样本层实得 B4:B6 = 0.81:0.19、random 实测 0（随机负样本进不了决策层）。
+# 应用配比按实测收敛，保留 8 个百分点 random 地板（u 侧估计覆盖）。
+NEG_RATIO = {"card-reuse": 0.74, "same-name-hard": 0.18, "random": 0.08}
 NEG_PER_POS = 2.0
 
 CORPUS = Path(__file__).parent / "corpus"
@@ -76,10 +80,11 @@ def apply_noise(rng, side, hinge):
         side["gender"] = "U"
 
 
-def finalize(rng, seq, label, kind, a, b, hinge=None):
+def finalize(rng, seq, label, kind, a, b, hinge=None, recording_noise=True):
     a, b = dict(a), dict(b)
-    apply_noise(rng, a, hinge)
-    apply_noise(rng, b, hinge)
+    if recording_noise:
+        apply_noise(rng, a, hinge)
+        apply_noise(rng, b, hinge)
     card_agree = a["card"] is not None and a["card"] == b["card"]
     name_agree = a["name"] == b["name"]
     gender_agree = a["gender"] == b["gender"] and a["gender"] != "U"
@@ -143,6 +148,9 @@ def build_pool(rng, pool_identities, start_seq):
         start_seq += 1
         positives.append(make_positive(rng, base, start_seq))
 
+    # 负样本配额锚定合成正样本基数（T5b 重锚口径）：跨流真实正样本是 m 侧的
+    # 附加信号，不放大负样本需求——否则双流快照下 card-reuse 需求超出真实
+    # 身份池供给（1441 人的机构内异名对有限），回填断言必然炸裂。
     negatives = []
     target = int(len(positives) * NEG_PER_POS)
     quota = {kind: int(target * share) for kind, share in NEG_RATIO.items()}
@@ -210,6 +218,18 @@ def build_pool(rng, pool_identities, start_seq):
         negatives.append(candidate)
     assert fill_random == 0, "回填配额未满足（池过小）"
 
+    # 跨流真实正样本（T5b 弱多源）：同一人键的双流身份（EP+EP-REG）按真实
+    # 属性投影成对，不叠加合成噪声——m 侧估计第一次吃到真实跨流一致率。
+    by_person = {}
+    for row in pool_identities:
+        by_person.setdefault((row["institution"], row["sourceKey"]), []).append(row)
+    for members in sorted(by_person.values(), key=lambda m: (m[0]["institution"], m[0]["sourceKey"])):
+        if len(members) >= 2 and len({m["sourceSystem"] for m in members}) >= 2:
+            start_seq += 1
+            a, b = sorted(members, key=lambda m: m["sourceSystem"])[:2]
+            positives.append(finalize(rng, start_seq, "MATCH", "cross-stream-real", a, b,
+                                      recording_noise=False))
+
     pairs = sorted(positives + negatives, key=lambda p: p["id"])
     self_check(pairs)
     return pairs
@@ -263,6 +283,7 @@ def main():
         "recordingNoise": {"cardNull": NOISE_CARD_NULL, "contactNull": NOISE_CONTACT_NULL,
                            "genderU": NOISE_GENDER_U},
         "negativeMix": NEG_RATIO, "negativesPerPositive": NEG_PER_POS,
+        "negativeMixDerivation": "2026-09-03 双流 dev 候选构成 B3=1441/B4=42/B6=10；负样本层 B4:B6=0.81:0.19，random 保留 0.08 地板",
         "counts": {"calibration": tally(cal_pairs), "eval": tally(eval_pairs)},
     }
     (CORPUS / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2))

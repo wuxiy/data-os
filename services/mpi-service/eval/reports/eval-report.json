@@ -62,6 +62,30 @@
     "v1" : "REVIEW",
     "v2" : "REVIEW",
     "hybrid" : "REVIEW"
+  }, {
+    "id" : "anchor-1569541917",
+    "human" : "SAME_PERSON",
+    "v1" : "REVIEW",
+    "v2" : "NO_MATCH",
+    "hybrid" : "NO_MATCH"
+  }, {
+    "id" : "anchor-770419785",
+    "human" : "SAME_PERSON",
+    "v1" : "REVIEW",
+    "v2" : "REVIEW",
+    "hybrid" : "REVIEW"
+  }, {
+    "id" : "anchor-1371820233",
+    "human" : "DIFFERENT_PERSON",
+    "v1" : "NO_MATCH",
+    "v2" : "NO_MATCH",
+    "hybrid" : "NO_MATCH"
+  }, {
+    "id" : "anchor-564310941",
+    "human" : "DIFFERENT_PERSON",
+    "v1" : "NO_MATCH",
+    "v2" : "NO_MATCH",
+    "hybrid" : "NO_MATCH"
   } ],
   "thresholds" : {
     "tAuto" : 16.54,
