@@ -352,14 +352,14 @@ sources:
             description: 机构药品目录主表主键
             data_tests:
               - unique:
-                  name: quality_institution_drug_catalog_id_unique
+                  name: quality_idc_id_unique
               - not_null:
-                  name: quality_institution_drug_catalog_id_not_null
+                  name: quality_idc_id_not_null
           - name: INSTITUTION_ID
             description: 外键（源库预检 0 孤儿）
             data_tests:
               - relationships:
-                  name: quality_institution_drug_catalog_institution_id_fk
+                  name: quality_idc_institution_id_fk
                   arguments:
                     to: source('ep_institution', 'institution')
                     field: ID
@@ -369,14 +369,14 @@ sources:
             description: 目录提交明细（外键 SUBMIT_ID 干净边）主键
             data_tests:
               - unique:
-                  name: quality_institution_drug_catalog_detail_id_unique
+                  name: quality_idc_detail_id_unique
               - not_null:
-                  name: quality_institution_drug_catalog_detail_id_not_null
+                  name: quality_idc_detail_id_not_null
           - name: SUBMIT_ID
             description: 外键（源库预检 0 孤儿）
             data_tests:
               - relationships:
-                  name: quality_institution_drug_catalog_detail_submit_id_fk
+                  name: quality_idc_detail_submit_id_fk
                   arguments:
                     to: source('ep_drug_domain', 'institution_drug_catalog_submit')
                     field: ID
@@ -386,32 +386,32 @@ sources:
             description: 目录操作记录主键
             data_tests:
               - unique:
-                  name: quality_institution_drug_catalog_record_id_unique
+                  name: quality_idc_record_id_unique
               - not_null:
-                  name: quality_institution_drug_catalog_record_id_not_null
+                  name: quality_idc_record_id_not_null
       - name: institution_drug_catalog_submit
         columns:
           - name: ID
             description: 目录提交单（外键目标）主键
             data_tests:
               - unique:
-                  name: quality_institution_drug_catalog_submit_id_unique
+                  name: quality_idc_submit_id_unique
               - not_null:
-                  name: quality_institution_drug_catalog_submit_id_not_null
+                  name: quality_idc_submit_id_not_null
       - name: institution_drug_catalog_submit_log
         columns:
           - name: ID
             description: 提交流转日志（增量水位 CREATE_TIME）主键
             data_tests:
               - unique:
-                  name: quality_institution_drug_catalog_submit_log_id_unique
+                  name: quality_idc_submit_log_id_unique
               - not_null:
-                  name: quality_institution_drug_catalog_submit_log_id_not_null
+                  name: quality_idc_submit_log_id_not_null
           - name: SUBMIT_ID
             description: 外键（源库预检 0 孤儿）
             data_tests:
               - relationships:
-                  name: quality_institution_drug_catalog_submit_log_submit_id_fk
+                  name: quality_idc_submit_log_submit_id_fk
                   arguments:
                     to: source('ep_drug_domain', 'institution_drug_catalog_submit')
                     field: ID
@@ -421,14 +421,14 @@ sources:
             description: 药店审核单（外键 SUBMIT_ID 干净边）主键
             data_tests:
               - unique:
-                  name: quality_institution_drug_catalog_verify_id_unique
+                  name: quality_idc_verify_id_unique
               - not_null:
-                  name: quality_institution_drug_catalog_verify_id_not_null
+                  name: quality_idc_verify_id_not_null
           - name: SUBMIT_ID
             description: 外键（源库预检 0 孤儿）
             data_tests:
               - relationships:
-                  name: quality_institution_drug_catalog_verify_submit_id_fk
+                  name: quality_idc_verify_submit_id_fk
                   arguments:
                     to: source('ep_drug_domain', 'institution_drug_catalog_submit')
                     field: ID
@@ -438,9 +438,9 @@ sources:
             description: 审核明细（verify_id 有 1 孤儿，不注册 FK）主键
             data_tests:
               - unique:
-                  name: quality_institution_drug_catalog_verify_detail_id_unique
+                  name: quality_idc_verify_detail_id_unique
               - not_null:
-                  name: quality_institution_drug_catalog_verify_detail_id_not_null
+                  name: quality_idc_verify_detail_id_not_null
       - name: drug_database
         columns:
           - name: ID
@@ -528,6 +528,6 @@ sources:
             description: 默认地址标记（源库实测值域 {0,1}）
             data_tests:
               - accepted_values:
-                  name: quality_patient_address_default_address_values
+                  name: quality_patient_addr_default_values
                   arguments:
                     values: [0, 1]

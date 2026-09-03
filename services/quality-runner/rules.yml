@@ -621,7 +621,7 @@ rules:
   # FK 只注册 6 条干净边；脏边（verify_detail/record/drug_catalog 悬挂引用）见 gate 报告。
   # patient_address 为 PHI 表：证据列白名单不含 CONTACT/PHONE/ADDRESS。
   - rule_id: quality.ep-drug.institution_drug_catalog.not-null
-    selector: quality_institution_drug_catalog_id_not_null
+    selector: quality_idc_id_not_null
     dataset_id: ods_ep.institution_drug_catalog
     evidence:
       kind: not_null
@@ -631,7 +631,7 @@ rules:
         - {name: STATUS, classification: CATEGORY}
         - {name: UPDATE_TIME, classification: SAFE}
   - rule_id: quality.ep-drug.institution_drug_catalog.unique
-    selector: quality_institution_drug_catalog_id_unique
+    selector: quality_idc_id_unique
     dataset_id: ods_ep.institution_drug_catalog
     evidence:
       kind: unique
@@ -641,7 +641,7 @@ rules:
         - {name: STATUS, classification: CATEGORY}
         - {name: UPDATE_TIME, classification: SAFE}
   - rule_id: quality.ep-drug.institution_drug_catalog_detail.not-null
-    selector: quality_institution_drug_catalog_detail_id_not_null
+    selector: quality_idc_detail_id_not_null
     dataset_id: ods_ep.institution_drug_catalog_detail
     evidence:
       kind: not_null
@@ -651,7 +651,7 @@ rules:
         - {name: UPDATE_TYPE, classification: CATEGORY}
         - {name: UPDATE_TIME, classification: SAFE}
   - rule_id: quality.ep-drug.institution_drug_catalog_detail.unique
-    selector: quality_institution_drug_catalog_detail_id_unique
+    selector: quality_idc_detail_id_unique
     dataset_id: ods_ep.institution_drug_catalog_detail
     evidence:
       kind: unique
@@ -661,7 +661,7 @@ rules:
         - {name: UPDATE_TYPE, classification: CATEGORY}
         - {name: UPDATE_TIME, classification: SAFE}
   - rule_id: quality.ep-drug.institution_drug_catalog_record.not-null
-    selector: quality_institution_drug_catalog_record_id_not_null
+    selector: quality_idc_record_id_not_null
     dataset_id: ods_ep.institution_drug_catalog_record
     evidence:
       kind: not_null
@@ -671,7 +671,7 @@ rules:
         - {name: OPERATION_TYPE, classification: CATEGORY}
         - {name: UPDATE_TIME, classification: SAFE}
   - rule_id: quality.ep-drug.institution_drug_catalog_record.unique
-    selector: quality_institution_drug_catalog_record_id_unique
+    selector: quality_idc_record_id_unique
     dataset_id: ods_ep.institution_drug_catalog_record
     evidence:
       kind: unique
@@ -681,7 +681,7 @@ rules:
         - {name: OPERATION_TYPE, classification: CATEGORY}
         - {name: UPDATE_TIME, classification: SAFE}
   - rule_id: quality.ep-drug.institution_drug_catalog_submit.not-null
-    selector: quality_institution_drug_catalog_submit_id_not_null
+    selector: quality_idc_submit_id_not_null
     dataset_id: ods_ep.institution_drug_catalog_submit
     evidence:
       kind: not_null
@@ -691,7 +691,7 @@ rules:
         - {name: STATUS, classification: CATEGORY}
         - {name: UPDATE_TIME, classification: SAFE}
   - rule_id: quality.ep-drug.institution_drug_catalog_submit.unique
-    selector: quality_institution_drug_catalog_submit_id_unique
+    selector: quality_idc_submit_id_unique
     dataset_id: ods_ep.institution_drug_catalog_submit
     evidence:
       kind: unique
@@ -701,7 +701,7 @@ rules:
         - {name: STATUS, classification: CATEGORY}
         - {name: UPDATE_TIME, classification: SAFE}
   - rule_id: quality.ep-drug.institution_drug_catalog_submit_log.not-null
-    selector: quality_institution_drug_catalog_submit_log_id_not_null
+    selector: quality_idc_submit_log_id_not_null
     dataset_id: ods_ep.institution_drug_catalog_submit_log
     evidence:
       kind: not_null
@@ -711,7 +711,7 @@ rules:
         - {name: NODE, classification: CATEGORY}
         - {name: CREATE_TIME, classification: SAFE}
   - rule_id: quality.ep-drug.institution_drug_catalog_submit_log.unique
-    selector: quality_institution_drug_catalog_submit_log_id_unique
+    selector: quality_idc_submit_log_id_unique
     dataset_id: ods_ep.institution_drug_catalog_submit_log
     evidence:
       kind: unique
@@ -721,7 +721,7 @@ rules:
         - {name: NODE, classification: CATEGORY}
         - {name: CREATE_TIME, classification: SAFE}
   - rule_id: quality.ep-drug.institution_drug_catalog_verify.not-null
-    selector: quality_institution_drug_catalog_verify_id_not_null
+    selector: quality_idc_verify_id_not_null
     dataset_id: ods_ep.institution_drug_catalog_verify
     evidence:
       kind: not_null
@@ -731,7 +731,7 @@ rules:
         - {name: STATUS, classification: CATEGORY}
         - {name: UPDATE_TIME, classification: SAFE}
   - rule_id: quality.ep-drug.institution_drug_catalog_verify.unique
-    selector: quality_institution_drug_catalog_verify_id_unique
+    selector: quality_idc_verify_id_unique
     dataset_id: ods_ep.institution_drug_catalog_verify
     evidence:
       kind: unique
@@ -741,7 +741,7 @@ rules:
         - {name: STATUS, classification: CATEGORY}
         - {name: UPDATE_TIME, classification: SAFE}
   - rule_id: quality.ep-drug.institution_drug_catalog_verify_detail.not-null
-    selector: quality_institution_drug_catalog_verify_detail_id_not_null
+    selector: quality_idc_verify_detail_id_not_null
     dataset_id: ods_ep.institution_drug_catalog_verify_detail
     evidence:
       kind: not_null
@@ -751,7 +751,7 @@ rules:
         - {name: STATUS, classification: CATEGORY}
         - {name: UPDATE_TIME, classification: SAFE}
   - rule_id: quality.ep-drug.institution_drug_catalog_verify_detail.unique
-    selector: quality_institution_drug_catalog_verify_detail_id_unique
+    selector: quality_idc_verify_detail_id_unique
     dataset_id: ods_ep.institution_drug_catalog_verify_detail
     evidence:
       kind: unique
@@ -899,7 +899,7 @@ rules:
         - {name: DEFAULT_ADDRESS, classification: CATEGORY}
         - {name: UPDATE_TIME, classification: SAFE}
   - rule_id: quality.ep-drug.institution_drug_catalog_detail.submit_id-fk
-    selector: quality_institution_drug_catalog_detail_submit_id_fk
+    selector: quality_idc_detail_submit_id_fk
     dataset_id: ods_ep.institution_drug_catalog_detail
     evidence:
       kind: relationships
@@ -909,7 +909,7 @@ rules:
         - {name: UPDATE_TYPE, classification: CATEGORY}
         - {name: SUBMIT_ID, classification: IDENTIFIER}
   - rule_id: quality.ep-drug.institution_drug_catalog_submit_log.submit_id-fk
-    selector: quality_institution_drug_catalog_submit_log_submit_id_fk
+    selector: quality_idc_submit_log_submit_id_fk
     dataset_id: ods_ep.institution_drug_catalog_submit_log
     evidence:
       kind: relationships
@@ -919,7 +919,7 @@ rules:
         - {name: NODE, classification: CATEGORY}
         - {name: SUBMIT_ID, classification: IDENTIFIER}
   - rule_id: quality.ep-drug.institution_drug_catalog_verify.submit_id-fk
-    selector: quality_institution_drug_catalog_verify_submit_id_fk
+    selector: quality_idc_verify_submit_id_fk
     dataset_id: ods_ep.institution_drug_catalog_verify
     evidence:
       kind: relationships
@@ -949,7 +949,7 @@ rules:
         - {name: DEFAULT_ADDRESS, classification: CATEGORY}
         - {name: PATIENT_ID, classification: IDENTIFIER}
   - rule_id: quality.ep-drug.institution_drug_catalog.institution_id-fk
-    selector: quality_institution_drug_catalog_institution_id_fk
+    selector: quality_idc_institution_id_fk
     dataset_id: ods_ep.institution_drug_catalog
     evidence:
       kind: relationships
@@ -959,7 +959,7 @@ rules:
         - {name: STATUS, classification: CATEGORY}
         - {name: INSTITUTION_ID, classification: IDENTIFIER}
   - rule_id: quality.ep-drug.patient-address.default-address-values
-    selector: quality_patient_address_default_address_values
+    selector: quality_patient_addr_default_values
     dataset_id: ods_ep.patient_address
     evidence:
       kind: accepted_values
