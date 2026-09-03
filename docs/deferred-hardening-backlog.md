@@ -66,3 +66,4 @@
 - 2026-09-03（G16d 交付）：14 表（机构药品目录系+药品主数据+患者用药/地址）全链验收，35/35 规则全绿、14 表对账精确一致（docs/validation/gate-ep-g16d-20260903.md）；无新增延后项。两条工程事实入档：Doris stream load 标签 ≤128 字符、质量选择器 ≤42 字符（失败表 64 预算）——后续批次命名须先算预算。
 - 2026-09-03（T5b 重锚）：语料 NEG_RATIO 重锚 + 跨流真实正样本 + 4 条派生锚点入仓库（57/57 全绿）；重锚后 DRIFT 23/27（真实信号：name.mAgree→0.804、gender.mDisagree→0.152、tVeto 零误否界→-1.09），锚点实证现行 tVeto 双流误否。**T5 余项收敛为单项：§四 重标定执行（人工决策，证据与建议见 docs/validation/t5b-reanchor-20260903.md §五）**。
 - 2026-09-03（T5b §四 执行）：重标定完成——packaged 更新（tVeto 0.42→-1.09 等）、估计器双参安全审计口径入仓库、57/57 全绿、dev rebuild 否决 115→26（误否修复）、AUTO 360 不动。**T5 全项关闭**（下一真实来源系统接入后按手册重走触发评估）。详见 docs/validation/t5b-reanchor-20260903.md §七。
+- 2026-09-03（G16e 交付）：消费面深化——Superset 4 数据集+4 图表挂 dashboard 2、Data API 两数据集（科室日汇总/用药日汇总）实调对账零误差（docs/validation/gate-ep-g16e-20260903.md）。无新增延后项；data-api registry 缓存 30s（新 Key 延迟可见）为运维口径记录。
