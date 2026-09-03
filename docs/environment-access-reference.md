@@ -15,7 +15,7 @@
 | 备份/回滚目录 | 以部署记录中的 `rollback-*` 或 `data-os-dev-*-pre` 目录为准 |
 | Docker 网络 | `platform-net`（复用 data-ops） |
 | 复用 PostgreSQL | `keycloak-db:5432/keycloak`，data-os 使用 `data_os` schema |
-| 复用 Doris | `172.16.66.8:9030`，仅使用质量验收库和审计库 |
+| 复用 Doris | `172.16.66.8:9030`，承载质量验收/审计库与 data-os 自有库（`ods_ep`、`dataos_mpi`、`dataos_ai`） |
 
 生产环境不要直接复用以上地址、账号、Secret 或端口；生产配置以
 [`deploy/production/README.md`](../deploy/production/README.md) 和院方 Secret 管理规范为准。
@@ -51,7 +51,7 @@ OIDC 技术角色控制（`data-engineer`、`platform-operator`、`platform-admi
 | DolphinScheduler API | `dataos_scheduler` 服务账号；租户 `dataos-dev`；队列 ID `1` | 短周期 Token 在 Docker volume `data-os-dev-scheduler-token-secrets` 的 `current/previous` 文件；轮换参数见 `.env` | 控制面提交已发布工作流；不使用用户名/密码回退 |
 | DolphinScheduler 元数据库 | `dolphinscheduler` | `.env` 的 `DOLPHINSCHEDULER_DB_PASSWORD` | 仅供 DS 容器访问 `dolphinscheduler` 数据库，不能与 data-os 数据库口令混用 |
 | RustFS | Access Key 由 `DATAOS_RUSTFS_ACCESS_KEY` 提供 | `.env` 的 `DATAOS_RUSTFS_ACCESS_KEY` / `DATAOS_RUSTFS_SECRET_KEY` | S3 桶 `dataos-quality-artifacts`；SSE-S3 主密钥为 `DATAOS_RUSTFS_SSE_S3_MASTER_KEY` |
-| 质量运行器 / Doris 只读 | `dataos_quality_ro` | `.env` 的 `DORIS_PASSWORD` | 只读 `dataos_quality_acceptance` 业务验收库 |
+| 质量运行器 / Doris 只读 | `dataos_quality_ro` | `.env` 的 `DORIS_PASSWORD` | 只读 `dataos_quality_audit` 失败证据表；业务库读取由 dbt 账号（下行）承担 |
 | 质量运行器 / dbt | `dataos_quality_dbt` | `.env` 的 `DORIS_DBT_PASSWORD` | 读取验收库并在 `dataos_quality_audit` 写失败表 |
 | 质量运行器 / 清理 | `dataos_quality_cleanup` | `.env` 的 `DORIS_CLEANUP_PASSWORD` | 仅清理已登记的质量失败表 |
 | 患者主索引服务 | `dataos_mpi`（PG 与 Doris 同名账号） | `.env` 的 `DATAOS_MPI_DB_PASSWORD`、`DORIS_MPI_PASSWORD`；敏感字段哈希盐 `DATAOS_MPI_HASH_SALT` | PG `data_os_mpi` schema 与 Doris `dataos_mpi` 库，均由 mpi-service 独占 |

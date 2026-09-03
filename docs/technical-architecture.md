@@ -18,7 +18,7 @@ data-os 采用“统一门户 + 模块化控制面 + 可替换执行器 + 分层
 - 中心采集：Apache SeaTunnel Zeta；DolphinScheduler 负责任务依赖、补数、重跑和调度历史。
 - 数据工程：Apache Doris 承接 L1—L4，S3 兼容对象存储承接 L0 原始证据；dbt Core + dbt-doris 承接批量/微批 SQL 转换和构建门禁。
 - 治理：OpenMetadata 承接资产、术语、技术血缘和质量结果；标准、映射、问题、责任链和审批事实归 data-os 控制库。
-- MPI/MDM：HAPI FHIR R4 + MDM 承接医疗资源和匹配链接；data-os 承接候选审核、黄金值、合并/拆分、版本和发布。
+- MPI/MDM：独立 `mpi-service` 承接患者身份匹配、链接与黄金人（匹配引擎自研：规则 / Fellegi-Sunter 评分 / 混合三模，统一走 `PairScorer` seam）；候选审核、合并/拆分经门户工作台完成，control-plane 不含 MPI 逻辑。
 - 分析与问数：Superset 通过 Embedded SDK 接入，DB-GPT 通过后端适配器接入；二者都不直接成为业务门户。
 - 边缘：data-os Edge Node 作为统一产品壳，按站点启用文件/JDBC/HTTP/SFTP 或 HL7 v2/MLLP 执行包；NiFi 服务端不进入默认部署。
 - 组件间状态同步：MVP 使用 PostgreSQL Outbox + 后台 Worker，不引入 Kafka；达到区域规模和明确吞吐门槛后再引入消息总线。
@@ -46,7 +46,7 @@ data-os 采用“统一门户 + 模块化控制面 + 可替换执行器 + 分层
 - 不建设通用低代码 ETL 设计器、Notebook、模型训练和特征平台。
 - 不替换 HIS、EMR、PACS/VNA，不保存 DICOM 像素主体。
 - 不承诺所有异构源的绝对 exactly-once；采用至少一次、稳定幂等键、发布前对账。
-- 不让 data-os 复制 Superset 图表、OpenMetadata 目录、DolphinScheduler 调度器或 HAPI FHIR 匹配引擎。
+- 不让 data-os 复制 Superset 图表、OpenMetadata 目录或 DolphinScheduler 调度器。
 
 ## 3. 总体架构
 
@@ -59,13 +59,11 @@ flowchart TB
       BFF --> SRC["源与接入模板"]
       BFF --> JOB["任务与运行"]
       BFF --> GOV["资产治理与责任链"]
-      BFF --> MPI["MPI / 主数据流程"]
       BFF --> ANA["分析与问数接入"]
       BFF --> OPS["运营、交付与证据"]
       SRC --> OUTBOX["Integration Outbox / Worker"]
       JOB --> OUTBOX
       GOV --> OUTBOX
-      MPI --> OUTBOX
     end
 
     CPDB[("PostgreSQL\n平台事实与流程")]
@@ -76,11 +74,12 @@ flowchart TB
       DS["DolphinScheduler"]
       DBT["dbt Core 容器"]
       OM["OpenMetadata"]
-      HF["HAPI FHIR MDM"]
+      MS["mpi-service\n自研匹配引擎"]
       SS["Superset"]
       AI["DB-GPT"]
     end
     OUTBOX <--> EX
+    WEB -->|"门户经 nginx 直路由 /api/v1/mpi/"| MS
 
     subgraph DP["数据面"]
       S3[("S3 兼容对象存储\nL0 原始证据 / 制品 / 证据包")]
@@ -128,7 +127,7 @@ MVP 的业务复杂度主要来自领域和外部组件，而不是独立扩缩�
 | orchestration | 任务定义、发布版本、运行投影、补数申请 | 发布、启动、暂停、重试、补数 | 保存调度器完整内部模型 |
 | governance | 标准、映射、质量规则、数据合同、问题、责任链 | 评审、发布、复检、指派、关闭 | 保存大规模数据明细 |
 | catalog | data-os 对资产、血缘、质量结果的统一投影 | 搜索、资产详情、影响分析 | 成为第二套元数据中心 |
-| masterdata | MPI 候选、黄金值、crosswalk、机构/科室/人员主数据 | 确认、拒绝、合并、拆分、发布 | 自研通用概率匹配框架 |
+| masterdata | 机构/科室/人员主数据（MPI 候选、黄金值、crosswalk 已由独立 `mpi-service` 承接，见 5.7） | 确认、拒绝、合并、拆分、发布 | 匹配引擎实现（`PairScorer` 三模在 mpi-service 内） |
 | analytics | 看板绑定、指标口径引用、嵌入会话 | 获取嵌入令牌、看板目录 | 复制 Superset 图表模型 |
 | assistant | 问数会话、查询边界、证据引用、反馈 | 问答流、SQL 证据、反馈 | 直接向浏览器暴露数据库或模型密钥 |
 | operations | 告警、SLO、诊断、交付证据包 | 健康总览、诊断包、验收导出 | 替代 Prometheus 指标采集 |
@@ -219,7 +218,7 @@ flowchart LR
 
 - data-os 门户使用 OIDC Authorization Code + PKCE 接入 Keycloak；浏览器只持有 data-os 用户会话，不持有外部组件服务账号。
 - BFF 将用户角色归一为管理、治理、技术、业务四类工作台权限；细粒度授权和等保设计不进入 PoC 主范围。
-- Superset、OpenMetadata、DB-GPT、HAPI FHIR 的服务账号由对应 Adapter 使用，组件 token 不向前端透传。
+- Superset、OpenMetadata、DB-GPT 的服务账号由对应 Adapter 使用，组件 token 不向前端透传。
 - 用户、租户和机构上下文在 Portal API 边界确定，执行器不能自行决定跨机构可见范围。
 
 ## 5. 执行器集成契约
@@ -237,7 +236,7 @@ AnalyticsAdapter: listDashboards / issueEmbedSession
 AssistantAdapter: ask / cancel / getEvidence / feedback
 ```
 
-每个适配器必须提供：能力声明、健康检查、超时、幂等键、错误码映射、重试策略和兼容版本。领域层不得出现 SeaTunnel job JSON、OpenMetadata Entity、Superset Guest Token 或 HAPI FHIR 内部表结构。
+每个适配器必须提供：能力声明、健康检查、超时、幂等键、错误码映射、重试策略和兼容版本。领域层不得出现 SeaTunnel job JSON、OpenMetadata Entity、Superset Guest Token 或 mpi-service 内部表结构。
 
 ### 5.2 SeaTunnel 与 DolphinScheduler
 
@@ -266,7 +265,7 @@ AssistantAdapter: ask / cancel / getEvidence / feedback
 ### 5.4 Superset
 
 - 前端使用 `@superset-ui/embedded-sdk` 嵌入已登记的 dashboard UUID。
-- 浏览器调用 data-os `/api/v1/analytics/dashboards/{id}/session`；BFF 使用服务账号向 Superset `/api/v1/security/guest_token/` 换取短期 Guest Token。
+- 浏览器调用 data-os `GET /api/v1/analytics/dashboards` 获取看板目录，`POST /api/v1/analytics/guest-token` 换取短期 Guest Token；BFF 使用服务账号向 Superset `/api/v1/security/guest_token/` 完成签发。
 - Token、服务账号和数据库凭据不进入浏览器。门户只保存 `dashboard_binding_id ↔ Superset dashboard UUID`、业务目录、口径引用和可见范围。
 - Superset 不可用时，门户保留看板目录、最近成功时间和口径说明，并显示“分析服务暂不可用”；不影响采集、治理和 MPI。
 
@@ -285,10 +284,10 @@ AssistantAdapter: ask / cancel / getEvidence / feedback
 - DB-GPT 或模型服务不可用时，智能问数降级为资产/指标检索；不影响固定看板和数据服务。
 - DB-GPT 是实验性消费能力，不进入采集、质量、MPI 或发布的关键路径。
 
-### 5.7 HAPI FHIR MDM
+### 5.7 患者主索引（mpi-service）
 
-- Patient、Practitioner、Organization 等医疗主数据使用 FHIR R4 表达；HAPI MDM 提供规则匹配、Golden Resource 和 MATCH/POSSIBLE_MATCH/NO_MATCH 链接。
-- data-os 保存审核任务、字段 survivorship、操作者、影响预览、发布版本和撤销事件，并调用 HAPI MDM 操作变更链接。
+- 患者身份匹配由独立 `mpi-service` 承接：候选召回（Blocking，机构+源主键、机构+卡号、姓名+性别等确定性键）缩小候选集，匹配引擎统一走 `PairScorer` seam（V1 确定性规则 / V2 Fellegi-Sunter 评分 / T5 混合，决策权在混合引擎），产出 AUTO_MATCH / REVIEW / NO_MATCH 三态。
+- mpi-service 独占保存源身份、黄金人（`mpi_person`）与链接事实；Merge/Split 全程留痕可逆，并人赢家统一 earlierOf。候选审核、合并/拆分由门户工作台完成（经 nginx 直路由 `/api/v1/mpi/`），control-plane 不含 MPI 逻辑、不直连 MPI 数据。
 - 原始临床事实只追加 `mpi_link_version`，不因黄金记录变化覆盖源患者 ID。
 - 匹配引擎不可用时，数据进入待匹配区；禁止生成临时区域身份绕过审核。
 
@@ -425,7 +424,7 @@ MVP 使用 Micrometer/Prometheus 指标和 Grafana；应用日志输出结构化
 | OpenMetadata 不可用 | 采集、dbt 继续；元数据事件排队 | 把缓存投影当实时事实 | 重放 Outbox、刷新同步时间 |
 | Superset 不可用 | 显示目录、口径和最近成功时间 | 阻塞治理与交付 | 服务恢复后重新签发嵌入会话 |
 | DB-GPT/模型不可用 | 降级到指标和资产检索 | 返回无证据的编造回答 | 取消未完成查询，恢复后新建请求 |
-| HAPI FHIR MDM 不可用 | 进入待匹配区 | 临时生成不可追溯黄金 ID | 重放待匹配任务 |
+| mpi-service 不可用 | 进入待匹配区 | 临时生成不可追溯黄金 ID | 重放待匹配任务 |
 | DolphinScheduler 不可用 | 已运行作业按执行器能力继续 | 门户伪造“成功”状态 | 对账实例并恢复业务投影 |
 | 门户控制面不可用 | 已落地工作区显示真实不可用状态；静态模块不渲染样例 | 用 mock 问题/指标冒充实时事实 | 恢复 `/api/v1` 后重新加载 |
 
@@ -458,7 +457,7 @@ Outbox 重试采用有上限的指数退避；超过阈值进入死信队列，�
 | 决策门 | 负责人 | 截止 | 通过标准 | 不通过时 |
 |---|---|---|---|---|
 | 首院源与权限可用 | 实施负责人 | W1 第 3 天 | 1 个数据库、1 个前置协议拿到脱敏样本和真实权限 | 停止工期承诺，形成厂商依赖清单 |
-| BOM 兼容性 | 技术负责人 | W2 末 | SeaTunnel→Doris、dbt-doris、OM dbt 摄取、Superset 嵌入、HAPI MDM 全部 smoke 通过 | 固定适配器接口并使用已定义回退实现 |
+| BOM 兼容性 | 技术负责人 | W2 末 | SeaTunnel→Doris、dbt-doris、OM dbt 摄取、Superset 嵌入、MPI 匹配引擎全部 smoke 通过 | 固定适配器接口并使用已定义回退实现 |
 | 首个 Edge 执行包 | 实施 + 技术负责人 | W1 末 | 能覆盖首院主流协议并通过 24 小时断网重放 | 选择第二能力包，不默认双运行时 |
 | MPI 规则适用度 | 治理负责人 | W2 末 | 脱敏标注集可分别测 precision、recall 和人工复核量 | 保留流程/crosswalk，替换匹配引擎 |
 | DB-GPT 是否进入 MVP | 产品负责人 | W10 末 | 只读、SQL 限制、证据返回、失败降级均通过 | 作为 Beta 能力延期，不阻塞 MVP |
@@ -477,5 +476,3 @@ Outbox 重试采用有上限的指数退避；超过阈值进入死信队列，�
 - [Superset Embedded SDK](https://superset.apache.org/user-docs/6.1.0/using-superset/embedding/)
 - [Superset Guest Token API](https://superset.apache.org/developer-docs/api/get-a-guest-token/)
 - [DB-GPT Datasource API](https://docs.dbgpt.cn/docs/api/datasource/)
-- [HAPI FHIR MDM](https://hapifhir.io/hapi-fhir/docs/server_jpa_mdm/mdm.html)
-- [HAPI FHIR MDM Operations](https://hapifhir.io/hapi-fhir/docs/server_jpa_mdm/mdm_operations.html)
