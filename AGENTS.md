@@ -41,6 +41,9 @@ cd services/quality-runner && .venv/bin/python -m pytest tests/ -q
 # ai-ready-service 与声明仓库共用 quality-runner 的 .venv（fastapi/httpx/PyYAML）
 cd services/ai-ready-service && ../quality-runner/.venv/bin/python -m pytest tests -q
 
+# data-api（ToB 数据 API 网关）用自身 .venv（fastapi/httpx/pymysql/boto3）
+cd services/data-api && .venv/bin/python -m pytest tests -q
+
 # 前端：所有命令在 prototype/ 下运行；qa 脚本必须从 prototype/ 目录运行（内部按 .. 解析）
 cd prototype && npx tsc -b && npx vitest run \
   && node qa/mock-audit.mjs && node qa/portal-interactions-smoke.mjs && npm run build

@@ -40,21 +40,22 @@ EXPORT_MAINTENANCE_INTERVAL_S = 3600
 
 @app.on_event("startup")
 def recover_and_start_maintenance() -> None:
-    """启动恢复（孤儿清算 + PENDING 拾取）与维护循环：
-    每 30s 重放审计缓冲，每 1h 导出产物清理与到期标记。"""
-    try:
-        logger.info("导出启动恢复: %s", _export_manager.recover())
-    except Exception:  # noqa: BLE001  恢复失败不阻塞服务面
-        logger.exception("导出启动恢复失败（控制面不可达？）")
-
+    """维护线程：先做启动恢复（带重试——data-api 可能先于控制面就绪），
+    然后每 30s 重放审计缓冲、每 1h 导出产物清理与到期标记。"""
     import time
 
-    # 简化节拍：每 tick（默认 30s）重放审计缓冲；每 N tick（默认 1h）做导出维护
     state = {"tick": 0}
 
     def maintenance_loop() -> None:
-        import time
-
+        for attempt in range(5):
+            try:
+                logger.info("导出启动恢复: %s", _export_manager.recover())
+                break
+            except Exception:  # noqa: BLE001
+                logger.warning("导出启动恢复暂不可达（第 %d 次）", attempt + 1)
+                time.sleep(10)
+        else:
+            logger.error("导出启动恢复 5 次重试后放弃（PENDING 任务待下轮维护拾取）")
         ticks_per_hour = max(EXPORT_MAINTENANCE_INTERVAL_S // AUDIT_REPLAY_INTERVAL_S, 1)
         while True:
             time.sleep(AUDIT_REPLAY_INTERVAL_S)
