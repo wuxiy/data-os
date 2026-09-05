@@ -6,8 +6,8 @@
 # 产物版本（载荷性，2026-09-04 实测）：OM 1.6.0 的 dbt-artifacts-parser 原生
 # 吃 dbt 1.10 的 manifest v12 / run-results v6，但拒收其 metadata 新增键
 # （invocation_started_at / quoting，extra_forbidden）——剥离后直通。
-# 1.5.11 时代的 dbt-1.7 双源降维链（v11/v5）已退役。catalog 未喂
-# （DataModel 实体面仍为 0，见备忘 P3）。
+# 1.5.11 时代的 dbt-1.7 双源降维链（v11/v5）已退役。catalog 由 dbt docs
+# generate 产出并同法剥离（2026-09-05 补喂 DataModel 面，备忘 P3 残留小项）。
 #
 # 用法（部署机上）：
 #   bash om-dbt-ingest.sh                 # 全流程（生成产物 + 摄取 + 对账）
@@ -78,10 +78,14 @@ if [ "${CHECK_ONLY:-0}" != "1" ]; then
     if dbt_exec test; then :; fi
     docker cp "$RUNNER_CONTAINER:/tmp/om-g7-target/run_results.json" "$DBT_ARTIFACTS_DIR/run_results.json"
     RUN_RESULTS_LINE="        dbtRunResultsFilePath: /opt/dbt-artifacts/run_results.json"
-  else
-    if dbt_exec parse; then :; fi
   fi
+  # docs generate 连库产出 manifest + catalog（catalog 是 OM DataModel 的列信息
+  # 来源；SKIP_TESTS 时由它一并承担 parse 职责）。ephemeral model 不进 catalog
+  # 的 nodes 段（只物化关系入库），sources 段仍完整。
+  if dbt_exec docs generate; then :; fi
   docker cp "$RUNNER_CONTAINER:/tmp/om-g7-target/manifest.json" "$DBT_ARTIFACTS_DIR/manifest.json"
+  docker cp "$RUNNER_CONTAINER:/tmp/om-g7-target/catalog.json" "$DBT_ARTIFACTS_DIR/catalog.json"
+  CATALOG_LINE="        dbtCatalogFilePath: /opt/dbt-artifacts/catalog.json"
 
   # OM 1.6.0 内置 dbt-artifacts-parser 拒收 dbt 1.10 的 metadata 新增键
   # （extra_forbidden，2026-09-04 实测），剥离后 v12/v6 直通。
@@ -89,7 +93,8 @@ if [ "${CHECK_ONLY:-0}" != "1" ]; then
 import json, sys
 base = sys.argv[1]
 for name, keys in (("manifest.json", ("invocation_started_at", "quoting")),
-                   ("run_results.json", ("invocation_started_at",))):
+                   ("run_results.json", ("invocation_started_at",)),
+                   ("catalog.json", ("invocation_started_at", "quoting"))):
     try:
         doc = json.load(open(f"{base}/{name}"))
     except FileNotFoundError:
@@ -112,13 +117,14 @@ PY
   # 留存最近一次渲染结果（排障用；600 权限，含令牌）
   trap 'cp "$YAML" /tmp/om-g7-last-rendered.yaml 2>/dev/null; chmod 600 /tmp/om-g7-last-rendered.yaml; rm -f "$YAML"' EXIT
   chmod 600 "$YAML"
-  # 渲染令牌与可选的 run_results 行（缩进敏感：RUN_RESULTS_LINE 已含 8 空格前导）。
+  # 渲染令牌与可选的 run_results/catalog 行（缩进敏感：两行已含 8 空格前导）。
   python3 - "$SCRIPT_DIR/../config/openmetadata/dbt-quality-runner-ingestion.yaml.template" \
-    "$OM_JWT" "$RUN_RESULTS_LINE" "$YAML" <<'PY'
+    "$OM_JWT" "$RUN_RESULTS_LINE" "$CATALOG_LINE" "$YAML" <<'PY'
 import sys
-template, jwt, run_results_line, out = sys.argv[1:5]
+template, jwt, run_results_line, catalog_line, out = sys.argv[1:6]
 text = open(template).read().replace("__OM_JWT__", jwt)
 text = text.replace("__DBT_RUN_RESULTS_LINE__", run_results_line)
+text = text.replace("__DBT_CATALOG_LINE__", catalog_line)
 open(out, "w").write(text)
 PY
   docker run --rm --user 0:0 --network "$OM_NETWORK" \
@@ -126,7 +132,7 @@ PY
     --entrypoint python3 "$INGESTION_IMAGE" -m metadata ingest -c /opt/ingest.yaml 2>&1 | tail -25
 fi
 
-echo '== 4/4 对账：dbt 测试数 vs OM TestCase =='
+echo '== 4/4 对账：dbt 测试数 vs OM TestCase；dbt model 数 vs OM DataModel =='
 # OM 1.6.0 的 TestCase 端点在 /dataQuality/testCases（/testCases 已 404）。
 MANIFEST_TESTS=$(python3 -c '
 import json
@@ -150,4 +156,22 @@ FAIL=0
 # OM 侧含历史 TestCase（G7 时代遗留），故以「不少于 manifest 测试数」为口径。
 [ "$OM_TESTS" -ge "$MANIFEST_TESTS" ] || { echo '测试数量不足'; FAIL=1; }
 echo "$EP_GOT" | grep -q MISSING && FAIL=1
+
+# DataModel 面为信息项（不判 FAIL）：ephemeral model 不进 catalog nodes，
+# OM 据此不建 DataModel——结构性 0 时如实报告，处置归备忘 P3。
+MANIFEST_MODELS=$(python3 -c '
+import json
+doc = json.load(open("'"$DBT_ARTIFACTS_DIR"'/manifest.json"))
+print(sum(1 for n in doc.get("nodes", {}).values() if n.get("resource_type") == "model"))')
+CATALOG_NODES=$(python3 -c '
+import json, os
+path = "'"$DBT_ARTIFACTS_DIR"'/catalog.json"
+print(len(json.load(open(path)).get("nodes", {})) if os.path.exists(path) else 0)')
+OM_DATAMODELS=$(om_api GET "/dataModels?limit=1" | python3 -c '
+import sys, json
+print(json.load(sys.stdin).get("paging", {}).get("total", 0))')
+echo "dbt manifest model 数：$MANIFEST_MODELS；catalog 物化节点数：$CATALOG_NODES；OM DataModel 数：$OM_DATAMODELS"
+if [ "$OM_DATAMODELS" -lt "$MANIFEST_MODELS" ]; then
+  echo '说明：DataModel 少于 manifest model 数——ephemeral model 无物化关系，不进 catalog（结构性，见备忘 P3）'
+fi
 [ "$FAIL" = 0 ] && echo '对账结论：PASS' || { echo '对账结论：FAIL'; exit 1; }

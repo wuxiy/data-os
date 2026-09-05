@@ -5,8 +5,8 @@
 # 实体：sourceConfig.config.type=DBT，dbt 配置（DbtLocalConfig）随 workflow
 # 提供；TestCase 挂到 serviceName 所指服务的表。产物（v12/v6，经 metadata
 # 键剥离）由脚本在 quality-runner 容器生成并挂载到 /opt/dbt-artifacts
-# （本模板不含口令，可安全进 Git）。catalog 未喂：DataModel 实体面为 0
-# （备忘 P3）。
+# （本模板不含口令，可安全进 Git）。catalog（docs generate 产出，DataModel
+# 列信息来源）同目录挂载，2026-09-05 补喂（备忘 P3 残留小项）。
 source:
   type: dbt
   serviceName: doris-dataos
@@ -17,6 +17,7 @@ source:
         dbtConfigType: local
         dbtManifestFilePath: /opt/dbt-artifacts/manifest.json
 __DBT_RUN_RESULTS_LINE__
+__DBT_CATALOG_LINE__
 sink:
   type: metadata-rest
   config: {}
