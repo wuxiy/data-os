@@ -27,13 +27,57 @@ docker build -t medical-platform/data-os-control-plane:0.1.0 \
 
 cp prototype/.env.production.example prototype/.env.production
 # 编辑 prototype/.env.production：OIDC issuer、公开 client id、准确 redirect URI。
-npm ci --prefix prototype
-npm run build --prefix prototype
-mkdir -p deploy/production/portal-dist
-cp -a prototype/dist/. deploy/production/portal-dist/
+bash deploy/production/scripts/build-portal.sh
 ```
 
-生产构建不设置 `VITE_DATAOS_DEMO_MODE=true`。未接入的页面必须呈现真实空态或不可用状态，不能把 demo 数据当作业务事实。
+`build-portal.sh` 会校验 OIDC 三键已配置且非模板占位、`VITE_DATAOS_DEMO_MODE`
+未设置（生产构建禁止携带演示数据），然后执行 `npm ci && npm run build`，并把
+`prototype/dist/` 原子同步到 `deploy/production/portal-dist/`。未接入的页面必须
+呈现真实空态或不可用状态，不能把 demo 数据当作业务事实。
+
+## 门户用户链（生产 ENFORCED）
+
+控制面生产默认 `DATAOS_AUTH_MODE=ENFORCED`，门户登录依赖三件事：**角色种子**、
+**公共客户端**、**前端 OIDC 构建参数**。自带 Keycloak 时用种子脚本一次建立：
+
+```bash
+KEYCLOAK_ADMIN_URL=http://localhost:8080 \
+PORTAL_REDIRECT_URIS="https://data-os.example.invalid/" \
+bash deploy/production/scripts/keycloak-portal-seed.sh --with-demo-user
+```
+
+脚本幂等（可重复执行），会建立：
+
+- 7 个 realm 角色：`platform-admin` / `tenant-admin` / `platform-operator` /
+  `data-engineer` / `data-governance` / `data-analyst` / `viewer`——与控制面
+  `OidcSecurityConfiguration` 的角色矩阵一致；
+- 公共客户端 `data-os-portal`（Authorization Code + PKCE S256 强制、
+  `directAccessGrants` 关闭、redirect/webOrigins 按入参清单属主化）；
+- 三只客户端 mapper：audience → `data-os`（控制面 audience 校验），
+  `tenant_id` / `institution_id` user-attribute → token 顶层 claim
+  （`TenantScope` 生产必查，缺 claim 直接 403）；
+- `--with-demo-user` 时建验收用户（默认 `portal-demo` / 角色 `viewer` /
+  租户属性 `default`+`demo-hospital`，口令自动生成仅回显一次）。
+
+用户属性与角色的日常管理在 Keycloak 管理台完成；每个门户用户需要设置
+`tenant_id`、`institution_id` 两个用户属性并分配至少一个种子角色，否则
+登录后在控制面被拒。**生产命名租户不要用 `default`**（租户语义见
+`provision-named-tenant.sh`）。
+
+### 院方统一 IdP 场景
+
+不自带 Keycloak、接入院方 IdP 时，向 IdP 管理方申请等价配置，逐项对照：
+
+1. 公开 OIDC 客户端（Authorization Code + PKCE，不允许 client secret 入前端）；
+2. token audience 含 `data-os`（与 `.env` 的 `DATAOS_OIDC_AUDIENCE` 一致）；
+3. 用户属性 `tenant_id`、`institution_id` 映射进 access token 顶层 claim；
+4. realm 角色（或 `roles`/`groups` claim）能取到上表 7 个角色名——控制面把
+   `roles`/`groups`/`realm_access.roles`/`resource_access[data-os].roles` 归一为
+   `ROLE_<name>`，前端技术菜单取 `platform-admin/platform-operator/data-engineer`。
+
+issuer 地址写入两处：`prototype/.env.production`（前端 discovery）与 `.env` 的
+`DATAOS_OIDC_ISSUER_URI`（控制面校验），必须完全一致。
+
 
 ## 导入 SeaTunnel 离线执行器
 
