@@ -108,3 +108,98 @@ def test_catalog_and_schema_hide_sql_template(client, control_plane):
     schema = http.get(f"/v1/services/{CODE}/schema", headers={"X-API-Key": API_KEY})
     assert schema.status_code == 200
     assert "sqlTemplate" not in schema.json()
+
+
+# ---- S9 收敛（H3-C1）：fail-closed、registry 503、审计覆盖、catalog 调决 ----
+
+VALID_PARAMS = {"parameters": {"start_date": "2026-08-01", "end_date": "2026-08-31"}}
+
+
+def test_bad_hospital_json_fails_closed(client, control_plane):
+    """allowedHospitals 坏 JSON 不再静默回退 ['*']（全院放行），403 拒绝。"""
+    http, _ = client
+    control_plane.registry_data["keys"] = [key_entry(KEY_HASH, hospitals='{"bad"')]
+    response = http.post(f"/v1/services/{CODE}/query", json=VALID_PARAMS,
+                         headers={"X-API-Key": API_KEY})
+    assert response.status_code == 403
+    assert response.json()["detail"]["code"] == "HOSPITAL_SCOPE_INVALID"
+    assert control_plane.reported[-1]["statusCode"] == 403
+
+
+def test_hospital_scope_non_array_fails_closed(client, control_plane):
+    http, _ = client
+    control_plane.registry_data["keys"] = [key_entry(KEY_HASH, hospitals='"H001"')]
+    response = http.post(f"/v1/services/{CODE}/query", json=VALID_PARAMS,
+                         headers={"X-API-Key": API_KEY})
+    assert response.status_code == 403
+    assert response.json()["detail"]["code"] == "HOSPITAL_SCOPE_INVALID"
+
+
+def test_missing_hospital_scope_still_all_hospitals(client, control_plane):
+    """字段缺失（None）仍按控制面发放语义视为全院——只有损坏才拒绝。"""
+    http, _ = client
+    key = key_entry(KEY_HASH)
+    del key["allowedHospitals"]
+    control_plane.registry_data["keys"] = [key]
+    response = http.post(f"/v1/services/{CODE}/query", json=VALID_PARAMS,
+                         headers={"X-API-Key": API_KEY})
+    assert response.status_code == 200
+
+
+def test_registry_unavailable_is_503(client, control_plane, monkeypatch):
+    """控制面不可达：不再以未捕获 500 暴露，收口 503 REGISTRY_UNAVAILABLE。"""
+    http, _ = client
+
+    def broken(_key_hash):
+        raise RuntimeError("control-plane down")
+
+    monkeypatch.setattr(control_plane, "find_key", broken)
+    response = http.post(f"/v1/services/{CODE}/query", json=VALID_PARAMS,
+                         headers={"X-API-Key": API_KEY})
+    assert response.status_code == 503
+    assert response.json()["detail"]["code"] == "REGISTRY_UNAVAILABLE"
+
+
+def test_auth_failures_are_audited(client, control_plane):
+    """坏 Key / 跨服务 / 超配额结局均落审计（此前 401/403/429 零记录）。"""
+    http, _ = client
+    control_plane.registry_data["keys"] = [key_entry(KEY_HASH)]
+    response = http.post(f"/v1/services/{CODE}/query", json={"parameters": {}},
+                         headers={"X-API-Key": "dataos_sk_wrong"})
+    assert response.status_code == 401
+    assert control_plane.reported[-1]["statusCode"] == 401
+
+    control_plane.registry_data["keys"] = [key_entry(sha256("other"), service_code="other-service")]
+    response = http.post(f"/v1/services/{CODE}/query", json={"parameters": {}},
+                         headers={"X-API-Key": "other"})
+    assert response.status_code == 403
+    assert control_plane.reported[-1]["statusCode"] == 403
+
+    control_plane.registry_data["keys"] = [key_entry(KEY_HASH, quota=5, used=5)]
+    response = http.post(f"/v1/services/{CODE}/query", json={"parameters": {}},
+                         headers={"X-API-Key": API_KEY})
+    assert response.status_code == 429
+    assert control_plane.reported[-1]["statusCode"] == 429
+
+
+def test_missing_key_not_audited(client, control_plane):
+    """匿名探测（未携带 Key）不产生审计噪声。"""
+    http, _ = client
+    response = http.post(f"/v1/services/{CODE}/query", json={"parameters": {}})
+    assert response.status_code == 401
+    assert control_plane.reported == []
+
+
+def test_catalog_enforces_quota_and_binding(client, control_plane):
+    """catalog 不再绕过调决：配额与绑定照走（S9 前内联 401 分支无此检查）。"""
+    http, _ = client
+    control_plane.registry_data["keys"] = [key_entry(KEY_HASH, quota=5, used=5)]
+    response = http.get("/v1/services", headers={"X-API-Key": API_KEY})
+    assert response.status_code == 429
+    assert control_plane.reported == []  # 元数据读不审计
+
+    control_plane.registry_data["keys"] = [key_entry(KEY_HASH)]
+    control_plane.registry_data["services"] = []  # 绑定服务未发布
+    response = http.get("/v1/services", headers={"X-API-Key": API_KEY})
+    assert response.status_code == 404
+    assert response.json()["detail"]["code"] == "SERVICE_NOT_FOUND"
