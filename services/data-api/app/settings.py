@@ -26,6 +26,14 @@ class Settings:
         default_factory=lambda: int(os.environ.get("DORIS_CONNECT_TIMEOUT_S", "5")))
     registry_ttl_s: int = field(default_factory=lambda: int(os.environ.get("REGISTRY_TTL_S", "30")))
     audit_timeout_s: float = field(default_factory=lambda: float(os.environ.get("AUDIT_TIMEOUT_S", "2.0")))
+    # ---- P8（H3）：stale-grace / 熔断 / 审计持久缓冲 ----
+    registry_grace_s: int = field(default_factory=lambda: int(os.environ.get("REGISTRY_GRACE_S", "300")))
+    breaker_failure_threshold: int = field(default_factory=lambda: int(os.environ.get("BREAKER_FAILURE_THRESHOLD", "5")))
+    breaker_open_seconds: float = field(default_factory=lambda: float(os.environ.get("BREAKER_OPEN_SECONDS", "30")))
+    audit_buffer_path: str = field(default_factory=lambda: os.environ.get(
+        "AUDIT_BUFFER_PATH", "/var/lib/dataos-data-api/audit-buffer.jsonl"))
+    audit_replay_interval_s: int = field(default_factory=lambda: int(os.environ.get("AUDIT_REPLAY_INTERVAL_S", "30")))
+    audit_max_age_hours: int = field(default_factory=lambda: int(os.environ.get("AUDIT_MAX_AGE_HOURS", "72")))
     # ---- 异步导出（P7，H3）----
     export_max_rows: int = field(default_factory=lambda: int(os.environ.get("EXPORT_MAX_ROWS", "1000000")))
     export_timeout_s: int = field(default_factory=lambda: int(os.environ.get("EXPORT_TIMEOUT_S", "600")))

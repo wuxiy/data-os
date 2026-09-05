@@ -11,6 +11,7 @@ from fastapi import APIRouter, Header, HTTPException, Response, status
 from pydantic import BaseModel, Field
 
 from controlplane import ControlPlaneClient, sha256_hex
+from breaker import DorisBreaker
 from executor import ParameterError, enforce_hospital_scope, execute, parameters_json_of, validate_parameters
 from exports import ExportExpired, ExportManager, ExportNotFound, ExportNotReady
 from session import CallSession, ScopeInvalid
@@ -20,6 +21,7 @@ router = APIRouter()
 _control_plane: ControlPlaneClient | None = None
 _settings: Any = None
 _exports: ExportManager | None = None
+_breaker = DorisBreaker()
 
 
 def bind(control_plane: ControlPlaneClient, settings: Any) -> None:
@@ -31,6 +33,11 @@ def bind(control_plane: ControlPlaneClient, settings: Any) -> None:
 def bind_exports(exports: ExportManager) -> None:
     global _exports
     _exports = exports
+
+
+def bind_breaker(breaker: DorisBreaker) -> None:
+    global _breaker
+    _breaker = breaker
 
 
 class QueryRequest(BaseModel):
@@ -75,12 +82,19 @@ def query(code: str, request: QueryRequest, x_api_key: str | None = Header(defau
         session.report(status.HTTP_403_FORBIDDEN)
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
                             detail={"code": "HOSPITAL_NOT_AUTHORIZED", "message": str(exc)}) from exc
+    if not _breaker.allow():
+        session.report(status.HTTP_503_SERVICE_UNAVAILABLE)
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                            detail={"code": "DORIS_CIRCUIT_OPEN",
+                                    "message": "查询引擎熔断保护中，请稍后重试"})
     try:
         result = execute(str(service["sqlTemplate"]), values, service, _settings)
     except Exception:  # noqa: BLE001  Doris 不可达/超时统一 503，不泄漏内部细节
+        _breaker.record_failure()
         session.report(status.HTTP_503_SERVICE_UNAVAILABLE)
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                             detail={"code": "DORIS_UNAVAILABLE", "message": "查询引擎暂不可用"}) from None
+    _breaker.record_success()
     session.report(status.HTTP_200_OK, row_count=result["rowCount"],
                    truncated=result["truncated"], elapsed_ms=result["elapsedMs"])
     return {

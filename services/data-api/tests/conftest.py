@@ -7,15 +7,19 @@ from __future__ import annotations
 import hashlib
 import os
 import sys
+import tempfile
 import uuid
 from pathlib import Path
 from typing import Any
 
 import pytest
 
-# 测试不连真实数据面：给启动校验一个占位口令
+# 测试不连真实数据面：给启动校验一个占位口令；审计缓冲指向临时目录
+# （main 导入即装配，macOS 无 /var/lib 写权限）
 os.environ.setdefault("DORIS_PASSWORD", "test-only")
 os.environ.setdefault("DATA_API_INTERNAL_TOKEN", "test-internal")
+os.environ.setdefault("AUDIT_BUFFER_PATH",
+                      os.path.join(tempfile.gettempdir(), "dataos-data-api-tests-audit.jsonl"))
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "app"))
 
@@ -118,8 +122,10 @@ def client(control_plane, tmp_path, monkeypatch):
     import exports
     import main
     from artifacts import ExportArtifactStore
+    from breaker import DorisBreaker
 
     api.bind(control_plane, type("S", (), {"audit_timeout_s": 0.1})())
+    api.bind_breaker(DorisBreaker())  # 每测试重置，避免连败计数跨测试累积
     store_settings = type("S", (), {
         "export_dir": str(tmp_path / "export-artifacts"),
         "s3_endpoint": "", "s3_access_key": "", "s3_secret_key": "",

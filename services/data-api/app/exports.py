@@ -60,10 +60,11 @@ def stream_to_csv(sql: str, args: tuple, settings: Any, path: Path,
 class ExportManager:
     """导出生命周期单一属主：提交、执行、查询、下载、恢复与维护。"""
 
-    def __init__(self, control_plane: Any, settings: Any, artifacts: Any):
+    def __init__(self, control_plane: Any, settings: Any, artifacts: Any, breaker: Any = None):
         self._control_plane = control_plane
         self._settings = settings
         self._artifacts = artifacts
+        self._breaker = breaker
         self._semaphore = threading.BoundedSemaphore(max(settings.export_concurrency, 1))
         self._workers: dict[str, threading.Thread] = {}
 
@@ -105,6 +106,10 @@ class ExportManager:
             return
         started = time.monotonic()
         try:
+            if self._breaker is not None and not self._breaker.allow():
+                self._finalize_failure(export_id, code, key, "查询引擎熔断保护中",
+                                       0, 503)
+                return
             allowed = _hospitals_of(key)
             try:
                 contracts = json.loads(service.get("parameters") or "[]")
@@ -127,16 +132,21 @@ class ExportManager:
             self._control_plane.report_call(
                 code, str(key.get("keyHash", "")), "", row_count, truncated,
                 int((time.monotonic() - started) * 1000), 200, kind="export")
+            if self._breaker is not None:
+                self._breaker.record_success()
             logger.info("导出完成 %s：rows=%d bytes=%d", export_id, row_count, file_bytes)
-        except ScopeInvalid as exc:
-            self._finalize_failure(export_id, code, key, str(exc),
-                                   int((time.monotonic() - started) * 1000), 403)
-        except PermissionError as exc:
+        except (ScopeInvalid, PermissionError) as exc:
             self._finalize_failure(export_id, code, key, str(exc),
                                    int((time.monotonic() - started) * 1000), 403)
         except ParameterError as exc:
             self._finalize_failure(export_id, code, key, str(exc),
                                    int((time.monotonic() - started) * 1000), 400)
+        except Exception as exc:  # noqa: BLE001  Doris/存储失败统一终态
+            if self._breaker is not None:
+                self._breaker.record_failure()
+            logger.exception("导出失败 %s", export_id)
+            self._finalize_failure(export_id, code, key, "查询引擎或对象存储暂不可用",
+                                   int((time.monotonic() - started) * 1000), 503)
         except Exception as exc:  # noqa: BLE001  Doris/存储失败统一终态
             logger.exception("导出失败 %s", export_id)
             self._finalize_failure(export_id, code, key, "查询引擎或对象存储暂不可用",
