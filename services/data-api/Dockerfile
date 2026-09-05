@@ -6,7 +6,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONPATH=/opt/dataos/data-api/app
 
 RUN groupadd --system dataos && useradd --system --gid dataos --home-dir /opt/dataos dataos \
-    && mkdir -p /opt/dataos/data-api && chown -R dataos:dataos /opt/dataos
+    && mkdir -p /opt/dataos/data-api /var/lib/dataos-data-api/exports \
+    && chown -R dataos:dataos /opt/dataos /var/lib/dataos-data-api
 
 WORKDIR /opt/dataos/data-api
 COPY services/data-api/pyproject.toml ./

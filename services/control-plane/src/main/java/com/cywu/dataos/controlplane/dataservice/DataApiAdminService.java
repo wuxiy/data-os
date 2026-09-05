@@ -187,6 +187,14 @@ public class DataApiAdminService {
     /** 审计回写（执行面调用，idempotency_key 幂等）。 */
     public boolean recordCall(String code, String keyHash, String parametersJson, int rowCount,
                               boolean truncated, int elapsedMs, int statusCode, String idempotencyKey) {
+        return recordCall(code, keyHash, parametersJson, rowCount, truncated, elapsedMs,
+                statusCode, idempotencyKey, "query");
+    }
+
+    /** 审计回写（带形态：query / export——导出完成同样计入配额窗口）。 */
+    public boolean recordCall(String code, String keyHash, String parametersJson, int rowCount,
+                              boolean truncated, int elapsedMs, int statusCode, String idempotencyKey,
+                              String kind) {
         var definition = repository.findPublishedByCode(code).orElse(null);
         if (definition == null) {
             return false;
@@ -200,8 +208,96 @@ public class DataApiAdminService {
         var call = new DataServiceCall(UUID.randomUUID().toString(), definition.id(),
                 definition.tenantId(), keyId, idempotencyKey == null || idempotencyKey.isBlank()
                         ? UUID.randomUUID().toString() : idempotencyKey,
-                parametersJson, rowCount, truncated, elapsedMs, statusCode, Instant.now());
+                parametersJson, rowCount, truncated, elapsedMs, statusCode, Instant.now(), kind);
         return repository.saveCall(call);
+    }
+
+    // ---- 导出任务（P7，H3）：任务状态机由控制面持有，执行面经内部端点驱动 ----
+
+    public DataServiceExport createExport(String code, String keyHash, String parametersJson) {
+        var definition = repository.findPublishedByCode(code)
+                .orElseThrow(() -> new InvalidRequestException("服务不存在或未发布: " + code));
+        var now = Instant.now();
+        return repository.saveExport(new DataServiceExport(UUID.randomUUID().toString(),
+                definition.id(), definition.tenantId(), keyHash,
+                DataServiceExport.ExportStatus.PENDING, parametersJson, 0, null, null, null,
+                now, now, null));
+    }
+
+    /** RUNNING 认领（CAS）：仅 PENDING 可转入，并发双认领安全。 */
+    public boolean claimExport(String id) {
+        return repository.claimExport(id, Instant.now());
+    }
+
+    public boolean finalizeExport(String id, DataServiceExport.ExportStatus target, long rowCount,
+                                  Long fileBytes, String artifactUri, String error, Instant expiresAt) {
+        var current = repository.findExport(id).orElse(null);
+        if (current == null) {
+            return false;
+        }
+        if (!current.status().canTransitionTo(target)) {
+            throw new ConflictException("状态机拒绝: " + current.status() + " → " + target);
+        }
+        return repository.finalizeExport(id, target, rowCount, fileBytes, artifactUri, error,
+                expiresAt, Instant.now());
+    }
+
+    public java.util.Optional<DataServiceExport> findExport(String id) {
+        return repository.findExport(id);
+    }
+
+    /** 启动拾取：PENDING 且未认领的任务（执行面重启后重排）。 */
+    public List<DataServiceExport> findPendingExports() {
+        return repository.findPendingExports();
+    }
+
+    /** 到期清理（执行面维护循环调用）：SUCCEEDED 且过 expires_at → EXPIRED。 */
+    public int expireExports() {
+        return repository.expireExports(Instant.now());
+    }
+
+    /** 孤儿清算（执行面启动调用）：RUNNING 早于 staleBefore → FAILED。 */
+    public int reapStaleRunning(Instant staleBefore) {
+        return repository.reapStaleRunning(staleBefore, Instant.now());
+    }
+
+    public List<Map<String, Object>> exports(String serviceId, String tenantId, int limit) {
+        tenantId = tenantScope.resolve(tenantId, null).tenantId();
+        requireDefinition(serviceId, tenantId);
+        return repository.findExports(serviceId, tenantId, Math.min(Math.max(limit, 1), 100)).stream()
+                .map(this::exportSummary).toList();
+    }
+
+    /** 执行面 GET 投影：含 keyHash（归属校验用，仅服务 token 可达）。 */
+    public Map<String, Object> exportProjection(DataServiceExport export) {
+        return exportProjection(export, repository.findCodeById(export.serviceId()).orElse(""));
+    }
+
+    public Map<String, Object> exportProjection(DataServiceExport export, String serviceCode) {
+        var projection = new LinkedHashMap<String, Object>();
+        projection.put("id", export.id());
+        projection.put("serviceCode", serviceCode);
+        projection.put("keyHash", export.keyHash());
+        projection.put("status", export.status().name());
+        projection.put("rowCount", export.rowCount());
+        projection.put("fileBytes", export.fileBytes() == null ? 0 : export.fileBytes());
+        projection.put("artifactUri", export.artifactUri() == null ? "" : export.artifactUri());
+        projection.put("error", export.error() == null ? "" : export.error());
+        projection.put("createdAt", export.createdAt().toString());
+        projection.put("updatedAt", export.updatedAt().toString());
+        projection.put("expiresAt", export.expiresAt() == null ? "" : export.expiresAt().toString());
+        return projection;
+    }
+
+    private Map<String, Object> exportSummary(DataServiceExport export) {
+        return Map.of(
+                "id", export.id(),
+                "status", export.status().name(),
+                "rowCount", export.rowCount(),
+                "fileBytes", export.fileBytes() == null ? 0 : export.fileBytes(),
+                "error", export.error() == null ? "" : export.error(),
+                "createdAt", export.createdAt().toString(),
+                "expiresAt", export.expiresAt() == null ? "" : export.expiresAt().toString());
     }
 
     private DataServiceDefinition requireDefinition(String id, String tenantId) {

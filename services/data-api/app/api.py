@@ -7,23 +7,30 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from fastapi import APIRouter, Header, HTTPException, status
+from fastapi import APIRouter, Header, HTTPException, Response, status
 from pydantic import BaseModel, Field
 
-from controlplane import ControlPlaneClient
+from controlplane import ControlPlaneClient, sha256_hex
 from executor import ParameterError, enforce_hospital_scope, execute, parameters_json_of, validate_parameters
+from exports import ExportExpired, ExportManager, ExportNotFound, ExportNotReady
 from session import CallSession, ScopeInvalid
 
 router = APIRouter()
 
 _control_plane: ControlPlaneClient | None = None
 _settings: Any = None
+_exports: ExportManager | None = None
 
 
 def bind(control_plane: ControlPlaneClient, settings: Any) -> None:
     global _control_plane, _settings
     _control_plane = control_plane
     _settings = settings
+
+
+def bind_exports(exports: ExportManager) -> None:
+    global _exports
+    _exports = exports
 
 
 class QueryRequest(BaseModel):
@@ -85,6 +92,67 @@ def query(code: str, request: QueryRequest, x_api_key: str | None = Header(defau
         "truncated": result["truncated"],
         "elapsedMs": result["elapsedMs"],
     }
+
+
+@router.post("/v1/services/{code}/export", status_code=status.HTTP_202_ACCEPTED)
+def create_export(code: str, request: QueryRequest,
+                  x_api_key: str | None = Header(default=None)) -> dict[str, Any]:
+    """大结果集异步导出（P7）：同步校验（鉴权/参数/医院范围/配额）后
+    创建任务并后台执行；轮询 /v1/exports/{id}，完成后经 download 取产物。"""
+    session = CallSession.open(_control_plane, x_api_key, code,
+                               parameters_json_of(request.parameters))
+    service = session.require_service()
+    try:
+        contracts = json.loads(service.get("parameters") or "[]")
+    except ValueError:
+        contracts = []
+    try:
+        values = validate_parameters(contracts, request.parameters)
+        enforce_hospital_scope(values, contracts, session.hospitals())
+    except ScopeInvalid as exc:
+        session.report(status.HTTP_403_FORBIDDEN)
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail={"code": "HOSPITAL_SCOPE_INVALID", "message": str(exc)}) from exc
+    except ParameterError as exc:
+        session.report(status.HTTP_400_BAD_REQUEST)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail={"code": "PARAM_INVALID", "message": str(exc)}) from exc
+    except PermissionError as exc:
+        session.report(status.HTTP_403_FORBIDDEN)
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail={"code": "HOSPITAL_NOT_AUTHORIZED", "message": str(exc)}) from exc
+    export_id = _exports.submit(code, session.key, request.parameters, values)
+    return {"exportId": export_id, "status": "PENDING"}
+
+
+@router.get("/v1/exports/{export_id}")
+def export_status(export_id: str, x_api_key: str | None = Header(default=None)) -> dict[str, Any]:
+    """任务状态（仅创建 Key 可见；不烧配额——产物交付不属于新调用）。"""
+    session = CallSession.open(_control_plane, x_api_key, None, audit=False, enforce_quota=False)
+    projection = _exports.status(export_id, session.key_hash)
+    if projection is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail={"code": "EXPORT_NOT_FOUND", "message": "导出任务不存在"})
+    return projection
+
+
+@router.get("/v1/exports/{export_id}/download")
+def export_download(export_id: str, x_api_key: str | None = Header(default=None)) -> Response:
+    session = CallSession.open(_control_plane, x_api_key, None, audit=False, enforce_quota=False)
+    try:
+        filename, content = _exports.download(export_id, session.key_hash)
+    except ExportNotFound:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail={"code": "EXPORT_NOT_FOUND", "message": "导出任务不存在"}) from None
+    except ExportExpired:
+        raise HTTPException(status_code=status.HTTP_410_GONE,
+                            detail={"code": "EXPORT_EXPIRED", "message": "导出产物已过保留期"}) from None
+    except ExportNotReady as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT,
+                            detail={"code": "EXPORT_NOT_READY",
+                                    "message": f"导出任务未完成（当前状态 {exc.status}）"}) from None
+    return Response(content=content, media_type="text/csv",
+                    headers={"Content-Disposition": f'attachment; filename="{filename}"'})
 
 
 def _summary_of(service: dict[str, Any]) -> dict[str, Any]:

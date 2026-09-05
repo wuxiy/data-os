@@ -26,9 +26,23 @@ class Settings:
         default_factory=lambda: int(os.environ.get("DORIS_CONNECT_TIMEOUT_S", "5")))
     registry_ttl_s: int = field(default_factory=lambda: int(os.environ.get("REGISTRY_TTL_S", "30")))
     audit_timeout_s: float = field(default_factory=lambda: float(os.environ.get("AUDIT_TIMEOUT_S", "2.0")))
+    # ---- 异步导出（P7，H3）----
+    export_max_rows: int = field(default_factory=lambda: int(os.environ.get("EXPORT_MAX_ROWS", "1000000")))
+    export_timeout_s: int = field(default_factory=lambda: int(os.environ.get("EXPORT_TIMEOUT_S", "600")))
+    export_concurrency: int = field(default_factory=lambda: int(os.environ.get("EXPORT_CONCURRENCY", "2")))
+    export_retention_days: int = field(default_factory=lambda: int(os.environ.get("EXPORT_RETENTION_DAYS", "7")))
+    # 对象存储（RustFS artifacts 模式的第二消费者；四件套缺省时退化为本地目录）
+    s3_endpoint: str = field(default_factory=lambda: os.environ.get("DATA_API_S3_ENDPOINT", ""))
+    s3_bucket: str = field(default_factory=lambda: os.environ.get("DATA_API_S3_BUCKET", "dataos-data-api-exports"))
+    s3_region: str = field(default_factory=lambda: os.environ.get("DATA_API_S3_REGION", "us-east-1"))
+    s3_access_key: str = field(default_factory=lambda: os.environ.get("DATA_API_S3_ACCESS_KEY", ""))
+    s3_secret_key: str = field(default_factory=lambda: os.environ.get("DATA_API_S3_SECRET_KEY", ""))
+    export_dir: str = field(default_factory=lambda: os.environ.get("DATA_API_EXPORT_DIR", "/tmp/dataos-data-api-exports"))
 
     def validate(self) -> None:
         if not self.doris_password:
             raise SystemExit("DORIS_PASSWORD 未配置（dataos_api_ro 只读账号口令）")
         if not (self.oidc_client_id and self.oidc_client_secret) and not self.internal_token:
             raise SystemExit("服务间认证未配置：OIDC client 或 DATA_API_INTERNAL_TOKEN 至少一项")
+        if self.export_max_rows < 1 or self.export_timeout_s < 1 or self.export_concurrency < 1:
+            raise SystemExit("导出参数非法（EXPORT_MAX_ROWS / EXPORT_TIMEOUT_S / EXPORT_CONCURRENCY 须 ≥ 1）")

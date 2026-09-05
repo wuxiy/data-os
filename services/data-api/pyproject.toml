@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dataos-data-api"
-version = "0.1.0"
-description = "DataOS ToB Data API Gateway (parameterized query over published services)"
+version = "0.2.0"
+description = "DataOS ToB Data API Gateway (parameterized query + async export over published services)"
 requires-python = ">=3.12,<3.13"
 dependencies = [
   "fastapi==0.115.6",
@@ -13,6 +13,7 @@ dependencies = [
   "pymysql==1.1.1",
   "httpx==0.28.1",
   "PyJWT[crypto]==2.10.1",
+  "boto3==1.36.20",
 ]
 
 [project.optional-dependencies]

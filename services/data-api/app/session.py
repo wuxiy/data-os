@@ -35,15 +35,17 @@ class CallSession:
 
     @classmethod
     def open(cls, control_plane: Any, x_api_key: str | None, service_code: str | None,
-             parameters_json: str = "", *, audit: bool = True) -> "CallSession":
-        """鉴权调决入口；audit=True 时失败结局同样经审计出口。"""
+             parameters_json: str = "", *, audit: bool = True,
+             enforce_quota: bool = True) -> "CallSession":
+        """鉴权调决入口；audit=True 时失败结局同样经审计出口；
+        enforce_quota=False 供导出状态/下载面（鉴权与吊销照查，不烧配额）。"""
         if not x_api_key:
             # 匿名探测：401 但不审计（无身份素材）
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
                                 detail={"code": "API_KEY_REQUIRED", "message": "缺少 X-API-Key"})
         key_hash = sha256_hex(x_api_key)
         try:
-            key = cls._resolve(control_plane, key_hash, service_code)
+            key = cls._resolve(control_plane, key_hash, service_code, enforce_quota)
         except HTTPException as exc:
             if audit:
                 _safe_report(control_plane, service_code or "", key_hash, parameters_json,
@@ -52,7 +54,8 @@ class CallSession:
         return cls(control_plane, key, service_code, parameters_json, audit)
 
     @staticmethod
-    def _resolve(control_plane: Any, key_hash: str, service_code: str | None) -> dict[str, Any]:
+    def _resolve(control_plane: Any, key_hash: str, service_code: str | None,
+                 enforce_quota: bool = True) -> dict[str, Any]:
         try:
             key = control_plane.find_key(key_hash)
         except Exception as exc:  # registry 拉取失败：收口 503，不向调用方泄漏内部细节
@@ -66,11 +69,19 @@ class CallSession:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
                                 detail={"code": "SERVICE_NOT_AUTHORIZED",
                                         "message": f"该 Key 未授权服务 {service_code}"})
-        if int(key.get("usedToday", 0)) >= int(key.get("dailyQuota", 1)):
+        if enforce_quota and int(key.get("usedToday", 0)) >= int(key.get("dailyQuota", 1)):
             raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                                 detail={"code": "QUOTA_EXCEEDED",
                                         "message": f"已达当日配额 {key.get('dailyQuota')} 次"})
         return key
+
+    @property
+    def key(self) -> dict[str, Any]:
+        return self._key
+
+    @property
+    def key_hash(self) -> str:
+        return str(self._key.get("keyHash", ""))
 
     def hospitals(self) -> list[str]:
         """Key 的医院授权集合。未配置视为 ['*']（与控制面发放语义对齐）；

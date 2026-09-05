@@ -71,6 +71,12 @@ public class DataServiceRepository {
         return Boolean.TRUE.equals(found);
     }
 
+    /** 导出投影用：按服务 id 全局取 code（导出表无租户过滤，经内部端点驱动）。 */
+    public Optional<String> findCodeById(String serviceId) {
+        return jdbc.query("SELECT code FROM data_os.data_service WHERE id = ?",
+                (rs, rowNumber) -> rs.getString(1), serviceId).stream().findFirst();
+    }
+
     public int updateStatus(String id, String tenantId, DataApiLifecycle status, Instant updatedAt) {
         return jdbc.update("""
                 UPDATE data_os.data_service
@@ -149,18 +155,18 @@ public class DataServiceRepository {
         return jdbc.update("""
                 INSERT INTO data_os.data_service_call
                     (id, service_id, tenant_id, key_id, idempotency_key, parameters_json,
-                     row_count, truncated, elapsed_ms, status_code, called_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     row_count, truncated, elapsed_ms, status_code, called_at, kind)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 call.id(), call.serviceId(), call.tenantId(), call.keyId(), call.idempotencyKey(),
                 call.parametersJson(), call.rowCount(), call.truncated(), call.elapsedMs(),
-                call.statusCode(), Timestamp.from(call.calledAt())) > 0;
+                call.statusCode(), Timestamp.from(call.calledAt()), call.kind()) > 0;
     }
 
     public List<DataServiceCall> findCalls(String serviceId, String tenantId, int limit) {
         return jdbc.query("""
                 SELECT id, service_id, tenant_id, key_id, idempotency_key, parameters_json,
-                       row_count, truncated, elapsed_ms, status_code, called_at
+                       row_count, truncated, elapsed_ms, status_code, called_at, kind
                 FROM data_os.data_service_call
                 WHERE service_id = ? AND tenant_id = ?
                 ORDER BY called_at DESC
@@ -242,6 +248,109 @@ public class DataServiceRepository {
                 rs.getBoolean("truncated"),
                 rs.getInt("elapsed_ms"),
                 rs.getInt("status_code"),
-                rs.getTimestamp("called_at").toInstant());
+                rs.getTimestamp("called_at").toInstant(),
+                rs.getString("kind"));
+    }
+
+    // ---- 导出任务（P7，H3）----
+
+    private static final String EXPORT_SELECT = """
+            SELECT id, service_id, tenant_id, key_hash, status, parameters_json,
+                   row_count, file_bytes, artifact_uri, error, created_at, updated_at, expires_at
+            FROM data_os.data_service_export
+            """;
+
+    public DataServiceExport saveExport(DataServiceExport export) {
+        jdbc.update("""
+                INSERT INTO data_os.data_service_export
+                    (id, service_id, tenant_id, key_hash, status, parameters_json,
+                     row_count, file_bytes, artifact_uri, error, created_at, updated_at, expires_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                export.id(), export.serviceId(), export.tenantId(), export.keyHash(),
+                export.status().name(), export.parametersJson(), export.rowCount(),
+                export.fileBytes(), export.artifactUri(), export.error(),
+                Timestamp.from(export.createdAt()), Timestamp.from(export.updatedAt()),
+                export.expiresAt() == null ? null : Timestamp.from(export.expiresAt()));
+        return export;
+    }
+
+    public Optional<DataServiceExport> findExport(String id) {
+        return jdbc.query(EXPORT_SELECT + " WHERE id = ?", this::mapExport, id).stream().findFirst();
+    }
+
+    public List<DataServiceExport> findPendingExports() {
+        return jdbc.query(EXPORT_SELECT + " WHERE status = 'PENDING' ORDER BY created_at", this::mapExport);
+    }
+
+    public List<DataServiceExport> findExports(String serviceId, String tenantId, int limit) {
+        return jdbc.query(EXPORT_SELECT + " WHERE service_id = ? AND tenant_id = ? ORDER BY created_at DESC LIMIT ?",
+                this::mapExport, serviceId, tenantId, limit);
+    }
+
+    /** RUNNING 认领是 CAS：仅 PENDING 可转入，重放/并发双认领安全。 */
+    public boolean claimExport(String id, Instant now) {
+        return jdbc.update("""
+                UPDATE data_os.data_service_export
+                SET status = 'RUNNING', updated_at = ?, error = NULL
+                WHERE id = ? AND status = 'PENDING'
+                """, Timestamp.from(now), id) > 0;
+    }
+
+    public boolean finalizeExport(String id, DataServiceExport.ExportStatus target, long rowCount,
+                                  Long fileBytes, String artifactUri, String error, Instant expiresAt, Instant now) {
+        return jdbc.update("""
+                UPDATE data_os.data_service_export
+                SET status = ?, row_count = ?, file_bytes = ?, artifact_uri = ?, error = ?,
+                    expires_at = ?, updated_at = ?
+                WHERE id = ? AND status = 'RUNNING'
+                """,
+                target.name(), rowCount, fileBytes, artifactUri, truncate(error, 512),
+                expiresAt == null ? null : Timestamp.from(expiresAt), Timestamp.from(now), id) > 0;
+    }
+
+    /** 到期清理：SUCCEEDED 且 expires_at 已过 → EXPIRED。 */
+    public int expireExports(Instant now) {
+        return jdbc.update("""
+                UPDATE data_os.data_service_export
+                SET status = 'EXPIRED', updated_at = ?
+                WHERE status = 'SUCCEEDED' AND expires_at IS NOT NULL AND expires_at < ?
+                """, Timestamp.from(now), Timestamp.from(now));
+    }
+
+    /** 孤儿清算：RUNNING 且 updated_at 早于 staleBefore（进程重启遗留）→ FAILED。 */
+    public int reapStaleRunning(Instant staleBefore, Instant now) {
+        return jdbc.update("""
+                UPDATE data_os.data_service_export
+                SET status = 'FAILED', error = '导出进程重启，任务中断', updated_at = ?
+                WHERE status = 'RUNNING' AND updated_at < ?
+                """, Timestamp.from(now), Timestamp.from(staleBefore));
+    }
+
+    private static String truncate(String value, int maxLength) {
+        if (value == null) {
+            return null;
+        }
+        return value.length() <= maxLength ? value : value.substring(0, maxLength);
+    }
+
+    private DataServiceExport mapExport(java.sql.ResultSet rs, int rowNumber) throws java.sql.SQLException {
+        var fileBytes = rs.getLong("file_bytes");
+        var wasNull = rs.wasNull();
+        var expiresAt = rs.getTimestamp("expires_at");
+        return new DataServiceExport(
+                rs.getString("id"),
+                rs.getString("service_id"),
+                rs.getString("tenant_id"),
+                rs.getString("key_hash"),
+                DataServiceExport.ExportStatus.valueOf(rs.getString("status")),
+                rs.getString("parameters_json"),
+                rs.getLong("row_count"),
+                wasNull ? null : fileBytes,
+                rs.getString("artifact_uri"),
+                rs.getString("error"),
+                rs.getTimestamp("created_at").toInstant(),
+                rs.getTimestamp("updated_at").toInstant(),
+                expiresAt == null ? null : expiresAt.toInstant());
     }
 }

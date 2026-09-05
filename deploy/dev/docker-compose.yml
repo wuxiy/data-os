@@ -161,16 +161,18 @@ services:
   data-api:
     # G13 ToB 数据 API 网关：无库，registry 回源控制面（OIDC client dataos-data-api）；
     # Doris 只读专用账号 dataos_api_ro；30s registry 缓存，配额与审计归控制面。
+    # P7（H3）：大结果集异步导出——RustFS 桶 dataos-data-api-exports +
+    # 下载回放；产物本地退化目录挂卷（S3 不可用时的兜底）。
     build:
       context: ../..
       dockerfile: services/data-api/Dockerfile
-    image: ${DATAOS_DATA_API_IMAGE:-medical-platform/data-os-data-api:0.1.0-dev}
+    image: ${DATAOS_DATA_API_IMAGE:-medical-platform/data-os-data-api:0.2.0-dev}
     environment:
       CONTROL_PLANE_BASE_URL: http://control-plane:8080
       # S8：控制面 /internal/** 已独立 ENFORCED——client_credentials 换取
       # audience=data-os 的服务 token（Keycloak client dataos-data-api +
       # audience mapper，S7 模式）；secret 见远程 .env DATAOS_DATA_API_CLIENT_SECRET。
-      DATA_API_INTERNAL_TOKEN: ${DATAOS_DATA_API_INTERNAL_TOKEN:-dev-internal-data-api}
+      DATA_API_INTERNAL_TOKEN: ${DATA_API_INTERNAL_TOKEN:-dev-internal-data-api}
       DATA_API_OIDC_TOKEN_URI: http://keycloak:8080/auth/realms/data-platform/protocol/openid-connect/token
       DATA_API_OIDC_CLIENT_ID: ${DATAOS_DATA_API_OIDC_CLIENT_ID:-dataos-data-api}
       DATA_API_OIDC_CLIENT_SECRET: ${DATAOS_DATA_API_CLIENT_SECRET:-}
@@ -179,6 +181,21 @@ services:
       DORIS_USER: dataos_api_ro
       DORIS_PASSWORD: ${DORIS_API_PASSWORD:?请在远程 .env 中提供 DORIS_API_PASSWORD}
       REGISTRY_TTL_S: "30"
+      # P7 导出：RustFS 直连（桶由 rustfs-init 幂等创建）
+      DATA_API_S3_ENDPOINT: http://rustfs:9000
+      DATA_API_S3_BUCKET: ${DATAOS_DATA_API_EXPORT_BUCKET:-dataos-data-api-exports}
+      DATA_API_S3_ACCESS_KEY: ${DATAOS_RUSTFS_ACCESS_KEY:-}
+      DATA_API_S3_SECRET_KEY: ${DATAOS_RUSTFS_SECRET_KEY:-}
+      EXPORT_MAX_ROWS: ${DATA_API_EXPORT_MAX_ROWS:-1000000}
+      EXPORT_TIMEOUT_S: ${DATA_API_EXPORT_TIMEOUT_S:-600}
+      EXPORT_CONCURRENCY: ${DATA_API_EXPORT_CONCURRENCY:-2}
+      EXPORT_RETENTION_DAYS: ${DATA_API_EXPORT_RETENTION_DAYS:-7}
+      DATA_API_EXPORT_DIR: /var/lib/dataos-data-api/exports
+    volumes:
+      - data-api-exports:/var/lib/dataos-data-api/exports
+    depends_on:
+      rustfs-init:
+        condition: service_completed_successfully
     networks:
       - platform-net
     restart: unless-stopped
@@ -200,7 +217,11 @@ services:
         import boto3
 
         endpoint = os.environ["DATAOS_RUSTFS_ENDPOINT"]
-        bucket = os.environ["DATAOS_RUSTFS_BUCKET"]
+        buckets = [
+            os.environ["DATAOS_RUSTFS_BUCKET"],
+            # P7（H3）：data-api 异步导出产物桶
+            os.environ.get("DATAOS_DATA_API_EXPORT_BUCKET", "dataos-data-api-exports"),
+        ]
         client = boto3.client(
             "s3",
             endpoint_url=endpoint,
@@ -218,11 +239,12 @@ services:
                 time.sleep(2)
         else:
             raise last
-        try:
-            client.head_bucket(Bucket=bucket)
-        except Exception:
-            client.create_bucket(Bucket=bucket)
-        print("RustFS bucket ready:", bucket)
+        for bucket in buckets:
+            try:
+                client.head_bucket(Bucket=bucket)
+            except Exception:
+                client.create_bucket(Bucket=bucket)
+        print("RustFS buckets ready:", buckets)
     depends_on:
       rustfs:
         condition: service_healthy
@@ -421,6 +443,8 @@ networks:
 volumes:
   quality-runner-artifacts:
     name: data-os-dev-quality-runner-artifacts
+  data-api-exports:
+    name: data-os-dev-data-api-exports
   scheduler-token-secrets:
     name: data-os-dev-scheduler-token-secrets
   rustfs-data:

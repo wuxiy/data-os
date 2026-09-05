@@ -88,6 +88,15 @@ public class DataApiController {
         return Map.of("items", items, "total", items.size());
     }
 
+    /** 导出任务列表（P7）：工作台查看异步导出的状态与产物。 */
+    @GetMapping("/{id}/exports")
+    public Map<String, Object> exports(@PathVariable String id,
+                                       @RequestParam(defaultValue = "20") int limit,
+                                       @RequestParam(required = false) String tenantId) {
+        var items = service.exports(id, tenantId, limit);
+        return Map.of("items", items, "total", items.size());
+    }
+
     @GetMapping("/overview")
     public Map<String, Object> overview(@RequestParam(required = false) String tenantId) {
         return service.overview(tenantId);
