@@ -106,6 +106,38 @@ class StubControlPlane:
     def expire_exports(self) -> int:
         return 0
 
+    # ---- 自助面（形态对齐控制面 /internal/data-api 内部端点投影）----
+
+    def key_profile(self, key_hash: str) -> dict[str, Any] | None:
+        return None  # /v1/me 走 registry，不经此方法
+
+    def key_calls(self, key_hash: str, limit: int = 20) -> list[dict[str, Any]]:
+        return [{"kind": "query", "rowCount": 5, "statusCode": 200, "calledAt": "2026-09-10T00:00:00Z"}]
+
+    def contract_events(self, key_hash: str, limit: int = 50) -> list[dict[str, Any]]:
+        return [{"eventId": "ev-1", "changeType": "UPDATED", "fromVersion": "v1",
+                 "toVersion": "v2", "diff": "{}", "occurredAt": "2026-09-10T00:00:00Z"}]
+
+    def create_subscription(self, key_hash: str, webhook_url: str,
+                            webhook_secret: str | None) -> dict[str, Any]:
+        if not webhook_url.startswith("https://"):
+            # 模拟控制面 400（校验拒绝）：带 .response.status_code 的异常
+            rejected = RuntimeError("rejected")
+            rejected.response = type("R", (), {"status_code": 400})()  # type: ignore[attr-defined]
+            raise rejected
+        return {"subscriptionId": "sub-1", "webhookUrl": webhook_url,
+                "webhookSecret": webhook_secret or "dataos_cw_generated", "createdAt": "2026-09-10T00:00:00Z"}
+
+    def subscriptions(self, key_hash: str) -> list[dict[str, Any]]:
+        return [{"id": "sub-1", "webhookUrl": "https://caller.example/hook",
+                 "status": "ACTIVE", "createdAt": "2026-09-10T00:00:00Z"}]
+
+    def delete_subscription(self, subscription_id: str, key_hash: str) -> bool:
+        return subscription_id == "sub-1"
+
+    def test_subscription(self, subscription_id: str, key_hash: str) -> dict[str, Any] | None:
+        return {"eventId": "ev-test", "status": "PENDING"} if subscription_id == "sub-1" else None
+
 
 @pytest.fixture()
 def control_plane():

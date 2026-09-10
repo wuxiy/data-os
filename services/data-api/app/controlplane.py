@@ -208,3 +208,60 @@ class ControlPlaneClient:
             return int(response.json().get("reaped", 0))
         except httpx.HTTPError:
             return 0
+
+    # ---- 调用方自助面（P8 余项）----
+
+    def key_profile(self, key_hash: str) -> dict[str, Any] | None:
+        return self._internal_get(f"/internal/data-api/keys/{key_hash}/profile")
+
+    def key_calls(self, key_hash: str, limit: int = 20) -> list[dict[str, Any]]:
+        payload = self._internal_get(f"/internal/data-api/keys/{key_hash}/calls?limit={limit}")
+        return list(payload.get("items", [])) if payload else []
+
+    def contract_events(self, key_hash: str, limit: int = 50) -> list[dict[str, Any]]:
+        payload = self._internal_get(f"/internal/data-api/contract-events?keyHash={key_hash}&limit={limit}")
+        return list(payload.get("items", [])) if payload else []
+
+    def create_subscription(self, key_hash: str, webhook_url: str,
+                            webhook_secret: str | None) -> dict[str, Any]:
+        body = {"keyHash": key_hash, "webhookUrl": webhook_url}
+        if webhook_secret:
+            body["webhookSecret"] = webhook_secret
+        response = self._client.post(
+            self._settings.controlplane_base_url.rstrip("/") + "/internal/data-api/subscriptions",
+            headers=self._headers(), json=body)
+        response.raise_for_status()
+        return response.json()
+
+    def subscriptions(self, key_hash: str) -> list[dict[str, Any]]:
+        payload = self._internal_get(f"/internal/data-api/subscriptions?keyHash={key_hash}")
+        return list(payload.get("items", [])) if payload else []
+
+    def delete_subscription(self, subscription_id: str, key_hash: str) -> bool:
+        """吊销订阅；404（归属不符或不存在）按已不存在处理返回 False。"""
+        response = self._client.delete(
+            self._settings.controlplane_base_url.rstrip("/")
+            + f"/internal/data-api/subscriptions/{subscription_id}?keyHash={key_hash}",
+            headers=self._headers())
+        return response.status_code in (200, 204)
+
+    def test_subscription(self, subscription_id: str, key_hash: str) -> dict[str, Any] | None:
+        try:
+            response = self._client.post(
+                self._settings.controlplane_base_url.rstrip("/")
+                + f"/internal/data-api/subscriptions/{subscription_id}/test?keyHash={key_hash}",
+                headers=self._headers())
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPError:
+            return None
+
+    def _internal_get(self, path: str) -> dict[str, Any] | None:
+        try:
+            response = self._client.get(
+                self._settings.controlplane_base_url.rstrip("/") + path,
+                headers=self._headers())
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPError:
+            return None

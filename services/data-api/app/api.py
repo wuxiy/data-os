@@ -169,6 +169,89 @@ def export_download(export_id: str, x_api_key: str | None = Header(default=None)
                     headers={"Content-Disposition": f'attachment; filename="{filename}"'})
 
 
+# ---- 调用方自助面（P8 余项）：全部凭 X-API-Key，鉴权与吊销照查，不烧配额 ----
+
+@router.get("/v1/me")
+def me(x_api_key: str | None = Header(default=None)) -> dict[str, Any]:
+    """调用方画像：绑定服务契约（版本/限额）+ 当日配额用量（registry 缓存口径）。"""
+    session = CallSession.open(_control_plane, x_api_key, None, audit=False, enforce_quota=False)
+    service = session.require_service()
+    key = session.key
+    return {
+        "callerName": key.get("callerName", ""),
+        "service": _summary_of(service),
+        "dailyQuota": int(key.get("dailyQuota", 0)),
+        "usedToday": int(key.get("usedToday", 0)),
+    }
+
+
+@router.get("/v1/usage/calls")
+def usage_calls(limit: int = 20, x_api_key: str | None = Header(default=None)) -> dict[str, Any]:
+    """本人近期调用审计（query/export 分类可见）。"""
+    session = CallSession.open(_control_plane, x_api_key, None, audit=False, enforce_quota=False)
+    items = _control_plane.key_calls(session.key_hash, min(max(limit, 1), 100))
+    return {"items": items, "total": len(items)}
+
+
+@router.get("/v1/contract-events")
+def contract_events(limit: int = 50, x_api_key: str | None = Header(default=None)) -> dict[str, Any]:
+    """合同事件轮询通道：本人服务最近的变更事实（含 diff 与 TEST）；调用方按 eventId 幂等消费。"""
+    session = CallSession.open(_control_plane, x_api_key, None, audit=False, enforce_quota=False)
+    items = _control_plane.contract_events(session.key_hash, min(max(limit, 1), 100))
+    return {"items": items, "total": len(items)}
+
+
+class SubscriptionRequest(BaseModel):
+    webhookUrl: str
+    webhookSecret: str | None = None
+
+
+@router.post("/v1/subscriptions", status_code=status.HTTP_201_CREATED)
+def create_subscription(request: SubscriptionRequest,
+                        x_api_key: str | None = Header(default=None)) -> dict[str, Any]:
+    """订阅合同变更通知：HMAC 签名 webhook 推送（secret 只回显一次）。"""
+    session = CallSession.open(_control_plane, x_api_key, None, audit=False, enforce_quota=False)
+    try:
+        issued = _control_plane.create_subscription(session.key_hash, request.webhookUrl,
+                                                    request.webhookSecret)
+    except Exception as exc:  # noqa: BLE001  控制面校验失败（URL/secret）转 400/503
+        detail = getattr(exc, "response", None)
+        if detail is not None and detail.status_code == 400:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                                detail={"code": "SUBSCRIPTION_INVALID",
+                                        "message": "webhookUrl 或 webhookSecret 不合法（HTTPS/长度 ≥ 32）"}) from exc
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                            detail={"code": "UPSTREAM_UNAVAILABLE", "message": "服务注册表暂不可用"}) from exc
+    return issued
+
+
+@router.get("/v1/subscriptions")
+def subscriptions(x_api_key: str | None = Header(default=None)) -> dict[str, Any]:
+    session = CallSession.open(_control_plane, x_api_key, None, audit=False, enforce_quota=False)
+    items = _control_plane.subscriptions(session.key_hash)
+    return {"items": items, "total": len(items)}
+
+
+@router.delete("/v1/subscriptions/{subscription_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_subscription(subscription_id: str, x_api_key: str | None = Header(default=None)) -> Response:
+    session = CallSession.open(_control_plane, x_api_key, None, audit=False, enforce_quota=False)
+    if not _control_plane.delete_subscription(subscription_id, session.key_hash):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail={"code": "SUBSCRIPTION_NOT_FOUND", "message": "订阅不存在"})
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/v1/subscriptions/{subscription_id}/test")
+def test_subscription(subscription_id: str, x_api_key: str | None = Header(default=None)) -> dict[str, Any]:
+    """触发 TEST 事件：调用方全链路验证接收端验签实现（事件也进轮询通道）。"""
+    session = CallSession.open(_control_plane, x_api_key, None, audit=False, enforce_quota=False)
+    result = _control_plane.test_subscription(subscription_id, session.key_hash)
+    if result is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail={"code": "SUBSCRIPTION_NOT_FOUND", "message": "订阅不存在"})
+    return result
+
+
 def _summary_of(service: dict[str, Any]) -> dict[str, Any]:
     """对外目录/契约视图：不出 SQL 模板。"""
     def parse(name: str) -> list[Any]:
