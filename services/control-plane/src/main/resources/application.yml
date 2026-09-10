@@ -132,6 +132,16 @@ data-os:
     lease-ms: ${DATAOS_NOTIFICATION_LEASE_MS:120000}
     delivery-interval-ms: ${DATAOS_NOTIFICATION_DELIVERY_INTERVAL_MS:30000}
     delivery-initial-delay-ms: ${DATAOS_NOTIFICATION_DELIVERY_INITIAL_DELAY_MS:10000}
+  data-api:
+    # P8 余项：合同通知订阅端点策略（默认公网 HTTPS；内网/HTTP 显式放开）
+    # 与投递节拍。env 映射在此显式声明（与 notification 段同惯例，不依赖
+    # 宽松绑定——@Value 裸属性名解析不了 DATAOS_DATA_API_* 形态）。
+    contract-webhook-allow-http: ${DATAOS_DATA_API_CONTRACT_WEBHOOK_ALLOW_HTTP:false}
+    contract-webhook-allow-private-networks: ${DATAOS_DATA_API_CONTRACT_WEBHOOK_ALLOW_PRIVATE_NETWORKS:false}
+    contract-notify-max-attempts: ${DATAOS_DATA_API_CONTRACT_NOTIFY_MAX_ATTEMPTS:5}
+    contract-notify-lease-ms: ${DATAOS_DATA_API_CONTRACT_NOTIFY_LEASE_MS:120000}
+    contract-notify-interval-ms: ${DATAOS_DATA_API_CONTRACT_NOTIFY_INTERVAL_MS:30000}
+    contract-notify-initial-delay-ms: ${DATAOS_DATA_API_CONTRACT_NOTIFY_INITIAL_DELAY_MS:10000}
   runs:
     sync-interval-ms: ${DATAOS_RUN_SYNC_INTERVAL_MS:30000}
     sync-initial-delay-ms: ${DATAOS_RUN_SYNC_INITIAL_DELAY_MS:10000}

@@ -1,7 +1,9 @@
 # Gate：H3 Data API 生产化（P7 异步导出 + P8 限流熔断 + S9 fail-open 收敛）
 
 > 批次：H3（docs/production-hardening-batch-plan-20260903.md §二）。
-> 日期：2026-09-05。提交链：5cb1f54（S9）→ 9477183（P7）→ 0385901（P8）→ 收口提交。
+> 日期：2026-09-05（主体）/ 2026-09-10（P8 余项收口，§八）。
+> 提交链：5cb1f54（S9）→ 9477183（P7）→ 0385901（P8）→ 收口 7ef5f88 →
+> P8 余项 0cc07a1 / ecc9893 / 3581213 及收口提交。
 > 同场交付的姊妹项：OM catalog 补喂（3d7d3c6，备忘 P3 残留小项）与
 > 生产 ENFORCED 门户用户链归档（f592a54，H2 未竟面），证据见 §六。
 
@@ -11,7 +13,7 @@
 | --- | --- | --- |
 | S9 | `_hospitals_of` 坏 JSON 静默回退 `["*"]`（全院放行）；catalog 绕过调决；审计 4 处手调 | **PASS**：CallSession 单一属主 + fail-closed + catalog 走全调决 |
 | P7 | 大结果集异步导出至对象存储 + 下载 URL（§5.8 完整形态） | **PASS**：任务状态机 + RustFS 产物 + 鉴权下载回放，146 行对账零误差 |
-| P8 核心 | 网关级限流 / Doris 熔断 / 审计回写失败持久化缓冲 | **PASS**（自助门户与合同变更通知按规划继续延后——真实调用方出现前无验收对象） |
+| P8 | 网关级限流 / Doris 熔断 / 审计回写失败持久化缓冲 + 余项（自助门户、合同通知） | **PASS**（核心 2026-09-05；余项 2026-09-10 收口见 §八——P8 全项关闭） |
 
 测试基线：control-plane **204/204**（新增 DataServiceExportTest 5 项，存量零修改）；
 data-api **37/37**（新增 13 项：S9 7 + 导出 6 + 韧性 8 中部分归并，存量 16 项零修改）；
@@ -120,13 +122,63 @@ dev 实证（prescription-daily-summary，ods_ep 真实数据）：
 
 ## 七、结论与移交
 
-- S9/P7/P8 核心全部关闭并 dev 实证；P8 余项（调用方自助门户、合同变更
-  通知）按批次规划继续延后——真实调用方出现前无验收对象（备忘 P8 条目
-  改写为余项口径）。
-- dev 运行态：control-plane / data-api 镜像 `0.2.0-h3-20260905`
-  （DATAOS_CONTROL_PLANE_IMAGE / DATAOS_DATA_API_IMAGE 已钉）；
-  V14 迁移成功；RustFS 新桶在位；compose/nginx 改动已同步 dev 栈
-  （备份 *.bak-h3）。
+- S9/P7/P8 全项关闭并 dev 实证（P8 余项于 2026-09-10 经用户明示解除延后后
+  收口，见 §八）。
+- dev 运行态：control-plane / data-api 镜像 `0.2.0-h3p8-20260910`
+  （DATAOS_CONTROL_PLANE_IMAGE / DATAOS_DATA_API_IMAGE 已钉，含 V15 与
+  自助面）；V14/V15 迁移成功；RustFS 新桶在位；compose/nginx 改动已同步
+  dev 栈（备份 *.bak-h3）。
 - 生产 compose 仍无 data-api 服务段（历史口径）——nginx 已预置限流 zone
   与注释 location，data-api 进生产栈时接线（S8 的 internal-mode 生产侧
   由全局 ENFORCED 主链承担）。
+
+## 八、P8 余项收口（2026-09-10，用户明示解除延后）
+
+调用方自助门户 + 合同变更通知。提交：0cc07a1（控制面）→ ecc9893
+（data-api 自助面）→ 3581213（前端工作台）→ 收口。测试基线更新：
+control-plane **211/211**、data-api **44/44**、前端面全绿。
+
+**控制面（V15 三表 + 合同事件引擎）**：
+
+- `data_service_subscription`（归属 = API Key）/ `data_service_contract_event`
+  （不可变事实：PUBLISHED/UPDATED/DEPRECATED/TEST + diff）/
+  `data_service_delivery`（发件箱，租约/退避/SKIPPED 与治理通知同款）。
+- 生命周期挂钩：publish/deprecate 产事件；新增 PUT 更新端点——PUBLISHED
+  态实际变更（字段级 diff、结构化 JSON 比较）自增版本（v1→v2）并产
+  UPDATED 事件，无变更幂等不产事件；DRAFT 自由改；DEPRECATED 封存拒改。
+- 投递引擎 `ContractNotificationService`：HMAC 签名头与治理通知**同形态**
+  （canonical = timestamp.nonce.payload，v1=base64url），调用方一套验签
+  实现可接两类通知；退避 30s·2ⁿ 封顶 1h，5 次后 SKIPPED 留痕。
+- 订阅端点策略独立（默认公网 HTTPS + 禁内网解析；与治理 webhook 的
+  host 白名单语义相反：订阅端点调用方自报不可枚举）。
+
+**data-api 自助面**（全部凭 X-API-Key，不烧配额、不审计）：
+
+- `GET /v1/me`（契约画像 + 配额用量，不出 SQL 模板）、
+  `GET /v1/usage/calls`（本人调用史，kind 分类）、
+  `GET /v1/contract-events`（轮询通道，调用方按 eventId 幂等消费）、
+  订阅 CRUD + TEST 触发（secret 只回显一次，坏 webhook 400）。
+
+**前端**：数据服务详情面板新增「导出任务」（P7 可见性补齐）与
+「合同事件与订阅」区块（版本演进 + diff 字段摘要 + 订阅名册）。
+
+**dev E2E 实证**（专用测试服务，验后清理）：
+
+- 订阅指向 notification-receiver（secret 用共享密钥使接收端可验签）；
+  PUT 变更（maxRows 500→800）与 TEST 触发后，30s 投递节拍内 **2 条
+  DELIVERED**；接收器收据的 eventId 与轮询通道事件**逐一对应**（接收端
+  独立验签通过才记收据）；轮询通道呈现完整版本演进 PUBLISHED v1 →
+  UPDATED v1→v2 → TEST → UPDATED v2→v3 → DEPRECATED；退订 204；
+  /v1/me 契约画像正确。
+
+**E2E 抓出并修复的真缺陷**：服务 DEPRECATED 后 30s（registry 刷新），
+其 Key 从注册表消失 → 自助面全部 401——而轮询恰恰是调用方获知下线的
+通道。修复：registry 保留 DEPRECATED 服务的 Key（标 serviceStatus）且
+契约进 `deprecatedServices`；自助面认证语义 = Key 身份而非「服务在售」；
+执行面 find_service 仍只认 PUBLISHED（下线服务查询 404）。受控复现 →
+修复 → 复验全绿（/v1/me 返回 serviceStatus=DEPRECATED、事件可见、
+查询 404）。两侧各加回归测试。
+
+**载荷坑**：`@Value` 裸属性名 + `DATAOS_DATA_API_*` 形态 env 键**不适用
+宽松绑定**（两词段 data-api 命名空间）——application.yml 显式
+`${ENV:default}` 占位符声明（与 notification 段同惯例）后解决。

@@ -58,6 +58,10 @@ class StubControlPlane:
     def find_service(self, code: str) -> dict[str, Any] | None:
         return next((s for s in self.registry_data["services"] if s["code"] == code), None)
 
+    def find_contract(self, code: str) -> dict[str, Any] | None:
+        pool = self.registry_data.get("services", []) + self.registry_data.get("deprecatedServices", [])
+        return next((s for s in pool if s["code"] == code), None)
+
     def find_key(self, key_hash: str) -> dict[str, Any] | None:
         return next((k for k in self.registry_data["keys"] if k["keyHash"] == key_hash), None)
 

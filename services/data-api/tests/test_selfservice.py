@@ -96,3 +96,29 @@ def test_selfservice_requires_valid_key(client, control_plane):
     invalid = http.get("/v1/me", headers={"X-API-Key": "dataos_sk_wrong"})
     assert invalid.status_code == 401
     assert invalid.json()["detail"]["code"] == "API_KEY_INVALID"
+
+
+def test_me_survives_service_deprecation(client, control_plane):
+    """服务下线后自助面必须仍可用——轮询/画像是调用方获知下线的通道
+    （dev E2E 实锤过：registry 刷新后 key 消失致 401）。"""
+    http, _ = client
+    control_plane.registry_data["services"] = []
+    control_plane.registry_data["deprecatedServices"] = [SERVICE]
+    control_plane.registry_data["keys"] = [key_entry(KEY_HASH)]
+    control_plane.registry_data["keys"][0]["serviceStatus"] = "DEPRECATED"
+
+    me = http.get("/v1/me", headers=HEADERS)
+    assert me.status_code == 200
+    body = me.json()
+    assert body["serviceStatus"] == "DEPRECATED"
+    assert body["service"]["code"] == CODE
+
+    events = http.get("/v1/contract-events", headers=HEADERS)
+    assert events.status_code == 200
+
+    # 执行面不受影响：查询同服务 → 404（不在 PUBLISHED 契约内）
+    query = http.post(f"/v1/services/{CODE}/query",
+                      json={"parameters": {"start_date": "2026-08-01", "end_date": "2026-08-31"}},
+                      headers=HEADERS)
+    assert query.status_code == 404
+    assert query.json()["detail"]["code"] == "SERVICE_NOT_FOUND"

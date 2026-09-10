@@ -215,24 +215,50 @@ public class DataApiAdminService {
 
     // ---- 内部面（执行面 data-api 专用） ----
 
-    /** 发布定义 + 有效 Key + 当日用量投影；吊销在 30s 缓存窗口后生效。 */
+    /** 发布定义 + 有效 Key + 当日用量投影；吊销在 30s 缓存窗口后生效。
+     *  DEPRECATED 服务的 Key 保留在 keys（标 serviceStatus）且契约进
+     *  deprecatedServices——自助面（/v1/me、合同事件轮询）是调用方获知
+     *  下线的通道，其认证语义是 Key 身份而非「服务在售」；执行面查询仍
+     *  只认 services（PUBLISHED）。 */
     public Map<String, Object> registry() {
         var services = repository.findPublished();
+        var deprecatedServices = repository.findDeprecated();
         var usage = new LinkedHashMap<String, Integer>();
         for (var row : repository.dailyUsageByKeyHash(LocalDate.now())) {
             usage.put(row[0], Integer.parseInt(row[1]));
         }
         var serviceIds = services.stream().map(DataServiceDefinition::id).toList();
-        var keys = serviceIds.isEmpty() ? List.<DataServiceKey>of() : repository.findActiveKeys(serviceIds);
-        var keyEntries = keys.stream().map(key -> Map.<String, Object>of(
-                "serviceCode", serviceCodeOf(services, key.serviceId()),
-                "keyHash", key.keyHash(),
-                "callerName", key.callerName(),
-                "allowedHospitals", key.allowedHospitalsJson(),
-                "dailyQuota", key.dailyQuota(),
-                "usedToday", usage.getOrDefault(key.keyHash(), 0))).toList();
+        var deprecatedIds = deprecatedServices.stream().map(DataServiceDefinition::id).toList();
+        var allIds = new java.util.ArrayList<String>(serviceIds);
+        deprecatedIds.forEach(allIds::add);
+        var keys = allIds.isEmpty() ? List.<DataServiceKey>of() : repository.findActiveKeys(allIds);
+        var codes = new java.util.HashMap<String, String>();
+        services.forEach(item -> codes.put(item.id(), item.code()));
+        deprecatedServices.forEach(item -> codes.putIfAbsent(item.id(), item.code()));
+        var keyEntries = keys.stream().map(key -> {
+            var entry = new LinkedHashMap<String, Object>();
+            entry.put("serviceCode", codes.getOrDefault(key.serviceId(), ""));
+            entry.put("serviceStatus", serviceIds.contains(key.serviceId())
+                    ? "PUBLISHED" : "DEPRECATED");
+            entry.put("keyHash", key.keyHash());
+            entry.put("callerName", key.callerName());
+            entry.put("allowedHospitals", key.allowedHospitalsJson());
+            entry.put("dailyQuota", key.dailyQuota());
+            entry.put("usedToday", usage.getOrDefault(key.keyHash(), 0));
+            return entry;
+        }).toList();
         return Map.of(
                 "services", services.stream().map(definition -> Map.<String, Object>of(
+                        "code", definition.code(),
+                        "name", definition.name(),
+                        "description", definition.description(),
+                        "version", definition.versionSn(),
+                        "sqlTemplate", definition.sqlTemplate(),
+                        "parameters", definition.parametersJson(),
+                        "columns", definition.columnsJson(),
+                        "maxRows", definition.maxRows(),
+                        "timeoutSeconds", definition.timeoutSeconds())).toList(),
+                "deprecatedServices", deprecatedServices.stream().map(definition -> Map.<String, Object>of(
                         "code", definition.code(),
                         "name", definition.name(),
                         "description", definition.description(),

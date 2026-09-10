@@ -87,7 +87,16 @@ class ControlPlaneClient:
             return self._registry
 
     def find_service(self, code: str) -> dict[str, Any] | None:
+        """执行面契约视图：仅 PUBLISHED（query/export/catalog 的服务解析）。"""
         for service in self.registry().get("services", []):
+            if service.get("code") == code:
+                return service
+        return None
+
+    def find_contract(self, code: str) -> dict[str, Any] | None:
+        """自助面契约视图：PUBLISHED ∪ DEPRECATED——/v1/me 须能向调用方
+        展示已下线契约（那是他们获知下线的方式之一）。"""
+        for service in self.registry().get("services", []) + self.registry().get("deprecatedServices", []):
             if service.get("code") == code:
                 return service
         return None

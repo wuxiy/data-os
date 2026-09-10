@@ -66,6 +66,10 @@ public class DataServiceRepository {
         return jdbc.query(SERVICE_SELECT + " WHERE status = 'PUBLISHED'", this::mapDefinition);
     }
 
+    public List<DataServiceDefinition> findDeprecated() {
+        return jdbc.query(SERVICE_SELECT + " WHERE status = 'DEPRECATED'", this::mapDefinition);
+    }
+
     public boolean existsByCode(String tenantId, String code) {
         var found = jdbc.queryForObject(
                 "SELECT EXISTS(SELECT 1 FROM data_os.data_service WHERE tenant_id = ? AND code = ?)",

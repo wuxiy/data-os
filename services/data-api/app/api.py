@@ -173,13 +173,17 @@ def export_download(export_id: str, x_api_key: str | None = Header(default=None)
 
 @router.get("/v1/me")
 def me(x_api_key: str | None = Header(default=None)) -> dict[str, Any]:
-    """调用方画像：绑定服务契约（版本/限额）+ 当日配额用量（registry 缓存口径）。"""
+    """调用方画像：绑定服务契约（版本/限额，含已下线契约展示）+ 当日配额用量。"""
     session = CallSession.open(_control_plane, x_api_key, None, audit=False, enforce_quota=False)
-    service = session.require_service()
     key = session.key
+    service = _control_plane.find_contract(str(key.get("serviceCode", "")))
+    if service is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail={"code": "SERVICE_NOT_FOUND", "message": "绑定服务不存在或未发布"})
     return {
         "callerName": key.get("callerName", ""),
         "service": _summary_of(service),
+        "serviceStatus": str(key.get("serviceStatus", "PUBLISHED")),
         "dailyQuota": int(key.get("dailyQuota", 0)),
         "usedToday": int(key.get("usedToday", 0)),
     }

@@ -146,4 +146,26 @@ class DataApiAdminServiceTest {
         assertThat(service.recordCall("no-such-code", "hash", null, 0, false, 1, 200, "idem"))
                 .isFalse();
     }
+
+    @Test
+    void deprecatedServiceKeyRemainsInRegistryForSelfService() {
+        // P8 余项语义：下线后调用方仍须能经自助面（/v1/me、合同事件轮询）获知
+        // 下线——registry 的 keys 保留 DEPRECATED 服务的 Key（标 serviceStatus），
+        // 契约进 deprecatedServices；执行面 services 仍只含 PUBLISHED。
+        var code = "dep-" + UUID.randomUUID().toString().substring(0, 8);
+        var definition = service.create(null, request(code, cleanTemplate(), dateParams()));
+        service.publish(definition.id(), null);
+        var issued = service.issueKey(definition.id(), null, "下线后调用方", List.of("*"), 10);
+        var keyHash = DataApiAdminService.sha256Hex(issued.apiKey());
+
+        service.deprecate(definition.id(), null);
+
+        var registry = service.registry();
+        assertThat(registry.get("services").toString()).doesNotContain(code);
+        assertThat(registry.get("deprecatedServices").toString()).contains(code);
+        var keys = ((List<?>) registry.get("keys")).stream()
+                .map(Object::toString).filter(entry -> entry.contains(keyHash)).toList();
+        assertThat(keys).hasSize(1);
+        assertThat(keys.get(0)).contains("serviceStatus=DEPRECATED");
+    }
 }

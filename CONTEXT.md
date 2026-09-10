@@ -55,6 +55,15 @@
 
 治理问题的事件通知先落 `governance_notifications` 表（发件箱），以幂等键去重入队；`NotificationOutboxRepository` 以数据库租约抢占外发（同租约防并发重复外发），外发通道（Webhook 等）与重试/放弃策略由通知模块持有。终态回写与租约释放同事务。
 
+## 数据合同（Data Contract）
+
+数据服务面（G13/P7/P8）面向 ToB 调用方的契约与变更通知语义：
+
+- **合同事件（Contract Event）**：数据服务生命周期变更的不可变事实（`data_service_contract_event`，V15）：PUBLISHED / UPDATED / DEPRECATED / TEST。PUBLISHED 态定义的实际变更（PUT 更新，字段级 diff、结构化 JSON 比较）自增合同版本并产出 UPDATED 事件；DRAFT 自由修改不产事件；DEPRECATED 后合同封存拒改。
+- **双通道分发**：webhook 推送（调用方订阅，`data_service_delivery` 发件箱——租约/退避/SKIPPED 留痕与治理通知同款语义；HMAC 签名头同形态，调用方一套验签实现可接两类通知）+ 调用方 API 轮询兜底（院内调用方未必有可达 webhook 端点）。
+- **订阅（Subscription）**：调用方凭 X-API-Key 自助创建（归属 = 创建 Key），webhook secret 生成后只回显一次；TEST 事件供调用方全链路验证验签。
+- **自助面（Self-service）**：data-api `/v1/me`（契约画像 + 配额用量）、`/v1/usage/calls`（本人调用史）、`/v1/contract-events`（按 eventId 幂等消费）——认证语义是 **Key 身份而非「服务在售」**：服务下线后 Key 仍在 registry（标 serviceStatus）且契约进 deprecatedServices，自助面是调用方获知下线的通道；执行面（query/export）仍只认 PUBLISHED。
+
 ## 质量引擎（Rule Engine）
 
 以特定技术执行一条质量规则的引擎。质量执行器（quality-runner）按规则把运行路由给引擎：引擎负责命令构造、结果解析、失败样本读取与自身产物清理（dbt 引擎即 `DbtEngine`）；进程监督（超时击杀、取消终止、心跳续租）与执行代次围栏由执行器共享的监督器承担。第二个引擎（Great Expectations、医院自有质检服务等）到来时实现同一接口即可接入。
