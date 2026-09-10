@@ -68,6 +68,34 @@ export interface DataServiceCallItem {
   calledAt: string
 }
 
+export interface DataServiceExportItem {
+  id: string
+  status: 'PENDING' | 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'EXPIRED'
+  rowCount: number
+  fileBytes: number
+  error: string
+  createdAt: string
+  expiresAt: string
+}
+
+export interface DataServiceContractEventItem {
+  eventId: string
+  changeType: 'PUBLISHED' | 'UPDATED' | 'DEPRECATED' | 'TEST'
+  fromVersion: string
+  toVersion: string
+  diff: string
+  occurredAt: string
+}
+
+export interface DataServiceSubscriptionItem {
+  id: string
+  callerName: string
+  webhookUrl: string
+  status: 'ACTIVE' | 'REVOKED'
+  createdAt: string
+  revokedAt: string
+}
+
 export interface DataServiceOverview {
   total: number
   published: number
@@ -113,6 +141,30 @@ export async function fetchDataServiceCalls(id: string, signal?: AbortSignal): P
     '调用审计读取失败',
   )
   return (payload as { items: DataServiceCallItem[] }).items ?? []
+}
+
+export async function fetchDataServiceExports(id: string, signal?: AbortSignal): Promise<DataServiceExportItem[]> {
+  const payload = await parseJsonOrThrow(
+    await dsFetch(`/v1/data-services/${encodeURIComponent(id)}/exports?limit=10`, {}, signal),
+    '导出任务读取失败',
+  )
+  return (payload as { items: DataServiceExportItem[] }).items ?? []
+}
+
+export async function fetchDataServiceContractEvents(id: string, signal?: AbortSignal): Promise<DataServiceContractEventItem[]> {
+  const payload = await parseJsonOrThrow(
+    await dsFetch(`/v1/data-services/${encodeURIComponent(id)}/contract-events?limit=10`, {}, signal),
+    '合同事件读取失败',
+  )
+  return (payload as { items: DataServiceContractEventItem[] }).items ?? []
+}
+
+export async function fetchDataServiceSubscriptions(id: string, signal?: AbortSignal): Promise<DataServiceSubscriptionItem[]> {
+  const payload = await parseJsonOrThrow(
+    await dsFetch(`/v1/data-services/${encodeURIComponent(id)}/subscriptions`, {}, signal),
+    '合同订阅读取失败',
+  )
+  return (payload as { items: DataServiceSubscriptionItem[] }).items ?? []
 }
 
 export async function fetchDataServiceOverview(signal?: AbortSignal): Promise<DataServiceOverview> {

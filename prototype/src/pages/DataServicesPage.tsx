@@ -8,8 +8,11 @@ import {
   dataServiceStatusLabel,
   deprecateDataService,
   fetchDataServiceCalls,
+  fetchDataServiceContractEvents,
   fetchDataServiceDetail,
+  fetchDataServiceExports,
   fetchDataServiceOverview,
+  fetchDataServiceSubscriptions,
   fetchDataServices,
   issueDataServiceKey,
   parseContracts,
@@ -17,12 +20,44 @@ import {
   revokeDataServiceKey,
   type DataService,
   type DataServiceCallItem,
+  type DataServiceContractEventItem,
   type DataServiceDetail,
+  type DataServiceExportItem,
   type DataServiceOverview,
+  type DataServiceSubscriptionItem,
 } from '../data/dataServicesApi'
 import { frontendDemoMode } from '../data/runtimeMode'
 import { useApiResource } from '../hooks/useApiResource'
 import styles from './IntegrationPages.module.css'
+
+/** 导出任务状态中文口径（P7）。 */
+const exportStatusLabel: Record<string, string> = {
+  PENDING: '排队中',
+  RUNNING: '执行中',
+  SUCCEEDED: '已完成',
+  FAILED: '失败',
+  EXPIRED: '已过期',
+}
+
+/** 合同事件类型中文口径（P8 余项）。 */
+const contractChangeTypeLabel: Record<string, string> = {
+  PUBLISHED: '发布',
+  UPDATED: '变更',
+  DEPRECATED: '下线',
+  TEST: '验证',
+}
+
+/** diff 摘要：变化字段名列出即可，明细经调用面 API 查看。 */
+function summarizeDiff(diff: string): string {
+  if (!diff) return '—'
+  try {
+    const parsed = JSON.parse(diff) as Record<string, { from: unknown; to: unknown }>
+    const fields = Object.keys(parsed)
+    return fields.length === 0 ? '—' : fields.join('、')
+  } catch {
+    return '—'
+  }
+}
 
 /**
  * 数据服务工作台（G13）：ToB 数据 API 的定义、发布、Key 与调用审计管理面。
@@ -264,6 +299,9 @@ function DataServiceDetailPanel({ service, onNotice, onChanged, onPublish, onDep
   const [detail, setDetail] = useState<DataServiceDetail | null>(null)
   const { pendingKey, run: runAction } = useAction((message) => onNotice(message))
   const [calls, setCalls] = useState<DataServiceCallItem[]>([])
+  const [exports, setExports] = useState<DataServiceExportItem[]>([])
+  const [contractEvents, setContractEvents] = useState<DataServiceContractEventItem[]>([])
+  const [subscriptions, setSubscriptions] = useState<DataServiceSubscriptionItem[]>([])
   const [issuedKey, setIssuedKey] = useState('')
   const [keyForm, setKeyForm] = useState({ callerName: '', quota: '100', hospitals: '*' })
   const [refreshTick, setRefreshTick] = useState(0)
@@ -271,15 +309,21 @@ function DataServiceDetailPanel({ service, onNotice, onChanged, onPublish, onDep
   useApiResource({
     reloadKey: refreshTick,
     load: async (signal) => {
-      const [detailResponse, callItems] = await Promise.all([
+      const [detailResponse, callItems, exportItems, eventItems, subscriptionItems] = await Promise.all([
         fetchDataServiceDetail(service.id, signal),
         fetchDataServiceCalls(service.id, signal).catch(() => []),
+        fetchDataServiceExports(service.id, signal).catch(() => []),
+        fetchDataServiceContractEvents(service.id, signal).catch(() => []),
+        fetchDataServiceSubscriptions(service.id, signal).catch(() => []),
       ])
-      return { detailResponse, callItems }
+      return { detailResponse, callItems, exportItems, eventItems, subscriptionItems }
     },
-    onData: ({ detailResponse, callItems }) => {
+    onData: ({ detailResponse, callItems, exportItems, eventItems, subscriptionItems }) => {
       setDetail(detailResponse)
       setCalls(callItems)
+      setExports(exportItems)
+      setContractEvents(eventItems)
+      setSubscriptions(subscriptionItems)
     },
     onUnavailable: () => setDetail(null),
     timeoutMs: 15000,
@@ -429,6 +473,54 @@ function DataServiceDetailPanel({ service, onNotice, onChanged, onPublish, onDep
             </tr>
           ))}
           {calls.length === 0 ? <tr><td colSpan={5}>暂无调用</td></tr> : null}
+        </tbody>
+      </table>
+
+      <h4 className={styles.railLabel}>导出任务（P7 异步导出）</h4>
+      <table className={styles.fieldTable}>
+        <thead><tr><th>创建时间</th><th>状态</th><th>行数</th><th>产物大小</th><th>到期</th><th>失败原因</th></tr></thead>
+        <tbody>
+          {exports.map((item) => (
+            <tr key={item.id}>
+              <td>{new Date(item.createdAt).toLocaleString('zh-CN')}</td>
+              <td>{exportStatusLabel[item.status] ?? item.status}</td>
+              <td>{item.rowCount}</td>
+              <td>{item.fileBytes > 0 ? `${(item.fileBytes / 1024).toFixed(1)} KB` : '—'}</td>
+              <td>{item.expiresAt || '—'}</td>
+              <td>{item.error || '—'}</td>
+            </tr>
+          ))}
+          {exports.length === 0 ? <tr><td colSpan={6}>暂无导出任务</td></tr> : null}
+        </tbody>
+      </table>
+
+      <h4 className={styles.railLabel}>合同事件与订阅（变更通知）</h4>
+      <table className={styles.fieldTable}>
+        <thead><tr><th>时间</th><th>类型</th><th>版本</th><th>变更内容</th></tr></thead>
+        <tbody>
+          {contractEvents.map((event) => (
+            <tr key={event.eventId}>
+              <td>{new Date(event.occurredAt).toLocaleString('zh-CN')}</td>
+              <td>{contractChangeTypeLabel[event.changeType] ?? event.changeType}</td>
+              <td>{event.fromVersion === event.toVersion ? event.toVersion : `${event.fromVersion} → ${event.toVersion}`}</td>
+              <td><code>{summarizeDiff(event.diff)}</code></td>
+            </tr>
+          ))}
+          {contractEvents.length === 0 ? <tr><td colSpan={4}>暂无合同事件</td></tr> : null}
+        </tbody>
+      </table>
+      <table className={styles.fieldTable}>
+        <thead><tr><th>订阅方</th><th>Webhook</th><th>状态</th><th>创建</th></tr></thead>
+        <tbody>
+          {subscriptions.map((subscription) => (
+            <tr key={subscription.id}>
+              <td>{subscription.callerName}</td>
+              <td><code>{subscription.webhookUrl}</code></td>
+              <td>{subscription.status === 'ACTIVE' ? '生效中' : '已退订'}</td>
+              <td>{new Date(subscription.createdAt).toLocaleString('zh-CN')}</td>
+            </tr>
+          ))}
+          {subscriptions.length === 0 ? <tr><td colSpan={4}>暂无调用方订阅（调用方经自助 API 订阅）</td></tr> : null}
         </tbody>
       </table>
     </div>
