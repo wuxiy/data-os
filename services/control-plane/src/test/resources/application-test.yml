@@ -35,6 +35,12 @@ data-os:
     health-url: ""
     delivery-interval-ms: 3600000
     delivery-initial-delay-ms: 3600000
+  data-api:
+    # 合同通知订阅端点策略（测试放开：本地 HttpServer 承载接收端）
+    contract-webhook-allow-http: true
+    contract-webhook-allow-private-networks: true
+    contract-notify-interval-ms: 3600000
+    contract-notify-initial-delay-ms: 3600000
   runs:
     sync-interval-ms: 3600000
     sync-initial-delay-ms: 3600000

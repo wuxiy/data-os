@@ -1,5 +1,7 @@
 package com.cywu.dataos.controlplane.dataservice;
 
+import com.cywu.dataos.controlplane.api.ResourceNotFoundException;
+
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -83,6 +85,21 @@ public class DataServiceRepository {
                 SET status = ?, updated_at = ?
                 WHERE id = ? AND tenant_id = ?
                 """, status.name(), Timestamp.from(updatedAt), id, tenantId);
+    }
+
+    /** 定义更新（P8 合同变更）：全字段覆写 + 版本；变更检测在服务层（diff 语义）。 */
+    public DataServiceDefinition updateDefinition(String id, String tenantId, String name, String description,
+                                                  String sqlTemplate, String parametersJson, String columnsJson,
+                                                  int maxRows, int timeoutSeconds, String versionSn,
+                                                  Instant updatedAt) {
+        jdbc.update("""
+                UPDATE data_os.data_service
+                SET name = ?, description = ?, sql_template = ?, parameters_json = ?, columns_json = ?,
+                    max_rows = ?, timeout_seconds = ?, version_sn = ?, updated_at = ?
+                WHERE id = ? AND tenant_id = ?
+                """, name, description, sqlTemplate, parametersJson, columnsJson,
+                maxRows, timeoutSeconds, versionSn, Timestamp.from(updatedAt), id, tenantId);
+        return findById(id, tenantId).orElseThrow(() -> new ResourceNotFoundException("数据服务不存在: " + id));
     }
 
     // ---- API Key ----
@@ -197,6 +214,18 @@ public class DataServiceRepository {
         var found = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM data_os.data_service_call WHERE service_id = ?", Long.class, serviceId);
         return found == null ? 0 : found;
+    }
+
+    /** 本人近期调用（自助面）。 */
+    public List<DataServiceCall> findCallsByKeyId(String keyId, int limit) {
+        return jdbc.query("""
+                SELECT id, service_id, tenant_id, key_id, idempotency_key, parameters_json,
+                       row_count, truncated, elapsed_ms, status_code, called_at, kind
+                FROM data_os.data_service_call
+                WHERE key_id = ?
+                ORDER BY called_at DESC
+                LIMIT ?
+                """, this::mapCall, keyId, limit);
     }
 
     private DataServiceDefinition mapDefinition(java.sql.ResultSet rs, int rowNumber) throws java.sql.SQLException {

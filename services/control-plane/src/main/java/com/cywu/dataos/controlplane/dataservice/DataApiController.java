@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -63,6 +64,14 @@ public class DataApiController {
         return service.deprecate(id, tenantId);
     }
 
+    /** 合同变更（P8 余项）：PUBLISHED 态实际变更自增版本并产出 UPDATED 事件。 */
+    @PutMapping("/{id}")
+    public DataServiceDefinition update(@PathVariable String id,
+                                        @RequestBody UpdateDataServiceRequest request,
+                                        @RequestParam(required = false) String tenantId) {
+        return service.update(id, tenantId, request);
+    }
+
     @PostMapping("/{id}/keys")
     public ResponseEntity<DataApiAdminService.IssuedKey> issueKey(@PathVariable String id,
                                                                   @RequestBody KeyRequest request,
@@ -94,6 +103,23 @@ public class DataApiController {
                                        @RequestParam(defaultValue = "20") int limit,
                                        @RequestParam(required = false) String tenantId) {
         var items = service.exports(id, tenantId, limit);
+        return Map.of("items", items, "total", items.size());
+    }
+
+    /** 订阅列表（P8 余项）：该服务的调用方合同通知订阅。 */
+    @GetMapping("/{id}/subscriptions")
+    public Map<String, Object> subscriptions(@PathVariable String id,
+                                             @RequestParam(required = false) String tenantId) {
+        var items = service.subscriptionsOfService(id, tenantId);
+        return Map.of("items", items, "total", items.size());
+    }
+
+    /** 合同事件列表（P8 余项）：变更历史（含 diff 与 TEST 验证事件）。 */
+    @GetMapping("/{id}/contract-events")
+    public Map<String, Object> contractEvents(@PathVariable String id,
+                                              @RequestParam(defaultValue = "20") int limit,
+                                              @RequestParam(required = false) String tenantId) {
+        var items = service.contractEventsOfService(id, tenantId, limit);
         return Map.of("items", items, "total", items.size());
     }
 
