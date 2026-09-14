@@ -311,6 +311,8 @@ function DataServiceDetailPanel({ service, onNotice, onChanged, onPublish, onDep
   const [issuedKey, setIssuedKey] = useState('')
   const [keyForm, setKeyForm] = useState({ callerName: '', quota: '100', hospitals: '*' })
   const [refreshTick, setRefreshTick] = useState(0)
+  // 下线是不可逆动作：两步确认，避免与「发布」同级误触。
+  const [confirmDeprecate, setConfirmDeprecate] = useState(false)
 
   useApiResource({
     reloadKey: refreshTick,
@@ -386,7 +388,14 @@ function DataServiceDetailPanel({ service, onNotice, onChanged, onPublish, onDep
         </div>
         <div className={styles.toolbarActions}>
           {service.status === 'DRAFT' ? <Button variant="primary" onClick={onPublish}>发布</Button> : null}
-          {service.status === 'PUBLISHED' ? <Button onClick={onDeprecate}>下线</Button> : null}
+          {service.status === 'PUBLISHED' ? (
+            confirmDeprecate ? (
+              <>
+                <Button variant="danger" onClick={() => { setConfirmDeprecate(false); onDeprecate() }}>确认下线</Button>
+                <Button onClick={() => setConfirmDeprecate(false)}>取消</Button>
+              </>
+            ) : <Button onClick={() => setConfirmDeprecate(true)}>下线</Button>
+          ) : null}
         </div>
       </div>
 

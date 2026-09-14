@@ -46,6 +46,8 @@ export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, 
   const [feedback, setFeedback] = useState<AIEvaluationFeedbackItem[]>([])
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [feedbackQuestion, setFeedbackQuestion] = useState('')
+  // 弃用是不可逆生命周期动作：两步确认，避免与普通动作同级误触。
+  const [confirmDeprecate, setConfirmDeprecate] = useState(false)
   // 键控加载（按产品）；认证历史与反馈是次级资源，失败不塌详情。
   const state = useKeyedResource({
     key: productId,
@@ -153,7 +155,12 @@ export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, 
             <Button onClick={() => void handleSubmitCertification()}>提交认证审批</Button>
           ) : null}
           {product.lifecycle !== 'DEPRECATED' ? (
-            <Button onClick={onDeprecate}>弃用</Button>
+            confirmDeprecate ? (
+              <>
+                <Button variant="danger" onClick={() => { setConfirmDeprecate(false); onDeprecate() }}>确认弃用</Button>
+                <Button onClick={() => setConfirmDeprecate(false)}>取消</Button>
+              </>
+            ) : <Button onClick={() => setConfirmDeprecate(true)}>弃用</Button>
           ) : null}
           <Button onClick={onBuild}>构建 / 评估</Button>
           <Button onClick={() => setFeedbackOpen(true)}>反馈失败样本</Button>

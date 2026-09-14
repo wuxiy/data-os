@@ -80,12 +80,18 @@ export function AnalyticsLive({ onNotice }: { onNotice: (message: string) => voi
     return (
       <div className={styles.integrationPage}>
         <PageHeader title="分析看板" eyebrow="嵌入式分析" subtitle="业务人员在统一门户查看结果，专业人员按权限进入分析设计器" compact />
-        <section className={styles.technicalNotice} role="status">
-          <StatusTag tone="warning">{catalogState === 'loading' ? '读取中' : '待接入'}</StatusTag>
-          <span>{catalogState === 'loading'
-            ? '正在从分析服务读取仪表盘清单…'
-            : '分析服务暂不可用：需要控制面完成嵌入式分析引擎接入配置（详见平台运维）。'}</span>
-        </section>
+        {catalogState === 'loading' ? (
+          <section className={styles.technicalNotice} role="status">
+            <StatusTag tone="neutral">读取中</StatusTag>
+            <span>正在从分析服务读取仪表盘清单…</span>
+          </section>
+        ) : (
+          <div className={styles.analyticsEmpty} role="status">
+            <ChartNoAxesCombined size={30} aria-hidden="true" />
+            <h3>分析看板待接入</h3>
+            <p>需要控制面完成嵌入式分析引擎接入配置（详见平台运维）。<br />接入后业务人员在统一门户查看已授权仪表盘，无需分析平台账号。</p>
+          </div>
+        )}
       </div>
     )
   }
@@ -143,6 +149,12 @@ export function AnalyticsLive({ onNotice }: { onNotice: (message: string) => voi
             <section className={styles.technicalNotice} role="status">
               <StatusTag tone="warning">嵌入失败</StatusTag>
               <span>无法嵌入当前仪表盘：请确认嵌入白名单（allowed_domains 含门户地址）后重试。</span>
+            </section>
+          ) : null}
+          {embedState === 'mounting' ? (
+            <section className={styles.technicalNotice} role="status">
+              <StatusTag tone="neutral">载入中</StatusTag>
+              <span>正在装载仪表盘（访客令牌已签发）…</span>
             </section>
           ) : null}
           <div

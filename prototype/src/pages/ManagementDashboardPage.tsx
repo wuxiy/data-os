@@ -7,7 +7,7 @@ import { managementMetrics, riskRanking } from '../data/mock'
 import { demoFlowSnapshotLabel, demoSnapshotAsOf } from '../data/runtimeMode'
 import styles from './Pages.module.css'
 
-export function ManagementDashboardPage({ onOpenChain, onUnavailable, onNotice, onNavigate }: { onOpenChain: () => void; onUnavailable: (label: string) => void; onNotice: (message: string) => void; onNavigate: (route: 'ingestion' | 'governance' | 'quality') => void }) {
+export function ManagementDashboardPage({ onOpenChain, onNotice, onNavigate }: { onOpenChain: () => void; onNotice: (message: string) => void; onNavigate: (route: 'ingestion' | 'governance' | 'quality') => void }) {
   return (
     <div className={styles.page}>
       <PageHeader title="医院数据运营总览" eyebrow="管理驾驶舱" subtitle="以结果、风险和交付进展为中心" asOf={demoSnapshotAsOf} />
@@ -17,7 +17,7 @@ export function ManagementDashboardPage({ onOpenChain, onUnavailable, onNotice, 
         <section className={styles.attention}>
           <div className={styles.attentionText}>
             <AlertTriangle size={21} />
-            <div><h2>今日有 3 项需要关注</h2><p>核心数据可用率低于目标，4 项治理问题已逾期，36 条主索引候选待人工审核。</p></div>
+            <div><h2>今日 3 类事项需要关注</h2><p>核心数据可用率低于目标，4 项治理问题已逾期，36 条主索引候选待人工审核。</p></div>
           </div>
           <Button variant="secondary" onClick={onOpenChain}>查看治理责任链 <ChevronRight size={15} /></Button>
         </section>
@@ -34,7 +34,7 @@ export function ManagementDashboardPage({ onOpenChain, onUnavailable, onNotice, 
           </div>
         </section>
         <section className={styles.tablePanel}>
-          <div className={styles.panelHeader}><div><h2>重点交付进展</h2><p>面向院内经营、临床与上报场景</p></div><button className={styles.textButton} onClick={() => onUnavailable('交付中心')}>查看全部 <ChevronRight size={13} /></button></div>
+          <div className={styles.panelHeader}><div><h2>重点交付进展</h2><p>面向院内经营、临床与上报场景 · 完整清单在交付中心（规划中）</p></div></div>
           <div className={styles.tableScroll}>
             <table className={styles.table}>
               <thead><tr><th>交付主题</th><th>使用部门</th><th>当前阶段</th><th>数据可用率</th><th>计划上线</th><th>状态</th></tr></thead>

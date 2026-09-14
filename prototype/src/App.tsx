@@ -132,7 +132,7 @@ export function App() {
       page = <PlatformOperationsPage canAccess={technicalAccess} />
       break
     default:
-      page = <ManagementDashboardPage onOpenChain={() => setDrawerOpen(true)} onUnavailable={showUnavailable} onNotice={setNotice} onNavigate={navigate} />
+      page = <ManagementDashboardPage onOpenChain={() => setDrawerOpen(true)} onNotice={setNotice} onNavigate={navigate} />
   }
 
   return (

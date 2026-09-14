@@ -887,6 +887,57 @@
 
 /* 行内动作统一为细边框安静小按钮（与分页控件同族）：
    原先是透明文字样式，与正文同权重，录入者难以辨认可点。 */
+/* 行内「更多」溢出菜单：低频动作收纳（暂停/归档/同步），点击动作后收起 */
+.rowMore {
+  position: relative;
+  display: inline-flex;
+}
+
+.rowMore summary {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 7px;
+  color: var(--ink);
+  background: var(--surface-raised);
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  font-size: 11px;
+  white-space: nowrap;
+  cursor: pointer;
+  list-style: none;
+}
+
+.rowMore summary::-webkit-details-marker {
+  display: none;
+}
+
+.rowMore[open] summary {
+  background: var(--surface-hover);
+  border-color: var(--jade);
+}
+
+.rowMoreMenu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 30;
+  display: grid;
+  min-width: 132px;
+  gap: 2px;
+  padding: 4px;
+  background: var(--paper);
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  box-shadow: var(--shadow-card);
+}
+
+.rowMoreMenu .tableButton {
+  width: 100%;
+  justify-content: flex-start;
+}
+
 .tableActions .tableButton,
 .sourceRowActions .tableButton {
   display: inline-flex;
