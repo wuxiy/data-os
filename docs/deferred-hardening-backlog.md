@@ -53,10 +53,10 @@
 
 | 编号 | 事项 | 说明 | 归口 |
 |---|---|---|---|
-| U1 | 平台运维页设计系统离群收编 | 深色 hero（#193c35 + 42px 数字 + 0 14px 32px 阴影）违反 DESIGN.md「不做装饰性大屏」与 L2 阴影规范，h1 letter-spacing 为正值（规范 -0.012em），不使用 PageHeader 原语；浅修（英文 kicker 删除、加载态诚实、/3 魔法数）已在 2026-09-14 收口，深度重设计留条目 | 门户迭代 |
-| U2 | 队列选中态与可点行可达性 | QualityIssues/MPI 队列按钮选中态只有类名无 aria-pressed/aria-current；治理驾驶舱可点行 tr onClick 无键盘可达（无 tabIndex/按钮化） | 门户迭代 |
-| U3 | 效率层增强 | 无键盘快捷键/命令面板；MPI 100 条候选仅逐条决策（无批量）；治理问题选中态不进 URL（资产页已有 ?asset= 深链，标准不一） | 门户迭代 |
-| U4 | MetricStrip 固定 6 列网格泛化 | Primitives .metrics 为 repeat(6,…)，非 6 项指标留空列；改 auto-fit 需同步处理 3n/2n nth-child 边框规则 | 门户迭代 |
+| U1 | 平台运维页设计系统离群收编 | **完成 2026-09-14（余项修复轮）**：深色 hero 移除、PageHeader + 纸面探针摘要卡、字距/阴影回归规范 | 完成 |
+| U2 | 队列选中态与可点行可达性 | **完成 2026-09-14（余项修复轮）**：两队列 aria-pressed、治理可点行键盘可达 + 焦点环 | 完成 |
+| U3 | 效率层增强 | **部分完成 2026-09-14（余项修复轮）**：?issue=/?task= 深链 + ⌘K 命令面板已交付；MPI 批量决策仍逐条（保留条目，待真实复核量级评估再设计） | 部分完成 |
+| U4 | MetricStrip 固定 6 列网格泛化 | **完成 2026-09-14（余项修复轮）**：.metrics/.metricStrip 改 auto-fit + 1px gap hairline，nth-child 补丁全删 | 完成 |
 
 ## 变更记录
 
@@ -84,3 +84,4 @@
 - 2026-09-05（H3 批次·用户批准 + 两姊妹项）：**S9/P7/P8 核心全部关闭**（CallSession 调决深化 + fail-closed；异步导出至 RustFS + 鉴权下载 146 行零误差对账；限流/熔断/stale-grace/审计持久缓冲全实证）——gate-data-api-h3-20260905.md；P8 余项（自助门户/合同通知）改写为延后口径。姊妹项：① P3 残留小项 catalog 补喂完成，DataModel=0 实锤结构性（ephemeral-only），物化裁决留用户；② H2 未竟面「生产 ENFORCED 门户用户链」归档 deploy/production（keycloak-portal-seed.sh + build-portal.sh + README），dev PKCE 全流程 + 浏览器登录实证，四个载荷坑入档（KC26 声明式 userProfile 静默丢属性、users PUT 整实体替换、VERIFY_PROFILE 拦首登、PKCE 需 secure context）。dev 运行态切 0.2.0-h3-20260905 双镜像（V14 迁移成功，RustFS 新桶在位）。
 - 2026-09-10（P8 余项收口·用户明示解除延后）：**P8 全项关闭**——自助门户（data-api /v1/me、/v1/usage/calls、/v1/contract-events、订阅 CRUD/TEST）+ 合同变更通知（V15 三表、事件引擎含字段级 diff 与版本自增、HMAC 签名 webhook 推送与治理通知同签名形态、轮询兜底、订阅端点策略默认公网 HTTPS）+ 前端工作台合同/导出区块。E2E 收据-轮询逐事件对应实证；**修复 E2E 抓出的真缺陷**（DEPRECATED 后 Key 从 registry 消失致自助面 401——自助面认证语义 = Key 身份而非「服务在售」，registry 保留 DEPRECATED 服务 Key 标 serviceStatus + deprecatedServices 契约视图，执行面仍只认 PUBLISHED）；载荷坑：@Value 裸属性名对 DATAOS_DATA_API_* 形态 env 键不适用宽松绑定（application.yml 显式 ${ENV:default} 声明解决）。测试基线 control-plane 211/211、data-api 44/44、前端全绿；dev 切 0.2.0-h3p8-20260910 双镜像（V15 迁移成功）。
 - 2026-09-14（门户 9 页 UX 评审收口）：impeccable critique（21/40 基线，快照 prototype/.impeccable/critique/，工具态已 gitignore）后四批次收口——P0 数据服务/AI Data 布局错位四连（新建表单进 Drawer、两栏工作区、详情容器左缘统一、概览 auto-fit）；P1 硬缺陷（MPI metricStrip 裸渲染、治理排行恒"1"、RuntimeStatusBanner 部分载荷白屏、window.prompt 取消提交空值、平台运维加载态误报）；P1 全站分页（usePaged+Pager 铺开 6 页面 11 处，含 MPI 100 条截断诚实提示）；P1 去品牌（OpenMetadata×6/Superset 全清 + AI 枚举中文口径 + qa 正则锁）；P2 动作过载（任务行 7→≤4 按钮+更多菜单、弃用/下线两步确认、首页死胡同、治理红色警示去重、分析空态锚点）。发现并修复两类工程坑：hooks 早退分支违规（AIDataDetail/DataServices/AIData rail，启动即白屏，经 index.html 临时错误陷阱定位）；qa 正则锁大小写敏感设计（@superset-ui 包名小写不受 /Superset/ 锁影响）。余项 U1-U4 立条目。
+- 2026-09-14（UX 余项修复轮·用户「继续修复余项」）：U1/U2/U4 完成、U3 部分完成——平台运维页收编设计系统（PageHeader+纸面探针卡，⌘K 面板与命令原语复用 Drawer 焦点语义）；队列选中态 aria-pressed 与可点行键盘可达；指标带 auto-fit hairline 泛化（两项原语统一技法，删全部 nth-child 边框补丁）；?issue=/?task= 深链（读参数+replaceState 回写，对齐 ?asset= 口径）与全局命令面板（⌘K，listbox/option 语义，技术域入口按角色过滤）。U3 余下「MPI 批量决策」保留条目——按评审口径，批量决策需先看真实复核量级（dev 7 条/日 vs 上线后量级）再定交互形态，不宜先造。提交 8b848e8..5046942，每步全绿。
