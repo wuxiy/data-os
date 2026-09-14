@@ -29,6 +29,8 @@ import {
 } from '../data/dataServicesApi'
 import { frontendDemoMode } from '../data/runtimeMode'
 import { useApiResource } from '../hooks/useApiResource'
+import { usePaged } from '../hooks/usePaged'
+import { Pager } from '../components/ui/Pager'
 import styles from './IntegrationPages.module.css'
 // 抽屉表单体系（字段/网格/代码域）与数据接入页同源，保持一处维护。
 import formStyles from './Pages.module.css'
@@ -123,6 +125,10 @@ function DataServicesLive({ onNotice }: { onNotice: (message: string) => void })
     onUnavailable: () => setServices([]),
     timeoutMs: 15000,
   })
+
+  // 目录分页（hook 在 listState 早退分支之前调用）：服务清单增长后侧栏不失控。
+  const RAIL_PAGE_SIZE = 8
+  const { page: railPage, setPage: setRailPage, paged: pagedServices, pageCount: railPageCount } = usePaged(services, RAIL_PAGE_SIZE)
 
   function refresh() {
     setRefreshTick((tick) => tick + 1)
@@ -221,7 +227,7 @@ function DataServicesLive({ onNotice }: { onNotice: (message: string) => void })
             </button>
           </div>
           <ul className={styles.catalogList}>
-            {services.map((service) => (
+            {pagedServices.map((service) => (
               <li key={service.id}>
                 <button
                   className={`${styles.catalogItem} ${service.id === selectedId ? styles.catalogItemSelected : ''}`}
@@ -239,6 +245,7 @@ function DataServicesLive({ onNotice }: { onNotice: (message: string) => void })
             ))}
           </ul>
           {services.length === 0 ? <div className={styles.emptyRail}>暂无数据服务，点击「新建服务」创建第一个。</div> : null}
+          <Pager label="服务目录分页" page={railPage} pageCount={railPageCount} pageSize={RAIL_PAGE_SIZE} onPageChange={setRailPage} />
         </aside>
 
         <section className={styles.workspaceMain} aria-label="数据服务详情">
@@ -330,6 +337,12 @@ function DataServiceDetailPanel({ service, onNotice, onChanged, onPublish, onDep
 
   const parameters = parseContracts<{ name: string; type: string; required?: boolean; description?: string }>(service.parametersJson)
   const columns = parseContracts<{ name: string; type: string; description?: string }>(service.columnsJson)
+  // 详情各表分页：面板按服务键控重建，切换服务自动回到第一页。
+  const TABLE_PAGE_SIZE = 6
+  const { page: callsPage, setPage: setCallsPage, paged: pagedCalls, pageCount: callsPageCount } = usePaged(calls, TABLE_PAGE_SIZE)
+  const { page: exportsPage, setPage: setExportsPage, paged: pagedExports, pageCount: exportsPageCount } = usePaged(exports, TABLE_PAGE_SIZE)
+  const { page: eventsPage, setPage: setEventsPage, paged: pagedEvents, pageCount: eventsPageCount } = usePaged(contractEvents, TABLE_PAGE_SIZE)
+  const { page: subsPage, setPage: setSubsPage, paged: pagedSubscriptions, pageCount: subsPageCount } = usePaged(subscriptions, TABLE_PAGE_SIZE)
 
   async function issueKey() {
     if (!keyForm.callerName.trim()) {
@@ -474,7 +487,7 @@ function DataServiceDetailPanel({ service, onNotice, onChanged, onPublish, onDep
           <table className={styles.fieldTable}>
             <thead><tr><th>时间</th><th>行数</th><th>截断</th><th>耗时</th><th>状态码</th></tr></thead>
             <tbody>
-              {calls.map((call) => (
+              {pagedCalls.map((call) => (
                 <tr key={call.id}>
                   <td>{new Date(call.calledAt).toLocaleString('zh-CN')}</td>
                   <td>{call.rowCount}</td>
@@ -487,13 +500,14 @@ function DataServiceDetailPanel({ service, onNotice, onChanged, onPublish, onDep
             </tbody>
           </table>
         </div>
+        <Pager label="最近调用分页" page={callsPage} pageCount={callsPageCount} pageSize={TABLE_PAGE_SIZE} onPageChange={setCallsPage} />
 
         <h4 className={styles.railLabel}>导出任务（P7 异步导出）</h4>
         <div className={styles.horizontalScroll}>
           <table className={styles.fieldTable}>
             <thead><tr><th>创建时间</th><th>状态</th><th>行数</th><th>产物大小</th><th>到期</th><th>失败原因</th></tr></thead>
             <tbody>
-              {exports.map((item) => (
+              {pagedExports.map((item) => (
                 <tr key={item.id}>
                   <td>{new Date(item.createdAt).toLocaleString('zh-CN')}</td>
                   <td>{exportStatusLabel[item.status] ?? item.status}</td>
@@ -507,13 +521,14 @@ function DataServiceDetailPanel({ service, onNotice, onChanged, onPublish, onDep
             </tbody>
           </table>
         </div>
+        <Pager label="导出任务分页" page={exportsPage} pageCount={exportsPageCount} pageSize={TABLE_PAGE_SIZE} onPageChange={setExportsPage} />
 
         <h4 className={styles.railLabel}>合同事件与订阅（变更通知）</h4>
         <div className={styles.horizontalScroll}>
           <table className={styles.fieldTable}>
             <thead><tr><th>时间</th><th>类型</th><th>版本</th><th>变更内容</th></tr></thead>
             <tbody>
-              {contractEvents.map((event) => (
+              {pagedEvents.map((event) => (
                 <tr key={event.eventId}>
                   <td>{new Date(event.occurredAt).toLocaleString('zh-CN')}</td>
                   <td>{contractChangeTypeLabel[event.changeType] ?? event.changeType}</td>
@@ -525,11 +540,12 @@ function DataServiceDetailPanel({ service, onNotice, onChanged, onPublish, onDep
             </tbody>
           </table>
         </div>
+        <Pager label="合同事件分页" page={eventsPage} pageCount={eventsPageCount} pageSize={TABLE_PAGE_SIZE} onPageChange={setEventsPage} />
         <div className={styles.horizontalScroll}>
           <table className={styles.fieldTable}>
             <thead><tr><th>订阅方</th><th>Webhook</th><th>状态</th><th>创建</th></tr></thead>
             <tbody>
-              {subscriptions.map((subscription) => (
+              {pagedSubscriptions.map((subscription) => (
                 <tr key={subscription.id}>
                   <td>{subscription.callerName}</td>
                   <td><code>{subscription.webhookUrl}</code></td>
@@ -541,6 +557,7 @@ function DataServiceDetailPanel({ service, onNotice, onChanged, onPublish, onDep
             </tbody>
           </table>
         </div>
+        <Pager label="订阅分页" page={subsPage} pageCount={subsPageCount} pageSize={TABLE_PAGE_SIZE} onPageChange={setSubsPage} />
       </div>
     </div>
   )

@@ -19,6 +19,8 @@ import {
 } from '../data/lineageApi'
 import { useApiResource } from '../hooks/useApiResource'
 import { useKeyedResource } from '../hooks/useKeyedResource'
+import { usePaged } from '../hooks/usePaged'
+import { Pager } from '../components/ui/Pager'
 import styles from './IntegrationPages.module.css'
 
 const nodeIcons = {
@@ -70,6 +72,7 @@ export function AssetCatalogLive({ onNotice }: { onNotice: (message: string) => 
     if (schema === activeSchema) return
     setActiveSchema(schema)
     setSelectedFqn('')
+    setRailPage(0)
   }
   const effectiveFqn = useMemo(() => {
     if (selectedFqn && assets.some((asset) => asset.fullyQualifiedName === selectedFqn)) return selectedFqn
@@ -81,6 +84,9 @@ export function AssetCatalogLive({ onNotice }: { onNotice: (message: string) => 
     if (!keyword) return assets
     return assets.filter((asset) => `${asset.name}${asset.fullyQualifiedName}${asset.displayName}`.toLowerCase().includes(keyword))
   }, [assets, query])
+  // 医院资产目录动辄数百表：侧栏分页，搜索与切库重置回第一页。
+  const RAIL_PAGE_SIZE = 8
+  const { page: railPage, setPage: setRailPage, paged: pagedAssets, pageCount: railPageCount } = usePaged(visible, RAIL_PAGE_SIZE)
 
   const [detail, setDetail] = useState<LineageAssetDetail | null>(null)
   const [lineage, setLineage] = useState<LineageAssetLineage | null>(null)
@@ -104,6 +110,10 @@ export function AssetCatalogLive({ onNotice }: { onNotice: (message: string) => 
       setQualityTests([])
     },
   })
+
+  // 字段结构分页：宽表列数动辄数十，字段表 10 条一页。
+  const COLUMNS_PAGE_SIZE = 10
+  const { page: columnsPage, setPage: setColumnsPage, paged: pagedColumns, pageCount: columnsPageCount } = usePaged(detail?.columns ?? [], COLUMNS_PAGE_SIZE)
 
   if (catalogState !== 'live' || !catalog) {
     return (
@@ -143,11 +153,11 @@ export function AssetCatalogLive({ onNotice }: { onNotice: (message: string) => 
           </div>
           <label className={styles.railSearch}>
             <Search size={15} aria-hidden="true" />
-            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索表名或全限定名" aria-label="搜索数据资产" />
+            <input value={query} onChange={(event) => { setQuery(event.target.value); setRailPage(0) }} placeholder="搜索表名或全限定名" aria-label="搜索数据资产" />
           </label>
           <div className={styles.railLabel}>OpenMetadata 摄取资产</div>
           <ul className={styles.catalogList}>
-            {visible.map((asset) => (
+            {pagedAssets.map((asset) => (
               <li key={asset.fullyQualifiedName}>
                 <button
                   className={`${styles.catalogItem} ${asset.fullyQualifiedName === effectiveFqn ? styles.catalogItemSelected : ''}`}
@@ -165,6 +175,7 @@ export function AssetCatalogLive({ onNotice }: { onNotice: (message: string) => 
             ))}
           </ul>
           {visible.length === 0 ? <div className={styles.emptyRail}>没有匹配的数据资产，请调整搜索条件。</div> : null}
+          <Pager label="资产目录分页" page={railPage} pageCount={railPageCount} pageSize={RAIL_PAGE_SIZE} onPageChange={setRailPage} />
           {summary ? (
             <div className={styles.catalogMeta}>
               <em>{summary.tableCount} 表 · {summary.columnCount} 列</em>
@@ -199,12 +210,13 @@ export function AssetCatalogLive({ onNotice }: { onNotice: (message: string) => 
                   <table className={styles.fieldTable}>
                     <thead><tr><th>物理字段</th><th>类型</th><th>说明</th></tr></thead>
                     <tbody>
-                      {detail.columns.map((column) => (
+                      {pagedColumns.map((column) => (
                         <tr key={column.name}><td>{column.name}</td><td>{column.dataType}</td><td>{column.description || '—'}</td></tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
+                <Pager label="字段结构分页" page={columnsPage} pageCount={columnsPageCount} pageSize={COLUMNS_PAGE_SIZE} onPageChange={setColumnsPage} />
               </section>
             ) : null}
             {qualityTests.length > 0 ? (

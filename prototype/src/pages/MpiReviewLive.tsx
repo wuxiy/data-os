@@ -17,6 +17,8 @@ import {
   type MpiPersonDetail,
 } from '../data/mpiApi'
 import { useAction } from '../hooks/useAction'
+import { usePaged } from '../hooks/usePaged'
+import { Pager } from '../components/ui/Pager'
 import styles from './Pages.module.css'
 
 /**
@@ -27,6 +29,8 @@ import styles from './Pages.module.css'
 export function MpiReviewLive({ onNotice }: { onNotice: (message: string) => void }) {
   const [metrics, setMetrics] = useState<Awaited<ReturnType<typeof fetchMpiMetrics>> | null>(null)
   const [candidates, setCandidates] = useState<MpiCandidateItem[]>([])
+  // 服务端按 size=100 截断：total 留作「已加载前 N 条」的诚实提示。
+  const [candidatesTotal, setCandidatesTotal] = useState<number | null>(null)
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [confirmed, setConfirmed] = useState(false)
@@ -44,6 +48,7 @@ export function MpiReviewLive({ onNotice }: { onNotice: (message: string) => voi
     onData: ([metricsData, candidatesData]) => {
       setMetrics(metricsData)
       setCandidates(candidatesData.items)
+      setCandidatesTotal(candidatesData.total)
       setSelectedTaskId((current) =>
         current && candidatesData.items.some((item) => item.taskId === current)
           ? current
@@ -52,6 +57,7 @@ export function MpiReviewLive({ onNotice }: { onNotice: (message: string) => voi
     onUnavailable: () => {
       setMetrics(null)
       setCandidates([])
+      setCandidatesTotal(null)
     },
     timeoutMs: 15000,
   })
@@ -67,11 +73,15 @@ export function MpiReviewLive({ onNotice }: { onNotice: (message: string) => voi
     return candidates.filter((item) =>
       `${item.taskId}${item.identityA.name}${item.identityB.name}${item.ruleId}${item.identityA.cardNo}`.toLowerCase().includes(keyword))
   }, [candidates, query])
+  // 候选队列分页：复核是逐条深读操作，8 条一页足够定位。
+  const QUEUE_PAGE_SIZE = 8
+  const { page: queuePage, setPage: setQueuePage, paged: pagedCandidates, pageCount: queuePageCount } = usePaged(visibleCandidates, QUEUE_PAGE_SIZE)
 
   async function refreshAfterAction() {
     const [metricsData, candidatesData] = await reload()
     setMetrics(metricsData)
     setCandidates(candidatesData.items)
+    setCandidatesTotal(candidatesData.total)
     setSelectedTaskId(candidatesData.items[0]?.taskId ?? null)
     setConfirmed(false)
   }
@@ -132,9 +142,9 @@ export function MpiReviewLive({ onNotice }: { onNotice: (message: string) => voi
         <div className={styles.mpiWorkspace}>
           <aside className={styles.workspaceRail}>
             <div className={styles.sectionTitle}><h2>候选队列</h2><span>{metrics?.reviewPending ?? candidates.length} 待复核</span></div>
-            <div className={styles.search}><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="姓名 / 卡号 / 规则" aria-label="搜索复核候选" /></div>
+            <div className={styles.search}><input value={query} onChange={(event) => { setQuery(event.target.value); setQueuePage(0) }} placeholder="姓名 / 卡号 / 规则" aria-label="搜索复核候选" /></div>
             <ul className={styles.queue}>
-              {visibleCandidates.map((candidate) => (
+              {pagedCandidates.map((candidate) => (
                 <li key={candidate.taskId}>
                   <button className={selected?.taskId === candidate.taskId ? styles.selected : ''} onClick={() => { setSelectedTaskId(candidate.taskId); setConfirmed(false) }}>
                     <span className={styles.queueTop}>
@@ -147,6 +157,8 @@ export function MpiReviewLive({ onNotice }: { onNotice: (message: string) => voi
               ))}
               {visibleCandidates.length === 0 ? <li className={styles.emptyState}>当前没有待复核候选</li> : null}
             </ul>
+            {candidatesTotal != null && candidatesTotal > candidates.length ? <div className={styles.emptyState}>已加载前 {candidates.length} 条（共 {candidatesTotal} 条待复核，处理后可载入更多）</div> : null}
+            <Pager label="复核候选分页" page={queuePage} pageCount={queuePageCount} pageSize={QUEUE_PAGE_SIZE} onPageChange={setQueuePage} />
             <div className={styles.railActions}>
               <Button onClick={triggerRebuild} disabled={pendingKey !== null}><RefreshCw size={14} className={pendingKey === 'rebuild' ? styles.spin : undefined} />{pendingKey === 'rebuild' ? '重算中…' : '重算主索引'}</Button>
             </div>

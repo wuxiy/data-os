@@ -20,6 +20,8 @@ import { PortalHttpError } from '../data/http'
 import { useAction } from '../hooks/useAction'
 import { frontendDemoMode } from '../data/runtimeMode'
 import { useApiResource } from '../hooks/useApiResource'
+import { usePaged } from '../hooks/usePaged'
+import { Pager } from '../components/ui/Pager'
 import type { AIOverview } from '../data/aiDataApi'
 import { AIDataDetailPage } from './AIDataDetailPage'
 import styles from './IntegrationPages.module.css'
@@ -79,6 +81,10 @@ function AIDataLive({ onNotice }: { onNotice: (message: string) => void }) {
     onUnavailable: () => setProducts([]),
     timeoutMs: 15000,
   })
+
+  // 目录分页（hook 在 listState 早退分支之前调用）：产品清单增长后侧栏不失控。
+  const RAIL_PAGE_SIZE = 8
+  const { page: railPage, setPage: setRailPage, paged: pagedProducts, pageCount: railPageCount } = usePaged(products, RAIL_PAGE_SIZE)
 
   function refresh() {
     setRefreshTick((tick) => tick + 1)
@@ -196,7 +202,7 @@ function AIDataLive({ onNotice }: { onNotice: (message: string) => void }) {
             </button>
           </div>
           <ul className={styles.catalogList}>
-            {products.map((product) => (
+            {pagedProducts.map((product) => (
               <li key={product.id}>
                 <button
                   className={`${styles.catalogItem} ${product.id === selectedId ? styles.catalogItemSelected : ''}`}
@@ -214,6 +220,7 @@ function AIDataLive({ onNotice }: { onNotice: (message: string) => void }) {
             ))}
           </ul>
           {products.length === 0 ? <div className={styles.emptyRail}>暂无 AI Data Product，点击「新建产品」创建第一个。</div> : null}
+          <Pager label="产品目录分页" page={railPage} pageCount={railPageCount} pageSize={RAIL_PAGE_SIZE} onPageChange={setRailPage} />
         </aside>
 
         <section className={styles.workspaceMain} aria-label="AI Data 产品详情">

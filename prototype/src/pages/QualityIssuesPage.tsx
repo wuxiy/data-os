@@ -3,9 +3,11 @@ import { useMemo, useState } from 'react'
 import { useAction } from '../hooks/useAction'
 import { useApiResource } from '../hooks/useApiResource'
 import { useKeyedResource } from '../hooks/useKeyedResource'
+import { usePaged } from '../hooks/usePaged'
 import { GovernanceTabs } from '../components/ui/GovernanceTabs'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Button, StatusTag } from '../components/ui/Primitives'
+import { Pager } from '../components/ui/Pager'
 import {
   fetchGovernanceIssue,
   fetchGovernanceIssues,
@@ -80,6 +82,10 @@ export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props
     if (!keyword) return issues
     return issues.filter((issue) => `${issue.id}${issue.title}${issue.ownerDepartment}${issue.ownerName}${issue.datasetId}`.toLowerCase().includes(keyword))
   }, [issues, query])
+
+  // 治理问题是长队列：侧栏分页，搜索重置回第一页。
+  const QUEUE_PAGE_SIZE = 8
+  const { page: queuePage, setPage: setQueuePage, paged: pagedIssues, pageCount: queuePageCount } = usePaged(visibleIssues, QUEUE_PAGE_SIZE)
 
   const selected = detail?.issue ?? issues.find((issue) => issue.id === selectedId) ?? null
   const canEdit = selected != null && selected.status !== 'CLOSED' && selected.status !== 'RECHECKING'
@@ -168,12 +174,13 @@ export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props
       <div className={styles.workspace}>
         <aside className={styles.workspaceRail}>
           <div className={styles.sectionTitle}><h2>问题队列</h2><span>{issues.filter((issue) => issue.status !== 'CLOSED').length} 待闭环</span></div>
-          <div className={styles.search}><Search size={15} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索问题或责任部门" aria-label="搜索质量问题" /></div>
+          <div className={styles.search}><Search size={15} /><input value={query} onChange={(event) => { setQuery(event.target.value); setQueuePage(0) }} placeholder="搜索问题或责任部门" aria-label="搜索质量问题" /></div>
           <ul className={styles.queue}>
-            {visibleIssues.map((issue) => <li key={issue.id}><button className={selected?.id === issue.id ? styles.selected : ''} onClick={() => { setSelectedId(issue.id); setActionError(null) }}><span className={styles.queueTop}><span className={styles.queueId}>{issue.id}</span><StatusTag tone={severityTone(issue.severity)}>{severityLabel(issue.severity)}风险</StatusTag></span><span className={styles.queueTitle}>{issue.title}</span><span className={styles.queueMeta}>{issue.ownerDepartment} · {issue.ownerName} · {issueStatusLabel(issue.status)}</span></button></li>)}
+            {pagedIssues.map((issue) => <li key={issue.id}><button className={selected?.id === issue.id ? styles.selected : ''} onClick={() => { setSelectedId(issue.id); setActionError(null) }}><span className={styles.queueTop}><span className={styles.queueId}>{issue.id}</span><StatusTag tone={severityTone(issue.severity)}>{severityLabel(issue.severity)}风险</StatusTag></span><span className={styles.queueTitle}>{issue.title}</span><span className={styles.queueMeta}>{issue.ownerDepartment} · {issue.ownerName} · {issueStatusLabel(issue.status)}</span></button></li>)}
             {apiState === 'loading' ? <li className={styles.emptyState}><LoaderCircle size={18} className={styles.spin} />正在加载治理问题…</li> : null}
             {apiState === 'live' && visibleIssues.length === 0 ? <li className={styles.emptyState}>当前范围暂无匹配的治理问题</li> : null}
           </ul>
+          <Pager label="问题队列分页" page={queuePage} pageCount={queuePageCount} pageSize={QUEUE_PAGE_SIZE} onPageChange={setQueuePage} />
         </aside>
         <section className={styles.workspaceMain}>
           {selected && detail ? <>

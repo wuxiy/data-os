@@ -20,6 +20,8 @@ import {
 } from '../data/aiDataApi'
 import { useAction } from '../hooks/useAction'
 import { useKeyedResource } from '../hooks/useKeyedResource'
+import { usePaged } from '../hooks/usePaged'
+import { Pager } from '../components/ui/Pager'
 import styles from './IntegrationPages.module.css'
 // 抽屉表单体系与数据接入/数据服务页同源，保持一处维护。
 import formStyles from './Pages.module.css'
@@ -106,6 +108,12 @@ export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, 
     })
   }
 
+  // 详情各表分页（hook 须在早退分支之前调用，读取中用空数组占位）。
+  const TABLE_PAGE_SIZE = 6
+  const { page: versionsPage, setPage: setVersionsPage, paged: pagedVersions, pageCount: versionsPageCount } = usePaged(detail?.versions ?? [], TABLE_PAGE_SIZE)
+  const { page: feedbackPage, setPage: setFeedbackPage, paged: pagedFeedback, pageCount: feedbackPageCount } = usePaged(feedback, TABLE_PAGE_SIZE)
+  const { page: certPage, setPage: setCertPage, paged: pagedCertifications, pageCount: certPageCount } = usePaged(certifications, TABLE_PAGE_SIZE)
+
   if (state === 'loading' || state === 'error' || !detail) {
     return (
       <div className={styles.technicalNotice} role="status">
@@ -168,7 +176,7 @@ export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, 
             <table className={styles.fieldTable}>
               <thead><tr><th>版本</th><th>构建状态</th><th>就绪度</th><th>Recipe</th><th>Git Commit</th><th>创建时间</th></tr></thead>
               <tbody>
-                {versions.map((version) => {
+                {pagedVersions.map((version) => {
                   const readiness = version.readiness
                   return (
                     <tr key={version.id}>
@@ -190,6 +198,7 @@ export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, 
               </tbody>
             </table>
           </div>
+          <Pager label="版本历史分页" page={versionsPage} pageCount={versionsPageCount} pageSize={TABLE_PAGE_SIZE} onPageChange={setVersionsPage} />
         </section>
 
         {(() => {
@@ -261,7 +270,7 @@ export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, 
               <table className={styles.fieldTable}>
                 <thead><tr><th>问题</th><th>指标</th><th>类型</th><th>状态</th><th>处置说明</th><th>操作</th></tr></thead>
                 <tbody>
-                  {feedback.map((item) => (
+                  {pagedFeedback.map((item) => (
                     <tr key={item.id}>
                       <td>{item.question}</td>
                       <td>{item.metric || '—'}</td>
@@ -285,6 +294,7 @@ export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, 
                 </tbody>
               </table>
             </div>
+            <Pager label="评测反馈分页" page={feedbackPage} pageCount={feedbackPageCount} pageSize={TABLE_PAGE_SIZE} onPageChange={setFeedbackPage} />
           </section>
         ) : null}
 
@@ -298,7 +308,7 @@ export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, 
               <table className={styles.fieldTable}>
                 <thead><tr><th>版本</th><th>就绪度</th><th>状态</th><th>提交人</th><th>审批人</th><th>操作</th></tr></thead>
                 <tbody>
-                  {certifications.map((request) => (
+                  {pagedCertifications.map((request) => (
                     <tr key={request.id}>
                       <td>{request.versionSn}</td>
                       <td>{request.readinessOverall?.toFixed?.(2) ?? '—'}</td>
@@ -322,6 +332,7 @@ export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, 
                 </tbody>
               </table>
             </div>
+            <Pager label="认证审批分页" page={certPage} pageCount={certPageCount} pageSize={TABLE_PAGE_SIZE} onPageChange={setCertPage} />
           </section>
         ) : null}
 
