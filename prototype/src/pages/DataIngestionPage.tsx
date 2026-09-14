@@ -3,6 +3,8 @@ import {
   ArrowUpRight,
   Cable,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   CircleAlert,
   Clock3,
   FileCog,
@@ -71,6 +73,8 @@ interface JobFormState {
 const DEFAULT_TEMPLATE_KEY = 'FAKE_TO_CONSOLE'
 const LIVE_TEMPLATE_KEY = 'CUSTOM_JSON'
 const DEFAULT_TEMPLATE_VERSION = 1
+// 采集任务表按页展示：行内动作多，单页过长会淹没运行状态这一主信息。
+const JOBS_PAGE_SIZE = 8
 const DEFAULT_FAKE_CONFIG: JobConfig = {
   env: { 'job.mode': 'BATCH', parallelism: 1 },
   source: [{
@@ -85,6 +89,18 @@ const DEFAULT_FAKE_CONFIG: JobConfig = {
 
 function cloneConfig(config: JobConfig): JobConfig {
   return JSON.parse(JSON.stringify(config)) as JobConfig
+}
+
+// 分页窗口：页数不超过 7 时全部平铺，否则保留首末页与当前页邻域，中间折叠为省略号。
+function pageWindow(current: number, count: number): (number | '…')[] {
+  if (count <= 7) return Array.from({ length: count }, (_, index) => index)
+  const keep = new Set([0, count - 1, current - 1, current, current + 1])
+  const pages: (number | '…')[] = []
+  for (let index = 0; index < count; index += 1) {
+    if (keep.has(index)) pages.push(index)
+    else if (pages[pages.length - 1] !== '…') pages.push('…')
+  }
+  return pages
 }
 
 function configForTemplate(templateKey: string, mode: string, templates: WorkflowTemplateApiItem[] = []): JobConfig {
@@ -133,6 +149,7 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
   const [creatingSource, setCreatingSource] = useState(false)
   const [jobFormOpen, setJobFormOpen] = useState(false)
   const [jobForm, setJobForm] = useState<JobFormState>(newJobForm())
+  const [jobsPage, setJobsPage] = useState(0)
   const [configuringJob, setConfiguringJob] = useState<IngestionJobApiItem | null>(null)
   const [configLoading, setConfigLoading] = useState(false)
   const [configError, setConfigError] = useState<string | null>(null)
@@ -157,7 +174,6 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
         setJobs(jobResponse.items)
         setJobForm((current) => current.sourceId || !sourceResponse.items[0] ? current : { ...current, sourceId: sourceResponse.items[0].id })
         setState('live')
-        setJobFormOpen(true)
         return Promise.all(jobResponse.items.map(async (job) => {
           try {
             const response = await fetchIngestionRuns(job.id, controller.signal)
@@ -225,6 +241,10 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
   const sourceById = useMemo(() => new Map(sources.map((source) => [source.id, source])), [sources])
   const visibleSources = sources
   const visibleJobs = jobs
+  // 页码随列表收缩自动钳制到最后一页；新建任务后显式回到第一页。
+  const jobsPageCount = Math.max(1, Math.ceil(visibleJobs.length / JOBS_PAGE_SIZE))
+  const jobsCurrentPage = Math.min(jobsPage, jobsPageCount - 1)
+  const pagedJobs = visibleJobs.slice(jobsCurrentPage * JOBS_PAGE_SIZE, (jobsCurrentPage + 1) * JOBS_PAGE_SIZE)
 
   async function runJob(job: IngestionJobApiItem) {
     if (state !== 'live') {
@@ -287,6 +307,8 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
   }
 
   function openSourceCheck(source: SourceApiItem) {
+    setSourceFormOpen(false)
+    setJobFormOpen(false)
     setConfiguringJob(null)
     setDetailsJob(null)
     setCheckingSource(source)
@@ -381,6 +403,7 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
       setJobs((current) => [job, ...current])
       setJobForm(newJobForm(jobForm.sourceId))
       setJobFormOpen(false)
+      setJobsPage(0)
       onNotice(`采集任务已创建：${job.name}`)
     })
   }
@@ -390,6 +413,8 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
       onUnavailable('任务配置')
       return
     }
+    setSourceFormOpen(false)
+    setJobFormOpen(false)
     setCheckingSource(null)
     setDetailsJob(null)
     setConfiguringJob(job)
@@ -438,6 +463,8 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
   }
 
   function openRunDetails(job: IngestionJobApiItem) {
+    setSourceFormOpen(false)
+    setJobFormOpen(false)
     setCheckingSource(null)
     setConfiguringJob(null)
     setDetailsError(null)
@@ -459,15 +486,12 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
             <Cable size={21} />
             <div><h2>把院内系统接入到可治理的数据链路</h2><p>先登记来源，再配置任务；运行、异常和重试都回到同一条责任链。</p></div>
           </div>
-          <button className={styles.tableButton} onClick={() => state === 'live' ? setSourceFormOpen((open) => !open) : onUnavailable('接入向导')}><Plus size={15} />{sourceFormOpen ? '收起表单' : '新增数据源'}</button>
+          <button className={styles.primaryButton} onClick={() => {
+            if (state !== 'live') { onUnavailable('接入向导'); return }
+            setJobFormOpen(false)
+            setSourceFormOpen(true)
+          }}><Plus size={14} />新增数据源</button>
         </section>
-
-        {sourceFormOpen ? <form className={styles.sourceForm} onSubmit={(event) => void submitSource(event)}>
-          <div className={styles.formField}><label htmlFor="source-name">来源名称</label><input id="source-name" required value={sourceForm.name} onChange={(event) => setSourceForm((current) => ({ ...current, name: event.target.value }))} placeholder="例如：检验前置机" /></div>
-          <div className={styles.formField}><label htmlFor="source-type">系统类型</label><select id="source-type" value={sourceForm.systemType} onChange={(event) => setSourceForm((current) => ({ ...current, systemType: event.target.value }))}><option value="LIS">LIS</option><option value="EMR">EMR</option><option value="HIS">HIS</option><option value="PACS">PACS</option></select></div>
-          <div className={styles.formField}><label htmlFor="source-protocol">接入协议</label><select id="source-protocol" value={sourceForm.protocol} onChange={(event) => setSourceForm((current) => ({ ...current, protocol: event.target.value }))}><option value="JDBC">JDBC</option><option value="HTTP">HTTP</option><option value="FHIR">FHIR</option><option value="SFTP">SFTP</option></select></div>
-          <div className={styles.formActions}><span>提交后会进入“待检查”，不会立即读取院内数据。</span><button className={styles.tableButton} type="submit" disabled={creatingSource}>{creatingSource ? '登记中…' : '登记来源'}</button></div>
-        </form> : null}
 
         <div className={styles.twoColumns}>
           <section className={styles.panel}>
@@ -498,17 +522,10 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
             if (state !== 'live') { onUnavailable('新建采集任务'); return }
             if (sources.length === 0) { onNotice('请先登记至少一个数据源'); return }
             setJobForm((current) => current.sourceId ? current : newJobForm(sources[0].id))
-            setJobFormOpen((open) => !open)
-          }}><Plus size={14} />{jobFormOpen ? '收起' : '新建采集任务'}</button></div></div>
-          {jobFormOpen ? <form className={styles.jobForm} onSubmit={(event) => void submitJob(event)}>
-            <div className={styles.formField}><label htmlFor="job-source">数据源</label><select id="job-source" required value={jobForm.sourceId} onChange={(event) => setJobForm((current) => ({ ...current, sourceId: event.target.value }))}>{sources.map((source) => <option value={source.id} key={source.id}>{source.name} · {source.systemType}</option>)}</select></div>
-            <div className={styles.formField}><label htmlFor="job-name">任务名称</label><input id="job-name" required value={jobForm.name} onChange={(event) => setJobForm((current) => ({ ...current, name: event.target.value }))} placeholder="例如：LIS 检验结果批量同步" /></div>
-            <div className={styles.formField}><label htmlFor="job-mode">运行模式</label><select id="job-mode" value={jobForm.mode} onChange={(event) => setJobForm((current) => ({ ...current, mode: event.target.value, configText: JSON.stringify(configForTemplate(current.templateKey, event.target.value, workflowTemplates), null, 2) }))}><option value="BATCH">批量同步</option><option value="CDC">增量变更</option></select></div>
-            <div className={styles.formField}><label htmlFor="job-template">配置模板</label><select id="job-template" value={jobForm.templateKey} onChange={(event) => selectJobTemplate(event.target.value)}>{offersDemoTemplate() ? <option value={DEFAULT_TEMPLATE_KEY}>FakeSource → Console（演示）</option> : null}{workflowTemplates.map((template) => <option value={template.key} key={template.key}>{template.displayName} · {template.systemType}</option>)}<option value={LIVE_TEMPLATE_KEY}>自定义 JSON</option></select></div>
-            <div className={`${styles.formField} ${styles.formFieldWide}`}><details className={styles.configDetails} open><summary>采集配置 JSON <span>默认展开 · 可编辑</span></summary><label htmlFor="job-config">配置内容</label><textarea id="job-config" className={styles.codeInput} value={jobForm.configText} onChange={(event) => setJobForm((current) => ({ ...current, configText: event.target.value }))} spellCheck={false} /></details></div>
-            <div className={styles.formActions}><span>{offersDemoTemplate() ? '仅保存结构配置；密码、密钥请使用后续凭据引用，不写入任务 JSON。' : workflowTemplates.length > 0 ? '临床模板来自控制面目录；请替换端点和 credentialRef 后再保存，密码、密钥不会写入任务 JSON。' : '真实模式请填写院内连接器 JSON；密码、密钥请使用凭据引用，不写入任务 JSON。'}</span><button className={styles.primaryButton} type="submit" disabled={creatingJob}>{creatingJob ? '创建中…' : '创建并保存配置'}</button></div>
-          </form> : null}
-          <div className={styles.tableScroll}><table className={styles.table}><thead><tr><th>任务</th><th>来源</th><th>模式</th><th>执行通道</th><th>最近运行</th><th>操作</th></tr></thead><tbody>{visibleJobs.map((job) => {
+            setSourceFormOpen(false)
+            setJobFormOpen(true)
+          }}><Plus size={14} />新建采集任务</button></div></div>
+          <div className={styles.tableScroll}><table className={styles.table}><thead><tr><th>任务</th><th>来源</th><th>模式</th><th>执行通道</th><th>最近运行</th><th>操作</th></tr></thead><tbody>{pagedJobs.map((job) => {
             const run = latestRuns[job.id]
             const latestStatus = run?.status ?? job.latestRunStatus
             const status = latestStatus ? runStatusView(latestStatus) : jobLifecycleStatusLabel(job.status)
@@ -519,8 +536,54 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
             const canStart = job.status !== 'PAUSED' && job.status !== 'ARCHIVED'
             return <tr key={job.id}><td><strong>{job.name}</strong><small>{job.id.slice(0, 8)}</small><span className={`${styles.configPill} ${job.configured ? styles.configPillReady : styles.configPillMissing}`}>{job.configured ? `${job.templateKey ?? '自定义'} v${job.templateVersion ?? 1}` : '未配置'}</span><span className={`${styles.lifecyclePill} ${lifecycleClass(lifecycle.tone)}`}>{lifecycle.label}</span></td><td>{sourceById.get(job.sourceId)?.name ?? '来源未登记'}</td><td>{job.mode === 'CDC' ? '增量变更' : '批量同步'}</td><td>{executorLabel(job.executor)}</td><td><StatusTag tone={status.tone}>{status.label}</StatusTag>{run ? <small className={styles.statusDetail}>{businessMessage(run.message)}</small> : null}</td><td><div className={styles.tableActions}>{job.status === 'ACTIVE' ? <button className={styles.tableButton} disabled={runningJob === job.id} onClick={() => void changeJobStatus(job, 'PAUSED')}><Pause size={13} />暂停</button> : job.status === 'PAUSED' || job.status === 'DRAFT' ? <button className={styles.tableButton} disabled={runningJob === job.id} onClick={() => void changeJobStatus(job, 'ACTIVE')}><Play size={13} />启用</button> : null}{job.status !== 'ARCHIVED' ? <button className={styles.tableButton} disabled={runningJob === job.id || activeRun} onClick={() => void changeJobStatus(job, 'ARCHIVED')}><Archive size={13} />归档</button> : null}<button className={styles.tableButton} onClick={() => void openJobConfig(job)}><Settings2 size={13} />配置</button><button className={styles.tableButton} onClick={() => openRunDetails(job)}><Clock3 size={13} />详情</button><button className={styles.tableButton} disabled={runningJob === job.id || activeRun || !canStart} onClick={() => job.configured ? void runJob(job) : void openJobConfig(job)}><Play size={13} />{runningJob === job.id ? '处理中…' : activeRun ? '已有运行' : !canStart ? '已暂停' : job.configured ? '启动' : '配置后运行'}</button>{canSync ? <button className={styles.tableButton} disabled={runningJob === job.id} onClick={() => void syncRun(job, run)}><RefreshCw size={13} />同步</button> : null}{canRetry ? <button className={styles.tableButton} disabled={runningJob === job.id || !canStart || activeRun} onClick={() => void retryRun(job, run)}><RotateCcw size={13} />重试</button> : null}</div></td></tr>
           })}{visibleJobs.length === 0 ? <tr><td colSpan={6} className={styles.emptyState}>暂无采集任务，先登记数据源再新建任务。</td></tr> : null}</tbody></table></div>
+          {jobsPageCount > 1 ? <nav className={styles.tablePager} aria-label="采集任务分页">
+            <span className={styles.pagerInfo}>第 {jobsCurrentPage + 1} / {jobsPageCount} 页 · 每页 {JOBS_PAGE_SIZE} 条</span>
+            <div className={styles.pagerControls}>
+              <button className={styles.pagerButton} disabled={jobsCurrentPage === 0} onClick={() => setJobsPage(jobsCurrentPage - 1)}><ChevronLeft size={13} />上一页</button>
+              {pageWindow(jobsCurrentPage, jobsPageCount).map((page, index) => page === '…' ? <span key={`ellipsis-${index}`} className={styles.pagerEllipsis}>…</span> : page === jobsCurrentPage
+                ? <span key={page} className={`${styles.pagerButton} ${styles.pagerButtonCurrent}`} aria-current="page">{page + 1}</span>
+                : <button key={page} className={styles.pagerButton} onClick={() => setJobsPage(page)}>{page + 1}</button>)}
+              <button className={styles.pagerButton} disabled={jobsCurrentPage === jobsPageCount - 1} onClick={() => setJobsPage(jobsCurrentPage + 1)}>下一页<ChevronRight size={13} /></button>
+            </div>
+          </nav> : null}
         </section>
       </div>
+
+            {sourceFormOpen ? <Drawer
+        titleId="source-form-title"
+        eyebrow="数据源登记"
+        title="新增数据源"
+        closeLabel="关闭数据源登记"
+        onClose={() => setSourceFormOpen(false)}
+        footer={<><button className={styles.secondaryButton} type="button" onClick={() => setSourceFormOpen(false)}>取消</button><button className={styles.primaryButton} type="submit" form="source-form" disabled={creatingSource}><Plus size={14} />{creatingSource ? '登记中…' : '登记来源'}</button></>}
+      >
+        <form id="source-form" className={styles.drawerForm} onSubmit={(event) => void submitSource(event)}>
+          <div className={styles.drawerNotice}><Cable size={16} /><span>提交后会进入“待检查”，不会立即读取院内数据；登记完成后可在数据源列表发起连接检查。</span></div>
+          <div className={styles.formField}><label htmlFor="source-name">来源名称</label><input id="source-name" required value={sourceForm.name} onChange={(event) => setSourceForm((current) => ({ ...current, name: event.target.value }))} placeholder="例如：检验前置机" /></div>
+          <div className={styles.formField}><label htmlFor="source-type">系统类型</label><select id="source-type" value={sourceForm.systemType} onChange={(event) => setSourceForm((current) => ({ ...current, systemType: event.target.value }))}><option value="LIS">LIS</option><option value="EMR">EMR</option><option value="HIS">HIS</option><option value="PACS">PACS</option></select></div>
+          <div className={styles.formField}><label htmlFor="source-protocol">接入协议</label><select id="source-protocol" value={sourceForm.protocol} onChange={(event) => setSourceForm((current) => ({ ...current, protocol: event.target.value }))}><option value="JDBC">JDBC</option><option value="HTTP">HTTP</option><option value="FHIR">FHIR</option><option value="SFTP">SFTP</option></select></div>
+        </form>
+      </Drawer> : null}
+
+            {jobFormOpen ? <Drawer
+        titleId="job-form-title"
+        eyebrow="采集任务创建"
+        title="新建采集任务"
+        closeLabel="关闭采集任务创建"
+        onClose={() => setJobFormOpen(false)}
+        footer={<><button className={styles.secondaryButton} type="button" onClick={() => setJobFormOpen(false)}>取消</button><button className={styles.primaryButton} type="submit" form="job-form" disabled={creatingJob}><Plus size={14} />{creatingJob ? '创建中…' : '创建并保存配置'}</button></>}
+      >
+        <form id="job-form" className={styles.drawerForm} onSubmit={(event) => void submitJob(event)}>
+          <div className={styles.drawerNotice}><FileCog size={16} /><span>{offersDemoTemplate() ? '仅保存结构配置；密码、密钥请使用后续凭据引用，不写入任务 JSON。' : workflowTemplates.length > 0 ? '临床模板来自控制面目录；请替换端点和 credentialRef 后再保存，密码、密钥不会写入任务 JSON。' : '真实模式请填写院内连接器 JSON；密码、密钥请使用凭据引用，不写入任务 JSON。'}</span></div>
+          <div className={styles.drawerFormGrid}>
+            <div className={styles.formField}><label htmlFor="job-source">数据源</label><select id="job-source" required value={jobForm.sourceId} onChange={(event) => setJobForm((current) => ({ ...current, sourceId: event.target.value }))}>{sources.map((source) => <option value={source.id} key={source.id}>{source.name} · {source.systemType}</option>)}</select></div>
+            <div className={styles.formField}><label htmlFor="job-name">任务名称</label><input id="job-name" required value={jobForm.name} onChange={(event) => setJobForm((current) => ({ ...current, name: event.target.value }))} placeholder="例如：LIS 检验结果批量同步" /></div>
+            <div className={styles.formField}><label htmlFor="job-mode">运行模式</label><select id="job-mode" value={jobForm.mode} onChange={(event) => setJobForm((current) => ({ ...current, mode: event.target.value, configText: JSON.stringify(configForTemplate(current.templateKey, event.target.value, workflowTemplates), null, 2) }))}><option value="BATCH">批量同步</option><option value="CDC">增量变更</option></select></div>
+            <div className={styles.formField}><label htmlFor="job-template">配置模板</label><select id="job-template" value={jobForm.templateKey} onChange={(event) => selectJobTemplate(event.target.value)}>{offersDemoTemplate() ? <option value={DEFAULT_TEMPLATE_KEY}>FakeSource → Console（演示）</option> : null}{workflowTemplates.map((template) => <option value={template.key} key={template.key}>{template.displayName} · {template.systemType}</option>)}<option value={LIVE_TEMPLATE_KEY}>自定义 JSON</option></select></div>
+          </div>
+          <details className={styles.configDetails} open><summary>采集配置 JSON <span>默认展开 · 可编辑</span></summary><label htmlFor="job-config">配置内容</label><textarea id="job-config" className={`${styles.codeInput} ${styles.codeInputLarge}`} value={jobForm.configText} onChange={(event) => setJobForm((current) => ({ ...current, configText: event.target.value }))} spellCheck={false} /></details>
+        </form>
+      </Drawer> : null}
 
             {checkingSource ? <Drawer
         titleId="source-check-title"

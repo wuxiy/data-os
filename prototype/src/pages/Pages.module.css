@@ -93,19 +93,6 @@
   border-radius: var(--radius-panel);
 }
 
-.sourceForm {
-  display: grid;
-  grid-template-columns: minmax(220px, 1.6fr) repeat(2, minmax(150px, 0.8fr)) minmax(250px, 1.4fr);
-  gap: 12px;
-  align-items: end;
-  margin-top: 12px;
-  padding: 15px 17px;
-  background: var(--paper);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-panel);
-  box-shadow: var(--shadow-card);
-}
-
 .formField {
   display: grid;
   gap: 6px;
@@ -137,20 +124,6 @@
   box-shadow: 0 0 0 3px var(--jade-soft);
   outline: 2px solid var(--focus-ring);
   outline-offset: 1px;
-}
-
-.formActions {
-  display: flex;
-  min-height: 34px;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 12px;
-}
-
-.formActions span {
-  color: var(--muted);
-  font-size: 11px;
-  line-height: 1.4;
 }
 
 .panelHeaderActions {
@@ -211,20 +184,6 @@
   opacity: 0.5;
 }
 
-.jobForm {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(150px, 1fr));
-  gap: 12px;
-  align-items: end;
-  padding: 15px 17px 17px;
-  background: var(--surface-raised);
-  border-bottom: 1px solid var(--line);
-}
-
-.formFieldWide {
-  grid-column: 1 / -1;
-}
-
 .codeInput {
   width: 100%;
   min-height: 168px;
@@ -253,8 +212,12 @@
   background: var(--surface-sunken);
 }
 
+/* 抽屉内大配置框：按内容自适应增高（field-sizing），超限后在框内滚动，
+   不支持 field-sizing 的浏览器退回固定最小高，无需手动拉开。 */
 .codeInputLarge {
   min-height: 390px;
+  max-height: 56vh;
+  field-sizing: content;
 }
 
 .configDetails {
@@ -440,6 +403,22 @@
   grid-template-columns: minmax(0, 1fr) 120px;
   gap: 12px;
   margin-bottom: 16px;
+}
+
+/* 抽屉内表单：字段纵向堆叠，间距由网格统一控制。 */
+.drawerForm {
+  display: grid;
+  gap: 12px;
+}
+
+.drawerForm .drawerNotice {
+  margin-bottom: 2px;
+}
+
+.drawerFormGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
 }
 
 .drawerHint {
@@ -929,10 +908,75 @@
   white-space: nowrap;
 }
 
+.tablePager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 12px;
+}
+
+.pagerInfo {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.pagerControls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pagerButton {
+  display: inline-flex;
+  min-width: 26px;
+  min-height: 26px;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 0 8px;
+  color: var(--ink);
+  background: var(--surface-raised);
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  transition: background 120ms var(--ease-out), border-color 120ms var(--ease-out);
+}
+
+.pagerButton:hover:not(:disabled) {
+  background: var(--surface-hover);
+  border-color: var(--jade);
+}
+
+.pagerButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.pagerButton:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.pagerButtonCurrent {
+  color: var(--paper);
+  background: var(--jade-dark);
+  border-color: var(--jade-dark);
+  cursor: default;
+}
+
+.pagerEllipsis {
+  padding: 0 2px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
 @media (max-width: 767px) {
-  .attention > .tableButton {
-    width: auto;
-    max-width: 100%;
+  .drawerFormGrid {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -1850,24 +1894,12 @@
     flex: 0 0 auto;
   }
 
-  .sourceForm,
-  .jobForm {
-    grid-template-columns: 1fr;
-  }
-
-  .sourceForm,
-  .jobForm,
   .drawerBody {
     min-width: 0;
   }
 
-  .formActions {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .formActions > span {
-    max-width: 100%;
+  .drawerFormGrid {
+    grid-template-columns: 1fr;
   }
 
   .tableActions {
