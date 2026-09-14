@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { OidcLoginGate } from './components/auth/OidcLoginGate'
 import { ResponsibilityDrawer } from './components/governance/ResponsibilityChain'
 import { AppShell } from './components/layout/AppShell'
+import { CommandPalette, type PaletteCommand } from './components/ui/CommandPalette'
 import { Toast } from './components/ui/Primitives'
 import { clearOidcSession, hasTechnicalAccess, initializeOidc, logoutOidc, oidcIsConfigured, type AuthSnapshot } from './data/oidc'
 import { routePaths } from './data/routes'
@@ -26,9 +27,25 @@ function routeFromPath(pathname: string): RouteKey {
   return exact?.[0] ?? 'management'
 }
 
+/** 命令面板可直达的页面（与左侧导航同源，规划中项不收录）。 */
+const paletteCommands: PaletteCommand[] = [
+  { label: '首页 · 管理驾驶舱', route: 'management' },
+  { label: '数据接入', route: 'ingestion' },
+  { label: '数据资产', route: 'assets' },
+  { label: '数据治理 · 驾驶舱', route: 'governance' },
+  { label: '数据治理 · 质量闭环', route: 'quality', hint: '/governance/quality' },
+  { label: '主索引与主数据', route: 'mpi' },
+  { label: '数据服务', route: 'dataServices' },
+  { label: '分析看板', route: 'analytics' },
+  { label: 'AI Data', route: 'aiData' },
+  { label: '智能问数', route: 'assistant' },
+  { label: '平台运维', route: 'operations' },
+]
+
 export function App() {
   const [route, setRoute] = useState<RouteKey>(() => routeFromPath(window.location.pathname))
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [paletteOpen, setPaletteOpen] = useState(false)
   const [notice, setNotice] = useState('')
   const [auth, setAuth] = useState<AuthSnapshot>(() => oidcIsConfigured() ? { status: 'loading' } : { status: 'disabled' })
 
@@ -68,6 +85,18 @@ export function App() {
     const timer = window.setTimeout(() => setNotice(''), 3200)
     return () => window.clearTimeout(timer)
   }, [notice])
+
+  // 全局命令面板（⌘K / Ctrl+K）：输入框聚焦时不抢占（面板自身另有 Esc 处理）。
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault()
+        setPaletteOpen((open) => !open)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
 
   if (auth.status !== 'disabled' && auth.status !== 'authenticated') {
     return <OidcLoginGate snapshot={auth} />
@@ -141,6 +170,12 @@ export function App() {
       technicalAccess={technicalAccess}>
       {page}
       <ResponsibilityDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} onAction={setNotice} />
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        onNavigate={navigate}
+        commands={paletteCommands.filter((command) => command.route !== 'operations' || technicalAccess)}
+      />
       {notice ? <Toast message={notice} onClose={() => setNotice('')} /> : null}
     </AppShell>
   )
