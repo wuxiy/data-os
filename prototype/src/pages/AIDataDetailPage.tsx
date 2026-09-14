@@ -1,6 +1,8 @@
+import { CircleAlert } from 'lucide-react'
 import { useState } from 'react'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Button, StatusTag } from '../components/ui/Primitives'
+import { Drawer } from '../components/ui/Drawer'
 import {
   decideCertification,
   fetchAIDataProduct,
@@ -19,6 +21,8 @@ import {
 import { useAction } from '../hooks/useAction'
 import { useKeyedResource } from '../hooks/useKeyedResource'
 import styles from './IntegrationPages.module.css'
+// 抽屉表单体系与数据接入/数据服务页同源，保持一处维护。
+import formStyles from './Pages.module.css'
 
 interface Props {
   productId: string
@@ -34,6 +38,8 @@ export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, 
   const [detail, setDetail] = useState<AIDataProductDetail | null>(null)
   const [certifications, setCertifications] = useState<AICertificationRequest[]>([])
   const [feedback, setFeedback] = useState<AIEvaluationFeedbackItem[]>([])
+  const [feedbackOpen, setFeedbackOpen] = useState(false)
+  const [feedbackQuestion, setFeedbackQuestion] = useState('')
   // 键控加载（按产品）；认证历史与反馈是次级资源，失败不塌详情。
   const state = useKeyedResource({
     key: productId,
@@ -55,7 +61,7 @@ export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, 
   })
 
   // 动作互斥与错误归置统一（认证提交/反馈处置/反馈提交/审批）。
-  const { run: runAction } = useAction((message) => onNotice(message))
+  const { pendingKey, run: runAction } = useAction((message) => onNotice(message))
 
   function handleSubmitCertification() {
     void runAction('submit-certification', '提交失败', async () => {
@@ -74,13 +80,20 @@ export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, 
   }
 
   function handleSubmitFeedback() {
+    const question = feedbackQuestion.trim()
+    if (!question) {
+      onNotice('请先填写失败样本的问题描述')
+      return
+    }
     void runAction('submit-feedback', '提交失败', async () => {
       await submitFeedback(productId, {
-        question: window.prompt('失败样本问题（评测明细中的问题）') ?? '',
+        question,
         metric: 'faithfulness',
         feedbackType: 'CHUNK_QUALITY',
       })
       onNotice('反馈已提交（进入 Learning Plane 队列）')
+      setFeedbackOpen(false)
+      setFeedbackQuestion('')
       onChanged?.()
     })
   }
@@ -131,7 +144,7 @@ export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, 
             <Button onClick={onDeprecate}>弃用</Button>
           ) : null}
           <Button onClick={onBuild}>构建 / 评估</Button>
-          <Button onClick={() => void handleSubmitFeedback()}>反馈失败样本</Button>
+          <Button onClick={() => setFeedbackOpen(true)}>反馈失败样本</Button>
         </div>
       </div>
 
@@ -317,6 +330,20 @@ export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, 
           <span>构建/评估委托 AI Ready 引擎（G9）执行：结论回写当前版本的就绪度列；引擎未配置时 build 返回明确的 503 而不伪造成功。</span>
         </section>
       </div>
+
+      {feedbackOpen ? <Drawer
+        titleId="ai-feedback-title"
+        eyebrow="评测反馈"
+        title="反馈失败样本"
+        closeLabel="关闭失败样本反馈"
+        onClose={() => setFeedbackOpen(false)}
+        footer={<><button className={formStyles.secondaryButton} type="button" onClick={() => setFeedbackOpen(false)}>取消</button><button className={formStyles.primaryButton} type="submit" form="ai-feedback-form" disabled={pendingKey === 'submit-feedback'}>{pendingKey === 'submit-feedback' ? '提交中…' : '提交反馈'}</button></>}
+      >
+        <form id="ai-feedback-form" className={formStyles.drawerForm} onSubmit={(event) => { event.preventDefault(); handleSubmitFeedback() }}>
+          <div className={formStyles.drawerNotice}><CircleAlert size={16} /><span>反馈进入 Learning Plane 队列，由人工决定吸收进下一版本；指标固定为忠实度（faithfulness），类型为检索片段质量。</span></div>
+          <div className={formStyles.formField}><label htmlFor="ai-feedback-question">失败样本问题（评测明细中的问题）</label><textarea id="ai-feedback-question" className={formStyles.codeInput} rows={6} value={feedbackQuestion} onChange={(event) => setFeedbackQuestion(event.target.value)} placeholder="粘贴评测明细中回答错误的问题原文" spellCheck={false} /></div>
+        </form>
+      </Drawer> : null}
     </>
   )
 }

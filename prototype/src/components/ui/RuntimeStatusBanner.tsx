@@ -25,8 +25,9 @@ export function RuntimeStatusBanner() {
   }
 
   const demo = isDemoRuntime(status?.mode)
-  const warning = status?.warnings[0]
-  const operationalState = status?.operational.state ?? 'UNKNOWN'
+  // 控制面返回部分字段时不得让整站白屏：逐级可选链。
+  const warning = status?.warnings?.[0]
+  const operationalState = status?.operational?.state ?? 'UNKNOWN'
   const operationalLabel = operationalState === 'READY'
     ? '核心链路就绪'
     : operationalState === 'DEGRADED' ? '核心链路降级' : '核心链路未知'

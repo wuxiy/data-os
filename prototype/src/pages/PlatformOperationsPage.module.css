@@ -18,8 +18,7 @@
 
 .heroCopy { max-width: 740px; }
 
-.eyebrow,
-.sectionKicker {
+.eyebrow {
   display: flex;
   align-items: center;
   gap: 7px;
@@ -149,7 +148,6 @@
 
 .sectionHeader h2 { margin: 5px 0 0; font-family: var(--font-title); font-size: 21px; font-weight: 600; }
 .sectionHeader > span { color: var(--muted); font-size: 11px; }
-.sectionKicker { color: var(--jade); font-size: 10px; }
 
 .serviceGrid {
   display: grid;

@@ -1839,6 +1839,58 @@
   }
 }
 
+/* MPI 真实模式指标带（MpiReviewLive）：五项口径，hairline 分隔 */
+.metricStrip {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  overflow: hidden;
+  background: var(--paper);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-card);
+}
+
+.metricCard {
+  display: grid;
+  min-height: 84px;
+  align-content: center;
+  gap: 5px;
+  padding: 14px 18px;
+  border-right: 1px solid var(--line);
+}
+
+.metricCard:last-child {
+  border-right: 0;
+}
+
+.metricCard strong {
+  color: var(--jade-dark);
+  font-family: var(--font-number);
+  font-size: 21px;
+}
+
+.metricCard span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.metricCardAlert strong {
+  color: var(--amber-dark, #a15c16);
+}
+
+@media (max-width: 1000px) {
+  .metricStrip {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .metricCard:nth-child(3n) {
+    border-right: 0;
+  }
+
+  .metricCard:not(:nth-last-child(-n + 2)) {
+    border-bottom: 1px solid var(--line);
+  }
+}
+
 @media (max-width: 980px) {
   .workspace {
     display: block;

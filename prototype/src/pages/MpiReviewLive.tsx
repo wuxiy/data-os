@@ -121,7 +121,7 @@ export function MpiReviewLive({ onNotice }: { onNotice: (message: string) => voi
           <div className={styles.metricCard}><strong>{metrics.identitiesLoaded}</strong><span>已装载源身份</span></div>
           <div className={styles.metricCard}><strong>{metrics.goldenPersons}</strong><span>黄金人</span></div>
           <div className={styles.metricCard}><strong>{metrics.autoMatches}</strong><span>自动匹配</span></div>
-          <div className={styles.metricCard}><strong className={metrics.reviewPending > 0 ? undefined : undefined}>{metrics.reviewPending}</strong><span>待复核</span></div>
+          <div className={`${styles.metricCard} ${metrics.reviewPending > 0 ? styles.metricCardAlert : ''}`}><strong>{metrics.reviewPending}</strong><span>待复核</span></div>
           <div className={styles.metricCard}><strong>{metrics.reviewResolved}</strong><span>已裁决</span></div>
         </div>
       ) : null}
@@ -139,7 +139,6 @@ export function MpiReviewLive({ onNotice }: { onNotice: (message: string) => voi
                   <button className={selected?.taskId === candidate.taskId ? styles.selected : ''} onClick={() => { setSelectedTaskId(candidate.taskId); setConfirmed(false) }}>
                     <span className={styles.queueTop}>
                       <span className={styles.queueId}>{mpiRuleLabel[candidate.ruleId] ?? candidate.ruleId}</span>
-                      <StatusTag tone="warning">{candidate.ruleId}</StatusTag>
                     </span>
                     <span className={styles.queueTitle}>{candidate.identityA.name} ↔ {candidate.identityB.name}</span>
                     <span className={styles.queueMeta}>{candidate.identityA.institution} · {candidate.identityA.cardNo || '无卡号'}</span>

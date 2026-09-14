@@ -92,11 +92,22 @@ function formatMetricValue(value: number) {
   return Number.isInteger(value) ? String(value) : value.toFixed(1)
 }
 
+/** 高风险系统排行：按数据集聚合真实问题计数（逾期优先），不展示无来源的占位值。 */
 function riskRankingFromIssues(issues: GovernanceApiIssue[]) {
-  return issues.slice(0, 4).map((issue) => ({
-    system: issue.datasetId,
-    owner: issue.ownerDepartment,
-    value: issue.status === 'OVERDUE' ? '逾期' : '1',
-  }))
+  const bySystem = new Map<string, { system: string; owner: string; count: number; overdue: number }>()
+  for (const issue of issues) {
+    const entry = bySystem.get(issue.datasetId) ?? { system: issue.datasetId, owner: issue.ownerDepartment, count: 0, overdue: 0 }
+    entry.count += 1
+    if (issue.status === 'OVERDUE') entry.overdue += 1
+    bySystem.set(issue.datasetId, entry)
+  }
+  return Array.from(bySystem.values())
+    .sort((a, b) => (b.overdue - a.overdue) || (b.count - a.count))
+    .slice(0, 4)
+    .map(({ system, owner, count, overdue }) => ({
+      system,
+      owner,
+      value: overdue > 0 ? `${count} 项 · ${overdue} 逾期` : `${count} 项`,
+    }))
 }
 

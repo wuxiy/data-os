@@ -55,8 +55,10 @@ export function PlatformOperationsPage({ canAccess }: { canAccess: boolean }) {
 
   if (!canAccess || state === 'forbidden') return <AccessDenied />
 
+  const firstProbePending = !payload && (state === 'idle' || state === 'loading')
   const upCount = payload?.services.filter(service => service.status === 'UP').length ?? 0
   const configuredCount = payload?.services.filter(service => service.status !== 'NOT_CONFIGURED').length ?? 0
+  const totalComponents = payload?.services.length ?? placeholderServices.length
   const checkedAt = payload?.checkedAt ? formatTime(payload.checkedAt) : '尚未检查'
   const operationalLabel = payload?.operational.state === 'READY'
     ? '核心链路就绪'
@@ -92,19 +94,19 @@ export function PlatformOperationsPage({ canAccess }: { canAccess: boolean }) {
       ) : null}
 
       <section className={styles.summaryStrip} aria-label="平台组件摘要">
-        <div><span>已配置组件</span><strong>{configuredCount}<small> / 3</small></strong></div>
-        <div><span>当前健康</span><strong className={upCount === configuredCount && configuredCount > 0 ? styles.healthyNumber : styles.warningNumber}>{upCount}</strong></div>
+        <div><span>已配置组件</span><strong>{payload ? configuredCount : '—'}<small> / {totalComponents}</small></strong></div>
+        <div><span>当前健康</span><strong className={upCount === configuredCount && configuredCount > 0 ? styles.healthyNumber : styles.warningNumber}>{payload ? upCount : '—'}</strong></div>
         <div><span>最后检查</span><strong className={styles.timeValue}>{checkedAt}</strong></div>
         <div><span>访问角色</span><strong className={styles.roleValue}>技术人员</strong></div>
       </section>
 
       <section className={styles.sectionHeader}>
-        <div><div className={styles.sectionKicker}>SERVICE MATRIX</div><h2>组件运行态</h2></div>
+        <div><h2>组件运行态</h2></div>
         <span>每 30 秒自动刷新 · 状态由控制面服务端探针汇总</span>
       </section>
 
       <section className={styles.serviceGrid} aria-label="平台组件状态">
-        {(payload?.services ?? placeholderServices).map(service => <ServiceCard key={service.key} service={service} />)}
+        {(payload?.services ?? placeholderServices).map(service => <ServiceCard key={service.key} service={service} pending={firstProbePending} />)}
       </section>
 
       <section className={styles.bottomGrid}>
@@ -127,12 +129,13 @@ export function PlatformOperationsPage({ canAccess }: { canAccess: boolean }) {
   )
 }
 
-function ServiceCard({ service }: { service: PlatformServiceApiItem }) {
+function ServiceCard({ service, pending = false }: { service: PlatformServiceApiItem; pending?: boolean }) {
   const Icon = iconByService[service.key]
   const isUp = service.status === 'UP'
   const isConfigured = service.status !== 'NOT_CONFIGURED'
   const tone = isUp ? 'healthy' : isConfigured ? 'warning' : 'neutral'
-  const statusLabel = isUp ? '运行正常' : isConfigured ? '检查失败' : '未配置'
+  // 探针未返回前是「检查中」，不得把加载态说成「未配置」。
+  const statusLabel = pending ? '检查中' : isUp ? '运行正常' : isConfigured ? '检查失败' : '未配置'
   return (
     <article className={`${styles.serviceCard} ${isUp ? styles.serviceCardUp : ''}`}>
       <div className={styles.serviceTopline}>
@@ -157,7 +160,6 @@ function AccessDenied() {
   return (
     <div className={styles.deniedPage}>
       <div className={styles.deniedIcon}><LockKeyhole size={24} /></div>
-      <div className={styles.eyebrow}>TECHNICAL DOMAIN</div>
       <h1>此区域仅面向技术人员</h1>
       <p>平台组件入口不对业务与甲方账号开放。请使用具备 <code>data-engineer</code>、<code>platform-operator</code> 或 <code>platform-admin</code> 角色的账号登录。</p>
     </div>
