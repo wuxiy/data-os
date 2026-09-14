@@ -33,8 +33,8 @@ const nodeIcons = {
 
 /**
  * 数据资产目录（真实链路）：资产列表/详情/血缘全部来自控制面血缘 BFF
- * （OpenMetadata 摄取的 doris-dataos 资产）。BFF 未配置或不可达时明确
- * 显示「待接入」，不回退静态样例。
+ * （元数据中心摄取的 doris-dataos 资产，引擎名不进业务文案）。BFF 未配置
+ * 或不可达时明确显示「待接入」，不回退静态样例。
  */
 export function AssetCatalogLive({ onNotice }: { onNotice: (message: string) => void }) {
   const [catalog, setCatalog] = useState<LineageAssetCatalog | null>(null)
@@ -121,7 +121,7 @@ export function AssetCatalogLive({ onNotice }: { onNotice: (message: string) => 
         <PageHeader title="数据资产" eyebrow="资产目录与影响分析" subtitle="从业务定义进入字段、质量、血缘和消费证据，不暴露底层元数据控制台" compact />
         <section className={styles.technicalNotice} role="status">
           <StatusTag tone="warning">{catalogState === 'loading' ? '读取中' : '待接入'}</StatusTag>
-          <span>{catalogState === 'loading' ? '正在从血缘服务读取资产目录…' : '血缘服务暂不可用：资产目录需要控制面已配置 OpenMetadata（data-os.openmetadata.base-url）。'}</span>
+          <span>{catalogState === 'loading' ? '正在从血缘服务读取资产目录…' : '血缘服务暂不可用：资产目录需要控制面完成元数据引擎接入配置（详见平台运维）。'}</span>
         </section>
       </div>
     )
@@ -155,7 +155,7 @@ export function AssetCatalogLive({ onNotice }: { onNotice: (message: string) => 
             <Search size={15} aria-hidden="true" />
             <input value={query} onChange={(event) => { setQuery(event.target.value); setRailPage(0) }} placeholder="搜索表名或全限定名" aria-label="搜索数据资产" />
           </label>
-          <div className={styles.railLabel}>OpenMetadata 摄取资产</div>
+          <div className={styles.railLabel}>元数据摄取资产</div>
           <ul className={styles.catalogList}>
             {pagedAssets.map((asset) => (
               <li key={asset.fullyQualifiedName}>
@@ -205,7 +205,7 @@ export function AssetCatalogLive({ onNotice }: { onNotice: (message: string) => 
                   <h3>字段结构</h3>
                   <span>{detail.columns.length} 列 · 最近更新 {detail.updatedAt ? new Date(detail.updatedAt).toLocaleString('zh-CN') : '—'}</span>
                 </div>
-                <div className={styles.descriptionBlock}><p>{detail.description || '暂无业务描述：结构元数据来自 OpenMetadata 摄取，业务定义在资产治理流程中补充。'}</p></div>
+                <div className={styles.descriptionBlock}><p>{detail.description || '暂无业务描述：结构元数据由元数据中心摄取，业务定义在资产治理流程中补充。'}</p></div>
                 <div className={styles.horizontalScroll}>
                   <table className={styles.fieldTable}>
                     <thead><tr><th>物理字段</th><th>类型</th><th>说明</th></tr></thead>
@@ -249,7 +249,7 @@ export function AssetCatalogLive({ onNotice }: { onNotice: (message: string) => 
             {lineage ? (
               <section className={styles.lineageCanvas} aria-label="血缘与影响">
                 <div className={styles.lineageSummary}>
-                  <div><h3>血缘与消费</h3><span>来自 OpenMetadata：上游为数据来源，下游为产出与消费（数据模型 / 仪表盘）</span></div>
+                  <div><h3>血缘与消费</h3><span>血缘来自元数据中心：上游为数据来源，下游为产出与消费（数据模型 / 仪表盘）</span></div>
                   <StatusTag tone="healthy">{lineage.upstreams.length + lineage.downstreams.length} 个关联节点</StatusTag>
                 </div>
                 <div className={styles.lineageRow}>
@@ -299,7 +299,7 @@ export function AssetCatalogLive({ onNotice }: { onNotice: (message: string) => 
         </section>
 
         <aside className={styles.evidenceRail} aria-label="资产来源证据">
-          <div className={styles.evidenceHeader}><h2>资产证据</h2><StatusTag tone="healthy">OpenMetadata</StatusTag></div>
+          <div className={styles.evidenceHeader}><h2>资产证据</h2><StatusTag tone="healthy">元数据中心</StatusTag></div>
           <div className={styles.evidenceBody}>
             <dl className={styles.evidenceDefinition}>
               <div><dt>元数据服务</dt><dd>{catalog.service}</dd></div>

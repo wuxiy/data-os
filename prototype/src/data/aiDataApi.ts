@@ -332,6 +332,33 @@ export const productTypeLabel: Record<AIDataProductType, string> = {
 }
 
 /** 生命周期中文口径。 */
+/** 版本构建状态中文口径：后端枚举不直出业务界面。 */
+export const aiBuildStatusLabel: Record<string, string> = {
+  REGISTERED: '已登记',
+  SUCCEEDED: '构建成功',
+  FAILED: '构建失败',
+  RUNNING: '构建中',
+}
+
+/** 就绪度认证档位中文口径。 */
+export const aiCertificationLabel: Record<string, string> = {
+  BLOCKED: '未达标',
+  CANDIDATE: '候选',
+  CERTIFIED: '已认证',
+}
+
+/** 反馈类型与指标中文口径（Learning Plane）。 */
+export const aiFeedbackTypeLabel: Record<string, string> = {
+  CHUNK_QUALITY: '检索片段质量',
+  FAITHFULNESS: '忠实度',
+}
+
+export const aiMetricLabel: Record<string, string> = {
+  faithfulness: '忠实度',
+  mrr: 'MRR',
+  recall: '召回',
+}
+
 export const lifecycleLabel: Record<AIDataProductLifecycle, string> = {
   DRAFT: '草案',
   CURATED: '已加工',

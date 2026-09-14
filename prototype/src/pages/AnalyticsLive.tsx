@@ -1,8 +1,9 @@
-import { ChartNoAxesCombined, ShieldCheck } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { ChartNoAxesCombined, Search, ShieldCheck } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { embedDashboard } from '@superset-ui/embedded-sdk'
 import { PageHeader } from '../components/ui/PageHeader'
 import { StatusTag } from '../components/ui/Primitives'
+import { Pager } from '../components/ui/Pager'
 import {
   fetchEmbeddableDashboards,
   fetchGuestToken,
@@ -10,17 +11,20 @@ import {
   type EmbeddableDashboard,
 } from '../data/analyticsApi'
 import { useApiResource } from '../hooks/useApiResource'
+import { usePaged } from '../hooks/usePaged'
 import styles from './IntegrationPages.module.css'
 
 /**
- * 分析看板（真实链路）：嵌入式 Superset 仪表盘经控制面访客令牌（guest token）
- * 进入——业务人员免 Superset 登录、按仪表盘限权；嵌入 origin 是门户专用监听
- * 端口（同主机 HTTP，不暴露网关自签证书）。BFF 未配置/不可达时显示「待接入」，
- * 不回退静态样例。
+ * 分析看板（真实链路）：嵌入式分析仪表盘经控制面访客令牌（guest token）
+ * 进入——业务人员免分析平台登录、按仪表盘限权；嵌入 origin 是门户专用监听
+ * 端口（同主机 HTTP，不暴露网关自签证书）。引擎名不进业务文案
+ * （DESIGN.md「不在业务视图暴露分析引擎品牌」）；BFF 未配置/不可达时显示
+ * 「待接入」，不回退静态样例。
  */
 export function AnalyticsLive({ onNotice }: { onNotice: (message: string) => void }) {
   const [dashboards, setDashboards] = useState<EmbeddableDashboard[]>([])
   const [selectedId, setSelectedId] = useState('')
+  const [query, setQuery] = useState('')
   const catalogState = useApiResource({
     load: (signal) => fetchEmbeddableDashboards(signal),
     onData: (list) => {
@@ -32,6 +36,15 @@ export function AnalyticsLive({ onNotice }: { onNotice: (message: string) => voi
   })
 
   const selected = dashboards.find((item) => item.id === selectedId) ?? dashboards[0] ?? null
+
+  // 目录搜索与分页（与演示构建同能力，不因真实链路降级）。
+  const RAIL_PAGE_SIZE = 8
+  const visibleDashboards = useMemo(() => {
+    const keyword = query.trim().toLowerCase()
+    if (!keyword) return dashboards
+    return dashboards.filter((item) => `${item.title}${item.id}`.toLowerCase().includes(keyword))
+  }, [dashboards, query])
+  const { page: railPage, setPage: setRailPage, paged: pagedDashboards, pageCount: railPageCount } = usePaged(visibleDashboards, RAIL_PAGE_SIZE)
 
   const mountRef = useRef<HTMLDivElement | null>(null)
   const [embedState, setEmbedState] = useState<'idle' | 'mounting' | 'mounted' | 'error'>('idle')
@@ -71,7 +84,7 @@ export function AnalyticsLive({ onNotice }: { onNotice: (message: string) => voi
           <StatusTag tone="warning">{catalogState === 'loading' ? '读取中' : '待接入'}</StatusTag>
           <span>{catalogState === 'loading'
             ? '正在从分析服务读取仪表盘清单…'
-            : '分析服务暂不可用：需要控制面已配置 Superset（data-os.analytics.superset.base-url）。'}</span>
+            : '分析服务暂不可用：需要控制面完成嵌入式分析引擎接入配置（详见平台运维）。'}</span>
         </section>
       </div>
     )
@@ -84,11 +97,15 @@ export function AnalyticsLive({ onNotice }: { onNotice: (message: string) => voi
         <aside className={styles.catalogRail} aria-label="分析看板目录">
           <div className={styles.railHeader}>
             <h2>已授权看板</h2>
-            <span className={styles.railCount}>{dashboards.length} 项</span>
+            <span className={styles.railCount}>{visibleDashboards.length} 项</span>
           </div>
-          <div className={styles.railLabel}>Superset 嵌入（访客令牌）</div>
+          <label className={styles.railSearch}>
+            <Search size={15} aria-hidden="true" />
+            <input value={query} onChange={(event) => { setQuery(event.target.value); setRailPage(0) }} placeholder="搜索看板名称" aria-label="搜索分析看板" />
+          </label>
+          <div className={styles.railLabel}>已授权嵌入（访客令牌）</div>
           <ul className={styles.catalogList}>
-            {dashboards.map((dashboard) => (
+            {pagedDashboards.map((dashboard) => (
               <li key={dashboard.id}>
                 <button
                   className={`${styles.catalogItem} ${dashboard.id === selected?.id ? styles.catalogItemSelected : ''}`}
@@ -96,28 +113,30 @@ export function AnalyticsLive({ onNotice }: { onNotice: (message: string) => voi
                   aria-pressed={dashboard.id === selected?.id}
                 >
                   <strong>{dashboard.title}</strong>
-                  <span>dashboard {dashboard.id}</span>
+                  <span>只读视图</span>
                   <div className={styles.catalogMeta}>
-                    <em>Viewer 只读</em>
+                    <em>看板 {dashboard.id}</em>
                     <i className={styles.healthMark}>已授权嵌入</i>
                   </div>
                 </button>
               </li>
             ))}
           </ul>
+          {visibleDashboards.length === 0 ? <div className={styles.emptyRail}>没有匹配的看板，请调整搜索条件。</div> : null}
+          <Pager label="分析看板目录分页" page={railPage} pageCount={railPageCount} pageSize={RAIL_PAGE_SIZE} onPageChange={setRailPage} />
         </aside>
 
         <section className={styles.workspaceMain} aria-label={`${selected?.title ?? '分析看板'}嵌入视图`}>
           <div className={styles.assetToolbar}>
             <div className={styles.assetIdentity}>
               <div className={styles.assetIdentityTop}>
-                <span className={styles.assetCode}>superset · dashboard {selected?.id}</span>
+                <span className={styles.assetCode}>只读嵌入 · 看板 {selected?.id}</span>
                 <StatusTag tone={embedState === 'mounted' ? 'healthy' : embedState === 'error' ? 'warning' : 'neutral'}>
                   {embedState === 'mounted' ? '已嵌入' : embedState === 'error' ? '嵌入失败' : '载入中'}
                 </StatusTag>
               </div>
               <h2>{selected?.title}</h2>
-              <p>访客令牌由控制面签发（Viewer、限本仪表盘、短时效）；数据口径与源表见「数据资产 · 血缘」。</p>
+              <p>访客令牌由控制面签发（只读、限本仪表盘、短时效）；数据口径与源表见「数据资产 · 血缘」。</p>
             </div>
           </div>
           {embedState === 'error' ? (
@@ -129,7 +148,7 @@ export function AnalyticsLive({ onNotice }: { onNotice: (message: string) => voi
           <div
             ref={mountRef}
             className={styles.embedCanvas}
-            aria-label="嵌入式 Superset 仪表盘"
+            aria-label="嵌入式分析仪表盘"
             data-embed-state={embedState}
           />
         </section>
@@ -139,11 +158,11 @@ export function AnalyticsLive({ onNotice }: { onNotice: (message: string) => voi
           <div className={styles.evidenceBody}>
             <div className={styles.evidenceStamp}>
               <span className={styles.evidenceStampIcon}><ShieldCheck size={17} /></span>
-              <div><strong>访客令牌模式</strong><span>无需 Superset 账号</span></div>
+              <div><strong>访客令牌模式</strong><span>无需分析平台账号</span></div>
             </div>
             <dl className={styles.evidenceDefinition}>
-              <div><dt>嵌入方式</dt><dd>Superset embedded-sdk（门户专用端口）</dd></div>
-              <div><dt>令牌权限</dt><dd>Viewer · 限白名单仪表盘</dd></div>
+              <div><dt>嵌入方式</dt><dd>嵌入式分析 SDK（门户专用端口）</dd></div>
+              <div><dt>令牌权限</dt><dd>只读 · 限白名单仪表盘</dd></div>
               <div><dt>令牌时效</dt><dd>短时效（默认 300 秒，自动续签）</dd></div>
               <div><dt>嵌入白名单</dt><dd>仪表盘级 allowed_domains 校验门户来源</dd></div>
             </dl>

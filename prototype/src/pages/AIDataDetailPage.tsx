@@ -4,6 +4,10 @@ import { PageHeader } from '../components/ui/PageHeader'
 import { Button, StatusTag } from '../components/ui/Primitives'
 import { Drawer } from '../components/ui/Drawer'
 import {
+  aiBuildStatusLabel,
+  aiCertificationLabel,
+  aiFeedbackTypeLabel,
+  aiMetricLabel,
   decideCertification,
   fetchAIDataProduct,
   fetchCertificationRequests,
@@ -181,11 +185,11 @@ export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, 
                   return (
                     <tr key={version.id}>
                       <td>{version.versionSn}</td>
-                      <td><StatusTag tone={version.buildStatus === 'REGISTERED' ? 'neutral' : 'healthy'}>{version.buildStatus}</StatusTag></td>
+                      <td><StatusTag tone={version.buildStatus === 'REGISTERED' ? 'neutral' : 'healthy'}>{aiBuildStatusLabel[version.buildStatus] ?? version.buildStatus}</StatusTag></td>
                       <td>
                         {readiness?.overall != null
                           ? <StatusTag tone={readiness.certification === 'BLOCKED' ? 'danger' : readiness.certification === 'CANDIDATE' ? 'healthy' : 'warning'}>
-                              {readiness.overall.toFixed(2)} · {readiness.certification ?? '—'}
+                              {readiness.overall.toFixed(2)} · {readiness.certification ? (aiCertificationLabel[readiness.certification] ?? readiness.certification) : '—'}
                             </StatusTag>
                           : <span>—</span>}
                       </td>
@@ -273,8 +277,8 @@ export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, 
                   {pagedFeedback.map((item) => (
                     <tr key={item.id}>
                       <td>{item.question}</td>
-                      <td>{item.metric || '—'}</td>
-                      <td>{item.feedbackType}</td>
+                      <td>{item.metric ? (aiMetricLabel[item.metric] ?? item.metric) : '—'}</td>
+                      <td>{aiFeedbackTypeLabel[item.feedbackType] ?? item.feedbackType}</td>
                       <td>
                         <StatusTag tone={item.status === 'CREATED' ? 'warning' : item.status === 'CONSUMED' ? 'healthy' : 'neutral'}>
                           {item.status === 'CREATED' ? '待处置' : item.status === 'CONSUMED' ? '已吸收' : '已驳回'}

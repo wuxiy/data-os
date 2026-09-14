@@ -4,6 +4,7 @@ import { PageHeader } from '../components/ui/PageHeader'
 import { Button, StatusTag } from '../components/ui/Primitives'
 import { Drawer } from '../components/ui/Drawer'
 import {
+  aiCertificationLabel,
   createAIDataProduct,
   evaluateAIDataProduct,
   fetchAIOverview,
@@ -155,7 +156,7 @@ function AIDataLive({ onNotice }: { onNotice: (message: string) => void }) {
   function build(product: AIDataProduct) {
     void runAction(`build-${product.id}`, '构建失败', async () => {
       const summary = await buildAIDataProduct(product.id)
-      onNotice(`评估完成：Overall ${summary.overall?.toFixed?.(2) ?? '—'} · ${summary.certification ?? ''}（已回写 ${product.currentVersion}）`)
+      onNotice(`评估完成：Overall ${summary.overall?.toFixed?.(2) ?? '—'} · ${summary.certification ? (aiCertificationLabel[summary.certification] ?? summary.certification) : '—'}（已回写 ${product.currentVersion}）`)
       setSelectedId(product.id)
       refresh()
     })
