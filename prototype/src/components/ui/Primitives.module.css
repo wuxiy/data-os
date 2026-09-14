@@ -86,11 +86,14 @@
   background: var(--canvas);
 }
 
+/* 指标带：auto-fit 自动收缩空轨道（任意项数不留空列），hairline 用 1px gap 实现，
+   换行边缘无需 nth-child 补丁 */
 .metrics {
   display: grid;
   overflow: hidden;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  background: var(--paper);
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 1px;
+  background: var(--line);
   border-radius: var(--radius-panel);
   box-shadow: var(--shadow-card);
 }
@@ -104,14 +107,9 @@
   align-items: flex-start;
   justify-content: center;
   padding: 18px 22px;
-  background: transparent;
+  background: var(--paper);
   border: 0;
-  border-right: 1px solid var(--line);
   text-align: left;
-}
-
-.metric:last-child {
-  border-right: 0;
 }
 
 .metricInteractive {
@@ -239,44 +237,10 @@
   from { opacity: 0; transform: translateY(12px); }
 }
 
-@media (max-width: 1000px) {
-  .metrics {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .metric:nth-child(3n) {
-    border-right: 0;
-  }
-
-  .metric:nth-child(-n + 3) {
-    border-bottom: 1px solid var(--line);
-  }
-}
-
 @media (max-width: 600px) {
-  .metrics {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   .metric {
     min-height: 101px;
     padding: 14px 16px;
-  }
-
-  .metric:nth-child(2n) {
-    border-right: 1px solid var(--line);
-  }
-
-  .metric:last-child {
-    border-right: 0;
-  }
-
-  .metric:nth-child(2n) {
-    border-right: 0;
-  }
-
-  .metric:nth-child(-n + 4) {
-    border-bottom: 1px solid var(--line);
   }
 
   .toast {
