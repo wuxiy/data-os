@@ -1,5 +1,5 @@
 import { CircleAlert, LoaderCircle, RefreshCw, Search, Send } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useAction } from '../hooks/useAction'
 import { useApiResource } from '../hooks/useApiResource'
 import { useKeyedResource } from '../hooks/useKeyedResource'
@@ -44,7 +44,16 @@ interface Props {
 
 export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props) {
   const [issues, setIssues] = useState<GovernanceApiIssue[]>([])
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [selectedId, setSelectedId] = useState<string | null>(() => new URLSearchParams(window.location.search).get('issue') || null)
+
+  // 深链回写（?issue=）：选中态进 URL，问题可收藏/分享（与资产页 ?asset= 同口径）。
+  useEffect(() => {
+    if (!selectedId) return
+    const search = new URLSearchParams(window.location.search)
+    if (search.get('issue') === selectedId) return
+    search.set('issue', selectedId)
+    window.history.replaceState({}, '', `${window.location.pathname}?${search.toString()}`)
+  }, [selectedId])
   const [detail, setDetail] = useState<GovernanceIssueDetailApiResponse | null>(null)
   const [query, setQuery] = useState('')
   const [note, setNote] = useState('')

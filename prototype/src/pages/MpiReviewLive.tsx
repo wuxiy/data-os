@@ -1,5 +1,5 @@
 import { CheckCircle2, CircleAlert, GitMerge, GitPullRequestArrow, LoaderCircle, RefreshCw, ShieldCheck, Split, XCircle } from 'lucide-react'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Button, StatusTag } from '../components/ui/Primitives'
 import { Drawer } from '../components/ui/Drawer'
 import { useApiResource } from '../hooks/useApiResource'
@@ -31,7 +31,16 @@ export function MpiReviewLive({ onNotice }: { onNotice: (message: string) => voi
   const [candidates, setCandidates] = useState<MpiCandidateItem[]>([])
   // 服务端按 size=100 截断：total 留作「已加载前 N 条」的诚实提示。
   const [candidatesTotal, setCandidatesTotal] = useState<number | null>(null)
-  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(() => new URLSearchParams(window.location.search).get('task') || null)
+
+  // 深链回写（?task=）：候选选中态进 URL，复核任务可收藏/分享（与资产页 ?asset= 同口径）。
+  useEffect(() => {
+    if (!selectedTaskId) return
+    const search = new URLSearchParams(window.location.search)
+    if (search.get('task') === selectedTaskId) return
+    search.set('task', selectedTaskId)
+    window.history.replaceState({}, '', `${window.location.pathname}?${search.toString()}`)
+  }, [selectedTaskId])
   const [query, setQuery] = useState('')
   const [confirmed, setConfirmed] = useState(false)
   const [personDrawerId, setPersonDrawerId] = useState<string | null>(null)
