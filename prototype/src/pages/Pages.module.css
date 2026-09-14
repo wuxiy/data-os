@@ -786,17 +786,6 @@
   gap: 6px;
 }
 
-.sourceRowActions .tableButton {
-  display: inline-flex;
-  width: auto;
-  min-height: 28px;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 6px;
-  color: var(--jade);
-  font-size: 11px;
-}
-
 .rankValue {
   color: var(--red);
   font-family: var(--font-number);
@@ -872,7 +861,7 @@
   border-radius: 4px;
   cursor: pointer;
   text-align: left;
-  transition: background 120ms var(--ease-out);
+  transition: background 120ms var(--ease-out), border-color 120ms var(--ease-out);
 }
 
 .tableButton:hover {
@@ -896,16 +885,34 @@
   gap: 4px;
 }
 
-.tableActions .tableButton {
+/* 行内动作统一为细边框安静小按钮（与分页控件同族）：
+   原先是透明文字样式，与正文同权重，录入者难以辨认可点。 */
+.tableActions .tableButton,
+.sourceRowActions .tableButton {
   display: inline-flex;
   width: auto;
-  min-height: 30px;
+  min-height: 28px;
   align-items: center;
-  gap: 5px;
-  padding: 5px 7px;
-  color: var(--jade);
+  gap: 4px;
+  padding: 3px 7px;
+  color: var(--jade-dark);
+  background: var(--surface-raised);
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
   font-size: 11px;
   white-space: nowrap;
+}
+
+.tableActions .tableButton:hover:not(:disabled),
+.sourceRowActions .tableButton:hover:not(:disabled) {
+  background: var(--surface-hover);
+  border-color: var(--jade);
+}
+
+.tableActions .tableButton:disabled,
+.sourceRowActions .tableButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .tablePager {
