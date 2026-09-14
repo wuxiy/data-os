@@ -70,7 +70,18 @@ export function GovernanceDashboardPage({ onOpenChain, onNavigate, onUnavailable
               <thead><tr><th>问题</th><th>影响范围</th><th>责任部门</th><th>SLA</th><th>状态</th></tr></thead>
               <tbody>
                 {issues.slice(0, 5).map((issue, index) => (
-                  <tr className={index === 0 && frontendDemoMode ? styles.clickableRow : undefined} onClick={index === 0 && frontendDemoMode ? onOpenChain : undefined} key={issue.id}>
+                  <tr
+                    key={issue.id}
+                    className={index === 0 && frontendDemoMode ? styles.clickableRow : undefined}
+                    onClick={index === 0 && frontendDemoMode ? onOpenChain : undefined}
+                    {...(index === 0 && frontendDemoMode ? { tabIndex: 0, role: 'button', 'aria-label': `打开 ${issue.title} 的治理责任链` } : {})}
+                    onKeyDown={index === 0 && frontendDemoMode ? (event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault()
+                        onOpenChain()
+                      }
+                    } : undefined}
+                  >
                     <td>{issue.title}</td>
                     <td>{issue.impact}</td>
                     <td>{issue.ownerDepartment}</td>

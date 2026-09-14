@@ -146,7 +146,7 @@ export function MpiReviewLive({ onNotice }: { onNotice: (message: string) => voi
             <ul className={styles.queue}>
               {pagedCandidates.map((candidate) => (
                 <li key={candidate.taskId}>
-                  <button className={selected?.taskId === candidate.taskId ? styles.selected : ''} onClick={() => { setSelectedTaskId(candidate.taskId); setConfirmed(false) }}>
+                  <button className={selected?.taskId === candidate.taskId ? styles.selected : ''} aria-pressed={selected?.taskId === candidate.taskId} onClick={() => { setSelectedTaskId(candidate.taskId); setConfirmed(false) }}>
                     <span className={styles.queueTop}>
                       <span className={styles.queueId}>{mpiRuleLabel[candidate.ruleId] ?? candidate.ruleId}</span>
                     </span>
