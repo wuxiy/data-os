@@ -3,8 +3,6 @@ import {
   ArrowUpRight,
   Cable,
   CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
   CircleAlert,
   Clock3,
   FileCog,
@@ -24,6 +22,7 @@ import type { FormEvent, ReactNode } from 'react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Drawer } from '../components/ui/Drawer'
 import { PageHeader } from '../components/ui/PageHeader'
+import { Pager } from '../components/ui/Pager'
 import { StatusTag } from '../components/ui/Primitives'
 import {
   createIngestionJob,
@@ -75,6 +74,8 @@ const LIVE_TEMPLATE_KEY = 'CUSTOM_JSON'
 const DEFAULT_TEMPLATE_VERSION = 1
 // 采集任务表按页展示：行内动作多，单页过长会淹没运行状态这一主信息。
 const JOBS_PAGE_SIZE = 8
+// 数据源列表同侧还有摘要面板，行数上限收得更紧以保持两栏平衡。
+const SOURCES_PAGE_SIZE = 6
 const DEFAULT_FAKE_CONFIG: JobConfig = {
   env: { 'job.mode': 'BATCH', parallelism: 1 },
   source: [{
@@ -89,18 +90,6 @@ const DEFAULT_FAKE_CONFIG: JobConfig = {
 
 function cloneConfig(config: JobConfig): JobConfig {
   return JSON.parse(JSON.stringify(config)) as JobConfig
-}
-
-// 分页窗口：页数不超过 7 时全部平铺，否则保留首末页与当前页邻域，中间折叠为省略号。
-function pageWindow(current: number, count: number): (number | '…')[] {
-  if (count <= 7) return Array.from({ length: count }, (_, index) => index)
-  const keep = new Set([0, count - 1, current - 1, current, current + 1])
-  const pages: (number | '…')[] = []
-  for (let index = 0; index < count; index += 1) {
-    if (keep.has(index)) pages.push(index)
-    else if (pages[pages.length - 1] !== '…') pages.push('…')
-  }
-  return pages
 }
 
 function configForTemplate(templateKey: string, mode: string, templates: WorkflowTemplateApiItem[] = []): JobConfig {
@@ -147,6 +136,7 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
   const [sourceFormOpen, setSourceFormOpen] = useState(false)
   const [sourceForm, setSourceForm] = useState({ name: '', systemType: 'LIS', protocol: 'JDBC' })
   const [creatingSource, setCreatingSource] = useState(false)
+  const [sourcesPage, setSourcesPage] = useState(0)
   const [jobFormOpen, setJobFormOpen] = useState(false)
   const [jobForm, setJobForm] = useState<JobFormState>(newJobForm())
   const [jobsPage, setJobsPage] = useState(0)
@@ -241,7 +231,10 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
   const sourceById = useMemo(() => new Map(sources.map((source) => [source.id, source])), [sources])
   const visibleSources = sources
   const visibleJobs = jobs
-  // 页码随列表收缩自动钳制到最后一页；新建任务后显式回到第一页。
+  // 页码随列表收缩自动钳制到最后一页；新建数据源/任务后显式回到第一页。
+  const sourcesPageCount = Math.max(1, Math.ceil(visibleSources.length / SOURCES_PAGE_SIZE))
+  const sourcesCurrentPage = Math.min(sourcesPage, sourcesPageCount - 1)
+  const pagedSources = visibleSources.slice(sourcesCurrentPage * SOURCES_PAGE_SIZE, (sourcesCurrentPage + 1) * SOURCES_PAGE_SIZE)
   const jobsPageCount = Math.max(1, Math.ceil(visibleJobs.length / JOBS_PAGE_SIZE))
   const jobsCurrentPage = Math.min(jobsPage, jobsPageCount - 1)
   const pagedJobs = visibleJobs.slice(jobsCurrentPage * JOBS_PAGE_SIZE, (jobsCurrentPage + 1) * JOBS_PAGE_SIZE)
@@ -358,6 +351,7 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
     try {
       const source = await createSource({ ...sourceForm, name: sourceForm.name.trim() })
       setSources((current) => [source, ...current])
+      setSourcesPage(0)
       setJobForm((current) => current.sourceId ? current : { ...current, sourceId: source.id })
       setSourceForm({ name: '', systemType: 'LIS', protocol: 'JDBC' })
       setSourceFormOpen(false)
@@ -497,9 +491,10 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
           <section className={styles.panel}>
             <div className={styles.panelHeader}><div><h2>已登记数据源</h2><p>前置机、院内系统与区域交换入口</p></div><button className={styles.textButton} onClick={() => window.location.reload()}><RefreshCw size={13} />刷新</button></div>
             <ul className={styles.ranking}>
-              {visibleSources.map((source) => { const health = sourceStatusLabel(source.status); return <li key={source.id}><span className={styles.rank}><Server size={16} /></span><div className={styles.rankBody}><strong>{source.name}</strong><span>{source.systemType} · {source.protocol} · {source.institutionId}</span>{source.lastCheckMessage ? <small className={styles.statusDetail}>{source.lastCheckMessage} · {formatDateTime(source.lastCheckedAt)}</small> : null}</div><div className={styles.sourceRowActions}><StatusTag tone={health.tone}>{health.label}</StatusTag>{state === 'live' ? <button className={styles.tableButton} onClick={() => openSourceCheck(source)}><CheckCircle2 size={13} />检查</button> : null}</div></li> })}
+              {pagedSources.map((source) => { const health = sourceStatusLabel(source.status); return <li key={source.id}><span className={styles.rank}><Server size={16} /></span><div className={styles.rankBody}><strong>{source.name}</strong><span>{source.systemType} · {source.protocol} · {source.institutionId}</span>{source.lastCheckMessage ? <small className={styles.statusDetail}>{source.lastCheckMessage} · {formatDateTime(source.lastCheckedAt)}</small> : null}</div><div className={styles.sourceRowActions}><StatusTag tone={health.tone}>{health.label}</StatusTag>{state === 'live' ? <button className={styles.tableButton} onClick={() => openSourceCheck(source)}><CheckCircle2 size={13} />检查</button> : null}</div></li> })}
               {visibleSources.length === 0 ? <li className={styles.emptyState}>暂无已登记数据源</li> : null}
             </ul>
+            <Pager inset label="数据源分页" page={sourcesCurrentPage} pageCount={sourcesPageCount} pageSize={SOURCES_PAGE_SIZE} onPageChange={setSourcesPage} />
           </section>
 
           <section className={styles.panel}>
@@ -536,16 +531,7 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
             const canStart = job.status !== 'PAUSED' && job.status !== 'ARCHIVED'
             return <tr key={job.id}><td><strong>{job.name}</strong><small>{job.id.slice(0, 8)}</small><span className={`${styles.configPill} ${job.configured ? styles.configPillReady : styles.configPillMissing}`}>{job.configured ? `${job.templateKey ?? '自定义'} v${job.templateVersion ?? 1}` : '未配置'}</span><span className={`${styles.lifecyclePill} ${lifecycleClass(lifecycle.tone)}`}>{lifecycle.label}</span></td><td>{sourceById.get(job.sourceId)?.name ?? '来源未登记'}</td><td>{job.mode === 'CDC' ? '增量变更' : '批量同步'}</td><td>{executorLabel(job.executor)}</td><td><StatusTag tone={status.tone}>{status.label}</StatusTag>{run ? <small className={styles.statusDetail}>{businessMessage(run.message)}</small> : null}</td><td><div className={styles.tableActions}>{job.status === 'ACTIVE' ? <button className={styles.tableButton} disabled={runningJob === job.id} onClick={() => void changeJobStatus(job, 'PAUSED')}><Pause size={13} />暂停</button> : job.status === 'PAUSED' || job.status === 'DRAFT' ? <button className={styles.tableButton} disabled={runningJob === job.id} onClick={() => void changeJobStatus(job, 'ACTIVE')}><Play size={13} />启用</button> : null}{job.status !== 'ARCHIVED' ? <button className={styles.tableButton} disabled={runningJob === job.id || activeRun} onClick={() => void changeJobStatus(job, 'ARCHIVED')}><Archive size={13} />归档</button> : null}<button className={styles.tableButton} onClick={() => void openJobConfig(job)}><Settings2 size={13} />配置</button><button className={styles.tableButton} onClick={() => openRunDetails(job)}><Clock3 size={13} />详情</button><button className={styles.tableButton} disabled={runningJob === job.id || activeRun || !canStart} onClick={() => job.configured ? void runJob(job) : void openJobConfig(job)}><Play size={13} />{runningJob === job.id ? '处理中…' : activeRun ? '已有运行' : !canStart ? '已暂停' : job.configured ? '启动' : '配置后运行'}</button>{canSync ? <button className={styles.tableButton} disabled={runningJob === job.id} onClick={() => void syncRun(job, run)}><RefreshCw size={13} />同步</button> : null}{canRetry ? <button className={styles.tableButton} disabled={runningJob === job.id || !canStart || activeRun} onClick={() => void retryRun(job, run)}><RotateCcw size={13} />重试</button> : null}</div></td></tr>
           })}{visibleJobs.length === 0 ? <tr><td colSpan={6} className={styles.emptyState}>暂无采集任务，先登记数据源再新建任务。</td></tr> : null}</tbody></table></div>
-          {jobsPageCount > 1 ? <nav className={styles.tablePager} aria-label="采集任务分页">
-            <span className={styles.pagerInfo}>第 {jobsCurrentPage + 1} / {jobsPageCount} 页 · 每页 {JOBS_PAGE_SIZE} 条</span>
-            <div className={styles.pagerControls}>
-              <button className={styles.pagerButton} disabled={jobsCurrentPage === 0} onClick={() => setJobsPage(jobsCurrentPage - 1)}><ChevronLeft size={13} />上一页</button>
-              {pageWindow(jobsCurrentPage, jobsPageCount).map((page, index) => page === '…' ? <span key={`ellipsis-${index}`} className={styles.pagerEllipsis}>…</span> : page === jobsCurrentPage
-                ? <span key={page} className={`${styles.pagerButton} ${styles.pagerButtonCurrent}`} aria-current="page">{page + 1}</span>
-                : <button key={page} className={styles.pagerButton} onClick={() => setJobsPage(page)}>{page + 1}</button>)}
-              <button className={styles.pagerButton} disabled={jobsCurrentPage === jobsPageCount - 1} onClick={() => setJobsPage(jobsCurrentPage + 1)}>下一页<ChevronRight size={13} /></button>
-            </div>
-          </nav> : null}
+          <Pager label="采集任务分页" page={jobsCurrentPage} pageCount={jobsPageCount} pageSize={JOBS_PAGE_SIZE} onPageChange={setJobsPage} />
         </section>
       </div>
 

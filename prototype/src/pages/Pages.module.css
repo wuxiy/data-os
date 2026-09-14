@@ -921,6 +921,11 @@
   font-size: 11px;
 }
 
+/* 面板内列表（自带 17px 内容内边距）下方的分页器变体。 */
+.pagerInset {
+  padding: 0 17px 10px;
+}
+
 .pagerControls {
   display: flex;
   align-items: center;
