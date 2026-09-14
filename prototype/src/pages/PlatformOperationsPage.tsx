@@ -9,11 +9,12 @@ import {
   ShieldCheck,
   Workflow,
 } from 'lucide-react'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { fetchPlatformOperations, type PlatformOperationsApiResponse, type PlatformServiceApiItem } from '../data/controlPlane'
 import { PortalHttpError } from '../data/http'
 import { usePolling } from '../hooks/usePolling'
 import { Button, StatusTag } from '../components/ui/Primitives'
+import { PageHeader } from '../components/ui/PageHeader'
 import { formatDateTime } from '../data/domain'
 import styles from './PlatformOperationsPage.module.css'
 
@@ -66,65 +67,66 @@ export function PlatformOperationsPage({ canAccess }: { canAccess: boolean }) {
 
   return (
     <div className={styles.page}>
-      <section className={styles.hero}>
-        <div className={styles.heroCopy}>
-          <div className={styles.eyebrow}><ServerCog size={14} />技术域 · 平台组件</div>
-          <h1>平台运维舱</h1>
-          <p>把底层组件留在技术域，把业务结果留在业务域。这里集中查看执行器运行态，并进入受控的组件管理界面。</p>
-          <div className={styles.heroMeta}>
-            <span><ShieldCheck size={14} />仅技术角色可见</span>
-            <span><LockKeyhole size={14} />不展示凭据与内部连接信息</span>
+      <PageHeader
+        title="平台运维舱"
+        eyebrow="技术域 · 平台组件"
+        subtitle="把底层组件留在技术域，把业务结果留在业务域。这里集中查看执行器运行态，并进入受控的组件管理界面。"
+        compact
+        asOf={payload?.checkedAt ?? null}
+      />
+      <div className={styles.pageBody}>
+        <section className={styles.probeBar} aria-label="平台探针摘要">
+          <div className={styles.probeStatus}>
+            <span className={styles.probeDot} data-ready={payload?.operational.state === 'READY'} />
+            <div>
+              <strong>{payload ? operationalLabel : firstProbePending ? '正在执行首次探针…' : '等待首次检查'}</strong>
+              <span>30 秒自动刷新 · 状态由控制面服务端探针汇总</span>
+            </div>
           </div>
-        </div>
-        <div className={styles.heroStatus}>
-          <div className={styles.heroStatusLabel}>平台探针</div>
-          <strong>{payload ? `${upCount}/${payload.services.length}` : '—'}</strong>
-          <span>{payload ? operationalLabel : '等待首次检查'}</span>
-          <button className={styles.refreshButton} onClick={() => void load()} aria-label="刷新平台组件状态">
-            <RefreshCw size={15} />刷新
-          </button>
-        </div>
-      </section>
-
-      {state === 'error' ? (
-        <section className={styles.alert} role="alert">
-          <div><strong>平台状态暂时不可用</strong><span>{error}</span></div>
-          <Button variant="secondary" onClick={() => void load()}>重新检查</Button>
+          <dl className={styles.probeFacts}>
+            <div><dt>已配置组件</dt><dd>{payload ? `${configuredCount} / ${totalComponents}` : '—'}</dd></div>
+            <div><dt>当前健康</dt><dd className={upCount === configuredCount && configuredCount > 0 ? styles.healthyNumber : styles.warningNumber}>{payload ? upCount : '—'}</dd></div>
+            <div><dt>最后检查</dt><dd>{checkedAt}</dd></div>
+          </dl>
+          <div className={styles.probeActions}>
+            <span className={styles.probeBoundary} title="平台运维入口仅向技术角色开放"><ShieldCheck size={13} aria-hidden="true" />仅技术角色可见</span>
+            <Button variant="secondary" onClick={() => void load()}><RefreshCw size={13} />刷新</Button>
+          </div>
         </section>
-      ) : null}
 
-      <section className={styles.summaryStrip} aria-label="平台组件摘要">
-        <div><span>已配置组件</span><strong>{payload ? configuredCount : '—'}<small> / {totalComponents}</small></strong></div>
-        <div><span>当前健康</span><strong className={upCount === configuredCount && configuredCount > 0 ? styles.healthyNumber : styles.warningNumber}>{payload ? upCount : '—'}</strong></div>
-        <div><span>最后检查</span><strong className={styles.timeValue}>{checkedAt}</strong></div>
-        <div><span>访问角色</span><strong className={styles.roleValue}>技术人员</strong></div>
-      </section>
+        {state === 'error' ? (
+          <section className={styles.alert} role="alert">
+            <div><strong>平台状态暂时不可用</strong><span>{error}</span></div>
+            <Button variant="secondary" onClick={() => void load()}>重新检查</Button>
+          </section>
+        ) : null}
 
-      <section className={styles.sectionHeader}>
-        <div><h2>组件运行态</h2></div>
-        <span>每 30 秒自动刷新 · 状态由控制面服务端探针汇总</span>
-      </section>
+        <section className={styles.sectionHeader}>
+          <div><h2>组件运行态</h2></div>
+        </section>
 
-      <section className={styles.serviceGrid} aria-label="平台组件状态">
-        {(payload?.services ?? placeholderServices).map(service => <ServiceCard key={service.key} service={service} pending={firstProbePending} />)}
-      </section>
+        <section className={styles.serviceGrid} aria-label="平台组件状态">
+          {(payload?.services ?? placeholderServices).map(service => <ServiceCard key={service.key} service={service} pending={firstProbePending} />)}
+        </section>
 
-      <section className={styles.bottomGrid}>
-        <div className={styles.boundaryPanel}>
-          <div className={styles.panelTitle}><ShieldCheck size={17} /><h2>访问边界</h2><StatusTag tone="healthy">已启用</StatusTag></div>
-          <p>平台运维入口仅向具备以下 OIDC 角色的技术人员开放。甲方业务账号不会看到此菜单，直接访问路由也会被控制面拒绝。</p>
-          <div className={styles.roleLine}><span>允许角色</span><code>{roleLabel}</code></div>
-          <div className={styles.roleLine}><span>数据范围</span><code>仅组件元数据、健康状态与受控入口</code></div>
-        </div>
-        <div className={styles.guidePanel}>
-          <div className={styles.panelTitle}><Database size={17} /><h2>使用提示</h2></div>
-          <ul>
-            <li>SeaTunnel 只在这里呈现执行器状态；采集任务仍从“数据接入”发起。</li>
-            <li>DolphinScheduler 与 RustFS 在新标签页打开，沿用院内技术域网络策略。</li>
-            <li>门户不保存、不回显 Token、Secret、患者数据或内部连接串。</li>
-          </ul>
-        </div>
-      </section>
+        <section className={styles.bottomGrid}>
+          <div className={styles.boundaryPanel}>
+            <div className={styles.panelTitle}><ShieldCheck size={17} /><h2>访问边界</h2><StatusTag tone="healthy">已启用</StatusTag></div>
+            <p>平台运维入口仅向具备以下 OIDC 角色的技术人员开放。甲方业务账号不会看到此菜单，直接访问路由也会被控制面拒绝。</p>
+            <div className={styles.roleLine}><span>允许角色</span><code>{roleLabel}</code></div>
+            <div className={styles.roleLine}><span>数据范围</span><code>仅组件元数据、健康状态与受控入口</code></div>
+            <div className={styles.roleLine}><span>数据边界</span><code>不保存、不回显 Token、Secret 或患者数据</code></div>
+          </div>
+          <div className={styles.guidePanel}>
+            <div className={styles.panelTitle}><Database size={17} /><h2>使用提示</h2></div>
+            <ul>
+              <li>SeaTunnel 只在这里呈现执行器状态；采集任务仍从“数据接入”发起。</li>
+              <li>DolphinScheduler 与 RustFS 在新标签页打开，沿用院内技术域网络策略。</li>
+              <li>门户不保存、不回显 Token、Secret、患者数据或内部连接串。</li>
+            </ul>
+          </div>
+        </section>
+      </div>
     </div>
   )
 }
@@ -137,7 +139,7 @@ function ServiceCard({ service, pending = false }: { service: PlatformServiceApi
   // 探针未返回前是「检查中」，不得把加载态说成「未配置」。
   const statusLabel = pending ? '检查中' : isUp ? '运行正常' : isConfigured ? '检查失败' : '未配置'
   return (
-    <article className={`${styles.serviceCard} ${isUp ? styles.serviceCardUp : ''}`}>
+    <article className={styles.serviceCard}>
       <div className={styles.serviceTopline}>
         <div className={styles.serviceIdentity}><span className={styles.serviceIcon}><Icon size={19} /></span><div><h3>{service.name}</h3><span>{service.role}</span></div></div>
         <StatusTag tone={tone}>{statusLabel}</StatusTag>
