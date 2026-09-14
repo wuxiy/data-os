@@ -1,8 +1,9 @@
-import { Boxes, RefreshCw } from 'lucide-react'
+import { Boxes, KeyRound, Plus, RefreshCw } from 'lucide-react'
 import { useState } from 'react'
 import { useAction } from '../hooks/useAction'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Button, StatusTag } from '../components/ui/Primitives'
+import { Drawer } from '../components/ui/Drawer'
 import {
   createDataService,
   dataServiceStatusLabel,
@@ -29,6 +30,8 @@ import {
 import { frontendDemoMode } from '../data/runtimeMode'
 import { useApiResource } from '../hooks/useApiResource'
 import styles from './IntegrationPages.module.css'
+// 抽屉表单体系（字段/网格/代码域）与数据接入页同源，保持一处维护。
+import formStyles from './Pages.module.css'
 
 /** 导出任务状态中文口径（P7）。 */
 const exportStatusLabel: Record<string, string> = {
@@ -45,6 +48,13 @@ const contractChangeTypeLabel: Record<string, string> = {
   UPDATED: '变更',
   DEPRECATED: '下线',
   TEST: '验证',
+}
+
+/** 服务状态展示色调：草稿中性、已发布健康、已下线警示。 */
+function serviceStatusTone(status: string): 'neutral' | 'healthy' | 'warning' {
+  if (status === 'PUBLISHED') return 'healthy'
+  if (status === 'DEPRECATED') return 'warning'
+  return 'neutral'
 }
 
 /** diff 摘要：变化字段名列出即可，明细经调用面 API 查看。 */
@@ -83,7 +93,7 @@ function DataServicesLive({ onNotice }: { onNotice: (message: string) => void })
   const [overview, setOverview] = useState<DataServiceOverview | null>(null)
   const [selectedId, setSelectedId] = useState('')
   const [refreshTick, setRefreshTick] = useState(0)
-  const [creating, setCreating] = useState(false)
+  const [createOpen, setCreateOpen] = useState(false)
   const [form, setForm] = useState({
     code: '',
     name: '',
@@ -148,7 +158,7 @@ function DataServicesLive({ onNotice }: { onNotice: (message: string) => void })
         owner: form.owner.trim(),
       })
       onNotice(`已创建数据服务（草稿）：${created.code}`)
-      setCreating(false)
+      setCreateOpen(false)
       setSelectedId(created.id)
       refresh()
     })
@@ -183,6 +193,7 @@ function DataServicesLive({ onNotice }: { onNotice: (message: string) => void })
   }
 
   const selected = services.find((item) => item.id === selectedId) ?? null
+  const creatingService = pendingKey === 'create-service'
 
   return (
     <div className={styles.integrationPage}>
@@ -195,60 +206,20 @@ function DataServicesLive({ onNotice }: { onNotice: (message: string) => void })
           <div className={styles.impactItem}><span>今日调用</span><strong>{overview.callsToday}</strong></div>
         </div>
       ) : null}
-      <div className={styles.integrationWorkspace}>
+      <div className={`${styles.integrationWorkspace} ${styles.integrationWorkspaceDuo}`}>
         <aside className={styles.catalogRail} aria-label="数据服务目录">
           <div className={styles.railHeader}>
             <h2>数据服务</h2>
             <span className={styles.railCount}>{services.length} 项</span>
           </div>
+          <div className={styles.railAction}>
+            <Button variant="primary" onClick={() => setCreateOpen(true)}><Plus size={13} aria-hidden="true" />新建服务</Button>
+          </div>
           <div className={styles.schemaTabs}>
-            <button className={styles.schemaTab} onClick={() => setCreating((value) => !value)}>
-              {creating ? '收起创建' : '新建服务'}
-            </button>
             <button className={styles.schemaTab} onClick={refresh}>
               <RefreshCw size={12} aria-hidden="true" /> 刷新
             </button>
           </div>
-          {creating ? (
-            <form className={styles.createForm} onSubmit={(event) => { event.preventDefault(); void submitCreate() }}>
-              <label>
-                代码（slug）
-                <input value={form.code} onChange={(event) => setForm({ ...form, code: event.target.value })} placeholder="如：prescription-daily-summary" />
-              </label>
-              <label>
-                名称
-                <input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
-              </label>
-              <label>
-                描述
-                <input value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} />
-              </label>
-              <label>
-                SQL 模板（参数化 SELECT，:name 占位）
-                <textarea rows={4} value={form.sqlTemplate} onChange={(event) => setForm({ ...form, sqlTemplate: event.target.value })} />
-              </label>
-              <label>
-                参数契约（JSON）
-                <textarea rows={3} value={form.parameters} onChange={(event) => setForm({ ...form, parameters: event.target.value })} />
-              </label>
-              <label>
-                列契约（JSON）
-                <textarea rows={3} value={form.columns} onChange={(event) => setForm({ ...form, columns: event.target.value })} />
-              </label>
-              <label>
-                行数上限 / 超时秒
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <input value={form.maxRows} onChange={(event) => setForm({ ...form, maxRows: event.target.value })} />
-                  <input value={form.timeoutSeconds} onChange={(event) => setForm({ ...form, timeoutSeconds: event.target.value })} />
-                </div>
-              </label>
-              <label>
-                负责人
-                <input value={form.owner} onChange={(event) => setForm({ ...form, owner: event.target.value })} />
-              </label>
-              <Button type="submit">创建（草稿）</Button>
-            </form>
-          ) : null}
           <ul className={styles.catalogList}>
             {services.map((service) => (
               <li key={service.id}>
@@ -285,6 +256,34 @@ function DataServicesLive({ onNotice }: { onNotice: (message: string) => void })
           )}
         </section>
       </div>
+
+      {createOpen ? <Drawer
+        titleId="service-create-title"
+        eyebrow="数据服务登记"
+        title="新建数据服务"
+        closeLabel="关闭新建数据服务"
+        onClose={() => setCreateOpen(false)}
+        footer={<><button className={formStyles.secondaryButton} type="button" onClick={() => setCreateOpen(false)}>取消</button><button className={formStyles.primaryButton} type="submit" form="service-create-form" disabled={creatingService}><Plus size={14} />{creatingService ? '创建中…' : '创建（草稿）'}</button></>}
+      >
+        <form id="service-create-form" className={formStyles.drawerForm} onSubmit={(event) => { event.preventDefault(); void submitCreate() }}>
+          <div className={formStyles.drawerNotice}><Boxes size={16} /><span>创建后进入「草稿」：SQL 模板与契约先登记到控制面，点「发布」后才在执行面生效（30s 内）。密码、密钥不得写入 SQL 模板或契约。</span></div>
+          <div className={formStyles.drawerFormGrid}>
+            <div className={formStyles.formField}><label htmlFor="service-code">代码（slug）</label><input id="service-code" required value={form.code} onChange={(event) => setForm({ ...form, code: event.target.value })} placeholder="如：prescription-daily-summary" /></div>
+            <div className={formStyles.formField}><label htmlFor="service-name">名称</label><input id="service-name" required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="如：处方日汇总查询" /></div>
+          </div>
+          <div className={formStyles.formField}><label htmlFor="service-desc">描述</label><input id="service-desc" value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} placeholder="面向调用方的业务口径说明" /></div>
+          <div className={formStyles.formField}><label htmlFor="service-sql">SQL 模板（参数化 SELECT，:name 占位）</label><textarea id="service-sql" className={formStyles.codeInput} rows={6} value={form.sqlTemplate} onChange={(event) => setForm({ ...form, sqlTemplate: event.target.value })} spellCheck={false} /></div>
+          <div className={formStyles.drawerFormGrid}>
+            <div className={formStyles.formField}><label htmlFor="service-params">参数契约（JSON）</label><textarea id="service-params" className={formStyles.codeInput} rows={4} value={form.parameters} onChange={(event) => setForm({ ...form, parameters: event.target.value })} spellCheck={false} /></div>
+            <div className={formStyles.formField}><label htmlFor="service-columns">列契约（JSON）</label><textarea id="service-columns" className={formStyles.codeInput} rows={4} value={form.columns} onChange={(event) => setForm({ ...form, columns: event.target.value })} spellCheck={false} /></div>
+          </div>
+          <div className={formStyles.drawerFormGrid}>
+            <div className={formStyles.formField}><label htmlFor="service-max-rows">行数上限</label><input id="service-max-rows" type="number" min={1} value={form.maxRows} onChange={(event) => setForm({ ...form, maxRows: event.target.value })} /></div>
+            <div className={formStyles.formField}><label htmlFor="service-timeout">超时秒</label><input id="service-timeout" type="number" min={1} value={form.timeoutSeconds} onChange={(event) => setForm({ ...form, timeoutSeconds: event.target.value })} /></div>
+          </div>
+          <div className={formStyles.formField}><label htmlFor="service-owner">负责人</label><input id="service-owner" required value={form.owner} onChange={(event) => setForm({ ...form, owner: event.target.value })} placeholder="如：data-team" /></div>
+        </form>
+      </Drawer> : null}
     </div>
   )
 }
@@ -363,166 +362,186 @@ function DataServiceDetailPanel({ service, onNotice, onChanged, onPublish, onDep
 
   return (
     <div>
-      <div className={styles.assetIdentityTop}>
-        <div>
-          <h3>{service.name}</h3>
-          <p>{service.description}</p>
+      <div className={styles.assetToolbar}>
+        <div className={styles.assetIdentity}>
+          <div className={styles.assetIdentityTop}>
+            <span className={styles.assetCode}>{service.code}</span>
+            <StatusTag tone={serviceStatusTone(service.status)}>{dataServiceStatusLabel[service.status]}</StatusTag>
+          </div>
+          <h2>{service.name}</h2>
+          <p>{service.description || '—'} · 版本 {service.versionSn} · 负责人 {service.owner}</p>
         </div>
-        <div className={styles.schemaTabs}>
-          {service.status === 'DRAFT' ? <button className={styles.schemaTab} onClick={onPublish}>发布</button> : null}
-          {service.status === 'PUBLISHED' ? <button className={styles.schemaTab} onClick={onDeprecate}>下线</button> : null}
+        <div className={styles.toolbarActions}>
+          {service.status === 'DRAFT' ? <Button variant="primary" onClick={onPublish}>发布</Button> : null}
+          {service.status === 'PUBLISHED' ? <Button onClick={onDeprecate}>下线</Button> : null}
         </div>
       </div>
 
-      <div className={styles.technicalGrid}>
-        <div><span>代码</span><code>{service.code}</code></div>
-        <div><span>版本</span><code>{service.versionSn}</code></div>
-        <div><span>状态</span><code>{dataServiceStatusLabel[service.status]}</code></div>
-        <div><span>负责人</span><code>{service.owner}</code></div>
-        <div><span>行数上限</span><code>{service.maxRows}</code></div>
-        <div><span>超时</span><code>{service.timeoutSeconds}s</code></div>
-      </div>
+      <div className={styles.assetBody}>
+        <div className={styles.serviceFacts}>
+          <div><span>代码</span><code>{service.code}</code></div>
+          <div><span>版本</span><code>{service.versionSn}</code></div>
+          <div><span>状态</span><code>{dataServiceStatusLabel[service.status]}</code></div>
+          <div><span>负责人</span><code>{service.owner}</code></div>
+          <div><span>行数上限</span><code>{service.maxRows}</code></div>
+          <div><span>超时</span><code>{service.timeoutSeconds}s</code></div>
+        </div>
 
-      <h4 className={styles.railLabel}>参数契约</h4>
-      <table className={styles.fieldTable}>
-        <thead><tr><th>参数</th><th>类型</th><th>必填</th><th>说明</th></tr></thead>
-        <tbody>
-          {parameters.map((parameter) => (
-            <tr key={parameter.name}>
-              <td><code>{parameter.name}</code></td>
-              <td>{parameter.type}</td>
-              <td>{parameter.required ? '是' : '否'}</td>
-              <td>{parameter.description ?? '—'}</td>
-            </tr>
-          ))}
-          {parameters.length === 0 ? <tr><td colSpan={4}>无参数</td></tr> : null}
-        </tbody>
-      </table>
+        <h4 className={styles.railLabel}>参数契约</h4>
+        <div className={styles.horizontalScroll}>
+          <table className={styles.fieldTable}>
+            <thead><tr><th>参数</th><th>类型</th><th>必填</th><th>说明</th></tr></thead>
+            <tbody>
+              {parameters.map((parameter) => (
+                <tr key={parameter.name}>
+                  <td><code>{parameter.name}</code></td>
+                  <td>{parameter.type}</td>
+                  <td>{parameter.required ? '是' : '否'}</td>
+                  <td>{parameter.description ?? '—'}</td>
+                </tr>
+              ))}
+              {parameters.length === 0 ? <tr><td colSpan={4}>无参数</td></tr> : null}
+            </tbody>
+          </table>
+        </div>
 
-      <h4 className={styles.railLabel}>返回列契约</h4>
-      <table className={styles.fieldTable}>
-        <thead><tr><th>列</th><th>类型</th><th>说明</th></tr></thead>
-        <tbody>
-          {columns.map((column) => (
-            <tr key={column.name}>
-              <td><code>{column.name}</code></td>
-              <td>{column.type}</td>
-              <td>{column.description ?? '—'}</td>
-            </tr>
-          ))}
-          {columns.length === 0 ? <tr><td colSpan={3}>未声明</td></tr> : null}
-        </tbody>
-      </table>
+        <h4 className={styles.railLabel}>返回列契约</h4>
+        <div className={styles.horizontalScroll}>
+          <table className={styles.fieldTable}>
+            <thead><tr><th>列</th><th>类型</th><th>说明</th></tr></thead>
+            <tbody>
+              {columns.map((column) => (
+                <tr key={column.name}>
+                  <td><code>{column.name}</code></td>
+                  <td>{column.type}</td>
+                  <td>{column.description ?? '—'}</td>
+                </tr>
+              ))}
+              {columns.length === 0 ? <tr><td colSpan={3}>未声明</td></tr> : null}
+            </tbody>
+          </table>
+        </div>
 
-      {service.status === 'PUBLISHED' ? (
-        <>
-          <h4 className={styles.railLabel}>调用示例（ToB 执行面）</h4>
-          <pre className={styles.sqlInner}>{`curl -X POST ${location.origin}/dataapi/v1/services/${service.code}/query \\
+        {service.status === 'PUBLISHED' ? (
+          <>
+            <h4 className={styles.railLabel}>调用示例（ToB 执行面）</h4>
+            <pre className={styles.sqlInner}>{`curl -X POST ${location.origin}/dataapi/v1/services/${service.code}/query \\
   -H "X-API-Key: <调用方 Key>" \\
   -H "Content-Type: application/json" \\
   -d '{"parameters": {${parameters.slice(0, 2).map((p) => `"${p.name}": "<${p.type}>"`).join(', ')}}}'`}</pre>
-        </>
-      ) : null}
+          </>
+        ) : null}
 
-      <h4 className={styles.railLabel}>API Key（{detail?.keys.length ?? 0}）</h4>
-      {service.status === 'PUBLISHED' ? (
-        <form className={styles.createForm} onSubmit={(event) => { event.preventDefault(); void issueKey() }}>
-          <input value={keyForm.callerName} onChange={(event) => setKeyForm({ ...keyForm, callerName: event.target.value })} placeholder="调用方名称" />
-          <input value={keyForm.quota} onChange={(event) => setKeyForm({ ...keyForm, quota: event.target.value })} placeholder="日配额" />
-          <input value={keyForm.hospitals} onChange={(event) => setKeyForm({ ...keyForm, hospitals: event.target.value })} placeholder="医院授权（* 或逗号分隔）" />
-          <Button type="submit">发放 Key</Button>
-        </form>
-      ) : (
-        <p className={styles.railLabel}>仅已发布状态可发放 API Key。</p>
-      )}
-      {issuedKey ? (
-        <div className={styles.technicalNotice} role="alert">
-          <StatusTag tone="healthy">一次性明文</StatusTag>
-          <code>{issuedKey}</code>
+        <h4 className={styles.railLabel}>API Key（{detail?.keys.length ?? 0}）</h4>
+        {service.status === 'PUBLISHED' ? (
+          <form className={styles.createForm} onSubmit={(event) => { event.preventDefault(); void issueKey() }}>
+            <input value={keyForm.callerName} onChange={(event) => setKeyForm({ ...keyForm, callerName: event.target.value })} placeholder="调用方名称" />
+            <input value={keyForm.quota} onChange={(event) => setKeyForm({ ...keyForm, quota: event.target.value })} placeholder="日配额" inputMode="numeric" />
+            <input value={keyForm.hospitals} onChange={(event) => setKeyForm({ ...keyForm, hospitals: event.target.value })} placeholder="医院授权（* 或逗号分隔）" />
+            <Button type="submit" variant="primary" disabled={pendingKey === 'issue-key'}><KeyRound size={13} aria-hidden="true" />发放 Key</Button>
+          </form>
+        ) : (
+          <p className={styles.railLabel}>仅已发布状态可发放 API Key。</p>
+        )}
+        {issuedKey ? (
+          <div className={styles.technicalNotice} role="alert">
+            <StatusTag tone="healthy">一次性明文</StatusTag>
+            <code>{issuedKey}</code>
+          </div>
+        ) : null}
+        <div className={styles.horizontalScroll}>
+          <table className={styles.fieldTable}>
+            <thead><tr><th>调用方</th><th>Key 前缀</th><th>日配额</th><th>医院授权</th><th>状态</th><th>最近使用</th><th></th></tr></thead>
+            <tbody>
+              {(detail?.keys ?? []).map((key) => (
+                <tr key={key.id}>
+                  <td>{key.callerName}</td>
+                  <td><code>{key.keyPrefix}…</code></td>
+                  <td>{key.dailyQuota}</td>
+                  <td><code>{key.allowedHospitals}</code></td>
+                  <td>{key.status === 'ACTIVE' ? '有效' : '已吊销'}</td>
+                  <td>{key.lastUsedAt || '—'}</td>
+                  <td>{key.status === 'ACTIVE' ? <button className={styles.schemaTab} disabled={pendingKey === `revoke-${key.id}`} onClick={() => revoke(key.id)}>吊销</button> : null}</td>
+                </tr>
+              ))}
+              {(detail?.keys ?? []).length === 0 ? <tr><td colSpan={7}>尚未发放 Key</td></tr> : null}
+            </tbody>
+          </table>
         </div>
-      ) : null}
-      <table className={styles.fieldTable}>
-        <thead><tr><th>调用方</th><th>Key 前缀</th><th>日配额</th><th>医院授权</th><th>状态</th><th>最近使用</th><th></th></tr></thead>
-        <tbody>
-          {(detail?.keys ?? []).map((key) => (
-            <tr key={key.id}>
-              <td>{key.callerName}</td>
-              <td><code>{key.keyPrefix}…</code></td>
-              <td>{key.dailyQuota}</td>
-              <td><code>{key.allowedHospitals}</code></td>
-              <td>{key.status === 'ACTIVE' ? '有效' : '已吊销'}</td>
-              <td>{key.lastUsedAt || '—'}</td>
-              <td>{key.status === 'ACTIVE' ? <button className={styles.schemaTab} onClick={() => revoke(key.id)}>吊销</button> : null}</td>
-            </tr>
-          ))}
-          {(detail?.keys ?? []).length === 0 ? <tr><td colSpan={7}>尚未发放 Key</td></tr> : null}
-        </tbody>
-      </table>
 
-      <h4 className={styles.railLabel}>最近调用（累计 {detail?.totalCalls ?? 0} 次）</h4>
-      <table className={styles.fieldTable}>
-        <thead><tr><th>时间</th><th>行数</th><th>截断</th><th>耗时</th><th>状态码</th></tr></thead>
-        <tbody>
-          {calls.map((call) => (
-            <tr key={call.id}>
-              <td>{new Date(call.calledAt).toLocaleString('zh-CN')}</td>
-              <td>{call.rowCount}</td>
-              <td>{call.truncated ? '是' : '否'}</td>
-              <td>{call.elapsedMs}ms</td>
-              <td>{call.statusCode}</td>
-            </tr>
-          ))}
-          {calls.length === 0 ? <tr><td colSpan={5}>暂无调用</td></tr> : null}
-        </tbody>
-      </table>
+        <h4 className={styles.railLabel}>最近调用（累计 {detail?.totalCalls ?? 0} 次）</h4>
+        <div className={styles.horizontalScroll}>
+          <table className={styles.fieldTable}>
+            <thead><tr><th>时间</th><th>行数</th><th>截断</th><th>耗时</th><th>状态码</th></tr></thead>
+            <tbody>
+              {calls.map((call) => (
+                <tr key={call.id}>
+                  <td>{new Date(call.calledAt).toLocaleString('zh-CN')}</td>
+                  <td>{call.rowCount}</td>
+                  <td>{call.truncated ? '是' : '否'}</td>
+                  <td>{call.elapsedMs}ms</td>
+                  <td>{call.statusCode}</td>
+                </tr>
+              ))}
+              {calls.length === 0 ? <tr><td colSpan={5}>暂无调用</td></tr> : null}
+            </tbody>
+          </table>
+        </div>
 
-      <h4 className={styles.railLabel}>导出任务（P7 异步导出）</h4>
-      <table className={styles.fieldTable}>
-        <thead><tr><th>创建时间</th><th>状态</th><th>行数</th><th>产物大小</th><th>到期</th><th>失败原因</th></tr></thead>
-        <tbody>
-          {exports.map((item) => (
-            <tr key={item.id}>
-              <td>{new Date(item.createdAt).toLocaleString('zh-CN')}</td>
-              <td>{exportStatusLabel[item.status] ?? item.status}</td>
-              <td>{item.rowCount}</td>
-              <td>{item.fileBytes > 0 ? `${(item.fileBytes / 1024).toFixed(1)} KB` : '—'}</td>
-              <td>{item.expiresAt || '—'}</td>
-              <td>{item.error || '—'}</td>
-            </tr>
-          ))}
-          {exports.length === 0 ? <tr><td colSpan={6}>暂无导出任务</td></tr> : null}
-        </tbody>
-      </table>
+        <h4 className={styles.railLabel}>导出任务（P7 异步导出）</h4>
+        <div className={styles.horizontalScroll}>
+          <table className={styles.fieldTable}>
+            <thead><tr><th>创建时间</th><th>状态</th><th>行数</th><th>产物大小</th><th>到期</th><th>失败原因</th></tr></thead>
+            <tbody>
+              {exports.map((item) => (
+                <tr key={item.id}>
+                  <td>{new Date(item.createdAt).toLocaleString('zh-CN')}</td>
+                  <td>{exportStatusLabel[item.status] ?? item.status}</td>
+                  <td>{item.rowCount}</td>
+                  <td>{item.fileBytes > 0 ? `${(item.fileBytes / 1024).toFixed(1)} KB` : '—'}</td>
+                  <td>{item.expiresAt || '—'}</td>
+                  <td>{item.error || '—'}</td>
+                </tr>
+              ))}
+              {exports.length === 0 ? <tr><td colSpan={6}>暂无导出任务</td></tr> : null}
+            </tbody>
+          </table>
+        </div>
 
-      <h4 className={styles.railLabel}>合同事件与订阅（变更通知）</h4>
-      <table className={styles.fieldTable}>
-        <thead><tr><th>时间</th><th>类型</th><th>版本</th><th>变更内容</th></tr></thead>
-        <tbody>
-          {contractEvents.map((event) => (
-            <tr key={event.eventId}>
-              <td>{new Date(event.occurredAt).toLocaleString('zh-CN')}</td>
-              <td>{contractChangeTypeLabel[event.changeType] ?? event.changeType}</td>
-              <td>{event.fromVersion === event.toVersion ? event.toVersion : `${event.fromVersion} → ${event.toVersion}`}</td>
-              <td><code>{summarizeDiff(event.diff)}</code></td>
-            </tr>
-          ))}
-          {contractEvents.length === 0 ? <tr><td colSpan={4}>暂无合同事件</td></tr> : null}
-        </tbody>
-      </table>
-      <table className={styles.fieldTable}>
-        <thead><tr><th>订阅方</th><th>Webhook</th><th>状态</th><th>创建</th></tr></thead>
-        <tbody>
-          {subscriptions.map((subscription) => (
-            <tr key={subscription.id}>
-              <td>{subscription.callerName}</td>
-              <td><code>{subscription.webhookUrl}</code></td>
-              <td>{subscription.status === 'ACTIVE' ? '生效中' : '已退订'}</td>
-              <td>{new Date(subscription.createdAt).toLocaleString('zh-CN')}</td>
-            </tr>
-          ))}
-          {subscriptions.length === 0 ? <tr><td colSpan={4}>暂无调用方订阅（调用方经自助 API 订阅）</td></tr> : null}
-        </tbody>
-      </table>
+        <h4 className={styles.railLabel}>合同事件与订阅（变更通知）</h4>
+        <div className={styles.horizontalScroll}>
+          <table className={styles.fieldTable}>
+            <thead><tr><th>时间</th><th>类型</th><th>版本</th><th>变更内容</th></tr></thead>
+            <tbody>
+              {contractEvents.map((event) => (
+                <tr key={event.eventId}>
+                  <td>{new Date(event.occurredAt).toLocaleString('zh-CN')}</td>
+                  <td>{contractChangeTypeLabel[event.changeType] ?? event.changeType}</td>
+                  <td>{event.fromVersion === event.toVersion ? event.toVersion : `${event.fromVersion} → ${event.toVersion}`}</td>
+                  <td><code>{summarizeDiff(event.diff)}</code></td>
+                </tr>
+              ))}
+              {contractEvents.length === 0 ? <tr><td colSpan={4}>暂无合同事件</td></tr> : null}
+            </tbody>
+          </table>
+        </div>
+        <div className={styles.horizontalScroll}>
+          <table className={styles.fieldTable}>
+            <thead><tr><th>订阅方</th><th>Webhook</th><th>状态</th><th>创建</th></tr></thead>
+            <tbody>
+              {subscriptions.map((subscription) => (
+                <tr key={subscription.id}>
+                  <td>{subscription.callerName}</td>
+                  <td><code>{subscription.webhookUrl}</code></td>
+                  <td>{subscription.status === 'ACTIVE' ? '生效中' : '已退订'}</td>
+                  <td>{new Date(subscription.createdAt).toLocaleString('zh-CN')}</td>
+                </tr>
+              ))}
+              {subscriptions.length === 0 ? <tr><td colSpan={4}>暂无调用方订阅（调用方经自助 API 订阅）</td></tr> : null}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   )
 }

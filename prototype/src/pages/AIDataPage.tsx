@@ -1,7 +1,8 @@
-import { BrainCircuit, RefreshCw, Sparkles } from 'lucide-react'
+import { BrainCircuit, Plus, RefreshCw, Sparkles } from 'lucide-react'
 import { useState } from 'react'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Button, StatusTag } from '../components/ui/Primitives'
+import { Drawer } from '../components/ui/Drawer'
 import {
   createAIDataProduct,
   evaluateAIDataProduct,
@@ -22,6 +23,8 @@ import { useApiResource } from '../hooks/useApiResource'
 import type { AIOverview } from '../data/aiDataApi'
 import { AIDataDetailPage } from './AIDataDetailPage'
 import styles from './IntegrationPages.module.css'
+// 抽屉表单体系与数据接入/数据服务页同源，保持一处维护。
+import formStyles from './Pages.module.css'
 
 const PRODUCT_TYPES = Object.keys(productTypeLabel) as AIDataProductType[]
 
@@ -50,7 +53,7 @@ function AIDataLive({ onNotice }: { onNotice: (message: string) => void }) {
   const [overview, setOverview] = useState<AIOverview | null>(null)
   const [selectedId, setSelectedId] = useState('')
   const [refreshTick, setRefreshTick] = useState(0)
-  const [creating, setCreating] = useState(false)
+  const [createOpen, setCreateOpen] = useState(false)
   const [form, setForm] = useState({
     name: '',
     type: 'RAG_CORPUS' as AIDataProductType,
@@ -106,7 +109,7 @@ function AIDataLive({ onNotice }: { onNotice: (message: string) => void }) {
         source: form.source.trim(),
       })
       onNotice(`已创建 AI Data Product：${product.name}（${product.currentVersion}）`)
-      setCreating(false)
+      setCreateOpen(false)
       setForm((current) => ({ ...current, name: '', owner: '', source: '' }))
       setSelectedId(product.id)
       refresh()
@@ -178,49 +181,20 @@ function AIDataLive({ onNotice }: { onNotice: (message: string) => void }) {
           <div className={styles.impactItem}><span>待处理反馈</span><strong>{overview.openFeedback}</strong></div>
         </div>
       ) : null}
-      <div className={styles.integrationWorkspace}>
+      <div className={`${styles.integrationWorkspace} ${styles.integrationWorkspaceDuo}`}>
         <aside className={styles.catalogRail} aria-label="AI Data 产品目录">
           <div className={styles.railHeader}>
             <h2>AI Data Products</h2>
             <span className={styles.railCount}>{products.length} 项</span>
           </div>
+          <div className={styles.railAction}>
+            <Button variant="primary" onClick={() => setCreateOpen(true)}><Plus size={13} aria-hidden="true" />新建产品</Button>
+          </div>
           <div className={styles.schemaTabs}>
-            <button className={styles.schemaTab} onClick={() => setCreating((value) => !value)}>
-              {creating ? '收起创建' : '新建产品'}
-            </button>
             <button className={styles.schemaTab} onClick={refresh}>
               <RefreshCw size={12} aria-hidden="true" /> 刷新
             </button>
           </div>
-          {creating ? (
-            <form className={styles.createForm} onSubmit={(event) => { event.preventDefault(); void submitCreate() }}>
-              <label>
-                名称
-                <input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="如：临床指南 RAG 语料库" />
-              </label>
-              <label>
-                类型
-                <select value={form.type} onChange={(event) => setForm({ ...form, type: event.target.value as AIDataProductType })}>
-                  {PRODUCT_TYPES.map((type) => (
-                    <option key={type} value={type}>{productTypeLabel[type]}</option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                负责人
-                <input value={form.owner} onChange={(event) => setForm({ ...form, owner: event.target.value })} placeholder="如：data-team" />
-              </label>
-              <label>
-                工作流
-                <input value={form.workflow} onChange={(event) => setForm({ ...form, workflow: event.target.value })} />
-              </label>
-              <label>
-                数据来源
-                <input value={form.source} onChange={(event) => setForm({ ...form, source: event.target.value })} placeholder="如：ods_ep 处方与诊断（合成口径）" />
-              </label>
-              <Button type="submit">创建（{lifecycleLabel.DRAFT} + v0.1.0）</Button>
-            </form>
-          ) : null}
           <ul className={styles.catalogList}>
             {products.map((product) => (
               <li key={product.id}>
@@ -261,6 +235,28 @@ function AIDataLive({ onNotice }: { onNotice: (message: string) => void }) {
           )}
         </section>
       </div>
+
+      {createOpen ? <Drawer
+        titleId="ai-product-create-title"
+        eyebrow="AI Data Product 登记"
+        title="新建 AI Data Product"
+        closeLabel="关闭新建 AI Data Product"
+        onClose={() => setCreateOpen(false)}
+        footer={<><button className={formStyles.secondaryButton} type="button" onClick={() => setCreateOpen(false)}>取消</button><button className={formStyles.primaryButton} type="submit" form="ai-product-create-form" disabled={pendingKey === 'create'}><Plus size={14} />{pendingKey === 'create' ? '创建中…' : `创建（${lifecycleLabel.DRAFT} + v0.1.0）`}</button></>}
+      >
+        <form id="ai-product-create-form" className={formStyles.drawerForm} onSubmit={(event) => { event.preventDefault(); void submitCreate() }}>
+          <div className={formStyles.drawerNotice}><Sparkles size={16} /><span>创建后从「{lifecycleLabel.DRAFT} + v0.1.0」起步：构建与评估委托 AI Ready 引擎执行，结论回写当前版本的就绪度。</span></div>
+          <div className={formStyles.drawerFormGrid}>
+            <div className={formStyles.formField}><label htmlFor="ai-product-name">名称</label><input id="ai-product-name" required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="如：临床指南 RAG 语料库" /></div>
+            <div className={formStyles.formField}><label htmlFor="ai-product-type">类型</label><select id="ai-product-type" value={form.type} onChange={(event) => setForm({ ...form, type: event.target.value as AIDataProductType })}>{PRODUCT_TYPES.map((type) => <option key={type} value={type}>{productTypeLabel[type]}</option>)}</select></div>
+          </div>
+          <div className={formStyles.drawerFormGrid}>
+            <div className={formStyles.formField}><label htmlFor="ai-product-owner">负责人</label><input id="ai-product-owner" required value={form.owner} onChange={(event) => setForm({ ...form, owner: event.target.value })} placeholder="如：data-team" /></div>
+            <div className={formStyles.formField}><label htmlFor="ai-product-workflow">工作流</label><input id="ai-product-workflow" value={form.workflow} onChange={(event) => setForm({ ...form, workflow: event.target.value })} placeholder="如：MEDICAL_RAG" /></div>
+          </div>
+          <div className={formStyles.formField}><label htmlFor="ai-product-source">数据来源</label><input id="ai-product-source" required value={form.source} onChange={(event) => setForm({ ...form, source: event.target.value })} placeholder="如：ods_ep 处方与诊断（合成口径）" /></div>
+        </form>
+      </Drawer> : null}
     </div>
   )
 }

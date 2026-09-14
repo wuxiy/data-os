@@ -16,3 +16,6 @@ docs/*-local.md
 .alma-snapshots
 .playwright-mcp
 .zcode/
+
+# impeccable 评审快照为工具本地状态
+prototype/.impeccable/
