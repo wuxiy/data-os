@@ -1,8 +1,12 @@
-"""HTTP API：POST /assess、GET /readiness（最近评估由 control-plane 持久化，
-本服务无库；/readiness 以同参数重执行返回当前口径，幂等）。
+"""HTTP API：POST /assess、GET /readiness、POST /evaluate（最近评估由
+control-plane 持久化，本服务无库；/readiness 以同参数重执行返回当前口径，幂等）。
 """
 from __future__ import annotations
 
+import os
+from pathlib import Path
+
+import yaml
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -49,21 +53,43 @@ def assess(request: AssessRequest, authorization: str | None = Header(default=No
 
 
 class EvaluateRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     product: str = Field(min_length=1)
     version: str = Field(default="v0.1.0")
+    # 双产品契约（G17）：控制面传当前版本登记的 recipeRef，引擎按 Recipe 的
+    # spec.output 解析语料表与评测集；缺省/解析失败回落单产品时代默认。
+    recipeRef: str = Field(default="")
+
+
+def _corpus_paths(recipe_ref: str) -> tuple[str, Path]:
+    """recipeRef → (语料表, 评测集路径)；recipe 未声明或文件不存在时回落默认。"""
+    ai_data_dir = Path(os.environ.get("AI_DATA_DIR", "/opt/dataos/ai-data"))
+    table = "dataos_ai.chunks"
+    eval_file = ai_data_dir / "eval" / "medical-rag-evalset.jsonl"
+    if recipe_ref:
+        name = recipe_ref.strip().removesuffix(".yaml").split("/")[-1].split("@")[0]
+        recipe_path = ai_data_dir / "recipes" / f"{name}.yaml"
+        if recipe_path.is_file():
+            output = (yaml.safe_load(recipe_path.read_text(encoding="utf-8"))
+                      .get("spec", {}).get("output", {}))
+            table = output.get("doris_table", table)
+            if output.get("eval_file"):
+                eval_file = ai_data_dir / output["eval_file"]
+    return table, eval_file
 
 
 @router.post("/evaluate")
 def evaluate(request: EvaluateRequest, authorization: str | None = Header(default=None)) -> dict:
     _authenticator.require(authorization)
+    table, eval_file = _corpus_paths(request.recipeRef)
     rows = DorisAdapter(settings).query(
-        "SELECT chunk_id, document_id, section, content FROM dataos_ai.chunks", ())
+        f"SELECT chunk_id, document_id, section, content FROM {table}", ())
     chunks = [
         {"chunk_id": row[0], "document_id": row[1], "section": row[2] or "", "content": row[3]}
         for row in rows
     ]
-    report = evaluate_corpus(chunks, __import__("pathlib").Path(
-        __import__("os").environ.get("AI_DATA_DIR", "/opt/dataos/ai-data")) / "eval/medical-rag-evalset.jsonl")
+    report = evaluate_corpus(chunks, eval_file)
     report = {"product": request.product, "version": request.version, **report}
     return report
 

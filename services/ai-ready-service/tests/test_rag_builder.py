@@ -102,6 +102,94 @@ def test_unknown_pipeline_operator_fails_loudly(tmp_path):
         rb.build(path, DOCUMENTS)
 
 
+# ---- G17 AI-2：doris_table 源（真实采集语料）----
+
+EP_RECIPE = AI_DATA / "recipes" / "ep-prescription-rag-v1.yaml"
+
+
+class StubTableDoris:
+    """表源读取桩：按 SQL 中的表名返回处方主表/明细行，记录全部查询。"""
+
+    def __init__(self, header_rows, detail_rows):
+        self._header = header_rows
+        self._detail = detail_rows
+        self.queries: list[str] = []
+
+    def query(self, sql, args):
+        self.queries.append(sql)
+        return list(self._detail) if "ep_mz_ypcfmx" in sql else list(self._header)
+
+
+def ep_stub_adapter(duplicate=False):
+    header = ("CF001", "XX人民医院", "心血管内科", "2026-08-01 10:00:00", "男", "45", "岁",
+              "原发性高血压", "I10.x00", "头晕乏力", 3, 7, "长期服药")
+    if duplicate:
+        header_rows = [header, header]
+    else:
+        header_rows = [header]
+    detail_rows = [
+        ("CF001", "苯磺酸氨氯地平片", "5mg*28片", "口服", "每日一次", "5", "mg", "1", "盒", "28"),
+        ("CF001", "阿司匹林肠溶片", "100mg*30片", "口服", "每日一次", "100", "mg", "1", "盒", "30"),
+    ]
+    return StubTableDoris(header_rows, detail_rows)
+
+
+def test_table_serialize_only_reads_declared_columns():
+    """PHI 排除纪律的执行点：未声明的标识符列不出现在任何 SQL 里。"""
+    adapter = ep_stub_adapter()
+    documents = rb.table_serialize(adapter, yaml.safe_load(
+        EP_RECIPE.read_text(encoding="utf-8"))["spec"]["source"])
+    joined = "\n".join(adapter.queries)
+    for banned in ("HZXM", "LXFS", "PATIENT_ID", "JZLSH", "KFYSGH", "KFYSXM", "BIZ_NO", "KH", "KLX"):
+        assert banned not in joined, f"标识符列 {banned} 不应被查询"
+    assert len(documents) == 1
+    text = "".join(block["text"] for block in documents[0]["blocks"])
+    assert documents[0]["blocks"][0]["kind"] == "heading"  # 科室承载 section
+    assert "机构：XX人民医院" in text and "科室：心血管内科" in text
+    assert "药品 苯磺酸氨氯地平片" in text and "用法 口服" in text
+    assert text.endswith("。")  # 断句在场（chunk_quality_score 口径）
+
+
+def test_build_with_doris_table_source_end_to_end():
+    chunks, artifacts, stats = rb.build(EP_RECIPE, None, adapter=ep_stub_adapter())
+    assert stats.documents_in == 1 and stats.chunks >= 1
+    chunk = chunks[0]
+    assert chunk["document_id"] and chunk["section"]
+    assert chunk["quality_score"] >= 1.0  # 单处方文本落在长度窗口且含断句
+    assert chunk["recipe_version"] == "1.0.0"
+    manifest = artifacts["manifest"]
+    assert manifest["spec"]["source"] == {"table": "ods_ep.ep_mz_cfzb", "limit": 2000, "documents": 1}
+    assert manifest["spec"]["privacy"]["deidentified"] is True
+
+
+def test_build_with_doris_table_source_dedups_identical_prescriptions():
+    chunks, artifacts, stats = rb.build(EP_RECIPE, None, adapter=ep_stub_adapter(duplicate=True))
+    assert stats.documents_in == 2 and stats.documents_unique == 1
+    assert stats.duplicates_dropped == 1
+
+
+def test_table_source_requires_matching_pipeline(tmp_path):
+    recipe = yaml.safe_load(EP_RECIPE.read_text(encoding="utf-8"))
+    # 源声明了 doris_table 但 pipeline 缺 table_serialize -> 拒绝
+    recipe["spec"]["pipeline"] = [op for op in recipe["spec"]["pipeline"] if op != "table_serialize"]
+    path = tmp_path / "ep-noop.yaml"
+    path.write_text(yaml.safe_dump(recipe, allow_unicode=True), encoding="utf-8")
+    with pytest.raises(RuntimeError, match="table_serialize"):
+        rb.build(path, None, adapter=ep_stub_adapter())
+    # documents 源混入 table_serialize -> 同样拒绝
+    recipe2 = yaml.safe_load(RECIPE.read_text(encoding="utf-8"))
+    recipe2["spec"]["pipeline"] = ["table_serialize"] + recipe2["spec"]["pipeline"]
+    path2 = tmp_path / "mixed.yaml"
+    path2.write_text(yaml.safe_dump(recipe2, allow_unicode=True), encoding="utf-8")
+    with pytest.raises(RuntimeError, match="非 doris_table"):
+        rb.build(path2, DOCUMENTS)
+
+
+def test_doris_table_source_without_adapter_fails_loudly():
+    with pytest.raises(RuntimeError, match="adapter"):
+        rb.build(EP_RECIPE, None)
+
+
 class FakeS3:
     def __init__(self):
         self.objects: dict[str, bytes] = {}

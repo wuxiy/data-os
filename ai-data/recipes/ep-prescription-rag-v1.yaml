@@ -1,0 +1,54 @@
+apiVersion: data-os/v1
+kind: AIDatasetRecipe
+
+metadata:
+  name: ep-prescription-rag-v1
+  version: 1.0.0
+  owner: data-team
+
+spec:
+  source:
+    # G17 AI-2：真实采集链路数据（EP 域 DM 测试库经 SeaTunnel 入仓，非仓库合成文档）。
+    # 序列化只取声明列；直接标识符列一律不入文本（PHI 排除纪律）：
+    # 排除 HZXM（姓名）/LXFS（联系方式）/KH、KLX（卡号）/PATIENT_ID/JZLSH（就诊流水号）/
+    # KFYSGH、KFYSXM、SFYSGH、SFYSXM（医务人员）/BIZ_NO。患者级假名亦不引入。
+    kind: doris_table
+    table: ods_ep.ep_mz_cfzb
+    key: CFZID
+    order_by: "KFRQ DESC, ID"
+    limit: 2000
+    header_columns: [YLJGMC, JZKSMC, KFRQ, HZXB, HZNL, HZNLDW, LCZD, LCZDZY, HZZS, CFPTZT, CFYXQ, BZ]
+    detail:
+      table: ods_ep.ep_mz_ypcfmx
+      key: CFZID
+      order_by: ID
+      columns: [YPTYM, YPGG, YF, SYPC, SYCJL, SJYLDW, YPSL, YPDW, YYTS]
+
+  workload:
+    type: medical-rag
+
+  pipeline:
+    - table_serialize
+    - text_normalization
+    - deduplicate
+    - pii_detection
+    - deidentification
+    - semantic_chunk
+    - chunk_quality_score
+    - metadata_enrichment
+
+  parameters:
+    chunk:
+      target_chars: 600
+      min_chars: 50
+      max_chars: 1200
+    pii:
+      phone_placeholder: "<PHONE>"
+      id_card_placeholder: "<IDCARD>"
+
+  output:
+    format: jsonl
+    dataset: ep-prescription-corpus
+    doris_table: dataos_ai.chunks_ep
+    object_prefix: ai-data/ep-prescription-rag
+    eval_file: eval/ep-prescription-evalset.jsonl

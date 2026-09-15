@@ -115,6 +115,78 @@ def deidentification(text: str, phone_ph: str, id_ph: str) -> tuple[str, int]:
     return text, len(id_hits) + len(phone_hits)
 
 
+# ---------- 表格源叙化（G17 AI-2：真实采集语料）----------
+
+# 已知列的中文叙化标签（未收录列回退列名本身）；列的取舍纪律在 Recipe 声明——
+# 直接标识符列不声明即不入文本。
+HEADER_LABELS = {
+    "YLJGMC": "机构", "JZKSMC": "科室", "KFRQ": "开方日期", "HZXB": "性别",
+    "HZNL": "年龄", "HZNLDW": "年龄单位", "LCZD": "临床诊断", "LCZDZY": "诊断组",
+    "HZZS": "主诉", "CFPTZT": "处方状态", "CFYXQ": "有效期天数", "BZ": "备注",
+}
+DETAIL_LABELS = {
+    "YPTYM": "药品", "YPGG": "规格", "YF": "用法", "SYPC": "频率",
+    "SYCJL": "单次剂量", "SJYLDW": "剂量单位", "YPSL": "数量", "YPDW": "数量单位",
+    "YYTS": "用药天数",
+}
+
+
+def _cell(value) -> str:
+    return "" if value is None else str(value).strip()
+
+
+def _render_prescription(header: dict, drugs: list[dict]) -> str:
+    parts = [f"{HEADER_LABELS.get(column, column)}：{value}"
+             for column, value in header.items() if value != ""]
+    fragments = ["；".join(parts)] if parts else []
+    drug_texts = []
+    for drug in drugs:
+        pieces = [f"{DETAIL_LABELS.get(column, column)} {value}"
+                  for column, value in drug.items() if value != ""]
+        if pieces:
+            drug_texts.append("，".join(pieces))
+    if drug_texts:
+        fragments.append("处方药品：" + "；".join(
+            f"{index}）{text}" for index, text in enumerate(drug_texts, start=1)))
+    return "门诊处方记录：" + "。".join(fragments) + "。"
+
+
+def table_serialize(adapter, source: dict) -> list[dict]:
+    """Doris 表 → 叙述化文档（每处方一篇，确定性采样排序）。
+
+    只 SELECT Recipe 声明的列（PHI 排除纪律的执行点：未声明列不出现在
+    查询与文本中）；主表按 order_by 限量取样，明细按 key 全量取回内存分组。
+    """
+    detail = source.get("detail") or {}
+    header_columns = list(source["header_columns"])
+    rows = adapter.query(
+        f"SELECT {source['key']}, {', '.join(header_columns)} FROM {source['table']} "
+        f"ORDER BY {source['order_by']} LIMIT %s", (int(source.get("limit", 2000)),))
+    detail_columns = list(detail.get("columns", []))
+    details: dict[str, list[dict]] = {}
+    if detail and detail_columns:
+        for row in adapter.query(
+                f"SELECT {detail['key']}, {', '.join(detail_columns)} FROM {detail['table']} "
+                f"ORDER BY {detail.get('order_by', '1')}", ()):
+            details.setdefault(str(row[0]), []).append(
+                {column: _cell(value) for column, value in zip(detail_columns, row[1:])})
+    documents = []
+    for row in rows:
+        key_value = _cell(row[0])
+        header = {column: _cell(value) for column, value in zip(header_columns, row[1:])}
+        drugs = details.get(key_value, [])
+        # heading 块承载科室（chunk.section 溯源口径），正文为叙述化处方
+        section = header.get("JZKSMC") or header.get("YLJGMC") or source["table"]
+        documents.append({
+            "name": f"{source['table'].partition('.')[2]}-{key_value}",
+            "blocks": [
+                {"kind": "heading", "level": 1, "text": section},
+                {"kind": "paragraph", "level": None, "text": _render_prescription(header, drugs)},
+            ],
+        })
+    return documents
+
+
 # ---------- 切块 ----------
 
 @dataclass
@@ -215,6 +287,12 @@ def chunk_quality_score(text: str, min_chars: int, max_chars: int) -> float:
 # 已实现算子注册表：recipe spec.pipeline 的名字必须在此；出现与否真实影响
 # 构建（删掉 deidentification 则产物保留原文，删掉 chunk_quality_score 则
 # 不打分）——声明即行为，不存在装饰性工序。
+KNOWN_OPS = (
+    "document_parse", "table_serialize", "text_normalization", "template_removal",
+    "deduplicate", "pii_detection", "deidentification", "semantic_chunk",
+    "chunk_quality_score", "metadata_enrichment",
+)
+# documents 源（缺省）的标准链；doris_table 源必须显式声明 pipeline（含 table_serialize）
 DEFAULT_PIPELINE = (
     "document_parse", "text_normalization", "template_removal", "deduplicate",
     "pii_detection", "deidentification", "semantic_chunk", "chunk_quality_score",
@@ -224,9 +302,9 @@ DEFAULT_PIPELINE = (
 
 def _pipeline_of(spec: dict) -> list[str]:
     pipeline = list(spec.get("pipeline") or DEFAULT_PIPELINE)
-    unknown = [op for op in pipeline if op not in DEFAULT_PIPELINE]
+    unknown = [op for op in pipeline if op not in KNOWN_OPS]
     if unknown:
-        raise RuntimeError(f"Recipe pipeline 含未实现算子：{unknown}（已知：{list(DEFAULT_PIPELINE)}）")
+        raise RuntimeError(f"Recipe pipeline 含未实现算子：{unknown}（已知：{list(KNOWN_OPS)}）")
     return pipeline
 
 
@@ -241,27 +319,43 @@ class BuildStats:
     phi_documents: list[str] = field(default_factory=list)
 
 
-def build(recipe_path: Path, documents_dir: Path) -> tuple[list[dict], dict, BuildStats]:
+def build(recipe_path: Path, documents_dir: Path, adapter=None) -> tuple[list[dict], dict, BuildStats]:
     recipe = yaml.safe_load(recipe_path.read_text(encoding="utf-8"))
     if recipe.get("apiVersion") != "data-os/v1" or recipe.get("kind") != "AIDatasetRecipe":
         raise RuntimeError("Recipe 不符合 data-os/v1 AIDatasetRecipe 规范")
     spec = recipe["spec"]
     params = spec.get("parameters", {})
     pipeline = _pipeline_of(spec)
+    source = spec.get("source", {})
+    kind = source.get("kind", "documents")
+    if kind == "doris_table" and "table_serialize" not in pipeline:
+        raise RuntimeError("source.kind=doris_table 须在 pipeline 声明 table_serialize")
+    if kind != "doris_table" and "table_serialize" in pipeline:
+        raise RuntimeError("pipeline 含 table_serialize 但 source.kind 非 doris_table")
     stats = BuildStats()
 
-    files = sorted(documents_dir.glob("*.html"))
-    stats.documents_in = len(files)
-
-    def prepare(path: Path) -> list[dict]:
-        blocks = document_parse(path) if "document_parse" in pipeline else []
+    if kind == "doris_table":
+        if adapter is None:
+            raise RuntimeError("doris_table 源需要 Doris adapter（读取面）")
+        documents = table_serialize(adapter, source)
+        stats.documents_in = len(documents)
         if "text_normalization" in pipeline:
-            blocks = text_normalization(blocks)
+            documents = [{**doc, "blocks": text_normalization(doc["blocks"])} for doc in documents]
         if "template_removal" in pipeline:
-            blocks = template_removal(blocks)
-        return blocks
+            documents = [{**doc, "blocks": template_removal(doc["blocks"])} for doc in documents]
+    else:
+        files = sorted(documents_dir.glob("*.html"))
+        stats.documents_in = len(files)
 
-    documents = [{"name": f.name, "blocks": prepare(f)} for f in files]
+        def prepare(path: Path) -> list[dict]:
+            blocks = document_parse(path) if "document_parse" in pipeline else []
+            if "text_normalization" in pipeline:
+                blocks = text_normalization(blocks)
+            if "template_removal" in pipeline:
+                blocks = template_removal(blocks)
+            return blocks
+
+        documents = [{"name": f.name, "blocks": prepare(f)} for f in files]
     if "deduplicate" in pipeline:
         unique, dropped = deduplicate(documents)
     else:
@@ -315,8 +409,11 @@ def build(recipe_path: Path, documents_dir: Path) -> tuple[list[dict], dict, Bui
         },
         "spec": {
             "workload": spec["workload"]["type"],
-            "source": {"dataset": spec["source"]["dataset"],
-                       "documents": [d["name"] for d in unique]},
+            "source": ({"table": source["table"], "limit": source.get("limit", 2000),
+                        "documents": len(unique)}
+                       if kind == "doris_table" else
+                       {"dataset": source["dataset"],
+                        "documents": [d["name"] for d in unique]}),
             "privacy": {"contains_phi": bool(stats.pii_hits), "deidentified": True},
             "lineage": {"recipe": recipe["metadata"]["name"], "git_commit": git_commit},
         },
@@ -391,12 +488,17 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     recipe_path = Path(args.recipe)
-    documents_dir = Path(args.documents_dir) if args.documents_dir else recipe_path.parents[1] / \
-        yaml.safe_load(recipe_path.read_text(encoding="utf-8"))["spec"]["source"]["dataset"]
-    chunks, artifacts, stats = build(recipe_path, documents_dir)
+    recipe = yaml.safe_load(recipe_path.read_text(encoding="utf-8"))
+    if recipe["spec"].get("source", {}).get("kind") == "doris_table":
+        from adapters import DorisAdapter
+        from settings import settings
+        chunks, artifacts, stats = build(recipe_path, None, adapter=DorisAdapter(settings))
+    else:
+        documents_dir = Path(args.documents_dir) if args.documents_dir else recipe_path.parents[1] / \
+            recipe["spec"]["source"]["dataset"]
+        chunks, artifacts, stats = build(recipe_path, documents_dir)
     print(json.dumps(artifacts["quality"], ensure_ascii=False, indent=1))
 
-    recipe = yaml.safe_load(recipe_path.read_text(encoding="utf-8"))
     output = recipe["spec"]["output"]
     prefix = output.get("object_prefix", "ai-data/medical-rag-guideline")
 

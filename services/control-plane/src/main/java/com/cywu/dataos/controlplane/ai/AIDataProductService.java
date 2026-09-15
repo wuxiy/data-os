@@ -199,7 +199,9 @@ public class AIDataProductService {
         return certificationRepository.findByProduct(product.id());
     }
 
-    /** 评测委托（G11）：引擎执行 RAG 评测，结果并入当前版本 readiness_json 的 evaluation 段。 */
+    /** 评测委托（G11）：引擎执行 RAG 评测，结果并入当前版本 readiness_json 的 evaluation 段。
+     *  G17：随请求传当前版本登记的 recipeRef——引擎按 Recipe 解析语料表与评测集
+     *  （双产品契约；旧版本 recipeRef 为空时引擎回落默认）。 */
     @Transactional
     public java.util.Map<String, Object> evaluate(String id) {
         var product = require(id);
@@ -207,11 +209,11 @@ public class AIDataProductService {
         if (engine == null) {
             throw new EngineNotConfiguredException();
         }
-        var report = engine.evaluate(product);
         var version = repository.findVersions(product.id()).stream()
                 .filter(item -> item.versionSn().equals(product.currentVersion()))
                 .findFirst()
                 .orElseThrow(() -> new ConflictException("当前版本不存在"));
+        var report = engine.evaluate(product, version.recipeRef());
         var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
         try {
             var root = version.readinessJson() == null || version.readinessJson().isBlank()

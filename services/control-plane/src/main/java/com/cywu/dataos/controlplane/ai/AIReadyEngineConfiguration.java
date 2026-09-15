@@ -40,8 +40,9 @@ public class AIReadyEngineConfiguration {
             }
 
             @Override
-            public java.util.Map<String, Object> evaluate(AIDataProduct product) {
-                return AIReadyEngineConfiguration.evaluate(client, tokenProvider, properties, product);
+            public java.util.Map<String, Object> evaluate(AIDataProduct product, String recipeRef) {
+                return AIReadyEngineConfiguration.evaluate(client, tokenProvider, properties, product,
+                        recipeRef == null ? "" : recipeRef);
             }
         };
     }
@@ -49,9 +50,9 @@ public class AIReadyEngineConfiguration {
     @SuppressWarnings("unchecked")
     private static java.util.Map<String, Object> evaluate(RestClient client,
             OidcClientCredentialsTokenProvider tokenProvider, AIReadyProperties properties,
-            AIDataProduct product) {
-        var body = String.format("{\"product\":%s,\"version\":%s}",
-                quote(product.name()), quote(product.currentVersion()));
+            AIDataProduct product, String recipeRef) {
+        var body = String.format("{\"product\":%s,\"version\":%s,\"recipeRef\":%s}",
+                quote(product.name()), quote(product.currentVersion()), quote(recipeRef));
         try {
             var payload = client.post()
                     .uri("/evaluate")

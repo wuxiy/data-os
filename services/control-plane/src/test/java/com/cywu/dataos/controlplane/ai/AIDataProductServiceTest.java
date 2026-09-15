@@ -96,7 +96,7 @@ class AIDataProductServiceTest {
             }
 
             @Override
-            public java.util.Map<String, Object> evaluate(AIDataProduct candidate) {
+            public java.util.Map<String, Object> evaluate(AIDataProduct candidate, String recipeRef) {
                 return java.util.Map.of("mrr", 0.8, "details", java.util.List.of());
             }
         };
@@ -173,7 +173,7 @@ class AIDataProductServiceTest {
             }
 
             @Override
-            public java.util.Map<String, Object> evaluate(AIDataProduct candidate) {
+            public java.util.Map<String, Object> evaluate(AIDataProduct candidate, String recipeRef) {
                 return java.util.Map.of("mrr", 0.8);
             }
         };
@@ -254,7 +254,7 @@ class AIDataProductServiceTest {
             }
 
             @Override
-            public java.util.Map<String, Object> evaluate(AIDataProduct candidate) {
+            public java.util.Map<String, Object> evaluate(AIDataProduct candidate, String recipeRef) {
                 return java.util.Map.of("mrr", 0.75, "details", java.util.List.of("x"));
             }
         };
@@ -268,6 +268,34 @@ class AIDataProductServiceTest {
         assertThat(report).containsEntry("mrr", 0.75);
         var readiness = service.detail(product.id()).versions().get(0).readinessJson();
         assertThat(readiness).contains("evaluation").contains("0.75").doesNotContain("details");
+    }
+
+    @Test
+    void evaluatePassesCurrentVersionRecipeRefToEngine() {
+        // G17 双产品契约：引擎按当前版本登记的 recipeRef 解析语料表与评测集
+        var product = service.create(request("eval-ref-" + UUID.randomUUID()));
+        service.registerAndAdvance(product.id(), "v0.2.0", "ep-prescription-rag-v1", "deadbeef");
+        var captured = new java.util.ArrayList<String>();
+        AIReadyEnginePort stub = new AIReadyEnginePort() {
+            @Override
+            public AIReadyAssessment build(AIDataProduct candidate, String recipe) {
+                throw new IllegalStateException("not used");
+            }
+
+            @Override
+            public java.util.Map<String, Object> evaluate(AIDataProduct candidate, String recipeRef) {
+                captured.add(recipeRef);
+                return java.util.Map.of("mrr", 0.9);
+            }
+        };
+        org.springframework.beans.factory.ObjectProvider<AIReadyEnginePort> provider =
+                new org.springframework.beans.factory.ObjectProvider<>() {
+                    @Override public AIReadyEnginePort getObject() { return stub; }
+                    @Override public AIReadyEnginePort getIfAvailable() { return stub; }
+                };
+        new AIDataProductService(repository, certificationRepository, feedbackRepository, tenantScope, provider)
+                .evaluate(product.id());
+        assertThat(captured).containsExactly("ep-prescription-rag-v1");
     }
 
     // ---- G12 飞轮与发布守卫 ----
