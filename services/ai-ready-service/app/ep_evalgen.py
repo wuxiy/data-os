@@ -19,8 +19,10 @@ from pathlib import Path
 DEPT_RE = re.compile(r"科室：(.+?)；")
 DATE_RE = re.compile(r"开方日期：(\d{4}-\d{2}-\d{2})")
 FIRST_DRUG_RE = re.compile(r"1）药品 (.+?)，")
-# golden 句 = 首药品完整条目（用法/频率/剂量/天数齐备，可由 top1 片段支撑）
-DRUG_FRAGMENT_RE = re.compile(r"(1）药品 (?:.*?，){2,}用药 \d+ 天|1）药品 [^；]+)")
+# golden 句 = 首药品完整条目（以 ；定界，线性匹配）。早期版本用
+# (?:.*?，){2,}用药 \d+ 天 的贪婪组合形态，在「首条目缺用药天数 + 后续条目有」
+# 的真实处方上灾难性回溯（G17 实测 1967 行语料第 280 行起挂死）。
+DRUG_FRAGMENT_RE = re.compile(r"1）药品 [^；]+")
 
 
 def extract_case(content: str) -> dict | None:
@@ -35,7 +37,7 @@ def extract_case(content: str) -> dict | None:
         # 仅凭科室+药品无法把期望文档从同药兄弟块中区分出来（G17 实测 MRR 0.14 教训）
         "question": (f"{date.group(1)} {dept.group(1)}开具的门诊处方中，"
                      f"药品「{drug.group(1)}」的用法用量是什么？"),
-        "golden_sentence": fragment.group(1),
+        "golden_sentence": fragment.group(0),
         # 唯一性键：同（日期, 科室, 药品）的孪生处方在语料中并存时，期望文档在孪生
         # 块中任意、检索指标不可判——此类处方不构造问句（见 generate）
         "key": f"{date.group(1)}|{dept.group(1)}|{drug.group(1)}",
