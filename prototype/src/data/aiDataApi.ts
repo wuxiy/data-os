@@ -290,7 +290,17 @@ export async function evaluateAIDataProduct(id: string): Promise<AIReadyEvaluati
   ) as Promise<AIReadyEvaluationReport>
 }
 
-/** build 返回评估摘要（G9：完整报告在版本 readiness_json）。 */
+/** build 的构建执行段（G18：控制面在有 recipeRef 时先构建再评估）。 */
+export interface AIBuildSection {
+  recipe: string
+  chunks: number
+  documents: { input: number; unique: number; duplicates_dropped: number }
+  doris: { table: string; written: number; reset: boolean }
+  rustfs: { bucket: string; prefix: string; version: string }
+}
+
+/** build 返回评估摘要（G9：完整报告在版本 readiness_json）；G18 起版本登记了
+ * Recipe 时先真实构建，摘要携带可选构建段。 */
 export interface AIReadyBuildSummary {
   product: string
   version: string
@@ -298,6 +308,7 @@ export interface AIReadyBuildSummary {
   overall: number
   certification: string
   assessedAt: string
+  build?: AIBuildSection
 }
 
 export async function buildAIDataProduct(id: string, recipeRef?: string): Promise<AIReadyBuildSummary> {

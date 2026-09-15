@@ -54,7 +54,10 @@ export function AIDataPage({ onNotice }: { onNotice: (message: string) => void }
 function AIDataLive({ onNotice }: { onNotice: (message: string) => void }) {
   const [products, setProducts] = useState<AIDataProduct[]>([])
   const [overview, setOverview] = useState<AIOverview | null>(null)
-  const [selectedId, setSelectedId] = useState('')
+  // 深链（G18）：?product= 直达选中，对齐 ?asset=/?issue= 口径；清单到达后校验有效性。
+  const [selectedId, setSelectedId] = useState(
+    () => new URLSearchParams(window.location.search).get('product') ?? '',
+  )
   const [refreshTick, setRefreshTick] = useState(0)
   const [createOpen, setCreateOpen] = useState(false)
   const [form, setForm] = useState({
@@ -91,6 +94,11 @@ function AIDataLive({ onNotice }: { onNotice: (message: string) => void }) {
     setRefreshTick((tick) => tick + 1)
   }
 
+  function selectProduct(id: string) {
+    setSelectedId(id)
+    window.history.replaceState({}, '', `${window.location.pathname}?product=${encodeURIComponent(id)}`)
+  }
+
   // 动作互斥统一；错误通道按 cause 特判引擎守护（未配置/不可达）。
   const { pendingKey, run: runAction } = useAction((message, cause) => {
     if (cause instanceof PortalHttpError && cause.code === 'AI_READY_ENGINE_NOT_CONFIGURED') {
@@ -117,8 +125,8 @@ function AIDataLive({ onNotice }: { onNotice: (message: string) => void }) {
       })
       onNotice(`已创建 AI Data Product：${product.name}（${product.currentVersion}）`)
       setCreateOpen(false)
-      setForm((current) => ({ ...current, name: '', owner: '', source: '' }))
-      setSelectedId(product.id)
+      setForm((current) => ({ ...current, name: '', type: current.type, owner: '', source: '' }))
+      selectProduct(product.id)
       refresh()
     })
   }
@@ -148,7 +156,7 @@ function AIDataLive({ onNotice }: { onNotice: (message: string) => void }) {
     void runAction(`evaluate-${product.id}`, '评测失败', async () => {
       const report = await evaluateAIDataProduct(product.id)
       onNotice(`评测完成：MRR ${report.mrr?.toFixed?.(2) ?? '—'} · Recall@5 ${report.retrieval_recall_at_5?.toFixed?.(2) ?? '—'}（已并入版本报告）`)
-      setSelectedId(product.id)
+      selectProduct(product.id)
       refresh()
     })
   }
@@ -156,8 +164,11 @@ function AIDataLive({ onNotice }: { onNotice: (message: string) => void }) {
   function build(product: AIDataProduct) {
     void runAction(`build-${product.id}`, '构建失败', async () => {
       const summary = await buildAIDataProduct(product.id)
-      onNotice(`评估完成：Overall ${summary.overall?.toFixed?.(2) ?? '—'} · ${summary.certification ? (aiCertificationLabel[summary.certification] ?? summary.certification) : '—'}（已回写 ${product.currentVersion}）`)
-      setSelectedId(product.id)
+      const certification = summary.certification ? (aiCertificationLabel[summary.certification] ?? summary.certification) : '—'
+      onNotice(summary.build
+        ? `构建完成：${summary.build.chunks} 个 chunk（RustFS ${summary.build.rustfs?.version ?? '—'}）→ 评估 Overall ${summary.overall?.toFixed?.(2) ?? '—'} · ${certification}（已回写 ${product.currentVersion}）`
+        : `评估完成：Overall ${summary.overall?.toFixed?.(2) ?? '—'} · ${certification}（已回写 ${product.currentVersion}）`)
+      selectProduct(product.id)
       refresh()
     })
   }
@@ -207,7 +218,7 @@ function AIDataLive({ onNotice }: { onNotice: (message: string) => void }) {
               <li key={product.id}>
                 <button
                   className={`${styles.catalogItem} ${product.id === selectedId ? styles.catalogItemSelected : ''}`}
-                  onClick={() => setSelectedId(product.id)}
+                  onClick={() => selectProduct(product.id)}
                   aria-pressed={product.id === selectedId}
                 >
                   <strong><BrainCircuit size={13} aria-hidden="true" /> {product.name}</strong>
