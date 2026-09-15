@@ -66,6 +66,7 @@ else:
     print("PII columns already tagged (no patch needed)")
 
 # 3) 三库业务表补中文描述（幂等：仅空描述时 PATCH）
+#    G17 扩充：G16b/c/d 入仓的 31 张 EP 域表补齐（文案源自 ep-domain-inventory 盘点）
 DESCRIPTIONS = {
     "ods_ep": {
         "ep_mz_cfzb": "电子处方处方主表（DM 采集镜像；机构/患者/开方时间/状态）",
@@ -73,6 +74,40 @@ DESCRIPTIONS = {
         "ep_mz_ypcfmx": "电子处方药品明细表（药品编码/数量/用法）",
         "ep_mz_cfzb_edge": "处方主表边缘链路增量（前置机经中转桶落库；G5）",
         "ep_mz_ypcfmx_edge": "药品明细边缘链路增量（前置机经中转桶落库；G5）",
+        # ---- G16b 门诊处方域 ----
+        "ep_status": "处方状态表（审方/流转状态变迁，G16b）",
+        "ep_tag": "处方标签表（处方标记，G16b）",
+        "ep_flow": "处方流转表（审方流转记录，G16b）",
+        "ep_chain": "处方链路表（处方全程流转轨迹，G16b）",
+        "ep_drug_ext": "处方药品扩展信息表（G16b）",
+        "ep_yb_rx": "医保标准处方信息表（G16b）",
+        # ---- G16c 订单交易域 ----
+        "ep_order": "订单主表（ORDER 保留字前缀改造，G16c）",
+        "ep_order_item": "订单明细表（G16c 交易域）",
+        "ep_order_flow": "订单流转表（G16c）",
+        "ep_order_trade": "订单交易表（G16c）",
+        "ep_order_after_sale": "订单售后表（G16c）",
+        "ep_order_relationship": "订单关联关系表（G16c）",
+        # ---- G16d 机构目录与患者域 ----
+        "institution": "医疗机构表（G16d 维度）",
+        "institution_info": "机构信息表（G16d）",
+        "institution_drug_catalog": "医院药品流转目录（G16d）",
+        "institution_drug_catalog_detail": "医疗机构药品流转目录提交详情（G16d）",
+        "institution_drug_catalog_record": "医疗机构药品目录操作表（G16d）",
+        "institution_drug_catalog_submit": "机构药品目录提交表（G16d）",
+        "institution_drug_catalog_submit_log": "机构药品目录提交日志表（G16d）",
+        "institution_drug_catalog_verify": "机构药品目录审核表（G16d）",
+        "institution_drug_catalog_verify_detail": "机构药品目录审核明细表（G16d）",
+        "drug_catalog": "药品目录（通用名 + 标准编码药品主数据，G16d）",
+        "drug_database": "药品标准数据库（G16d 药品主数据）",
+        "drug_category": "药品分类表（G16d 维度）",
+        "disease_catalog": "疾病（诊断）目录维度表（G16d）",
+        "drugstore": "药店信息表（G16d）",
+        "patient": "患者表（C 端注册路径；PASSWORD/CREDENTIALS/WECHAT_OPEN_ID 采集级排除，G16b 硬约束）",
+        "patient_address": "患者地址表（G16d）",
+        "patient_card": "患者卡表（G16d）",
+        "patient_ep_record": "患者处方记录表（G16d）",
+        "patient_medicine": "患者用药表（G16d）",
     },
     "dataos_quality_acceptance": {
         "quality_sample": "质量验收合成样本表（规则演示与验收口径）",
@@ -94,5 +129,40 @@ for schema, tables in DESCRIPTIONS.items():
              [{"op": "add", "path": "/description", "value": description}])
         described += 1
 print(f"described {described} tables")
+
+# 4) 处方域核心列补中文描述（幂等：仅空描述时按列索引 PATCH；G17 喂
+#    column_description_coverage 探针）
+COLUMN_DESCRIPTIONS = {
+    "ods_ep.ep_mz_cfzb": {
+        "YLJGDM": "医疗机构代码（处方开具机构）",
+        "JZKSMC": "就诊科室名称",
+        "KFRQ": "开方日期时间",
+        "LCZD": "临床诊断",
+        "CFPTZT": "处方平台状态（int 枚举）",
+        "HZXB": "患者性别",
+        "HZNL": "患者年龄（数值，单位见 HZNLDW）",
+    },
+    "ods_ep.ep_mz_ypcfmx": {
+        "YPBM": "药品编码（机构药品编码；缺失时可按 YPTYM 在 drug_catalog 解析标准编码）",
+        "YPTYM": "药品通用名",
+        "YPGG": "药品规格",
+        "YF": "用法（如口服/外用）",
+        "SYPC": "使用频率（如一日三次）",
+        "YPSL": "药品数量",
+    },
+}
+columns_described = 0
+for table_suffix, columns in COLUMN_DESCRIPTIONS.items():
+    fqn = f"doris-dataos.default.{table_suffix}"
+    entity = call("GET", f"/tables/name/{fqn}?fields=columns")
+    patch = []
+    for index, column in enumerate(entity.get("columns", []) or []):
+        text = columns.get(column["name"])
+        if text and not str(column.get("description") or "").strip():
+            patch.append({"op": "add", "path": f"/columns/{index}/description", "value": text})
+    if patch:
+        call("PATCH", f"/tables/{entity['id']}", patch)
+        columns_described += len(patch)
+print(f"described {columns_described} columns")
 print("AI Ready 数据准备完成")
 PY

@@ -15,9 +15,11 @@ def test_all_pass_yields_full_score_candidate():
     report = make_engine(all_pass_metrics()).assess("p", "v0.1.0", "medical-rag")
     assert report.overall == 1.0
     assert report.gate.result == "PASS" and report.gate.certification == "CANDIDATE"
-    # chunk/leakage 两项表不存在 -> N/A，不参与聚合
+    # chunk 三项与 leakage 表不存在 -> N/A，不参与聚合（consumable 维整体缺位）
     statuses = {item.id: item.status for item in report.requirements}
     assert statuses["chunk_source_attribution"] == "NOT_APPLICABLE"
+    assert statuses["chunk_deduplication"] == "NOT_APPLICABLE"
+    assert statuses["chunk_quality_share"] == "NOT_APPLICABLE"
     assert statuses["patient_split_leakage"] == "NOT_APPLICABLE"
     assert "consumable" not in report.dimensions
 
@@ -35,15 +37,18 @@ def test_aggregation_matches_hand_computed():
 
 
 def test_warn_scores_half():
-    metrics = all_pass_metrics() | {"semantic_documentation": 0.6}  # 0.6 -> WARN（0.5<=0.6<0.8）
+    # contextual 两探针同时 WARN（G17 补厚后为双成员）：维度分 = 0.5
+    metrics = all_pass_metrics() | {"semantic_documentation": 0.6, "column_description_coverage": 0.6}
     report = make_engine(metrics).assess("p", "v0.1.0", "medical-rag")
     assert report.dimensions["contextual"] == 0.5
-    assert report.problems["WARN"] == ["semantic_documentation"]
+    assert report.problems["WARN"] == ["semantic_documentation", "column_description_coverage"]
 
 
 def test_review_band():
-    # 让 correlated 与 contextual 都 WARN：overall = (1 + 0.5 + 0.5 + 1 + 1)/5 = 0.8 -> REVIEW
-    metrics = all_pass_metrics() | {"semantic_documentation": 0.6, "lineage_completeness": 0.6}
+    # contextual（双探针）与 correlated（双探针）全 WARN：
+    # overall = (1 + 0.5 + 0.5 + 1 + 1)/5 = 0.8 -> REVIEW（consumable 为 N/A 剔除）
+    metrics = all_pass_metrics() | {"semantic_documentation": 0.6, "column_description_coverage": 0.6,
+                                    "lineage_completeness": 0.6}
     report = make_engine(metrics).assess("p", "v0.1.0", "medical-rag")
     assert report.overall == 0.8
     assert report.gate.result == "REVIEW" and report.gate.certification == "REVIEW_REQUIRED"
@@ -62,7 +67,8 @@ def test_fail_band_below_threshold():
     metrics = all_pass_metrics() | {
         "null_ratio": 0.10, "trusted_ratio": 0.5, "coverage_ratio": 0.9,
         "hours_since_update": 200.0, "semantic_documentation": 0.3,
-        "lineage_completeness": 0.0, "pii_classification": 0.5,
+        "column_description_coverage": 0.2, "lineage_completeness": 0.0,
+        "pii_classification": 0.5,
     }
     report = make_engine(metrics).assess("p", "v0.1.0", "medical-rag")
     assert report.overall < 0.70
@@ -102,6 +108,7 @@ def test_probe_error_fails_the_requirement():
 
 def test_cli_render_matches_reference_layout():
     report = make_engine(all_pass_metrics() | {"semantic_documentation": 0.6,
+                                               "column_description_coverage": 0.6,
                                                "lineage_completeness": 0.6}).assess(
         "medical-rag-diagnosis", "1.2.0", "medical-rag")
     text = render_cli(report)

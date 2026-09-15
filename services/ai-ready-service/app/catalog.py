@@ -58,6 +58,7 @@ def _check_thresholds(check: dict, rid: str) -> None:
 # 即爆，而不是评估期坍缩成「数据质量 FAIL」。
 _PROBE_REQUIRED_KEYS = {
     "table_description_coverage": ("service", "schemas"),
+    "column_description_coverage": ("service", "tables"),
     "lineage_edge_coverage": ("service", "root"),
     "pii_tag_coverage": ("service", "table", "columns"),
 }
@@ -81,7 +82,7 @@ def _check_shape(check: dict, rid: str) -> None:
                                f"（已知：{sorted(_PROBE_REQUIRED_KEYS)}）")
         for key in required:
             value = check.get(key)
-            if value is None or value == "" or value == []:
+            if value is None or value == "" or value == [] or value == {}:
                 raise CatalogError(f"requirement {rid} 的 {probe} 探针缺少 {key}")
     else:
         raise CatalogError(f"requirement {rid} 的 check.type 非法：{check_type}"

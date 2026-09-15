@@ -41,7 +41,7 @@ def test_assess_returns_report(client):
     payload = response.json()
     assert payload["product"] == "p" and payload["version"] == "v0.2.0"
     assert payload["gate"]["certification"] == "CANDIDATE"
-    assert len(payload["requirements"]) == 10
+    assert len(payload["requirements"]) == 14
     # 产物零口令：响应文本不含任何凭据键
     assert "password" not in response.text and "secret" not in response.text
 

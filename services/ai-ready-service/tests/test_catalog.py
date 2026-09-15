@@ -10,19 +10,19 @@ def catalog():
     return load_catalog(str(REPO))
 
 
-def test_loads_ten_requirements(catalog):
-    assert len(catalog.requirements) == 10
+def test_loads_fourteen_requirements(catalog):
+    assert len(catalog.requirements) == 14
     by_dimension = {}
     for requirement in catalog.requirements.values():
         by_dimension[requirement.dimension] = by_dimension.get(requirement.dimension, 0) + 1
-    # 六维覆盖：clean 3 / current 1 / contextual 1 / consumable 1 / correlated 1 / compliant 3
-    assert by_dimension == {"clean": 3, "current": 1, "contextual": 1,
-                            "consumable": 1, "correlated": 1, "compliant": 3}
+    # 六维覆盖（G17 补厚后）：clean 3 / current 1 / contextual 2 / consumable 3 / correlated 2 / compliant 3
+    assert by_dimension == {"clean": 3, "current": 1, "contextual": 2,
+                            "consumable": 3, "correlated": 2, "compliant": 3}
 
 
 def test_both_profiles_reference_all_requirements(catalog):
     for profile_id in ("medical-rag", "medical-training"):
-        assert len(catalog.requirement_ids(profile_id)) == 10
+        assert len(catalog.requirement_ids(profile_id)) == 14
 
 
 def test_critical_severity_set(catalog):
@@ -87,4 +87,24 @@ def test_missing_probe_key_rejected_at_load(tmp_path):
         "thresholds: {fail_below: 0.7, review_below: 0.85}\n",
         encoding="utf-8")
     with pytest.raises(CatalogError, match="缺少 table"):
+        load_catalog(str(tmp_path))
+
+
+def test_empty_probe_table_map_rejected_at_load(tmp_path):
+    """column_description_coverage 的 tables 为空映射时按缺键拒绝（防恒 0 探针）。"""
+    (tmp_path / "requirements" / "contextual").mkdir(parents=True)
+    req_dir = tmp_path / "requirements" / "contextual" / "empty-tables"
+    req_dir.mkdir()
+    (req_dir / "requirement.yaml").write_text(
+        "id: empty_tables\ntitle: t\ndimension: contextual\nseverity: major\n"
+        "applicable_profiles: [p]\ndiagnostic: d\n"
+        "check: {type: om_probe, probe: column_description_coverage, service: doris-dataos, "
+        "tables: {}, direction: higher_better, pass: 1.0, warn: 0.5}\n",
+        encoding="utf-8")
+    (tmp_path / "profiles").mkdir()
+    (tmp_path / "profiles" / "p.yaml").write_text(
+        "id: p\nname: p\nrequirements: {empty_tables: 1.0}\n"
+        "thresholds: {fail_below: 0.7, review_below: 0.85}\n",
+        encoding="utf-8")
+    with pytest.raises(CatalogError, match="缺少 tables"):
         load_catalog(str(tmp_path))

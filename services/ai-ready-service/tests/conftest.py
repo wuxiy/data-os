@@ -10,6 +10,7 @@ def all_pass_metrics() -> dict[str, float]:
         "null_ratio": 0.0, "trusted_ratio": 1.0, "coverage_ratio": 1.0,
         "hours_since_update": 1.0, "plaintext_hit_ratio": 0.0,
         "semantic_documentation": 1.0, "lineage_completeness": 1.0, "pii_classification": 1.0,
+        "column_description_coverage": 1.0, "dup_content_ratio": 0.0, "quality_pass_share": 1.0,
     }
 
 
@@ -40,6 +41,9 @@ class StubOm:
 
     def table_description_coverage(self, check: dict) -> float:
         return self._metrics["semantic_documentation"]
+
+    def column_description_coverage(self, check: dict) -> float:
+        return self._metrics["column_description_coverage"]
 
     def lineage_edge_coverage(self, check: dict) -> float:
         return self._metrics["lineage_completeness"]

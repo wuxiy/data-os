@@ -1,0 +1,17 @@
+id: chunk_deduplication
+title: Chunk 去重完备（产物内容零重复）
+dimension: consumable
+severity: major
+applicable_profiles:
+- medical-rag
+- medical-training
+diagnostic: chunks 表存在内容级重复——检索面同题多块，浪费召回窗口并稀释证据
+check:
+  type: doris_metric
+  requires_table: dataos_ai.chunks
+  sql_file: doris/check.sql
+  metric: dup_content_ratio
+  direction: lower_better
+  pass: 0.0
+  warn: 0.01
+  not_applicable_reason: chunk 产物由 RAG 数据集工厂生成；表 dataos_ai.chunks 存在后本项自动生效

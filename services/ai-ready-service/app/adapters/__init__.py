@@ -92,6 +92,21 @@ class OpenMetadataAdapter:
             described += sum(1 for table in data if str(table.get("description") or "").strip())
         return described / total if total else 0.0
 
+    def column_description_coverage(self, check: dict) -> float:
+        """声明清单（tables: {schema.table: [列名]}）内核心列描述非空占比。"""
+        service = check["service"]
+        database_segment = check.get("database", "default")
+        described = total = 0
+        for table_suffix, columns in check["tables"].items():
+            fqn = f"{service}.{database_segment}.{table_suffix}"
+            table = self._get(f"/tables/name/{fqn}?fields=columns")
+            by_name = {column.get("name"): column for column in table.get("columns", []) or []}
+            for name in columns:
+                total += 1
+                if str((by_name.get(name) or {}).get("description") or "").strip():
+                    described += 1
+        return described / total if total else 0.0
+
     def lineage_edge_coverage(self, check: dict) -> float:
         """根表下游血缘边覆盖：实际边数 / 期望边数（封顶 1.0）。"""
         graph = self._get(

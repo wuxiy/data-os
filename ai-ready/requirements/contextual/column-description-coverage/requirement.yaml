@@ -1,0 +1,32 @@
+id: column_description_coverage
+title: 核心列语义覆盖（EP 处方核心列 OM 描述占比）
+dimension: contextual
+severity: major
+applicable_profiles:
+- medical-rag
+- medical-training
+diagnostic: 处方域核心列缺少业务语义描述——AI 消费侧无法机器理解列含义
+check:
+  type: om_probe
+  probe: column_description_coverage
+  service: doris-dataos
+  database: default
+  tables:
+    ods_ep.ep_mz_cfzb:
+    - YLJGDM
+    - JZKSMC
+    - KFRQ
+    - LCZD
+    - CFPTZT
+    - HZXB
+    - HZNL
+    ods_ep.ep_mz_ypcfmx:
+    - YPBM
+    - YPTYM
+    - YPGG
+    - YF
+    - SYPC
+    - YPSL
+  direction: higher_better
+  pass: 0.8
+  warn: 0.5

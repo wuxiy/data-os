@@ -1,0 +1,17 @@
+id: chunk_quality_share
+title: 真实语料质量分布（EP 语料高质量 chunk 占比）
+dimension: consumable
+severity: major
+applicable_profiles:
+- medical-rag
+- medical-training
+diagnostic: 真实采集语料产物中低质 chunk（超长/过短/无断句）占比偏高——检索命中率与引用可信度受损
+check:
+  type: doris_metric
+  requires_table: dataos_ai.chunks_ep
+  sql_file: doris/check.sql
+  metric: quality_pass_share
+  direction: higher_better
+  pass: 0.9
+  warn: 0.8
+  not_applicable_reason: 表 dataos_ai.chunks_ep 由 EP 真实采集语料构建（G17）产生；存在后本项自动生效

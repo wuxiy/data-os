@@ -1,0 +1,17 @@
+id: ep_lineage_registration
+title: EP 处方血缘在册（主表下游列级血缘可追溯）
+dimension: correlated
+severity: major
+applicable_profiles:
+- medical-rag
+- medical-training
+diagnostic: 处方主表无下游血缘边——真实采集数据到消费面（分析/AI）的追溯链断裂
+check:
+  type: om_probe
+  probe: lineage_edge_coverage
+  service: doris-dataos
+  root: doris-dataos.default.ods_ep.ep_mz_cfzb
+  expected_edges: 2
+  direction: higher_better
+  pass: 1.0
+  warn: 0.5
