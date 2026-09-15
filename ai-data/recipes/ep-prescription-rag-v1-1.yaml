@@ -1,0 +1,57 @@
+apiVersion: data-os/v1
+kind: AIDatasetRecipe
+
+metadata:
+  name: ep-prescription-rag-v1-1
+  version: 1.1.0
+  owner: data-team
+
+spec:
+  source:
+    # v1.1（G18 飞轮，feedback 8291dbd4 吸收）：与 v1 同源同 PHI 排除纪律。
+    # 变更①：KFRQ 截到日期位——时分秒（门诊高峰 10:00:00 近乎全量命中）稀释
+    # 日期 token 的检索判别力，致「同科室同药不同日期」兄弟块挤占召回窗口
+    # （v1 评测 recall 失败 9 例中 6 例为 ENT+替诺福韦簇）。
+    # 变更②：reset_before_write——产物表先清后写，防陈旧行滞留。
+    kind: doris_table
+    table: ods_ep.ep_mz_cfzb
+    key: CFZID
+    order_by: "KFRQ DESC, ID"
+    limit: 2000
+    date_only_columns: [KFRQ]
+    header_columns: [YLJGMC, JZKSMC, KFRQ, HZXB, HZNL, HZNLDW, LCZD, LCZDZY, HZZS, CFPTZT, CFYXQ, BZ]
+    detail:
+      table: ods_ep.ep_mz_ypcfmx
+      key: CFZID
+      order_by: ID
+      columns: [YPTYM, YPGG, YF, SYPC, SYCJL, SJYLDW, YPSL, YPDW, YYTS]
+
+  workload:
+    type: medical-rag
+
+  pipeline:
+    - table_serialize
+    - text_normalization
+    - deduplicate
+    - pii_detection
+    - deidentification
+    - semantic_chunk
+    - chunk_quality_score
+    - metadata_enrichment
+
+  parameters:
+    chunk:
+      target_chars: 600
+      min_chars: 50
+      max_chars: 1200
+    pii:
+      phone_placeholder: "<PHONE>"
+      id_card_placeholder: "<IDCARD>"
+
+  output:
+    format: jsonl
+    dataset: ep-prescription-corpus
+    doris_table: dataos_ai.chunks_ep
+    object_prefix: ai-data/ep-prescription-rag
+    eval_file: eval/ep-prescription-evalset.jsonl
+    reset_before_write: true

@@ -137,8 +137,8 @@ def ep_stub_adapter(duplicate=False):
 def test_table_serialize_only_reads_declared_columns():
     """PHI 排除纪律的执行点：未声明的标识符列不出现在任何 SQL 里。"""
     adapter = ep_stub_adapter()
-    documents = rb.table_serialize(adapter, yaml.safe_load(
-        EP_RECIPE.read_text(encoding="utf-8"))["spec"]["source"])
+    source = yaml.safe_load(EP_RECIPE.read_text(encoding="utf-8"))["spec"]["source"]
+    documents = rb.table_serialize(adapter, source)
     joined = "\n".join(adapter.queries)
     for banned in ("HZXM", "LXFS", "PATIENT_ID", "JZLSH", "KFYSGH", "KFYSXM", "BIZ_NO", "KH", "KLX"):
         assert banned not in joined, f"标识符列 {banned} 不应被查询"
@@ -148,6 +148,22 @@ def test_table_serialize_only_reads_declared_columns():
     assert "机构：XX人民医院" in text and "科室：心血管内科" in text
     assert "药品 苯磺酸氨氯地平片" in text and "用法 口服" in text
     assert text.endswith("。")  # 断句在场（chunk_quality_score 口径）
+
+
+def test_date_only_columns_truncate_time_component():
+    """G18 飞轮 v1.1：时序列截到日期位（时分秒稀释日期 token 判别力）。"""
+    adapter = ep_stub_adapter()
+    source = yaml.safe_load(EP_RECIPE.read_text(encoding="utf-8"))["spec"]["source"]
+    source["date_only_columns"] = ["KFRQ"]
+    documents = rb.table_serialize(adapter, source)
+    text = documents[0]["blocks"][-1]["text"]
+    assert "开方日期：2026-08-01。" in text or "开方日期：2026-08-01；" in text
+    assert "10:00:00" not in text
+    # 未声明时保留完整时间戳（v1 行为）
+    adapter_v1 = ep_stub_adapter()
+    source.pop("date_only_columns")
+    text_v1 = rb.table_serialize(adapter_v1, source)[0]["blocks"][-1]["text"]
+    assert "10:00:00" in text_v1
 
 
 def test_build_with_doris_table_source_end_to_end():

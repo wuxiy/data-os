@@ -156,9 +156,12 @@ def table_serialize(adapter, source: dict) -> list[dict]:
 
     只 SELECT Recipe 声明的列（PHI 排除纪律的执行点：未声明列不出现在
     查询与文本中）；主表按 order_by 限量取样，明细按 key 全量取回内存分组。
+    source.date_only_columns 声明的时序列截到日期位（G18 飞轮 v1.1：时分秒
+    在门诊高峰近乎全量命中，稀释日期 token 的检索判别力）。
     """
     detail = source.get("detail") or {}
     header_columns = list(source["header_columns"])
+    date_only = set(source.get("date_only_columns") or [])
     rows = adapter.query(
         f"SELECT {source['key']}, {', '.join(header_columns)} FROM {source['table']} "
         f"ORDER BY {source['order_by']} LIMIT %s", (int(source.get("limit", 2000)),))
@@ -174,6 +177,9 @@ def table_serialize(adapter, source: dict) -> list[dict]:
     for row in rows:
         key_value = _cell(row[0])
         header = {column: _cell(value) for column, value in zip(header_columns, row[1:])}
+        for column in date_only:
+            if column in header:
+                header[column] = header[column].split(" ")[0]
         drugs = details.get(key_value, [])
         # heading 块承载科室（chunk.section 溯源口径），正文为叙述化处方
         section = header.get("JZKSMC") or header.get("YLJGMC") or source["table"]
