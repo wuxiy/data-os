@@ -24,7 +24,7 @@ class AIDataProductLifecycleTest {
             AIDataProductLifecycle.CURATED, EnumSet.of(AIDataProductLifecycle.ASSESSED),
             AIDataProductLifecycle.ASSESSED, EnumSet.of(AIDataProductLifecycle.CERTIFIED),
             AIDataProductLifecycle.CERTIFIED, EnumSet.of(AIDataProductLifecycle.SERVING, AIDataProductLifecycle.DEPRECATED),
-            AIDataProductLifecycle.SERVING, EnumSet.of(AIDataProductLifecycle.DEPRECATED),
+            AIDataProductLifecycle.SERVING, EnumSet.of(AIDataProductLifecycle.ASSESSED, AIDataProductLifecycle.DEPRECATED),
             AIDataProductLifecycle.DEPRECATED, EnumSet.of(AIDataProductLifecycle.DEPRECATED));
 
     @Test
@@ -52,11 +52,15 @@ class AIDataProductLifecycleTest {
     }
 
     @Test
-    void servingCannotFallBackToAssessed() {
-        assertThat(AIDataProductLifecycle.SERVING.canTransitionTo(AIDataProductLifecycle.ASSESSED)).isFalse();
-        assertThatThrownBy(() -> AIDataProductLifecycle.SERVING.transitionTo(AIDataProductLifecycle.ASSESSED))
+    void servingDemotesToAssessedForRecertification() {
+        // G19 撤下重评估：唯一逆向流转（CERTIFIED 不可绕过审批直接回退）
+        assertThat(AIDataProductLifecycle.SERVING.canTransitionTo(AIDataProductLifecycle.ASSESSED)).isTrue();
+        assertThat(AIDataProductLifecycle.SERVING.transitionTo(AIDataProductLifecycle.ASSESSED))
+                .isEqualTo(AIDataProductLifecycle.ASSESSED);
+        assertThat(AIDataProductLifecycle.CERTIFIED.canTransitionTo(AIDataProductLifecycle.ASSESSED)).isFalse();
+        assertThatThrownBy(() -> AIDataProductLifecycle.CERTIFIED.transitionTo(AIDataProductLifecycle.ASSESSED))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("SERVING")
+                .hasMessageContaining("CERTIFIED")
                 .hasMessageContaining("ASSESSED");
     }
 

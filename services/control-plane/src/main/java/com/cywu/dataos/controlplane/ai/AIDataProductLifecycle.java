@@ -13,6 +13,8 @@ import java.util.Set;
  * DRAFT → CURATED → ASSESSED → CERTIFIED → SERVING
  *                                  └──────────────┐
  * CERTIFIED / SERVING / DEPRECATED → DEPRECATED ──┘（终态可弃用；DEPRECATED 重复弃用幂等）
+ * SERVING → ASSESSED（G19 撤下重评估：服务中产品迭代新版本后的再认证入口——
+ *   显式撤下服务，经既有审批链 CERTIFIED → SERVING 回上架；逆向流转仅此一条）
  * </pre>
  *
  * <p>本 enum 是状态词汇与流转规则的唯一来源（参考
@@ -32,7 +34,7 @@ public enum AIDataProductLifecycle {
             CURATED, EnumSet.of(ASSESSED),
             ASSESSED, EnumSet.of(CERTIFIED),
             CERTIFIED, EnumSet.of(SERVING, DEPRECATED),
-            SERVING, EnumSet.of(DEPRECATED),
+            SERVING, EnumSet.of(ASSESSED, DEPRECATED),
             DEPRECATED, EnumSet.of(DEPRECATED));
 
     /** 是否允许从当前状态流转到 {@code target}。 */

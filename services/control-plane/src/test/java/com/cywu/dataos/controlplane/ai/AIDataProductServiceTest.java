@@ -455,6 +455,42 @@ class AIDataProductServiceTest {
     }
 
     @Test
+    void servingProductRecertifiesNewVersionViaDemotion() {
+        // G19 再认证环路：SERVING 中迭代新版本 -> 撤下重评估 -> 既有审批链回上架
+        var product = service.create(request("srv-re-" + UUID.randomUUID()));
+        service.transition(product.id(), "CURATED");
+        service.transition(product.id(), "ASSESSED");
+        assessCurrent(product);
+        var first = service.submitCertification(product.id());
+        service.decideCertification(first.id(), true, "v0.1.0 上架");
+        service.transition(product.id(), "SERVING");
+        assertThat(service.detail(product.id()).product().lifecycle()).isEqualTo(AIDataProductLifecycle.SERVING);
+
+        // 飞轮迭代：登记 v0.2.0 并评估出新的 CANDIDATE
+        service.registerAndAdvance(product.id(), "v0.2.0", "ep-prescription-rag-v1-1", "beef");
+        assessCurrent(product);
+
+        // SERVING 中不能直接提交认证（G11 语义不变）——必须先显式撤下
+        assertThatThrownBy(() -> service.submitCertification(product.id()))
+                .isInstanceOf(ConflictException.class)
+                .hasMessageContaining("已评估");
+
+        var demoted = service.transition(product.id(), "ASSESSED");
+        assertThat(demoted.lifecycle()).isEqualTo(AIDataProductLifecycle.ASSESSED);
+
+        var second = service.submitCertification(product.id());
+        var reCertified = service.decideCertification(second.id(), true, "v0.2.0 再认证上架");
+        assertThat(reCertified.lifecycle()).isEqualTo(AIDataProductLifecycle.CERTIFIED);
+        assertThat(service.transition(product.id(), "SERVING").lifecycle())
+                .isEqualTo(AIDataProductLifecycle.SERVING);
+        // 认证历史完整留痕两代版本
+        var history = service.certificationHistory(product.id());
+        assertThat(history).hasSize(2);
+        assertThat(history.stream().map(AICertificationRequest::versionSn))
+                .containsExactly("v0.2.0", "v0.1.0");
+    }
+
+    @Test
     void overviewAggregatesFromTables() {
         var before = service.overview();
         var product = service.create(request("ov-" + UUID.randomUUID()));
