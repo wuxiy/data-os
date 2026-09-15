@@ -83,8 +83,9 @@ def _corpus_paths(recipe_ref: str) -> tuple[str, Path]:
 def evaluate(request: EvaluateRequest, authorization: str | None = Header(default=None)) -> dict:
     _authenticator.require(authorization)
     table, eval_file = _corpus_paths(request.recipeRef)
+    # ORDER BY 保证 BM25 同分并列破平的确定性（G17 实测：无序时 MRR 有 ±0.01 抖动）
     rows = DorisAdapter(settings).query(
-        f"SELECT chunk_id, document_id, section, content FROM {table}", ())
+        f"SELECT chunk_id, document_id, section, content FROM {table} ORDER BY chunk_id", ())
     chunks = [
         {"chunk_id": row[0], "document_id": row[1], "section": row[2] or "", "content": row[3]}
         for row in rows
