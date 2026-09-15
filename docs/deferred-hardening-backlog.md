@@ -67,7 +67,7 @@
 |---|---|---|---|
 | AI-1 | 6C 检查项补厚 | **完成 2026-09-15（G17）**：10→14 项（column_description_coverage 新探针、chunk_deduplication、chunk_quality_share、ep_lineage_registration），icd/freshness 两项口径演进（可解析率 0.9886、活跃链路水位+dev SLA），OM 补 31 表 13 列描述（docs/validation/gate-ai-ready-g17-20260915.md §二） | 完成 |
 | AI-2 | 真实医疗语料入 AI 链（外部效度验证） | **完成 2026-09-15（G17）**：EP 域真实采集数据（1,967 处方 chunk，PII 零命中）走完 登记→构建→评估（1.0/CANDIDATE）→评测（recall 0.85/MRR 0.6575）→审批 CERTIFIED→SERVING；评测集 60 问入仓；顺带修复 H2 遗留的控制面→引擎 OIDC 断链 | 完成 |
-| AI-3 | SERVING 产品再认证路径 | 状态机无 SERVING→ASSESSED 流转（或按版本门控的认证-切换语义）：G18 飞轮中 EP 产品 v0.3.0 已评估 CANDIDATE 但产品保持 SERVING，无法对新一代版本走认证审批后切换——真实工作流缺口；候选方向「显式降级流转（撤下重评估）」或「认证请求针对非当前服务版本的切换门控」 | 功能迭代候选（G 系列） |
+| AI-3 | SERVING 产品再认证路径 | **完成 2026-09-16（G19）**：状态机新增唯一逆向流转 SERVING→ASSESSED（撤下重评估，两步确认动作同弃用型）；审批门不变量保全（CERTIFIED/SERVING 只经审批进入）；dev 实操 EP 产品 v0.3.0 完整再认证环（撤下→提交→批准→回上架，docs/validation/gate-ai-ready-g19-20260916.md）。零中断换版（serving 指针分离模型）如生产需要另立项 | 完成 |
 | AI-4 | 构建 API 异步化 | build HTTP 化后 19s/2 千处方可接受（dev），生产大语料超网关口径需任务态异步化 + 通知 | 生产化批候选 |
 
 注：Data-Juicer 真实引入维持「网络恢复后替换执行器后端、Recipe 不变」的条件挂起（G10 延后清单在案），本次口径重申，无状态变化。
@@ -102,3 +102,4 @@
 - 2026-09-15（AI Data 四问拷问·grill-me）：定稿内部 gate 答底稿——①就绪=机制面（G8–G12 全交付）+ 三边界声明；②6C 三层展开+主动标界（六维框架/10 检查项/Profile 加权阈值）；③Data-Juicer 维持条件挂起、降级裁决讲成架构资产（Recipe 语义对齐+执行器可替换）；④满足要求双层拆开（机制自证满足/真实语料外部效度未证）。新增 AI-1（6C 检查项补厚）、AI-2（真实医疗语料入 AI 链）两条候选，不排期。
 - 2026-09-15（G17 交付）：**AI-1/AI-2 全部关闭**——6C 检查项 10→14（含 icd/freshness 口径演进）+ OM 补 31 表 13 列；EP 真实采集语料 1,967 chunk 全链至 SERVING（评估 1.0、评测 recall 0.85/MRR 0.6575、PII 零命中），评测集 60 问入仓（docs/validation/gate-ai-ready-g17-20260915.md）。**S7 追记**：H2 批次遗漏的控制面→引擎 OIDC 透传（compose 仅静态令牌、引擎 S7 后只认 OIDC，自 G12 后该链路未复测）由 G17 实测踩出并修复（deploy/dev compose 补三件套）；工程坑三条入档（评测集正则灾难性回溯、空表 SUM NULL 判 0、/evaluate ORDER BY 确定性）。
 - 2026-09-16（G18 交付）：AI Data 工作流闭环——引擎 POST /build（构建执行面 API 化，reset_before_write）+ 控制面 recipeRef 解析序（请求??版本登记，门户 build 按钮真实构建）+ /ai-data?product= 深链；**真实语料飞轮首轮**：失败归因（时分秒稀释日期 token，ENT+替诺福韦簇 6/9）→ feedback→处置→recipe v1.1（date_only_columns）→ v0.3.0 经 build API 19s 完成→评测 recall 0.9833/MRR 0.9208（docs/validation/gate-ai-ready-g18-20260916.md）。飞轮中实抓两个真缺陷修复：write_doris 逐行连接 504（362/1967 部分写入现场，批量 executemany 后 19s）、Java Stream.findFirst 对 null recipeRef 的 NPE。新增 AI-3（SERVING 再认证路径缺口）、AI-4（构建异步化）。dev 切 0.2.0-g18-20260915 双镜像。
+- 2026-09-16（G19 交付）：**AI-3 关闭**——SERVING→ASSESSED 唯一逆向流转（撤下重评估），审批门不变量零改动；门户两步确认动作；dev 实操 EP 产品 v0.3.0 完整再认证环闭合（两代版本两次审批，docs/validation/gate-ai-ready-g19-20260916.md）；dev control-plane 切 0.2.0-g19-20260916、门户 dist 热更。零中断换版（serving 指针分离）留档不立项。
