@@ -17,6 +17,7 @@ import re
 from pathlib import Path
 
 DEPT_RE = re.compile(r"科室：(.+?)；")
+DATE_RE = re.compile(r"开方日期：(\d{4}-\d{2}-\d{2})")
 FIRST_DRUG_RE = re.compile(r"1）药品 (.+?)，")
 # golden 句 = 首药品完整条目（用法/频率/剂量/天数齐备，可由 top1 片段支撑）
 DRUG_FRAGMENT_RE = re.compile(r"(1）药品 (?:.*?，){2,}用药 \d+ 天|1）药品 [^；]+)")
@@ -24,13 +25,20 @@ DRUG_FRAGMENT_RE = re.compile(r"(1）药品 (?:.*?，){2,}用药 \d+ 天|1）药
 
 def extract_case(content: str) -> dict | None:
     dept = DEPT_RE.search(content)
+    date = DATE_RE.search(content)
     drug = FIRST_DRUG_RE.search(content)
     fragment = DRUG_FRAGMENT_RE.search(content)
-    if not (dept and drug and fragment):
+    if not (dept and date and drug and fragment):
         return None
     return {
-        "question": f"{dept.group(1)}开具的门诊处方中，药品「{drug.group(1)}」的用法用量是什么？",
+        # 问句含开方日期（高区分度 token）：真实数据中同科室同药品的处方大量并存，
+        # 仅凭科室+药品无法把期望文档从同药兄弟块中区分出来（G17 实测 MRR 0.14 教训）
+        "question": (f"{date.group(1)} {dept.group(1)}开具的门诊处方中，"
+                     f"药品「{drug.group(1)}」的用法用量是什么？"),
         "golden_sentence": fragment.group(1),
+        # 唯一性键：同（日期, 科室, 药品）的孪生处方在语料中并存时，期望文档在孪生
+        # 块中任意、检索指标不可判——此类处方不构造问句（见 generate）
+        "key": f"{date.group(1)}|{dept.group(1)}|{drug.group(1)}",
     }
 
 
@@ -43,12 +51,27 @@ def select_evenly(items: list, count: int) -> list:
 
 
 def generate(rows: list[tuple], count: int) -> list[dict]:
-    """rows: (document_id, section, content)；产出评测 case 清单。"""
-    cases = []
-    for document_id, section, content in select_evenly(sorted(rows, key=lambda r: r[0]), count):
+    """rows: (document_id, section, content)；产出评测 case 清单。
+
+    两层确定性筛除：①（日期, 科室, 药品）三元组在语料内不唯一的孪生处方不构造
+    问句（期望文档有歧义，指标不可判）；②问句文本去重（保留首个）。
+    """
+    prepared = []
+    key_counts: dict[str, int] = {}
+    for document_id, section, content in sorted(rows, key=lambda r: r[0]):
         case = extract_case(str(content))
         if case is None:
             continue
+        prepared.append((document_id, section, case))
+        key_counts[case["key"]] = key_counts.get(case["key"], 0) + 1
+    unambiguous = [item for item in prepared if key_counts[item[2]["key"]] == 1]
+
+    cases = []
+    seen_questions: set[str] = set()
+    for document_id, section, case in select_evenly(unambiguous, count):
+        if case["question"] in seen_questions:
+            continue
+        seen_questions.add(case["question"])
         cases.append({
             "question": case["question"],
             "expected_document_id": str(document_id),
