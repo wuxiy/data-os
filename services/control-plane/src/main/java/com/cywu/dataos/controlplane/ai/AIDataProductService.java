@@ -112,18 +112,25 @@ public class AIDataProductService {
     }
 
     /**
-     * build（G9）：经 {@link AIReadyEnginePort} 执行就绪度评估并把结论回写
-     * 当前版本（readiness_json + build_status）。引擎未装配仍走 G8 的
-     * 503 守护；引擎装配但不可达由 advice 映射 503。
+     * build（G9→G18）：先按 Recipe 真实构建（可解析 recipeRef 时），再执行就绪度评估，
+     * 结论回写当前版本（readiness_json + build_status）。recipeRef 解析序：
+     * 请求显式值 ?? 当前版本登记值——门户 build 按钮发空 body，由「版本登记了什么
+     * Recipe 就构建什么」驱动；两处皆空时仅评估（G12 前行为，旧产品零影响）。
+     * 引擎未装配仍走 G8 的 503 守护；引擎装配但不可达由 advice 映射 503。
      */
     @Transactional
-    public AIReadyAssessment build(String id, String recipeRef) {
+    public BuildOutcome build(String id, String recipeRef) {
         var product = require(id);
         var engine = enginePort.getIfAvailable();
         if (engine == null) {
             throw new EngineNotConfiguredException();
         }
-        var assessment = engine.build(product, recipeRef);
+        var resolved = resolveRecipeRef(product, recipeRef);
+        java.util.Map<String, Object> buildSummary = null;
+        if (!resolved.isBlank()) {
+            buildSummary = engine.construct(product, resolved);
+        }
+        var assessment = engine.build(product, resolved);
         var objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
         String readinessJson;
         try {
@@ -133,7 +140,25 @@ public class AIDataProductService {
         }
         repository.updateVersionReadiness(product.id(), product.currentVersion(),
                 readinessJson, BUILD_STATUS_SUCCEEDED);
-        return assessment;
+        return new BuildOutcome(buildSummary, assessment);
+    }
+
+    /** build 编排结果：build 为 null 表示无 recipeRef（仅评估）。 */
+    public record BuildOutcome(java.util.Map<String, Object> build, AIReadyAssessment assessment) {
+    }
+
+    private String resolveRecipeRef(AIDataProduct product, String recipeRef) {
+        if (recipeRef != null && !recipeRef.isBlank()) {
+            return recipeRef.trim();
+        }
+        // G8 起自动登记的 v0.1.0 版本 recipeRef 为 null（findFirst 对 null 元素抛 NPE，须先滤）
+        return repository.findVersions(product.id()).stream()
+                .filter(item -> item.versionSn().equals(product.currentVersion()))
+                .map(AIDataProductVersion::recipeRef)
+                .filter(java.util.Objects::nonNull)
+                .map(String::trim)
+                .findFirst()
+                .orElse("");
     }
 
     /** 提交认证审批（G11）：当前版本须已评估且 gate=CANDIDATE。 */

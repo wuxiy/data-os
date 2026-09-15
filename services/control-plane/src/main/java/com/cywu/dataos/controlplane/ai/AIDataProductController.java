@@ -62,15 +62,20 @@ public class AIDataProductController {
     @PostMapping("/{id}/build")
     public Object build(@PathVariable String id, @RequestBody(required = false) BuildRequest request) {
         // 引擎未装配（503 AI_READY_ENGINE_NOT_CONFIGURED）或不可达（503）由此冒泡；
-        // 成功时返回评估摘要（完整报告在版本 readiness_json）。
-        var assessment = service.build(id, request == null ? null : request.recipeRef());
-        return java.util.Map.of(
-                "product", assessment.product(),
-                "version", assessment.version(),
-                "profile", assessment.profile(),
-                "overall", assessment.overall(),
-                "certification", assessment.certification(),
-                "assessedAt", assessment.assessedAt());
+        // 成功时返回评估摘要（完整报告在版本 readiness_json）+ 构建段（有 recipeRef 时）。
+        var outcome = service.build(id, request == null ? null : request.recipeRef());
+        var assessment = outcome.assessment();
+        var response = new java.util.LinkedHashMap<String, Object>();
+        response.put("product", assessment.product());
+        response.put("version", assessment.version());
+        response.put("profile", assessment.profile());
+        response.put("overall", assessment.overall());
+        response.put("certification", assessment.certification());
+        response.put("assessedAt", assessment.assessedAt());
+        if (outcome.build() != null) {
+            response.put("build", outcome.build());
+        }
+        return response;
     }
 
     @GetMapping("/overview")

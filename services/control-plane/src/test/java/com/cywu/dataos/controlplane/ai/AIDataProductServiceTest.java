@@ -96,6 +96,11 @@ class AIDataProductServiceTest {
             }
 
             @Override
+            public java.util.Map<String, Object> construct(AIDataProduct candidate, String recipeRef) {
+                return java.util.Map.of("chunks", 8);
+            }
+
+            @Override
             public java.util.Map<String, Object> evaluate(AIDataProduct candidate, String recipeRef) {
                 return java.util.Map.of("mrr", 0.8, "details", java.util.List.of());
             }
@@ -114,12 +119,96 @@ class AIDataProductServiceTest {
                 };
         var wired = new AIDataProductService(repository, certificationRepository, feedbackRepository, tenantScope, provider);
 
-        var assessment = wired.build(product.id(), "recipes/medical-rag-v1.yaml");
+        var outcome = wired.build(product.id(), "recipes/medical-rag-v1.yaml");
 
-        org.junit.jupiter.api.Assertions.assertEquals(0.92, assessment.overall());
+        org.junit.jupiter.api.Assertions.assertEquals(0.92, outcome.assessment().overall());
+        // 显式 recipeRef → 构建段在（construct 已真实编排）
+        assertThat(outcome.build()).containsEntry("chunks", 8);
         var version = service.detail(product.id()).versions().get(0);
         org.junit.jupiter.api.Assertions.assertEquals("SUCCEEDED", version.buildStatus());
         org.junit.jupiter.api.Assertions.assertTrue(version.readinessJson().contains("CANDIDATE"));
+    }
+
+    @Test
+    void buildResolvesRecipeRefFromRegisteredVersionWhenRequestBlank() {
+        // G18 解析序：请求空 body 时由当前版本登记的 recipeRef 驱动（门户 build 按钮路径）
+        var product = service.create(request("svc-buildref-" + UUID.randomUUID()));
+        service.registerAndAdvance(product.id(), "v0.2.0", "ep-prescription-rag-v1", "deadbeef");
+        var constructRefs = new java.util.ArrayList<String>();
+        var assessRefs = new java.util.ArrayList<String>();
+        AIReadyEnginePort stub = new AIReadyEnginePort() {
+            @Override
+            public AIReadyAssessment build(AIDataProduct candidate, String recipe) {
+                assessRefs.add(recipe);
+                return AIReadyAssessment.from(java.util.Map.of(
+                        "product", candidate.name(), "version", candidate.currentVersion(),
+                        "profile", "medical-rag", "overall", 0.9,
+                        "assessedAt", "2026-09-15T10:00:00+00:00",
+                        "gate", java.util.Map.of("certification", "CANDIDATE")));
+            }
+
+            @Override
+            public java.util.Map<String, Object> construct(AIDataProduct candidate, String recipeRef) {
+                constructRefs.add(recipeRef);
+                return java.util.Map.of("chunks", 1967);
+            }
+
+            @Override
+            public java.util.Map<String, Object> evaluate(AIDataProduct candidate, String recipeRef) {
+                throw new IllegalStateException("not used");
+            }
+        };
+        org.springframework.beans.factory.ObjectProvider<AIReadyEnginePort> provider =
+                new org.springframework.beans.factory.ObjectProvider<>() {
+                    @Override public AIReadyEnginePort getObject() { return stub; }
+                    @Override public AIReadyEnginePort getIfAvailable() { return stub; }
+                };
+        var outcome = new AIDataProductService(repository, certificationRepository, feedbackRepository, tenantScope, provider)
+                .build(product.id(), null);
+        assertThat(constructRefs).containsExactly("ep-prescription-rag-v1");
+        assertThat(assessRefs).containsExactly("ep-prescription-rag-v1");
+        assertThat(outcome.build()).containsEntry("chunks", 1967);
+        var version = service.detail(product.id()).versions().stream()
+                .filter(item -> item.versionSn().equals("v0.2.0")).findFirst().orElseThrow();
+        assertThat(version.buildStatus()).isEqualTo("SUCCEEDED");
+    }
+
+    @Test
+    void buildSkipsConstructionWhenNoRecipeRefAnywhere() {
+        // v0.1.0 自动登记无 recipeRef 且请求为空 -> 仅评估（G12 前行为不变）
+        var product = service.create(request("svc-buildskip-" + UUID.randomUUID()));
+        var constructCalls = new java.util.ArrayList<String>();
+        AIReadyEnginePort stub = new AIReadyEnginePort() {
+            @Override
+            public AIReadyAssessment build(AIDataProduct candidate, String recipe) {
+                return AIReadyAssessment.from(java.util.Map.of(
+                        "product", candidate.name(), "version", candidate.currentVersion(),
+                        "profile", "medical-rag", "overall", 0.88,
+                        "assessedAt", "2026-09-15T10:00:00+00:00",
+                        "gate", java.util.Map.of("certification", "REVIEW_REQUIRED")));
+            }
+
+            @Override
+            public java.util.Map<String, Object> construct(AIDataProduct candidate, String recipeRef) {
+                constructCalls.add(recipeRef);
+                return java.util.Map.of();
+            }
+
+            @Override
+            public java.util.Map<String, Object> evaluate(AIDataProduct candidate, String recipeRef) {
+                throw new IllegalStateException("not used");
+            }
+        };
+        org.springframework.beans.factory.ObjectProvider<AIReadyEnginePort> provider =
+                new org.springframework.beans.factory.ObjectProvider<>() {
+                    @Override public AIReadyEnginePort getObject() { return stub; }
+                    @Override public AIReadyEnginePort getIfAvailable() { return stub; }
+                };
+        var outcome = new AIDataProductService(repository, certificationRepository, feedbackRepository, tenantScope, provider)
+                .build(product.id(), null);
+        assertThat(constructCalls).isEmpty();
+        assertThat(outcome.build()).isNull();
+        assertThat(outcome.assessment().certification()).isEqualTo("REVIEW_REQUIRED");
     }
 
     @Test
@@ -170,6 +259,11 @@ class AIDataProductServiceTest {
                         "profile", "medical-rag", "overall", 0.9,
                         "assessedAt", "2026-08-27T10:00:00+00:00",
                         "gate", java.util.Map.of("certification", "CANDIDATE")));
+            }
+
+            @Override
+            public java.util.Map<String, Object> construct(AIDataProduct candidate, String recipeRef) {
+                return java.util.Map.of("chunks", 8);
             }
 
             @Override
@@ -254,6 +348,11 @@ class AIDataProductServiceTest {
             }
 
             @Override
+            public java.util.Map<String, Object> construct(AIDataProduct candidate, String recipeRef) {
+                return java.util.Map.of("chunks", 8);
+            }
+
+            @Override
             public java.util.Map<String, Object> evaluate(AIDataProduct candidate, String recipeRef) {
                 return java.util.Map.of("mrr", 0.75, "details", java.util.List.of("x"));
             }
@@ -280,6 +379,11 @@ class AIDataProductServiceTest {
             @Override
             public AIReadyAssessment build(AIDataProduct candidate, String recipe) {
                 throw new IllegalStateException("not used");
+            }
+
+            @Override
+            public java.util.Map<String, Object> construct(AIDataProduct candidate, String recipeRef) {
+                return java.util.Map.of("chunks", 8);
             }
 
             @Override

@@ -40,6 +40,13 @@ public class AIReadyEngineConfiguration {
             }
 
             @Override
+            public java.util.Map<String, Object> construct(AIDataProduct product, String recipeRef) {
+                return AIReadyEngineConfiguration.postForMap(client, tokenProvider, properties,
+                        "/build", String.format("{\"product\":%s,\"version\":%s,\"recipeRef\":%s}",
+                                quote(product.name()), quote(product.currentVersion()), quote(recipeRef)));
+            }
+
+            @Override
             public java.util.Map<String, Object> evaluate(AIDataProduct product, String recipeRef) {
                 return AIReadyEngineConfiguration.evaluate(client, tokenProvider, properties, product,
                         recipeRef == null ? "" : recipeRef);
@@ -53,9 +60,17 @@ public class AIReadyEngineConfiguration {
             AIDataProduct product, String recipeRef) {
         var body = String.format("{\"product\":%s,\"version\":%s,\"recipeRef\":%s}",
                 quote(product.name()), quote(product.currentVersion()), quote(recipeRef));
+        return postForMap(client, tokenProvider, properties, "/evaluate", body);
+    }
+
+    /** 引擎侧 Map 端点（/evaluate、/build）共用的 POST + 认证 + 错误映射。 */
+    @SuppressWarnings("unchecked")
+    private static java.util.Map<String, Object> postForMap(RestClient client,
+            OidcClientCredentialsTokenProvider tokenProvider, AIReadyProperties properties,
+            String uri, String body) {
         try {
             var payload = client.post()
-                    .uri("/evaluate")
+                    .uri(uri)
                     .accept(MediaType.APPLICATION_JSON)
                     .contentType(MediaType.APPLICATION_JSON)
                     .headers(headers -> {
@@ -70,13 +85,13 @@ public class AIReadyEngineConfiguration {
                     .retrieve()
                     .body(Map.class);
             if (payload == null) {
-                throw new AdapterUnavailableException("AI Ready 引擎返回空评测报告");
+                throw new AdapterUnavailableException("AI Ready 引擎返回空报告（" + uri + "）");
             }
             return payload;
         } catch (AdapterUnavailableException exception) {
             throw exception;
         } catch (org.springframework.web.client.HttpClientErrorException exception) {
-            // 引擎侧 422（未知 profile 等声明校验拒绝）是请求错误，不是引擎不可用。
+            // 引擎侧 4xx（未知 profile / Recipe 未找到等声明校验拒绝）是请求错误，不是引擎不可用。
             throw new InvalidRequestException("AI Ready 引擎拒绝请求（HTTP "
                     + exception.getStatusCode().value() + "）：" + engineDetail(exception));
         } catch (RuntimeException exception) {
