@@ -123,3 +123,95 @@ def test_evaluate_falls_back_to_default_corpus_without_recipe_ref(client, monkey
                            headers={"Authorization": "Bearer test-token"})
     assert response.status_code == 200
     assert response.json()["eval_set_size"] == 2
+
+
+# ---- G18-1：POST /build 构建执行面 ----
+
+
+class _BuildDoris:
+    """构建写入桩：记录全部 SQL（INSERT/DELETE），table_exists 不涉及。"""
+
+    def __init__(self):
+        self.sqls: list[str] = []
+
+    def __call__(self, settings):
+        return self
+
+    def query(self, sql, args):
+        self.sqls.append(sql)
+        return []
+
+
+class _BuildS3:
+    def __init__(self):
+        self.objects: dict[str, bytes] = {}
+
+    class exceptions:
+        class ClientError(Exception):
+            pass
+
+    def head_bucket(self, Bucket):
+        return {}
+
+    def head_object(self, Bucket, Key):
+        if Key not in self.objects:
+            raise self.exceptions.ClientError("404")
+        return {}
+
+    def put_object(self, Bucket, Key, Body):
+        self.objects[Key] = Body
+
+
+@pytest.fixture()
+def build_env(monkeypatch, tmp_path):
+    """临时 AI_DATA_DIR：复用仓库语料与 medical-rag-v1 recipe，写入桩接管 Doris/RustFS。"""
+    import shutil
+    from conftest import REPO_ROOT
+    shutil.copytree(REPO_ROOT / "ai-data", tmp_path / "ai-data")
+    monkeypatch.setenv("AI_DATA_DIR", str(tmp_path / "ai-data"))
+    doris = _BuildDoris()
+    s3 = _BuildS3()
+    monkeypatch.setattr(api, "DorisAdapter", doris)
+    monkeypatch.setattr(api, "_rustfs_client", lambda: s3)
+    return doris, s3, tmp_path / "ai-data"
+
+
+def test_build_executes_documents_recipe_end_to_end(client, build_env):
+    doris, s3, _ = build_env
+    response = client.post("/build",
+                           json={"product": "p", "version": "v0.2.0", "recipeRef": "medical-rag-v1"},
+                           headers={"Authorization": "Bearer test-token"})
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["recipe"] == "medical-rag-v1" and payload["chunks"] > 0
+    assert payload["doris"]["written"] == payload["chunks"] and payload["doris"]["reset"] is False
+    assert payload["rustfs"]["version"] == "v1.0.0"
+    inserts = [sql for sql in doris.sqls if sql.startswith("INSERT")]
+    assert len(inserts) == payload["chunks"]
+    assert not any("DELETE" in sql for sql in doris.sqls)
+    assert f"{payload['rustfs']['prefix']}/v1.0.0/manifest.yaml" in s3.objects
+
+
+def test_build_reset_flag_clears_product_table_first(client, build_env):
+    import yaml as _yaml
+    _, __, ai_data = build_env
+    recipe_path = ai_data / "recipes" / "medical-rag-v1.yaml"
+    recipe = _yaml.safe_load(recipe_path.read_text(encoding="utf-8"))
+    recipe["spec"]["output"]["reset_before_write"] = True
+    recipe_path.write_text(_yaml.safe_dump(recipe, allow_unicode=True), encoding="utf-8")
+    response = client.post("/build",
+                           json={"product": "p", "recipeRef": "medical-rag-v1"},
+                           headers={"Authorization": "Bearer test-token"})
+    assert response.status_code == 200
+    assert response.json()["doris"]["reset"] is True
+    doris, _, _ = build_env
+    assert any("DELETE FROM dataos_ai.chunks" in sql for sql in doris.sqls)
+
+
+def test_build_requires_auth_and_known_recipe(client, build_env):
+    unauth = client.post("/build", json={"product": "p", "recipeRef": "medical-rag-v1"})
+    assert unauth.status_code == 401
+    missing = client.post("/build", json={"product": "p", "recipeRef": "no-such-recipe"},
+                          headers={"Authorization": "Bearer test-token"})
+    assert missing.status_code == 404
+    assert "no-such-recipe" in missing.json()["detail"]

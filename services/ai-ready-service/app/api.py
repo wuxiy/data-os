@@ -1,4 +1,4 @@
-"""HTTP API：POST /assess、GET /readiness、POST /evaluate（最近评估由
+"""HTTP API：POST /assess、GET /readiness、POST /evaluate、POST /build（最近评估由
 control-plane 持久化，本服务无库；/readiness 以同参数重执行返回当前口径，幂等）。
 """
 from __future__ import annotations
@@ -14,7 +14,7 @@ from catalog import CatalogError
 from engine import Engine
 from evaluation import evaluate_corpus
 from adapters import DorisAdapter
-from settings import settings
+from settings import Settings, settings
 from security import Authenticator
 
 router = APIRouter()
@@ -62,20 +62,27 @@ class EvaluateRequest(BaseModel):
     recipeRef: str = Field(default="")
 
 
+def _recipe_path(recipe_ref: str) -> Path | None:
+    """recipeRef → ai-data/recipes/{name}.yaml；未找到返回 None（调用方决定回落或 404）。"""
+    if not recipe_ref:
+        return None
+    name = recipe_ref.strip().removesuffix(".yaml").split("/")[-1].split("@")[0]
+    path = Path(os.environ.get("AI_DATA_DIR", "/opt/dataos/ai-data")) / "recipes" / f"{name}.yaml"
+    return path if path.is_file() else None
+
+
 def _corpus_paths(recipe_ref: str) -> tuple[str, Path]:
     """recipeRef → (语料表, 评测集路径)；recipe 未声明或文件不存在时回落默认。"""
     ai_data_dir = Path(os.environ.get("AI_DATA_DIR", "/opt/dataos/ai-data"))
     table = "dataos_ai.chunks"
     eval_file = ai_data_dir / "eval" / "medical-rag-evalset.jsonl"
-    if recipe_ref:
-        name = recipe_ref.strip().removesuffix(".yaml").split("/")[-1].split("@")[0]
-        recipe_path = ai_data_dir / "recipes" / f"{name}.yaml"
-        if recipe_path.is_file():
-            output = (yaml.safe_load(recipe_path.read_text(encoding="utf-8"))
-                      .get("spec", {}).get("output", {}))
-            table = output.get("doris_table", table)
-            if output.get("eval_file"):
-                eval_file = ai_data_dir / output["eval_file"]
+    recipe_path = _recipe_path(recipe_ref)
+    if recipe_path is not None:
+        output = (yaml.safe_load(recipe_path.read_text(encoding="utf-8"))
+                  .get("spec", {}).get("output", {}))
+        table = output.get("doris_table", table)
+        if output.get("eval_file"):
+            eval_file = ai_data_dir / output["eval_file"]
     return table, eval_file
 
 
@@ -93,6 +100,92 @@ def evaluate(request: EvaluateRequest, authorization: str | None = Header(defaul
     report = evaluate_corpus(chunks, eval_file)
     report = {"product": request.product, "version": request.version, **report}
     return report
+
+
+class BuildRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    product: str = Field(min_length=1)
+    version: str = Field(default="v0.1.0")
+    recipeRef: str = Field(min_length=1)
+
+
+def _writer_settings() -> Settings:
+    """构建写入面：专用 writer 账号（仅 dataos_ai 库写权），与评估只读面分离。"""
+    return Settings(**{**settings.__dict__,
+                       "doris_user": settings.doris_writer_user,
+                       "doris_password": settings.doris_writer_password})
+
+
+def _rustfs_client():
+    import boto3
+    endpoint = (os.environ.get("DATAOS_RUSTFS_ENDPOINT")
+                or getattr(settings, "rustfs_endpoint", "http://rustfs:9000"))
+    return boto3.client(
+        "s3", endpoint_url=endpoint,
+        aws_access_key_id=os.environ.get("DATAOS_RUSTFS_ACCESS_KEY", ""),
+        aws_secret_access_key=os.environ.get("DATAOS_RUSTFS_SECRET_KEY", ""),
+        region_name="us-east-1")
+
+
+@router.post("/build")
+def build_artifact(request: BuildRequest, authorization: str | None = Header(default=None)) -> dict:
+    """构建执行面（G18）：按 Recipe 真实执行 rag_builder 全链并双落产物。
+
+    output.reset_before_write=true 时写前清空产物表（单产品表防陈旧行滞留；
+    SERVING 中的合成语料表不开此开关，维持覆盖写）。
+    """
+    import rag_builder as rb
+
+    _authenticator.require(authorization)
+    recipe_path = _recipe_path(request.recipeRef)
+    if recipe_path is None:
+        raise HTTPException(status_code=404, detail=f"Recipe 未找到：{request.recipeRef}")
+    recipe = yaml.safe_load(recipe_path.read_text(encoding="utf-8"))
+    spec = recipe["spec"]
+    source = spec.get("source", {})
+    output = spec["output"]
+
+    if source.get("kind") == "doris_table":
+        chunks, artifacts, stats = rb.build(recipe_path, None, adapter=DorisAdapter(settings))
+    else:
+        # spec.source.dataset 按仓库根相对口径书写（"ai-data/documents"——CLI 以
+        # recipe.parents[1] 解析）；服务侧映射到 AI_DATA_DIR（其即 ai-data 目录）
+        dataset = str(source["dataset"])
+        if dataset.startswith("ai-data/"):
+            dataset = dataset[len("ai-data/"):]
+        documents_dir = Path(os.environ.get("AI_DATA_DIR", "/opt/dataos/ai-data")) / dataset
+        chunks, artifacts, stats = rb.build(recipe_path, documents_dir)
+
+    writer = DorisAdapter(_writer_settings())
+    table = output["doris_table"]
+    reset = bool(output.get("reset_before_write"))
+    if reset:
+        writer.query(f"DELETE FROM {table}", ())
+    written = rb.write_doris(chunks, writer, table)
+
+    s3 = _rustfs_client()
+    bucket = os.environ.get("DATAOS_AI_BUCKET", "dataos-ai-data")
+    prefix = output.get("object_prefix", "ai-data/medical-rag-guideline")
+    try:
+        s3.head_bucket(Bucket=bucket)
+    except Exception:
+        s3.create_bucket(Bucket=bucket)
+    version = rb.next_version(s3, bucket, prefix)
+    rb.write_rustfs(s3, bucket, prefix, version, chunks, artifacts)
+
+    return {
+        "product": request.product,
+        "version": request.version,
+        "recipe": recipe["metadata"]["name"],
+        "recipe_version": str(recipe["metadata"]["version"]),
+        "chunks": stats.chunks,
+        "documents": {"input": stats.documents_in, "unique": stats.documents_unique,
+                      "duplicates_dropped": stats.duplicates_dropped},
+        "doris": {"table": table, "written": written, "reset": reset},
+        "rustfs": {"bucket": bucket, "prefix": prefix, "version": version},
+        "quality": artifacts["quality"],
+    }
 
 
 @router.get("/readiness")
