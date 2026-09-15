@@ -29,6 +29,28 @@ class DorisAdapter:
             raise RuntimeError("check.sql 必须返回单行单列数值指标")
         return float(rows[0][0])
 
+    def execute_many(self, sql: str, args_list: list[tuple]) -> int:
+        """批量写（单连接 executemany）：行级独立连接在千行语料上慢到网关超时
+        （G18 实测 1967 行仅写入 362 行即 504）。返回受影响行数。"""
+        if not args_list:
+            return 0
+        connection = pymysql.connect(
+            host=self._settings.doris_host,
+            port=self._settings.doris_port,
+            user=self._settings.doris_user,
+            password=self._settings.doris_password,
+            connect_timeout=int(self._settings.doris_connect_timeout_s),
+            charset="utf8mb4",
+            cursorclass=pymysql.cursors.Cursor,
+        )
+        try:
+            with connection.cursor() as cursor:
+                affected = cursor.executemany(sql, args_list)
+            connection.commit()
+            return int(affected) if affected and affected > 0 else len(args_list)
+        finally:
+            connection.close()
+
     def query(self, sql: str, args: tuple) -> list[tuple]:
         connection = pymysql.connect(
             host=self._settings.doris_host,

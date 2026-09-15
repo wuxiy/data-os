@@ -448,14 +448,17 @@ def _git_commit(recipe_path: Path) -> str:
 
 # ---------- 写出 ----------
 
-def write_doris(chunks: list[dict], adapter, table: str) -> int:
-    for chunk in chunks:
-        adapter.query(
-            f"INSERT INTO {table} (chunk_id, document_id, section, source_offset, content, "
-            f"quality_score, recipe_version, built_at) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
-            (chunk["chunk_id"], chunk["document_id"], chunk["section"], chunk["source_offset"],
-             chunk["content"], chunk["quality_score"], chunk["recipe_version"], chunk["built_at"]))
-    return len(chunks)
+def write_doris(chunks: list[dict], adapter, table: str, batch_size: int = 200) -> int:
+    """批量写入（G18：逐行独立连接在千行语料上引发网关 504，实测 362/1967 即断）。"""
+    sql = (f"INSERT INTO {table} (chunk_id, document_id, section, source_offset, content, "
+           f"quality_score, recipe_version, built_at) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)")
+    rows = [(chunk["chunk_id"], chunk["document_id"], chunk["section"], chunk["source_offset"],
+             chunk["content"], chunk["quality_score"], chunk["recipe_version"], chunk["built_at"])
+            for chunk in chunks]
+    written = 0
+    for start in range(0, len(rows), batch_size):
+        written += adapter.execute_many(sql, rows[start:start + batch_size])
+    return written
 
 
 def next_version(s3_client, bucket: str, prefix: str) -> str:

@@ -129,10 +129,11 @@ def test_evaluate_falls_back_to_default_corpus_without_recipe_ref(client, monkey
 
 
 class _BuildDoris:
-    """构建写入桩：记录全部 SQL（INSERT/DELETE），table_exists 不涉及。"""
+    """构建写入桩：记录全部 SQL（DELETE/写批）与写入行数，table_exists 不涉及。"""
 
     def __init__(self):
         self.sqls: list[str] = []
+        self.written_rows = 0
 
     def __call__(self, settings):
         return self
@@ -140,6 +141,11 @@ class _BuildDoris:
     def query(self, sql, args):
         self.sqls.append(sql)
         return []
+
+    def execute_many(self, sql, args_list):
+        self.sqls.append(sql)
+        self.written_rows += len(args_list)
+        return len(args_list)
 
 
 class _BuildS3:
@@ -187,7 +193,7 @@ def test_build_executes_documents_recipe_end_to_end(client, build_env):
     assert payload["doris"]["written"] == payload["chunks"] and payload["doris"]["reset"] is False
     assert payload["rustfs"]["version"] == "v1.0.0"
     inserts = [sql for sql in doris.sqls if sql.startswith("INSERT")]
-    assert len(inserts) == payload["chunks"]
+    assert len(inserts) >= 1 and doris.written_rows == payload["chunks"]  # 批量写
     assert not any("DELETE" in sql for sql in doris.sqls)
     assert f"{payload['rustfs']['prefix']}/v1.0.0/manifest.yaml" in s3.objects
 

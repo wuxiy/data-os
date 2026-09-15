@@ -249,17 +249,29 @@ def test_artifact_bundle_complete(built):
 
 
 class RecordingDoris:
+    """批量写桩：记录 executemany 批次，query 面（DELETE 等）单独留痕。"""
+
     def __init__(self):
-        self.rows = []
+        self.batches: list[tuple[str, list[tuple]]] = []
+        self.queries: list[str] = []
 
     def query(self, sql, args):
-        self.rows.append(args)
+        self.queries.append(sql)
         return []
 
+    def execute_many(self, sql, args_list):
+        self.batches.append((sql, args_list))
+        return len(args_list)
 
-def test_doris_writer_uses_unique_key_rows(built):
+
+def test_doris_writer_batches_rows_over_single_connection(built):
     chunks, _, _ = built
     adapter = RecordingDoris()
-    written = rb.write_doris(chunks, adapter, "dataos_ai.chunks")
+    written = rb.write_doris(chunks, adapter, "dataos_ai.chunks", batch_size=3)
     assert written == len(chunks)
-    assert all(len(row) == 8 for row in adapter.rows)
+    assert all(sql.startswith("INSERT INTO dataos_ai.chunks") for sql, _ in adapter.batches)
+    rows = [row for _, batch in adapter.batches for row in batch]
+    assert len(rows) == len(chunks)
+    assert all(len(row) == 8 for row in rows)
+    # 批量化：批次数远小于行数（默认 200/批；此处 3/批验证分批边界）
+    assert len(adapter.batches) == (len(chunks) + 2) // 3
