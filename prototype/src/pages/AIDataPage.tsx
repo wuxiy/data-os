@@ -152,6 +152,14 @@ function AIDataLive({ onNotice }: { onNotice: (message: string) => void }) {
     })
   }
 
+  function demote(product: AIDataProduct) {
+    void runAction(`demote-${product.id}`, '撤下失败', async () => {
+      await transitionAIDataProduct(product.id, 'ASSESSED')
+      onNotice(`${product.name} 已撤下重评估（原服务停止）：重新提交认证审批通过后可再上架`)
+      refresh()
+    })
+  }
+
   function runEvaluation(product: AIDataProduct) {
     void runAction(`evaluate-${product.id}`, '评测失败', async () => {
       const report = await evaluateAIDataProduct(product.id)
@@ -243,6 +251,7 @@ function AIDataLive({ onNotice }: { onNotice: (message: string) => void }) {
               onNotice={onNotice}
               onAdvance={() => advance(selected)}
               onDeprecate={() => deprecate(selected)}
+              onDemote={() => demote(selected)}
               onBuild={() => build(selected)}
               onChanged={refresh}
             />

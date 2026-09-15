@@ -35,12 +35,13 @@ interface Props {
   onNotice: (message: string) => void
   onAdvance: () => void
   onDeprecate: () => void
+  onDemote: () => void
   onBuild: () => void
   onChanged?: () => void
 }
 
 /** AI Data Product 详情（G8/G9）：版本历史 + 生命周期操作 + build 守护提示。 */
-export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, onBuild, onChanged }: Props) {
+export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, onDemote, onBuild, onChanged }: Props) {
   const [detail, setDetail] = useState<AIDataProductDetail | null>(null)
   const [certifications, setCertifications] = useState<AICertificationRequest[]>([])
   const [feedback, setFeedback] = useState<AIEvaluationFeedbackItem[]>([])
@@ -48,6 +49,8 @@ export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, 
   const [feedbackQuestion, setFeedbackQuestion] = useState('')
   // 弃用是不可逆生命周期动作：两步确认，避免与普通动作同级误触。
   const [confirmDeprecate, setConfirmDeprecate] = useState(false)
+  // 撤下重评估（G19）会中断服务：同样两步确认，与弃用同型。
+  const [confirmDemote, setConfirmDemote] = useState(false)
   // 键控加载（按产品）；认证历史与反馈是次级资源，失败不塌详情。
   const state = useKeyedResource({
     key: productId,
@@ -153,6 +156,14 @@ export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, 
           ) : null}
           {product.lifecycle === 'ASSESSED' ? (
             <Button onClick={() => void handleSubmitCertification()}>提交认证审批</Button>
+          ) : null}
+          {product.lifecycle === 'SERVING' ? (
+            confirmDemote ? (
+              <>
+                <Button variant="danger" onClick={() => { setConfirmDemote(false); onDemote() }}>确认撤下</Button>
+                <Button onClick={() => setConfirmDemote(false)}>取消</Button>
+              </>
+            ) : <Button onClick={() => setConfirmDemote(true)}>撤下重评估</Button>
           ) : null}
           {product.lifecycle !== 'DEPRECATED' ? (
             confirmDeprecate ? (
