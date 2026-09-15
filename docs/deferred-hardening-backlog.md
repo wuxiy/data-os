@@ -58,6 +58,18 @@
 | U3 | 效率层增强 | **部分完成 2026-09-14（余项修复轮）**：?issue=/?task= 深链 + ⌘K 命令面板已交付；MPI 批量决策仍逐条（保留条目，待真实复核量级评估再设计） | 部分完成 |
 | U4 | MetricStrip 固定 6 列网格泛化 | **完成 2026-09-14（余项修复轮）**：.metrics/.metricStrip 改 auto-fit + 1px gap hairline，nth-child 补丁全删 | 完成 |
 
+## AI Data 线候选（2026-09-15 四问拷问析出）
+
+> 背景：grill-me 拷问「模块是否就绪 / 6C 如何体现 / Data-Juicer 如何集成 / 是否满足 AI ready 数据集要求」四问，
+> 裁决口径为内部 gate 判据（机制就绪、证据真实、边界诚实）。以下为析出的候选项，**不排期**（用户明示除外）。
+
+| 编号 | 事项 | 说明 | 归口 |
+|---|---|---|---|
+| AI-1 | 6C 检查项补厚 | 声明仓库首批 10 检查项维度内厚度不均：Clean 3、Compliant 3，Contextual/Correlated/Consumable/Current 各 1，且后两者靠 OM 元数据面而非 SQL 实测。候选方向：Contextual 加 FHIR/LOINC 映射检查、Current 加 SLA/延迟检测项、Consumable 扩 chunk/embedding 之外的可消费面 | 功能迭代候选（G 系列） |
+| AI-2 | 真实医疗语料入 AI 链（外部效度验证） | 现有 CERTIFIED→SERVING 证据全部产自合成语料（8 篇 HTML + 10 问 eval set），引擎/语料/评测集/审批同线交付，属机制自证；真实语料（如 EP 域文档或表）入链重走 build→assess→evaluate→审批，验证外部效度 | 功能迭代候选（G 系列） |
+
+注：Data-Juicer 真实引入维持「网络恢复后替换执行器后端、Recipe 不变」的条件挂起（G10 延后清单在案），本次口径重申，无状态变化。
+
 ## 变更记录
 
 - 2026-08-22：建立台账，归口 G1-G7 各验收报告延后项为首批条目（S1-S6 / P1-P5 / T1-T4）。
@@ -85,3 +97,4 @@
 - 2026-09-10（P8 余项收口·用户明示解除延后）：**P8 全项关闭**——自助门户（data-api /v1/me、/v1/usage/calls、/v1/contract-events、订阅 CRUD/TEST）+ 合同变更通知（V15 三表、事件引擎含字段级 diff 与版本自增、HMAC 签名 webhook 推送与治理通知同签名形态、轮询兜底、订阅端点策略默认公网 HTTPS）+ 前端工作台合同/导出区块。E2E 收据-轮询逐事件对应实证；**修复 E2E 抓出的真缺陷**（DEPRECATED 后 Key 从 registry 消失致自助面 401——自助面认证语义 = Key 身份而非「服务在售」，registry 保留 DEPRECATED 服务 Key 标 serviceStatus + deprecatedServices 契约视图，执行面仍只认 PUBLISHED）；载荷坑：@Value 裸属性名对 DATAOS_DATA_API_* 形态 env 键不适用宽松绑定（application.yml 显式 ${ENV:default} 声明解决）。测试基线 control-plane 211/211、data-api 44/44、前端全绿；dev 切 0.2.0-h3p8-20260910 双镜像（V15 迁移成功）。
 - 2026-09-14（门户 9 页 UX 评审收口）：impeccable critique（21/40 基线，快照 prototype/.impeccable/critique/，工具态已 gitignore）后四批次收口——P0 数据服务/AI Data 布局错位四连（新建表单进 Drawer、两栏工作区、详情容器左缘统一、概览 auto-fit）；P1 硬缺陷（MPI metricStrip 裸渲染、治理排行恒"1"、RuntimeStatusBanner 部分载荷白屏、window.prompt 取消提交空值、平台运维加载态误报）；P1 全站分页（usePaged+Pager 铺开 6 页面 11 处，含 MPI 100 条截断诚实提示）；P1 去品牌（OpenMetadata×6/Superset 全清 + AI 枚举中文口径 + qa 正则锁）；P2 动作过载（任务行 7→≤4 按钮+更多菜单、弃用/下线两步确认、首页死胡同、治理红色警示去重、分析空态锚点）。发现并修复两类工程坑：hooks 早退分支违规（AIDataDetail/DataServices/AIData rail，启动即白屏，经 index.html 临时错误陷阱定位）；qa 正则锁大小写敏感设计（@superset-ui 包名小写不受 /Superset/ 锁影响）。余项 U1-U4 立条目。
 - 2026-09-14（UX 余项修复轮·用户「继续修复余项」）：U1/U2/U4 完成、U3 部分完成——平台运维页收编设计系统（PageHeader+纸面探针卡，⌘K 面板与命令原语复用 Drawer 焦点语义）；队列选中态 aria-pressed 与可点行键盘可达；指标带 auto-fit hairline 泛化（两项原语统一技法，删全部 nth-child 边框补丁）；?issue=/?task= 深链（读参数+replaceState 回写，对齐 ?asset= 口径）与全局命令面板（⌘K，listbox/option 语义，技术域入口按角色过滤）。U3 余下「MPI 批量决策」保留条目——按评审口径，批量决策需先看真实复核量级（dev 7 条/日 vs 上线后量级）再定交互形态，不宜先造。提交 8b848e8..5046942，每步全绿。
+- 2026-09-15（AI Data 四问拷问·grill-me）：定稿内部 gate 答底稿——①就绪=机制面（G8–G12 全交付）+ 三边界声明；②6C 三层展开+主动标界（六维框架/10 检查项/Profile 加权阈值）；③Data-Juicer 维持条件挂起、降级裁决讲成架构资产（Recipe 语义对齐+执行器可替换）；④满足要求双层拆开（机制自证满足/真实语料外部效度未证）。新增 AI-1（6C 检查项补厚）、AI-2（真实医疗语料入 AI 链）两条候选，不排期。
