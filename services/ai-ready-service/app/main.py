@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import FastAPI, status
 from fastapi.responses import PlainTextResponse, Response
 
-from adapters import DorisAdapter, OpenMetadataAdapter
+from adapters import DorisAdapter, OpenMetadataAdapter, RustFSAdapter
 from api import bind, router
 from catalog import load_catalog
 from engine import Engine
@@ -13,7 +13,9 @@ from settings import settings
 
 settings.validate()
 _catalog = load_catalog(settings.repo_dir)
-_engine = Engine(_catalog, DorisAdapter(settings), OpenMetadataAdapter(settings))
+_doris = DorisAdapter(settings)
+_engine = Engine(_catalog, _doris, OpenMetadataAdapter(settings),
+                 RustFSAdapter(settings, _doris))
 bind(_engine, Authenticator(settings))
 
 app = FastAPI(title="DataOS AI Ready Engine", version="0.1.0")

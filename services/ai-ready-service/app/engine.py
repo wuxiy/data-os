@@ -22,10 +22,13 @@ DEFAULT_STATUS_SCORES = {"PASS": 1.0, "WARN": 0.5, "FAIL": 0.0}
 
 
 class Engine:
-    def __init__(self, catalog: Catalog, doris: Any, om: Any):
+    def __init__(self, catalog: Catalog, doris: Any, om: Any, rustfs: Any = None):
         self._catalog = catalog
         self._doris = doris
         self._om = om
+        # rustfs 缺省 None：rustfs_probe 检查项在未装配时按探针失败 FAIL（诚实收口）；
+        # 测试注入 Stub 时与 Doris/OM 同接口。
+        self._rustfs = rustfs
         self._status_scores = self._load_status_scores(catalog.policy)
 
     @staticmethod
@@ -100,13 +103,17 @@ class Engine:
                     thresholds={"pass": check.get("pass"), "warn": check.get("warn"),
                                 "direction": check.get("direction")})
         try:
+            # requires_table 守卫对所有 check 类型前置（G20：rustfs_probe 同受
+            # 表存在性守卫——产物表不在册即 N/A，不进探针）
+            if check.get("requires_table") and not self._table_exists(check["requires_table"]):
+                return RequirementResult(**base, status="NOT_APPLICABLE",
+                                         note=check.get("not_applicable_reason", ""))
             if check.get("type") == "doris_metric":
-                if check.get("requires_table") and not self._table_exists(check["requires_table"]):
-                    return RequirementResult(**base, status="NOT_APPLICABLE",
-                                             note=check.get("not_applicable_reason", ""))
                 metric = self._doris_metric(requirement, check)
             elif check.get("type") == "om_probe":
                 metric = self._om_probe(check)
+            elif check.get("type") == "rustfs_probe":
+                metric = self._rustfs_probe(check)
             else:
                 raise RuntimeError(f"未知 check 类型：{check.get('type')}")
         except Exception as exc:  # 探针失败按 FAIL 收口（诊断信息保留），不让单点炸整场
@@ -127,6 +134,15 @@ class Engine:
         handler = getattr(self._om, str(probe), None)
         if handler is None:
             raise RuntimeError(f"未知 OM 探针：{probe}")
+        return float(handler(check))
+
+    def _rustfs_probe(self, check: dict) -> float:
+        if self._rustfs is None:
+            raise RuntimeError("RustFS 探针未装配")
+        probe = check.get("probe")
+        handler = getattr(self._rustfs, str(probe), None)
+        if handler is None:
+            raise RuntimeError(f"未知 RustFS 探针：{probe}")
         return float(handler(check))
 
     def _table_exists(self, qualified: str) -> bool:

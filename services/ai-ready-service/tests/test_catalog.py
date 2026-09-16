@@ -10,19 +10,19 @@ def catalog():
     return load_catalog(str(REPO))
 
 
-def test_loads_fourteen_requirements(catalog):
-    assert len(catalog.requirements) == 14
+def test_loads_seventeen_requirements(catalog):
+    assert len(catalog.requirements) == 17
     by_dimension = {}
     for requirement in catalog.requirements.values():
         by_dimension[requirement.dimension] = by_dimension.get(requirement.dimension, 0) + 1
-    # 六维覆盖（G17 补厚后）：clean 3 / current 1 / contextual 2 / consumable 3 / correlated 2 / compliant 3
-    assert by_dimension == {"clean": 3, "current": 1, "contextual": 2,
-                            "consumable": 3, "correlated": 2, "compliant": 3}
+    # 六维覆盖（G20 第二批补厚后）：clean 3 / current 2 / contextual 3 / consumable 4 / correlated 2 / compliant 3
+    assert by_dimension == {"clean": 3, "current": 2, "contextual": 3,
+                            "consumable": 4, "correlated": 2, "compliant": 3}
 
 
 def test_both_profiles_reference_all_requirements(catalog):
     for profile_id in ("medical-rag", "medical-training"):
-        assert len(catalog.requirement_ids(profile_id)) == 14
+        assert len(catalog.requirement_ids(profile_id)) == 17
 
 
 def test_critical_severity_set(catalog):

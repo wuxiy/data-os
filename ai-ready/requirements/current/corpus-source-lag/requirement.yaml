@@ -1,0 +1,17 @@
+id: corpus_source_lag
+title: 语料构建水位（产物落后源活跃水位的时长）
+dimension: current
+severity: major
+applicable_profiles:
+- medical-rag
+- medical-training
+diagnostic: 语料产物久未重建——源数据更新后检索面仍指向陈旧语料，评测与服务结论过期
+check:
+  type: doris_metric
+  requires_table: dataos_ai.chunks_ep
+  sql_file: doris/check.sql
+  metric: corpus_source_lag_hours
+  direction: lower_better
+  pass: 0
+  warn: 720
+  not_applicable_reason: 表 dataos_ai.chunks_ep 由 EP 真实采集语料构建（G17）产生；存在后本项自动生效

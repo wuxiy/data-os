@@ -1,0 +1,17 @@
+id: fhir_mapping_coverage
+title: FHIR 语义映射就绪（患者/处方核心资源映射覆盖率）
+dimension: contextual
+severity: major
+applicable_profiles:
+- medical-rag
+- medical-training
+diagnostic: 核心实体缺 FHIR 资源映射——AI 消费方按标准语义互操作与跨域引用受阻
+check:
+  type: doris_metric
+  requires_table: dataos_ai.fhir_mapping
+  sql_file: null
+  metric: fhir_mapping_coverage
+  direction: higher_better
+  pass: 0.9
+  warn: 0.7
+  not_applicable_reason: FHIR 映射仓 dataos_ai.fhir_mapping 未建（G20 条件占位，口径对齐 patient_split_leakage）；表存在后本项自动生效，届时须补真实 check.sql——sql_file 为 null 时按探针执行失败 FAIL 收口，显式暴露「检查未实现」而非静默满分

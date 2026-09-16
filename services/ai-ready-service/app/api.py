@@ -118,14 +118,8 @@ def _writer_settings() -> Settings:
 
 
 def _rustfs_client():
-    import boto3
-    endpoint = (os.environ.get("DATAOS_RUSTFS_ENDPOINT")
-                or getattr(settings, "rustfs_endpoint", "http://rustfs:9000"))
-    return boto3.client(
-        "s3", endpoint_url=endpoint,
-        aws_access_key_id=os.environ.get("DATAOS_RUSTFS_ACCESS_KEY", ""),
-        aws_secret_access_key=os.environ.get("DATAOS_RUSTFS_SECRET_KEY", ""),
-        region_name="us-east-1")
+    from adapters import rustfs_client
+    return rustfs_client(settings)
 
 
 @router.post("/build")

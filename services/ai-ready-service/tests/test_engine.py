@@ -3,7 +3,7 @@
 Stub 探针按 requirement id 注入固定指标，与真实 Adapter 同接口。
 """
 from catalog import load_catalog
-from conftest import REPO, StubDoris, StubOm, all_pass_metrics
+from conftest import REPO, StubDoris, StubOm, StubRustfs, all_pass_metrics
 from engine import Engine, render_cli
 
 def make_engine(metrics: dict[str, float], tables: set[str] | None = None) -> Engine:
@@ -121,3 +121,44 @@ def test_cli_render_matches_reference_layout():
     assert "Overall" in text
     assert "Result:\nREVIEW_REQUIRED" in text
     assert "- semantic_documentation" in text
+
+
+def test_second_batch_checks_with_chunks_table_present():
+    """G20 第二批：产物表在册时 corpus_source_lag（SQL）/ artifact_availability（rustfs
+    探针）真实生效，fhir_mapping 维持条件 N/A；17 项全 PASS 时 Overall 1.0。"""
+    catalog = load_catalog(str(REPO))
+    engine = Engine(catalog, StubDoris(all_pass_metrics(), {"dataos_ai.chunks_ep"}),
+                    StubOm(all_pass_metrics()), StubRustfs(all_pass_metrics()))
+    report = engine.assess("p", "v0.3.0", "medical-rag")
+    statuses = {item.id: item.status for item in report.requirements}
+    assert statuses["corpus_source_lag"] == "PASS"
+    assert statuses["artifact_availability"] == "PASS"
+    assert statuses["fhir_mapping_coverage"] == "NOT_APPLICABLE"
+    assert statuses["patient_split_leakage"] == "NOT_APPLICABLE"
+    assert len(report.requirements) == 17
+    assert report.overall == 1.0
+    assert report.gate.certification == "CANDIDATE"
+
+
+def test_rustfs_probe_without_adapter_fails_requirement():
+    catalog = load_catalog(str(REPO))
+    engine = Engine(catalog, StubDoris(all_pass_metrics(), {"dataos_ai.chunks_ep"}),
+                    StubOm(all_pass_metrics()))
+    report = engine.assess("p", "v0.3.0", "medical-rag")
+    statuses = {item.id: item.status for item in report.requirements}
+    assert statuses["artifact_availability"] == "FAIL"
+    assert "RustFS 探针未装配" in next(item.note for item in report.requirements
+                                       if item.id == "artifact_availability")
+
+
+def test_requires_table_guard_precedes_rustfs_probe():
+    """requires_table 守卫对 rustfs_probe 前置：产物表不在册即 N/A，探针不被调用。"""
+    class ExplodingRustfs(StubRustfs):
+        def artifact_availability(self, check: dict) -> float:
+            raise AssertionError("产物表不在册时探针不应被调用")
+    catalog = load_catalog(str(REPO))
+    engine = Engine(catalog, StubDoris(all_pass_metrics()), StubOm(all_pass_metrics()),
+                    ExplodingRustfs(all_pass_metrics()))
+    report = engine.assess("p", "v0.3.0", "medical-rag")
+    statuses = {item.id: item.status for item in report.requirements}
+    assert statuses["artifact_availability"] == "NOT_APPLICABLE"

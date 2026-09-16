@@ -1,15 +1,30 @@
-"""评估探针的数据面 Adapter：Doris（只读 SQL 指标）与 OpenMetadata（元数据探针）。
+"""评估探针的数据面 Adapter：Doris（只读 SQL 指标）、OpenMetadata（元数据探针）
+与 RustFS（S3 兼容产物面对拍）。
 
-两者都以最小接口暴露给 engine：DorisAdapter.metric(sql) 与
-OpenMetadataAdapter 上的三个探针方法。连接参数全部来自 settings。
+三者都以最小接口暴露给 engine：DorisAdapter.metric(sql)、OpenMetadataAdapter /
+RustFSAdapter 上的探针方法。连接参数全部来自 settings。
 """
 from __future__ import annotations
 
+import os
 import time
 from typing import Any
 
 import httpx
 import pymysql
+
+
+def rustfs_client(settings: Any):
+    """S3 兼容客户端（RustFS）：端点/凭据 env 优先、settings 兜底。
+    构建面（api /build）与评估探针（RustFSAdapter）共用同一装配口径。"""
+    import boto3
+    endpoint = (os.environ.get("DATAOS_RUSTFS_ENDPOINT")
+                or getattr(settings, "rustfs_endpoint", "http://rustfs:9000"))
+    return boto3.client(
+        "s3", endpoint_url=endpoint,
+        aws_access_key_id=os.environ.get("DATAOS_RUSTFS_ACCESS_KEY", ""),
+        aws_secret_access_key=os.environ.get("DATAOS_RUSTFS_SECRET_KEY", ""),
+        region_name="us-east-1")
 
 
 class DorisAdapter:
@@ -151,3 +166,47 @@ class OpenMetadataAdapter:
             if any(fqn == tag_prefix or fqn.startswith(tag_prefix + ".") for fqn in fqns):
                 tagged += 1
         return tagged / len(wanted) if wanted else 0.0
+
+
+class RustFSAdapter:
+    """产物对象面探针（G20）：RustFS 最新版本清单与 Doris 产物表对拍。
+    client_factory 注入点供测试替换；生产默认走 rustfs_client(settings)。"""
+
+    def __init__(self, settings: Any, doris: Any, client_factory=None):
+        self._settings = settings
+        self._doris = doris
+        self._client_factory = client_factory or (lambda: rustfs_client(settings))
+
+    # ---- 探针实现（engine 按 requirement.check.probe 路由）----
+
+    def artifact_availability(self, check: dict) -> float:
+        """最新对象版本 chunks.jsonl 行数 == Doris 产物表 COUNT(*) 时 1.0。
+        对象面无版本、产物表空、行数不一致均为 0.0（双落缺面或错位是真缺陷）。"""
+        table = check["requires_table"]
+        rows = self._doris.query(f"SELECT COUNT(*) FROM {table}", ())
+        doris_count = int(rows[0][0]) if rows else 0
+        client = self._client_factory()
+        bucket = check.get("bucket") or os.environ.get("DATAOS_AI_BUCKET", "dataos-ai-data")
+        prefix = check["prefix"]
+        latest = self._latest_version(client, bucket, prefix)
+        if latest is None or doris_count == 0:
+            return 0.0
+        body = client.get_object(
+            Bucket=bucket, Key=f"{prefix}/{latest}/data/chunks.jsonl")["Body"].read()
+        lines = sum(1 for line in body.decode("utf-8").splitlines() if line.strip())
+        return 1.0 if lines == doris_count else 0.0
+
+    @staticmethod
+    def _latest_version(client, bucket: str, prefix: str) -> str | None:
+        """沿 rag_builder.next_version 同一口径探测：manifest.yaml 存在即版本在册，
+        返回最后一个在册版本（探测链断口即最新）。"""
+        version = "v1.0.0"
+        latest = None
+        while True:
+            try:
+                client.head_object(Bucket=bucket, Key=f"{prefix}/{version}/manifest.yaml")
+                latest = version
+                major, minor, patch = version[1:].split(".")
+                version = f"v{major}.{minor}.{int(patch) + 1}"
+            except client.exceptions.ClientError:
+                return latest

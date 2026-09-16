@@ -63,6 +63,11 @@ _PROBE_REQUIRED_KEYS = {
     "pii_tag_coverage": ("service", "table", "columns"),
 }
 
+# rustfs_probe（G20）：requires_table 同时是探针的比较目标（产物表在册才可比对）。
+_RUSTFS_PROBE_REQUIRED_KEYS = {
+    "artifact_availability": ("requires_table", "bucket", "prefix"),
+}
+
 
 def _check_shape(check: dict, rid: str) -> None:
     _check_thresholds(check, rid)
@@ -84,9 +89,19 @@ def _check_shape(check: dict, rid: str) -> None:
             value = check.get(key)
             if value is None or value == "" or value == [] or value == {}:
                 raise CatalogError(f"requirement {rid} 的 {probe} 探针缺少 {key}")
+    elif check_type == "rustfs_probe":
+        probe = check.get("probe")
+        required = _RUSTFS_PROBE_REQUIRED_KEYS.get(probe)
+        if required is None:
+            raise CatalogError(f"requirement {rid} 的 rustfs_probe 探针未知：{probe}"
+                               f"（已知：{sorted(_RUSTFS_PROBE_REQUIRED_KEYS)}）")
+        for key in required:
+            value = check.get(key)
+            if value is None or value == "" or value == [] or value == {}:
+                raise CatalogError(f"requirement {rid} 的 {probe} 探针缺少 {key}")
     else:
         raise CatalogError(f"requirement {rid} 的 check.type 非法：{check_type}"
-                           f"（已知：doris_metric / om_probe）")
+                           f"（已知：doris_metric / om_probe / rustfs_probe）")
 
 
 def load_catalog(repo_dir: str) -> Catalog:
