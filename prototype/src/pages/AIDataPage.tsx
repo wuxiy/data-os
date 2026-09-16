@@ -9,11 +9,14 @@ import {
   evaluateAIDataProduct,
   fetchAIOverview,
   fetchAIDataProducts,
+  fetchBuildJobs,
+  isBuildJobActive,
   lifecycleLabel,
   nextLifecycleTarget,
+  parseBuildResult,
   productTypeLabel,
   transitionAIDataProduct,
-  buildAIDataProduct,
+  submitAIBuild,
   type AIDataProduct,
   type AIDataProductType,
 } from '../data/aiDataApi'
@@ -170,12 +173,32 @@ function AIDataLive({ onNotice }: { onNotice: (message: string) => void }) {
   }
 
   function build(product: AIDataProduct) {
+    // G20 任务态：投递（202）→ 轮询至终态 → 结果通知与刷新。轮询挂在动作互斥里，
+    // 「构建 / 评估」按钮全程禁用，终态由控制面 worker 落库（断线可经任务列表追读）。
+    const POLL_INTERVAL_MS = 2000
+    const MAX_POLLS = 150
     void runAction(`build-${product.id}`, '构建失败', async () => {
-      const summary = await buildAIDataProduct(product.id)
-      const certification = summary.certification ? (aiCertificationLabel[summary.certification] ?? summary.certification) : '—'
-      onNotice(summary.build
-        ? `构建完成：${summary.build.chunks} 个 chunk（RustFS ${summary.build.rustfs?.version ?? '—'}）→ 评估 Overall ${summary.overall?.toFixed?.(2) ?? '—'} · ${certification}（已回写 ${product.currentVersion}）`
-        : `评估完成：Overall ${summary.overall?.toFixed?.(2) ?? '—'} · ${certification}（已回写 ${product.currentVersion}）`)
+      const submitted = await submitAIBuild(product.id)
+      onNotice(`构建任务已投递（${submitted.versionSn}${submitted.recipeRef ? ` · ${submitted.recipeRef}` : ''}），排队执行中…`)
+      let current = submitted
+      for (let polls = 0; isBuildJobActive(current) && polls < MAX_POLLS; polls++) {
+        await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS))
+        const jobs = await fetchBuildJobs(product.id)
+        current = jobs.find((item) => item.id === submitted.id) ?? current
+      }
+      if (current.status === 'FAILED') {
+        onNotice(`构建失败：${current.error ?? '未知错误'}（版本构建状态已标失败，可重新发起）`)
+        return
+      }
+      if (isBuildJobActive(current)) {
+        onNotice('构建任务仍在执行（超过轮询窗口）：请稍后从「构建任务」区块或刷新查看结果')
+        return
+      }
+      const summary = parseBuildResult(current)
+      const certification = summary?.certification ? (aiCertificationLabel[summary.certification] ?? summary.certification) : '—'
+      onNotice(summary?.build
+        ? `构建完成：${summary.build.chunks} 个 chunk（RustFS ${summary.build.rustfs?.version ?? '—'}）→ 评估 Overall ${summary.overall?.toFixed?.(2) ?? '—'} · ${certification}（已回写 ${current.versionSn}）`
+        : `评估完成：Overall ${summary?.overall?.toFixed?.(2) ?? '—'} · ${certification}（已回写 ${current.versionSn}）`)
       selectProduct(product.id)
       refresh()
     })

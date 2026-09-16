@@ -1,11 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { PortalHttpError } from './http'
 import {
-  buildAIDataProduct,
   createAIDataProduct,
   fetchAIDataProduct,
   fetchAIDataProducts,
+  fetchBuildJobs,
+  isBuildJobActive,
   nextLifecycleTarget,
+  parseBuildResult,
+  submitAIBuild,
 } from './aiDataApi'
 
 describe('aiDataApi', () => {
@@ -50,10 +53,47 @@ describe('aiDataApi', () => {
 
   it('surfaces the engine guard code on 503', async () => {
     stubFetch(503, { code: 'AI_READY_ENGINE_NOT_CONFIGURED', message: 'AI Ready 评估引擎未接入' })
-    const error = await buildAIDataProduct('p1').catch((cause: unknown) => cause)
+    const error = await submitAIBuild('p1').catch((cause: unknown) => cause)
     expect(error).toBeInstanceOf(PortalHttpError)
     expect((error as PortalHttpError).status).toBe(503)
     expect((error as PortalHttpError).code).toBe('AI_READY_ENGINE_NOT_CONFIGURED')
+  })
+
+  it('submits a build job and lists history', async () => {
+    stubFetch(202, {
+      id: 'job-1', productId: 'p1', tenantId: 't', versionSn: 'v0.3.0',
+      recipeRef: 'ep-prescription-rag-v1-1', status: 'QUEUED',
+      resultJson: null, error: null, createdBy: 'u',
+      createdAt: '2026-09-16T09:00:00Z', startedAt: null, finishedAt: null,
+    })
+    const job = await submitAIBuild('p1')
+    expect(job.status).toBe('QUEUED')
+    expect(isBuildJobActive(job)).toBe(true)
+    const call = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0]
+    expect(call[0]).toBe('/api/v1/ai-data-products/p1/build')
+    expect(JSON.parse(call[1].body)).toEqual({ recipeRef: null })
+
+    stubFetch(200, [job])
+    const jobs = await fetchBuildJobs('p1')
+    expect(jobs).toHaveLength(1)
+    expect(jobs[0].recipeRef).toBe('ep-prescription-rag-v1-1')
+  })
+
+  it('parses build job result json (G18 summary shape) and tolerates missing/broken', () => {
+    const base = {
+      id: 'job-2', productId: 'p1', tenantId: 't', versionSn: 'v0.3.0',
+      recipeRef: null, status: 'SUCCEEDED' as const, error: null, createdBy: 'u',
+      createdAt: '2026-09-16T09:00:00Z', startedAt: '2026-09-16T09:00:01Z', finishedAt: '2026-09-16T09:00:20Z',
+    }
+    const done = { ...base, resultJson: JSON.stringify({
+      product: 'EP 处方语料', version: 'v0.3.0', profile: 'medical-rag',
+      overall: 1.0, certification: 'CANDIDATE', assessedAt: '2026-09-16T09:00:19Z',
+      build: { chunks: 1967, rustfs: { bucket: 'dataos-ai-data', prefix: 'ai-data/ep-prescription-rag', version: 'v1.0.2' } },
+    }) }
+    expect(parseBuildResult(done)?.build?.chunks).toBe(1967)
+    expect(parseBuildResult(done)?.certification).toBe('CANDIDATE')
+    expect(parseBuildResult({ ...base, resultJson: null })).toBeNull()
+    expect(parseBuildResult({ ...base, resultJson: '{bad' })).toBeNull()
   })
 
   it('maps conflict responses to errors with status', async () => {

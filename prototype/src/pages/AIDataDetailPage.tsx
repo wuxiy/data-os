@@ -4,20 +4,24 @@ import { PageHeader } from '../components/ui/PageHeader'
 import { Button, StatusTag } from '../components/ui/Primitives'
 import { Drawer } from '../components/ui/Drawer'
 import {
+  aiBuildJobStatusLabel,
   aiBuildStatusLabel,
   aiCertificationLabel,
   aiFeedbackTypeLabel,
   aiMetricLabel,
   decideCertification,
   fetchAIDataProduct,
+  fetchBuildJobs,
   fetchCertificationRequests,
   fetchFeedback,
+  parseBuildResult,
   resolveFeedback,
   submitCertification,
   submitFeedback,
   lifecycleLabel,
   nextLifecycleTarget,
   productTypeLabel,
+  type AIBuildJob,
   type AICertificationRequest,
   type AIDataProductDetail,
   type AIEvaluationFeedbackItem,
@@ -45,29 +49,33 @@ export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, 
   const [detail, setDetail] = useState<AIDataProductDetail | null>(null)
   const [certifications, setCertifications] = useState<AICertificationRequest[]>([])
   const [feedback, setFeedback] = useState<AIEvaluationFeedbackItem[]>([])
+  const [buildJobs, setBuildJobs] = useState<AIBuildJob[]>([])
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [feedbackQuestion, setFeedbackQuestion] = useState('')
   // 弃用是不可逆生命周期动作：两步确认，避免与普通动作同级误触。
   const [confirmDeprecate, setConfirmDeprecate] = useState(false)
   // 撤下重评估（G19）会中断服务：同样两步确认，与弃用同型。
   const [confirmDemote, setConfirmDemote] = useState(false)
-  // 键控加载（按产品）；认证历史与反馈是次级资源，失败不塌详情。
+  // 键控加载（按产品）；认证历史/反馈/构建任务是次级资源，失败不塌详情。
   const state = useKeyedResource({
     key: productId,
     load: (signal) => Promise.all([
       fetchAIDataProduct(productId, signal),
       fetchCertificationRequests(productId, signal).catch(() => []),
       fetchFeedback(productId, signal).catch(() => []),
+      fetchBuildJobs(productId, signal).catch(() => []),
     ]),
-    onData: ([response, requests, feedbackItems]) => {
+    onData: ([response, requests, feedbackItems, jobs]) => {
       setDetail(response)
       setCertifications(requests)
       setFeedback(feedbackItems)
+      setBuildJobs(jobs)
     },
     onReset: () => {
       setDetail(null)
       setCertifications([])
       setFeedback([])
+      setBuildJobs([])
     },
   })
 
@@ -122,6 +130,7 @@ export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, 
   const { page: versionsPage, setPage: setVersionsPage, paged: pagedVersions, pageCount: versionsPageCount } = usePaged(detail?.versions ?? [], TABLE_PAGE_SIZE)
   const { page: feedbackPage, setPage: setFeedbackPage, paged: pagedFeedback, pageCount: feedbackPageCount } = usePaged(feedback, TABLE_PAGE_SIZE)
   const { page: certPage, setPage: setCertPage, paged: pagedCertifications, pageCount: certPageCount } = usePaged(certifications, TABLE_PAGE_SIZE)
+  const { page: jobsPage, setPage: setJobsPage, paged: pagedJobs, pageCount: jobsPageCount } = usePaged(buildJobs, TABLE_PAGE_SIZE)
 
   if (state === 'loading' || state === 'error' || !detail) {
     return (
@@ -203,7 +212,7 @@ export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, 
                   return (
                     <tr key={version.id}>
                       <td>{version.versionSn}</td>
-                      <td><StatusTag tone={version.buildStatus === 'REGISTERED' ? 'neutral' : 'healthy'}>{aiBuildStatusLabel[version.buildStatus] ?? version.buildStatus}</StatusTag></td>
+                      <td><StatusTag tone={version.buildStatus === 'REGISTERED' ? 'neutral' : version.buildStatus === 'FAILED' ? 'danger' : version.buildStatus === 'RUNNING' ? 'warning' : 'healthy'}>{aiBuildStatusLabel[version.buildStatus] ?? version.buildStatus}</StatusTag></td>
                       <td>
                         {readiness?.overall != null
                           ? <StatusTag tone={readiness.certification === 'BLOCKED' ? 'danger' : readiness.certification === 'CANDIDATE' ? 'healthy' : 'warning'}>
@@ -358,9 +367,51 @@ export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, 
           </section>
         ) : null}
 
+        {buildJobs.length > 0 ? (
+          <section className={styles.contentPanel}>
+            <div className={styles.contentPanelHeader}>
+              <h3>构建任务</h3>
+              <span>{buildJobs.length} 条记录 · 最近在前（G20 任务态异步化：排队 → 执行 → 终态）</span>
+            </div>
+            <div className={styles.horizontalScroll}>
+              <table className={styles.fieldTable}>
+                <thead><tr><th>状态</th><th>版本</th><th>Recipe</th><th>结果</th><th>发起人</th><th>开始 / 结束</th></tr></thead>
+                <tbody>
+                  {pagedJobs.map((job) => {
+                    const result = parseBuildResult(job)
+                    return (
+                      <tr key={job.id}>
+                        <td>
+                          <StatusTag tone={job.status === 'SUCCEEDED' ? 'healthy' : job.status === 'FAILED' ? 'danger' : 'warning'}>
+                            {aiBuildJobStatusLabel[job.status] ?? job.status}
+                          </StatusTag>
+                        </td>
+                        <td>{job.versionSn}</td>
+                        <td>{job.recipeRef ?? '—'}</td>
+                        <td>
+                          {job.status === 'FAILED'
+                            ? (job.error ?? '未知错误')
+                            : result
+                              ? (result.build
+                                  ? `${result.build.chunks} chunks · RustFS ${result.build.rustfs?.version ?? '—'} · Overall ${result.overall?.toFixed?.(2) ?? '—'}`
+                                  : `Overall ${result.overall?.toFixed?.(2) ?? '—'}`)
+                              : '—'}
+                        </td>
+                        <td>{job.createdBy ?? '—'}</td>
+                        <td>{(job.startedAt ? new Date(job.startedAt).toLocaleString('zh-CN') : '—') + ' / ' + (job.finishedAt ? new Date(job.finishedAt).toLocaleString('zh-CN') : '—')}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <Pager label="构建任务分页" page={jobsPage} pageCount={jobsPageCount} pageSize={TABLE_PAGE_SIZE} onPageChange={setJobsPage} />
+          </section>
+        ) : null}
+
         <section className={styles.technicalNotice} role="status">
           <StatusTag tone="warning">评估引擎</StatusTag>
-          <span>构建/评估委托 AI Ready 引擎（G9）执行：结论回写当前版本的就绪度列；引擎未配置时 build 返回明确的 503 而不伪造成功。</span>
+          <span>构建/评估委托 AI Ready 引擎（G9）执行，任务态异步推进（G20）：结论回写当前版本的就绪度列，进度经「构建任务」追读；引擎未配置时投递返回明确的 503 而不伪造成功。</span>
         </section>
       </div>
 

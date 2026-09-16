@@ -299,8 +299,7 @@ export interface AIBuildSection {
   rustfs: { bucket: string; prefix: string; version: string }
 }
 
-/** build 返回评估摘要（G9：完整报告在版本 readiness_json）；G18 起版本登记了
- * Recipe 时先真实构建，摘要携带可选构建段。 */
+/** 构建任务结果摘要（G20：与 G18 同步响应同构，从任务 resultJson 解析）。 */
 export interface AIReadyBuildSummary {
   product: string
   version: string
@@ -311,14 +310,64 @@ export interface AIReadyBuildSummary {
   build?: AIBuildSection
 }
 
-export async function buildAIDataProduct(id: string, recipeRef?: string): Promise<AIReadyBuildSummary> {
+/** 构建任务（G20：build API 任务态异步化，QUEUED → RUNNING → SUCCEEDED/FAILED）。 */
+export interface AIBuildJob {
+  id: string
+  productId: string
+  tenantId: string
+  versionSn: string
+  recipeRef: string | null
+  status: 'QUEUED' | 'RUNNING' | 'SUCCEEDED' | 'FAILED'
+  resultJson: string | null
+  error: string | null
+  createdBy: string | null
+  createdAt: string
+  startedAt: string | null
+  finishedAt: string | null
+}
+
+export function isBuildJobActive(job: AIBuildJob): boolean {
+  return job.status === 'QUEUED' || job.status === 'RUNNING'
+}
+
+/** 投递构建任务（202）：recipeRef 缺省由当前版本登记值驱动（G18 解析序不变）。 */
+export async function submitAIBuild(id: string, recipeRef?: string): Promise<AIBuildJob> {
   return parseJsonOrThrow(
     await aiFetch(`/v1/ai-data-products/${encodeURIComponent(id)}/build`, {
       method: 'POST',
       body: JSON.stringify({ recipeRef: recipeRef ?? null }),
     }),
-    '评估执行失败',
-  ) as Promise<AIReadyBuildSummary>
+    '构建任务投递失败',
+  ) as Promise<AIBuildJob>
+}
+
+/** 构建任务历史（最近在前，含 result/error）。 */
+export async function fetchBuildJobs(id: string, signal?: AbortSignal): Promise<AIBuildJob[]> {
+  const payload = await parseJsonOrThrow(
+    await aiFetch(`/v1/ai-data-products/${encodeURIComponent(id)}/build-jobs`, {}, signal),
+    '构建任务读取失败',
+  )
+  return Array.isArray(payload) ? payload : []
+}
+
+/** 任务结果解析：resultJson 与 G18 同步响应同构；未完成/坏 JSON 投影 null。 */
+export function parseBuildResult(job: AIBuildJob): AIReadyBuildSummary | null {
+  if (!job.resultJson) return null
+  try {
+    const parsed: unknown = JSON.parse(job.resultJson)
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null
+    return parsed as AIReadyBuildSummary
+  } catch {
+    return null
+  }
+}
+
+/** 构建任务状态中文口径。 */
+export const aiBuildJobStatusLabel: Record<string, string> = {
+  QUEUED: '排队中',
+  RUNNING: '执行中',
+  SUCCEEDED: '成功',
+  FAILED: '失败',
 }
 
 /** 生命周期主链：DRAFT → CURATED → ASSESSED → CERTIFIED → SERVING（终态 DEPRECATED 另算）。 */
