@@ -108,6 +108,25 @@ public class AIDataProductRepository {
                 """, readinessJson, buildStatus, productId, versionSn);
     }
 
+    /** 置 RUNNING 的 CAS（G20-1 投递互斥）：0 行 = 版本已在构建中（活动任务存在）。 */
+    public int markVersionRunning(String productId, String versionSn) {
+        return jdbc.update("""
+                UPDATE data_os.ai_data_product_version
+                SET build_status = 'RUNNING'
+                WHERE product_id = ? AND version_sn = ? AND build_status <> 'RUNNING'
+                """, productId, versionSn);
+    }
+
+    /** 版本构建状态回写（执行面独占：任务失败/孤儿清算把 RUNNING 置终态；
+     *  只改状态，不动 readiness_json——上次评估结论保留）。 */
+    public int updateVersionBuildStatus(String productId, String versionSn, String buildStatus) {
+        return jdbc.update("""
+                UPDATE data_os.ai_data_product_version
+                SET build_status = ?
+                WHERE product_id = ? AND version_sn = ?
+                """, buildStatus, productId, versionSn);
+    }
+
     private AIDataProduct mapProduct(java.sql.ResultSet rs, int rowNumber) throws java.sql.SQLException {
         return new AIDataProduct(
                 rs.getString("id"),

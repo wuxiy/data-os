@@ -25,6 +25,9 @@ class AIDataProductServiceTest {
     private AIDataProductRepository repository;
 
     @Autowired
+    private AIBuildJobRepository jobRepository;
+
+    @Autowired
     private AICertificationRepository certificationRepository;
 
     @Autowired
@@ -77,73 +80,98 @@ class AIDataProductServiceTest {
     void buildIsGuardedUntilEngineIsConfigured() {
         var product = service.create(request("svc-build-" + UUID.randomUUID()));
 
-        assertThatThrownBy(() -> service.build(product.id(), null))
+        assertThatThrownBy(() -> service.submitBuild(product.id(), null))
                 .isInstanceOf(EngineNotConfiguredException.class)
                 .hasMessageContaining("G9");
     }
 
-    @Test
-    void buildWritesReadinessToCurrentVersionWhenEngineConfigured() {
-        var product = service.create(request("svc-build-ok-" + UUID.randomUUID()));
-        AIReadyEnginePort stubEngine = new AIReadyEnginePort() {
-            @Override
-            public AIReadyAssessment build(AIDataProduct candidate, String recipe) {
-                return AIReadyAssessment.from(java.util.Map.of(
-                        "product", candidate.name(), "version", candidate.currentVersion(),
-                        "profile", "medical-rag", "overall", 0.92,
-                        "assessedAt", "2026-08-27T10:00:00+00:00",
-                        "gate", java.util.Map.of("certification", "CANDIDATE")));
-            }
+    /** 换线装配：stub 引擎 + 手工 worker（测试里同步跑队列，生产为 @Scheduled 认领）。 */
+    private record Wired(AIDataProductService wired, AIBuildJobWorker worker) {
+    }
 
-            @Override
-            public java.util.Map<String, Object> construct(AIDataProduct candidate, String recipeRef) {
-                return java.util.Map.of("chunks", 8);
-            }
-
-            @Override
-            public java.util.Map<String, Object> evaluate(AIDataProduct candidate, String recipeRef) {
-                return java.util.Map.of("mrr", 0.8, "details", java.util.List.of());
-            }
-        };
+    private Wired wired(AIReadyEnginePort engine) {
         org.springframework.beans.factory.ObjectProvider<AIReadyEnginePort> provider =
                 new org.springframework.beans.factory.ObjectProvider<>() {
                     @Override
                     public AIReadyEnginePort getObject() {
-                        return stubEngine;
+                        return engine;
                     }
 
                     @Override
                     public AIReadyEnginePort getIfAvailable() {
-                        return stubEngine;
+                        return engine;
                     }
                 };
-        var wired = new AIDataProductService(repository, certificationRepository, feedbackRepository, tenantScope, provider);
+        var svc = new AIDataProductService(repository, certificationRepository, feedbackRepository,
+                jobRepository, tenantScope, provider);
+        return new Wired(svc, new AIBuildJobWorker(jobRepository, repository, svc));
+    }
 
-        var outcome = wired.build(product.id(), "recipes/medical-rag-v1.yaml");
+    private AIReadyEnginePort engineWith(double overall, String certification,
+                                         java.util.Map<String, Object> constructResult) {
+        return new AIReadyEnginePort() {
+            @Override
+            public AIReadyAssessment build(AIDataProduct candidate, String recipe) {
+                return AIReadyAssessment.from(java.util.Map.of(
+                        "product", candidate.name(), "version", candidate.currentVersion(),
+                        "profile", "medical-rag", "overall", overall,
+                        "assessedAt", "2026-09-16T10:00:00+00:00",
+                        "gate", java.util.Map.of("certification", certification)));
+            }
 
-        org.junit.jupiter.api.Assertions.assertEquals(0.92, outcome.assessment().overall());
-        // 显式 recipeRef → 构建段在（construct 已真实编排）
-        assertThat(outcome.build()).containsEntry("chunks", 8);
-        var version = service.detail(product.id()).versions().get(0);
-        org.junit.jupiter.api.Assertions.assertEquals("SUCCEEDED", version.buildStatus());
-        org.junit.jupiter.api.Assertions.assertTrue(version.readinessJson().contains("CANDIDATE"));
+            @Override
+            public java.util.Map<String, Object> construct(AIDataProduct candidate, String recipeRef) {
+                return constructResult;
+            }
+
+            @Override
+            public java.util.Map<String, Object> evaluate(AIDataProduct candidate, String recipeRef) {
+                return java.util.Map.of("mrr", 0.8);
+            }
+        };
     }
 
     @Test
-    void buildResolvesRecipeRefFromRegisteredVersionWhenRequestBlank() {
-        // G18 解析序：请求空 body 时由当前版本登记的 recipeRef 驱动（门户 build 按钮路径）
+    void buildJobRunsConstructAssessAndWritesVersion() {
+        var product = service.create(request("svc-build-ok-" + UUID.randomUUID()));
+        var wired = wired(engineWith(0.92, "CANDIDATE", java.util.Map.of("chunks", 8)));
+
+        var job = wired.wired().submitBuild(product.id(), "recipes/medical-rag-v1.yaml");
+        assertThat(job.status()).isEqualTo("QUEUED");
+        assertThat(job.recipeRef()).isEqualTo("recipes/medical-rag-v1.yaml");
+        // 排队期间版本行即 RUNNING（互斥信号）
+        assertThat(service.detail(product.id()).versions().get(0).buildStatus()).isEqualTo("RUNNING");
+        // 活动任务互斥：排队中二次投递 409
+        assertThatThrownBy(() -> wired.wired().submitBuild(product.id(), null))
+                .isInstanceOf(ConflictException.class)
+                .hasMessageContaining("排队或执行中的构建任务");
+
+        wired.worker().runPendingNow();
+
+        var done = wired.wired().buildJobs(product.id()).get(0);
+        assertThat(done.status()).isEqualTo("SUCCEEDED");
+        assertThat(done.resultJson()).contains("CANDIDATE").contains("\"chunks\":8");
+        var version = service.detail(product.id()).versions().get(0);
+        assertThat(version.buildStatus()).isEqualTo("SUCCEEDED");
+        assertThat(version.readinessJson()).contains("CANDIDATE");
+    }
+
+    @Test
+    void buildJobResolvesRecipeRefFromRegisteredVersionWhenRequestBlank() {
+        // G18 解析序（异步化后不变）：投递时解析并固化进任务行（请求空 body 时由当前
+        // 版本登记的 recipeRef 驱动——门户 build 按钮路径）
         var product = service.create(request("svc-buildref-" + UUID.randomUUID()));
         service.registerAndAdvance(product.id(), "v0.2.0", "ep-prescription-rag-v1", "deadbeef");
         var constructRefs = new java.util.ArrayList<String>();
         var assessRefs = new java.util.ArrayList<String>();
-        AIReadyEnginePort stub = new AIReadyEnginePort() {
+        AIReadyEnginePort recording = new AIReadyEnginePort() {
             @Override
             public AIReadyAssessment build(AIDataProduct candidate, String recipe) {
                 assessRefs.add(recipe);
                 return AIReadyAssessment.from(java.util.Map.of(
                         "product", candidate.name(), "version", candidate.currentVersion(),
                         "profile", "medical-rag", "overall", 0.9,
-                        "assessedAt", "2026-09-15T10:00:00+00:00",
+                        "assessedAt", "2026-09-16T10:00:00+00:00",
                         "gate", java.util.Map.of("certification", "CANDIDATE")));
             }
 
@@ -158,23 +186,21 @@ class AIDataProductServiceTest {
                 throw new IllegalStateException("not used");
             }
         };
-        org.springframework.beans.factory.ObjectProvider<AIReadyEnginePort> provider =
-                new org.springframework.beans.factory.ObjectProvider<>() {
-                    @Override public AIReadyEnginePort getObject() { return stub; }
-                    @Override public AIReadyEnginePort getIfAvailable() { return stub; }
-                };
-        var outcome = new AIDataProductService(repository, certificationRepository, feedbackRepository, tenantScope, provider)
-                .build(product.id(), null);
+        var wired = wired(recording);
+        var job = wired.wired().submitBuild(product.id(), null);
+        assertThat(job.recipeRef()).isEqualTo("ep-prescription-rag-v1");
+
+        wired.worker().runPendingNow();
+
         assertThat(constructRefs).containsExactly("ep-prescription-rag-v1");
         assertThat(assessRefs).containsExactly("ep-prescription-rag-v1");
-        assertThat(outcome.build()).containsEntry("chunks", 1967);
         var version = service.detail(product.id()).versions().stream()
                 .filter(item -> item.versionSn().equals("v0.2.0")).findFirst().orElseThrow();
         assertThat(version.buildStatus()).isEqualTo("SUCCEEDED");
     }
 
     @Test
-    void buildSkipsConstructionWhenNoRecipeRefAnywhere() {
+    void buildJobSkipsConstructionWhenNoRecipeRefAnywhere() {
         // v0.1.0 自动登记无 recipeRef 且请求为空 -> 仅评估（G12 前行为不变）
         var product = service.create(request("svc-buildskip-" + UUID.randomUUID()));
         var constructCalls = new java.util.ArrayList<String>();
@@ -184,7 +210,7 @@ class AIDataProductServiceTest {
                 return AIReadyAssessment.from(java.util.Map.of(
                         "product", candidate.name(), "version", candidate.currentVersion(),
                         "profile", "medical-rag", "overall", 0.88,
-                        "assessedAt", "2026-09-15T10:00:00+00:00",
+                        "assessedAt", "2026-09-16T10:00:00+00:00",
                         "gate", java.util.Map.of("certification", "REVIEW_REQUIRED")));
             }
 
@@ -199,16 +225,80 @@ class AIDataProductServiceTest {
                 throw new IllegalStateException("not used");
             }
         };
-        org.springframework.beans.factory.ObjectProvider<AIReadyEnginePort> provider =
-                new org.springframework.beans.factory.ObjectProvider<>() {
-                    @Override public AIReadyEnginePort getObject() { return stub; }
-                    @Override public AIReadyEnginePort getIfAvailable() { return stub; }
-                };
-        var outcome = new AIDataProductService(repository, certificationRepository, feedbackRepository, tenantScope, provider)
-                .build(product.id(), null);
+        var wired = wired(stub);
+        var job = wired.wired().submitBuild(product.id(), null);
+        assertThat(job.recipeRef()).isNull();
+        wired.worker().runPendingNow();
         assertThat(constructCalls).isEmpty();
-        assertThat(outcome.build()).isNull();
-        assertThat(outcome.assessment().certification()).isEqualTo("REVIEW_REQUIRED");
+        var done = wired.wired().buildJobs(product.id()).get(0);
+        assertThat(done.status()).isEqualTo("SUCCEEDED");
+        assertThat(done.resultJson()).doesNotContain("\"build\"");
+        assertThat(service.detail(product.id()).versions().get(0).readinessJson())
+                .contains("REVIEW_REQUIRED");
+    }
+
+    @Test
+    void buildJobFailureMarksVersionFailedAndKeepsReadiness() {
+        var product = service.create(request("svc-build-fail-" + UUID.randomUUID()));
+        // 先成功一次，留下评估结论（显式 recipeRef 走 construct 路径）
+        var ok = wired(engineWith(0.9, "CANDIDATE", java.util.Map.of("chunks", 8)));
+        ok.wired().submitBuild(product.id(), "recipes/medical-rag-v1.yaml");
+        ok.worker().runPendingNow();
+
+        // 再投一次：引擎不可达（construct 抛适配器不可用）-> 任务 FAILED、版本 FAILED、
+        // readiness 保留上次评估结论（不抹）
+        AIReadyEnginePort broken = new AIReadyEnginePort() {
+            @Override
+            public AIReadyAssessment build(AIDataProduct candidate, String recipe) {
+                throw new IllegalStateException("not reached");
+            }
+
+            @Override
+            public java.util.Map<String, Object> construct(AIDataProduct candidate, String recipeRef) {
+                throw new com.cywu.dataos.controlplane.executor.AdapterUnavailableException(
+                        "AI Ready 引擎暂时不可用：连接拒绝");
+            }
+
+            @Override
+            public java.util.Map<String, Object> evaluate(AIDataProduct candidate, String recipeRef) {
+                throw new IllegalStateException("not used");
+            }
+        };
+        var wired = wired(broken);
+        wired.wired().submitBuild(product.id(), "recipes/medical-rag-v1.yaml");
+        wired.worker().runPendingNow();
+
+        var jobs = wired.wired().buildJobs(product.id());
+        assertThat(jobs.get(0).status()).isEqualTo("FAILED");
+        assertThat(jobs.get(0).error()).contains("引擎暂时不可用");
+        var version = service.detail(product.id()).versions().get(0);
+        assertThat(version.buildStatus()).isEqualTo("FAILED");
+        assertThat(version.readinessJson()).contains("CANDIDATE");
+        // 失败后版本不在 RUNNING：可重新投递
+        var again = wired.wired().submitBuild(product.id(), null);
+        assertThat(again.status()).isEqualTo("QUEUED");
+    }
+
+    @Test
+    void startupSweepFailsOrphanedRunningJobs() {
+        // 模拟上一进程遗留：任务 RUNNING + 版本行 RUNNING
+        var product = service.create(request("svc-orphan-" + UUID.randomUUID()));
+        var jobId = UUID.randomUUID().toString();
+        jobRepository.insert(new AIBuildJob(jobId, product.id(), product.tenantId(),
+                product.currentVersion(), null, AIBuildJob.STATUS_RUNNING,
+                null, null, "someone", java.time.Instant.now(), java.time.Instant.now(), null));
+        jdbc.update("UPDATE data_os.ai_data_product_version SET build_status = 'RUNNING' WHERE product_id = ?",
+                product.id());
+
+        var wired = wired(engineWith(0.9, "CANDIDATE", java.util.Map.of()));
+        wired.worker().sweepOrphans();
+
+        var job = jobRepository.findById(jobId).orElseThrow();
+        assertThat(job.status()).isEqualTo("FAILED");
+        assertThat(job.error()).contains("重启");
+        assertThat(service.detail(product.id()).versions().get(0).buildStatus()).isEqualTo("FAILED");
+        // 清扫后可重新投递（版本已解除 RUNNING）
+        assertThat(wired.wired().submitBuild(product.id(), null).status()).isEqualTo("QUEUED");
     }
 
     @Test
@@ -251,33 +341,9 @@ class AIDataProductServiceTest {
     // ---- G11 认证审批与评测 ----
 
     private void assessCurrent(AIDataProduct product) {
-        AIReadyEnginePort stub = new AIReadyEnginePort() {
-            @Override
-            public AIReadyAssessment build(AIDataProduct candidate, String recipe) {
-                return AIReadyAssessment.from(java.util.Map.of(
-                        "product", candidate.name(), "version", candidate.currentVersion(),
-                        "profile", "medical-rag", "overall", 0.9,
-                        "assessedAt", "2026-08-27T10:00:00+00:00",
-                        "gate", java.util.Map.of("certification", "CANDIDATE")));
-            }
-
-            @Override
-            public java.util.Map<String, Object> construct(AIDataProduct candidate, String recipeRef) {
-                return java.util.Map.of("chunks", 8);
-            }
-
-            @Override
-            public java.util.Map<String, Object> evaluate(AIDataProduct candidate, String recipeRef) {
-                return java.util.Map.of("mrr", 0.8);
-            }
-        };
-        org.springframework.beans.factory.ObjectProvider<AIReadyEnginePort> provider =
-                new org.springframework.beans.factory.ObjectProvider<>() {
-                    @Override public AIReadyEnginePort getObject() { return stub; }
-                    @Override public AIReadyEnginePort getIfAvailable() { return stub; }
-                };
-        new AIDataProductService(repository, certificationRepository, feedbackRepository, tenantScope, provider)
-                .build(product.id(), null);
+        var wired = wired(engineWith(0.9, "CANDIDATE", java.util.Map.of("chunks", 8)));
+        wired.wired().submitBuild(product.id(), null);
+        wired.worker().runPendingNow();
     }
 
     @Test
@@ -362,7 +428,8 @@ class AIDataProductServiceTest {
                     @Override public AIReadyEnginePort getObject() { return stub; }
                     @Override public AIReadyEnginePort getIfAvailable() { return stub; }
                 };
-        var report = new AIDataProductService(repository, certificationRepository, feedbackRepository, tenantScope, provider)
+        var report = new AIDataProductService(repository, certificationRepository, feedbackRepository,
+                jobRepository, tenantScope, provider)
                 .evaluate(product.id());
         assertThat(report).containsEntry("mrr", 0.75);
         var readiness = service.detail(product.id()).versions().get(0).readinessJson();
@@ -397,7 +464,8 @@ class AIDataProductServiceTest {
                     @Override public AIReadyEnginePort getObject() { return stub; }
                     @Override public AIReadyEnginePort getIfAvailable() { return stub; }
                 };
-        new AIDataProductService(repository, certificationRepository, feedbackRepository, tenantScope, provider)
+        new AIDataProductService(repository, certificationRepository, feedbackRepository,
+                jobRepository, tenantScope, provider)
                 .evaluate(product.id());
         assertThat(captured).containsExactly("ep-prescription-rag-v1");
     }

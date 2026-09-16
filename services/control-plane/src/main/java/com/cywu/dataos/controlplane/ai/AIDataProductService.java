@@ -22,22 +22,27 @@ public class AIDataProductService {
 
     static final String INITIAL_VERSION = "v0.1.0";
     static final String BUILD_STATUS_REGISTERED = "REGISTERED";
+    static final String BUILD_STATUS_RUNNING = "RUNNING";
     static final String BUILD_STATUS_SUCCEEDED = "SUCCEEDED";
+    static final String BUILD_STATUS_FAILED = "FAILED";
 
     private final AIDataProductRepository repository;
     private final AICertificationRepository certificationRepository;
     private final AIEvaluationFeedbackRepository feedbackRepository;
+    private final AIBuildJobRepository jobRepository;
     private final TenantScope tenantScope;
     private final ObjectProvider<AIReadyEnginePort> enginePort;
 
     public AIDataProductService(AIDataProductRepository repository,
                                 AICertificationRepository certificationRepository,
                                 AIEvaluationFeedbackRepository feedbackRepository,
+                                AIBuildJobRepository jobRepository,
                                 TenantScope tenantScope,
                                 ObjectProvider<AIReadyEnginePort> enginePort) {
         this.repository = repository;
         this.certificationRepository = certificationRepository;
         this.feedbackRepository = feedbackRepository;
+        this.jobRepository = jobRepository;
         this.tenantScope = tenantScope;
         this.enginePort = enginePort;
     }
@@ -112,25 +117,50 @@ public class AIDataProductService {
     }
 
     /**
-     * build（G9→G18）：先按 Recipe 真实构建（可解析 recipeRef 时），再执行就绪度评估，
-     * 结论回写当前版本（readiness_json + build_status）。recipeRef 解析序：
-     * 请求显式值 ?? 当前版本登记值——门户 build 按钮发空 body，由「版本登记了什么
-     * Recipe 就构建什么」驱动；两处皆空时仅评估（G12 前行为，旧产品零影响）。
-     * 引擎未装配仍走 G8 的 503 守护；引擎装配但不可达由 advice 映射 503。
+     * 投递构建任务（G20-1 异步化，backlog AI-4）：recipeRef 解析序不变（请求显式值 ??
+     * 当前版本登记值）；互斥两层——产品级活动任务检查 + 版本行 build_status 的 CAS
+     * （置 RUNNING，0 行即已有活动任务 409；构建非幂等，reset_before_write 先清表）。
+     * 引擎未装配仍走 G8 的 503 守护。执行由 {@link AIBuildJobWorker} 认领。
      */
     @Transactional
-    public BuildOutcome build(String id, String recipeRef) {
+    public AIBuildJob submitBuild(String id, String recipeRef) {
         var product = require(id);
         var engine = enginePort.getIfAvailable();
         if (engine == null) {
             throw new EngineNotConfiguredException();
         }
-        var resolved = resolveRecipeRef(product, recipeRef);
-        java.util.Map<String, Object> buildSummary = null;
-        if (!resolved.isBlank()) {
-            buildSummary = engine.construct(product, resolved);
+        if (jobRepository.hasActive(product.id())) {
+            throw new ConflictException("该产品已有排队或执行中的构建任务，请等待完成后再发起");
         }
-        var assessment = engine.build(product, resolved);
+        var resolved = resolveRecipeRef(product, recipeRef);
+        var claimed = repository.markVersionRunning(product.id(), product.currentVersion());
+        if (claimed == 0) {
+            throw new ConflictException("当前版本已在构建中，请等待任务完成后再发起");
+        }
+        var scope = tenantScope.current();
+        var now = Instant.now();
+        return jobRepository.insert(new AIBuildJob(
+                UUID.randomUUID().toString(), product.id(), product.tenantId(),
+                product.currentVersion(), resolved.isBlank() ? null : resolved,
+                AIBuildJob.STATUS_QUEUED, null, null, scope.subject(), now, null, null));
+    }
+
+    /**
+     * 编排内核（G18 语义原样）：可解析 recipeRef 时先真实构建（construct）再评估
+     * （assess），结论回写当前版本（readiness_json + build_status）。调用方负责加载
+     * 产品——worker 线程无请求租户上下文，按 job 行的 tenant_id 直查后传入。
+     */
+    public BuildOutcome executeBuild(AIDataProduct product, String resolvedRecipeRef) {
+        var engine = enginePort.getIfAvailable();
+        if (engine == null) {
+            throw new EngineNotConfiguredException();
+        }
+        var normalized = resolvedRecipeRef == null ? "" : resolvedRecipeRef.trim();
+        java.util.Map<String, Object> buildSummary = null;
+        if (!normalized.isBlank()) {
+            buildSummary = engine.construct(product, normalized);
+        }
+        var assessment = engine.build(product, normalized);
         var objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
         String readinessJson;
         try {
@@ -141,6 +171,11 @@ public class AIDataProductService {
         repository.updateVersionReadiness(product.id(), product.currentVersion(),
                 readinessJson, BUILD_STATUS_SUCCEEDED);
         return new BuildOutcome(buildSummary, assessment);
+    }
+
+    /** 构建任务历史（最近在前；门户「当前任务」取首条，含 result/error）。 */
+    public List<AIBuildJob> buildJobs(String id) {
+        return jobRepository.findByProduct(require(id).id(), 20);
     }
 
     /** build 编排结果：build 为 null 表示无 recipeRef（仅评估）。 */

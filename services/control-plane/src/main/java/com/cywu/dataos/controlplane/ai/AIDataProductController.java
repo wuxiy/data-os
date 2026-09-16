@@ -60,22 +60,17 @@ public class AIDataProductController {
     }
 
     @PostMapping("/{id}/build")
-    public Object build(@PathVariable String id, @RequestBody(required = false) BuildRequest request) {
-        // 引擎未装配（503 AI_READY_ENGINE_NOT_CONFIGURED）或不可达（503）由此冒泡；
-        // 成功时返回评估摘要（完整报告在版本 readiness_json）+ 构建段（有 recipeRef 时）。
-        var outcome = service.build(id, request == null ? null : request.recipeRef());
-        var assessment = outcome.assessment();
-        var response = new java.util.LinkedHashMap<String, Object>();
-        response.put("product", assessment.product());
-        response.put("version", assessment.version());
-        response.put("profile", assessment.profile());
-        response.put("overall", assessment.overall());
-        response.put("certification", assessment.certification());
-        response.put("assessedAt", assessment.assessedAt());
-        if (outcome.build() != null) {
-            response.put("build", outcome.build());
-        }
-        return response;
+    public ResponseEntity<AIBuildJob> build(@PathVariable String id,
+                                            @RequestBody(required = false) BuildRequest request) {
+        // G20-1 任务态投递（202）：引擎未装配（503 AI_READY_ENGINE_NOT_CONFIGURED）守卫保留；
+        // 执行与结果经 /build-jobs 轮询（result_json 与旧同步响应同构）。
+        var job = service.submitBuild(id, request == null ? null : request.recipeRef());
+        return ResponseEntity.accepted().body(job);
+    }
+
+    @GetMapping("/{id}/build-jobs")
+    public List<AIBuildJob> buildJobs(@PathVariable String id) {
+        return service.buildJobs(id);
     }
 
     @GetMapping("/overview")
