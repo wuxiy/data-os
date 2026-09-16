@@ -3,7 +3,7 @@
 > 2026-09-16。方案：docs/ai-ready-g20-review-and-plan-20260916.md（用户明示
 > 「完成 AI-4 和四问底稿里的『检查项继续补厚』」）。
 > dev 运行态：control-plane / ai-ready-service 双镜像 `0.2.0-g20-20260916`，
-> 门户 dist 热更（index-B6fuxuyy）。
+> 门户 dist 热更（初发 index-B6fuxuyy；gate 后修复登录门误入后换发 index-BI9wDHW1，见 §三.5）。
 
 ## 一、验收结论
 
@@ -39,6 +39,16 @@
    **patch 位**递增（v1.0.0→v1.0.1→…），不是 minor 位——对拍探针必须同口径游走。
 4. **dev Doris 会话时区 Asia/Shanghai**；built_at 是 UTC ISO8601 字符串、
    UPDATE_TIME 是 +08 本地壁钟——跨源时间比较必须先归一（本批 CONVERT_TZ 方案）。
+5. **dev 门户 dist 误带 OIDC 登录门（gate 后实测发现并修复）**：本机遗留的
+   `prototype/.env.production`（未入仓，H3 登录链验证配置）被 Vite 生产模式自动加载，
+   `npm run build` 出的 dev 门户包含登录门——登录按钮从浏览器 fetch dev 网关 8443 的
+   discovery（自签证书 `ERR_CERT_AUTHORITY_INVALID`）；且该门在非 localhost 的 HTTP
+   origin 上本就无法完成（PKCE 需 secure context、redirect 注册 localhost）。此文件
+   同时过不了 build-portal.sh 的守卫（redirect 含 localhost 被拒），属验证遗留物。
+   处置：删除该文件重建无门 dist（index-BI9wDHW1，bundle 无 8443/realms 串实证）、
+   重发 dev portal-dist；陷阱与「部署前查 bundle」守卫记入 deploy/dev/README.md。
+   **追认**：G18/G19 轮的 dev 门户 dist 由同一配方构建，同样带门（当时未从浏览器
+   触发登录故未暴露）。
 
 ## 四、诚实边界与去向
 

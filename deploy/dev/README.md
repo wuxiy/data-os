@@ -134,6 +134,14 @@ SeaTunnel、DolphinScheduler 和 RustFS 的健康状态；DolphinScheduler UI �
 只隐藏前端菜单不能替代后端拒绝。开发 Compose 的 `DISABLED` 仅用于免登录联调，前端默认显示该
 技术菜单，若需要模拟业务账号可在构建时设置 `VITE_DATAOS_TECHNICAL_ACCESS=false`。
 
+**dev 门户 dist 的构建陷阱（2026-09-16 实证）**：`prototype/.env.production` 是生产/登录链
+验证专用文件（`deploy/production/scripts/build-portal.sh` 依赖并守卫它），Vite 生产模式构建会
+自动加载——它存在时 `npm run build` 会把 OIDC 登录门编进 dev 门户包。dev 控制面
+auth=DISABLED 无需登录门，且登录门在 `http://<开发机IP>:18081` 上本就无法完成（网关自签
+证书浏览器不信任 + PKCE 需 secure context + redirect 只注册 localhost）。**部署 dev
+portal-dist 前确认构建产物不含 `8443/auth` / `auth/realms` 串**；需要验证登录链时按
+`build-portal.sh` 口径单独出包、并经 localhost 访问 + 先访问一次网关地址接受自签证书。
+
 控制面默认按生产环境处理；开发 Compose 显式设置 `DATAOS_RUNTIME_ENV=development`。生产环境仍应显式设置 `DATAOS_RUNTIME_ENV=production`，且不得沿用 `DATAOS_SEED_DEMO=true` 或 `DATAOS_QUALITY_EXECUTOR=DEMO`；应切换为 `HTTP` 或 `DBT` 并配置 `DATAOS_QUALITY_EXECUTOR_BASE_URL`，`DATAOS_QUALITY_DEMO_ENABLED` 保持 `false`。控制面会在启动阶段阻断违反该约束的配置，历史 FakeSource 任务也不能在生产启动。
 
 当前 Compose 的 `DATAOS_AUTH_MODE=DISABLED` 仅用于隔离开发门户免登录联调；生产必须改为 `ENFORCED`，并提供 OIDC issuer、audience 以及 Token 中的 `tenant_id`、`institution_id` 和角色声明。Flyway 在现有开发库上通过 `DATAOS_FLYWAY_BASELINE_ON_MIGRATE=true` 接管历史 `schema.sql` 表；生产新库保持默认 `false`，只执行版本化迁移。
