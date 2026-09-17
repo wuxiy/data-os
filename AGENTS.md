@@ -2,7 +2,7 @@
 
 医疗数据采集、治理、运营的统一门户。**改代码前先读 [CONTEXT.md](CONTEXT.md)**——领域词汇表（外部运行、通知发件箱、质量引擎、运行模式、患者主索引），评审与设计讨论以其术语为准。
 
-五个子工程：`prototype/`（React 19 + Vite 门户）、`services/control-plane/`（Java 21 / Spring Boot，Maven）、`services/mpi-service/`（Java 21 / Spring Boot，患者主索引独立服务）、`services/quality-runner/`（Python 3.12 / FastAPI + dbt）、`services/ai-ready-service/`（Python 3.12 / FastAPI，AI Ready 评估引擎；声明仓库在根 `ai-ready/`）。部署覆盖在 `deploy/`，架构与验收文档在 `docs/`。
+六个子工程：`prototype/`（React 19 + Vite 门户）、`services/control-plane/`（Java 21 / Spring Boot，Maven）、`services/mpi-service/`（Java 21 / Spring Boot，患者主索引独立服务）、`services/quality-runner/`（Python 3.12 / FastAPI + dbt）、`services/ai-ready-service/`（Python 3.12 / FastAPI，AI Ready 评估引擎；声明仓库在根 `ai-ready/`）、`services/data-api/`（Python 3.12 / FastAPI，ToB 数据 API 网关）。部署覆盖在 `deploy/`，架构与验收文档在 `docs/`。
 
 ## 项目阶段与工作重心
 

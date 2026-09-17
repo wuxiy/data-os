@@ -2,7 +2,7 @@
 
 > 版本：v1.0
 > 日期：2026-08-26
-> 状态：架构设计稿（待 G8 评审批准后转为实施基线）
+> 状态：实施基线（G8 评审通过后由架构设计稿转入，验收证据见 `docs/validation/gate-ai-ready-g8-20260827.md`）
 > 适用范围：Data-OS 医疗数据平台 / AI Data Plane / AI 数据治理
 > 核心定位：将可信医疗数据持续加工、评测和认证为可被 RAG、Agent、模型训练与评测直接消费的 AI-Ready Data Product
 > 落盘记录：2026-08-26 由 cywu 与 Alma 在会话中确认的设计稿 v1.0 落盘；实施节奏见 `../ai-ready-iteration-plan-20260826.md`
