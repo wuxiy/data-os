@@ -1,41 +1,100 @@
+<div align="center">
+
 # data-os（医数中枢）
 
-医疗数据采集、治理、运营的统一门户。底层以 SeaTunnel、DolphinScheduler、Doris、OpenMetadata、HAPI FHIR 等开源组件作为可替换执行器，甲方用户只面对统一的中文业务门户，不接触组件原生控制台。
+**医疗数据采集、治理、运营的统一门户**
 
-## 文档地图
+<img src="assets/banner.webp" alt="data-os（医数中枢）——从院内采集到 AI 就绪数据产品的统一门户" width="100%">
 
-- `docs/medical-data-platform-blueprint.md`：平台架构蓝图（已批准）——组件选型、数据分层、门户页面、部署档位、交付路线与安全合规。
-- `docs/technical-architecture.md`：技术架构实施基线——控制面模块、组件适配契约、数据与边缘架构、部署、降级和回滚。
-- `docs/implementation-plan.md`：20 周 MVP 实施计划——工作包、团队、里程碑、验收门槛、依赖和风险。
-- `DESIGN.md`：第一版原型的视觉设计系统（色彩、字体、组件规则）。
-- `prototype/`：React + Vite 高保真桌面原型，路由与数据说明见其 `README.md`。
-- `services/control-plane/`：Java 21 / Spring Boot 控制面首条垂直切片，含数据源、采集任务、运行记录和治理摘要 API。
-- `services/mpi-service/`、`services/quality-runner/`、`services/ai-ready-service/`、`services/data-api/`：患者主索引、质量执行器、AI Ready 评估引擎与 ToB 数据 API 网关四个子工程（职责与测试命令见 AGENTS.md）。
-- `deploy/dev/`：不含密钥的开发环境 Compose 覆盖；复用 data-ops 的 PostgreSQL 与 `platform-net`。
-- `docs/environment-access-reference.md`：开发环境主机、访问入口、组件账号角色及密码/Token 的受保护查询位置（脱敏，不提交秘密值）。
-- `tasks/`：执行计划与结果复盘（`todo.md`）、经验教训（`lessons.md`）。
-- `docs/mock-production-readiness.md`：mock/真实运行模式边界、落地使用方式与验收清单。
-- `docs/architecture/ai-ready-data.md`：AI Ready Data 架构方案 v1.0——AI Data Plane、6C 模型、Workload Profile、AI Data Product 生命周期、Recipe/Manifest/版本化、评测与数据飞轮（待 G8 评审批准）。
-- `docs/ai-ready-iteration-plan-20260826.md`：AI Ready 迭代计划（G8–G12）——现状盘点、Gate 规划、验收清单、里程碑与风险。
+[![data-os CI](https://github.com/wuxiy/data-os/actions/workflows/ci.yml/badge.svg)](https://github.com/wuxiy/data-os/actions/workflows/ci.yml)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](./LICENSE)
 
-## 当前状态
+</div>
 
-- 架构蓝图已定稿并通过评审；技术架构和 20 周 MVP 实施计划已形成实施基线，外部依赖与兼容性决策门需在 W1—W2 完成。
-- 前端已完成 13 个桌面路由页面（另有资产技术视图与问数工作区两条深链）：除治理、资产、分析、问数、主索引和平台运维等业务工作台外，新增“数据接入”工作台与“AI Data”“数据服务”页；所有页面使用统一门户，不暴露组件原生菜单。
-- 控制面首条垂直切片已实现：`GET/POST /api/v1/sources`、`POST /api/v1/sources/{id}/check`、`GET/POST /api/v1/jobs`、`PUT /api/v1/jobs/{id}/status`、`GET/PUT /api/v1/jobs/{id}/config`、`POST/GET /api/v1/jobs/{id}/runs`、`POST /api/v1/jobs/{jobId}/runs/{runId}/sync`、`POST /api/v1/jobs/{jobId}/runs/{runId}/retry`、`GET /api/v1/governance/summary`、`GET /api/v1/governance/issues`、`GET /api/v1/governance/issues/{id}`、`PUT /api/v1/governance/issues/{id}/workflow`、`POST /api/v1/governance/issues/{id}/recheck`、`POST /api/v1/governance/issues/{issueId}/runs/{runId}/sync`、`POST /api/v1/governance/issues/{issueId}/notifications/remind`、`POST /api/v1/governance/sla/scan`、`POST /api/v1/governance/notifications/deliver` 与 `/actuator/health/readiness`。任务配置以模板标识、版本和结构 JSON 持久化，运行请求可使用已保存配置并支持 `Idempotency-Key` 重放；密码、Secret、Token 等明文键会被拒绝。运行记录支持 SeaTunnel 状态归一、定时回写、手动同步和终态重试；任务生命周期 `DRAFT/ACTIVE/PAUSED/ARCHIVED` 与最近运行状态分离，暂停/归档任务不会接受新运行。数据源检查当前支持 JDBC、HTTP/FHIR，并将最近检查时间和结果回写 PostgreSQL。治理问题支持查询、责任/证据详情、处理说明和复检事件持久化；复检会投递到可替换的质量规则执行器，`SUBMITTING` 中间态可恢复、临时不可用自动退避重试，回写执行批次、通过/失败和样本证据，并驱动自动关闭/退回；SLA 扫描和责任人通知也持久化到 PostgreSQL，通知以数据库租约抢占避免并发重复外发。
-- 控制面在首条切片之外已扩展多个域：凭据服务（`/api/v1/credentials`）、OM 资产与血缘只读 BFF（`/api/v1/assets/**`、`/api/v1/lineage/**`，未配置 OpenMetadata 时端点 503）、嵌入式分析访客令牌（`/api/v1/analytics/**`）、AI Data Product 域（`/api/v1/ai-data-products`）、ToB 数据服务管理域（`/api/v1/data-services`，外部调用经独立 data-api 网关的 `/dataapi/` 前缀进入）与临床工作流模板（`/api/v1/workflow-templates`）；患者主索引由独立 `mpi-service` 承担，门户以 `/api/v1/mpi/` 前缀直路由。
-- 数据接入页已具备交付所需的桌面闭环：登记数据源、检查来源可用性、新建采集任务、编辑/保存配置、启用/暂停/归档任务、幂等启动、失败重试、运行详情抽屉和 5 秒状态刷新；数据质量闭环页支持真实问题队列、责任链详情、处理说明和复检操作。控制面不可用时，数据接入与质量闭环均展示明确不可用空态，不把演示状态当作真实业务事实。
-- mock 数据已改为显式演示边界：`VITE_DATAOS_DEMO_MODE=true` 才展示标准、MPI、资产、分析和问数的脱敏原型数据；真实模式不再静默渲染样例。门户顶部读取 `/api/v1/system/status`，展示控制面、质量执行器、SeaTunnel 和通知通道配置告警。
-- 已部署到隔离开发机的独立 `/root/data-os-dev-20260803` 目录：门户 `18081`、控制面容器和 `data_os` schema 已通过 API 验收；SeaTunnel 2.3.13 已用 Apache 官方二进制包构建为本地镜像，REST 端口 `18082`，控制面已配置内部地址并完成真实提交验收。
-- DolphinScheduler 已接入控制面执行器契约：生产任务使用已发布工作流绑定，状态由 DolphinScheduler 实例归一回写；单院紧凑 JDBC Registry Compose overlay 位于 `deploy/dev/dolphinscheduler/`，SeaTunnel 直连仍保留为开发兼容路径。
+---
 
-## 运行原型
+## 这是什么
+
+医数中枢（data-os）把院内分散的业务数据变成可治理、可追溯、可被 AI 消费的数据产品：HIS / EMR / LIS / 前置机等来源经统一接入链路进入分层数仓，经质量、主索引、元数据与血缘治理成为可信资产，再进一步加工、评测、认证为 AI 就绪数据产品。
+
+底层以 SeaTunnel、DolphinScheduler、Doris、dbt、OpenMetadata、Superset、HAPI FHIR 等开源组件作为可替换执行器；甲方用户只面对统一的中文业务门户，不接触组件原生控制台。
+
+仓库包含六个子工程：
+
+| 子工程 | 职责 | 技术栈 |
+| --- | --- | --- |
+| `prototype/` | 统一中文门户（13 个桌面路由页面 + 2 条深链） | React 19 + Vite |
+| `services/control-plane/` | 控制面：接入、治理闭环、资产血缘 BFF、分析令牌、AI Data、数据服务 | Java 21 / Spring Boot |
+| `services/mpi-service/` | 患者主索引：源身份、黄金人、候选审核与合并/拆分 | Java 21 / Spring Boot |
+| `services/quality-runner/` | 质量规则执行器：dbt test 引擎与失败证据投影 | Python 3.12 / FastAPI |
+| `services/ai-ready-service/` | AI Ready 评估引擎：6C 评估、诊断与修复建议 | Python 3.12 / FastAPI |
+| `services/data-api/` | ToB 数据 API 网关：Key、配额与合同事件 | Python 3.12 / FastAPI |
+
+## 为什么需要它
+
+医院数据散落在 HIS / EMR / LIS / 前置机等来源，直接用开源组件原生控制台交付对甲方不可用；治理异常常常追不到数据、规则、责任人和原始证据；AI 应用还需要回答「这份数据是否适合我的场景」。data-os 的取舍是：
+
+- **门户先行**：业务人员在中文门户完成接入、复核、分析和验收；专业人员才进入组件原生控制台诊断。
+- **控制面单一事实**：运行状态机、治理问题、通知发件箱与 AI 产品生命周期都在控制面；执行器（SeaTunnel / DolphinScheduler / dbt）可整体替换。
+- **真实优先**：演示数据是显式边界，控制面不可用时展示真实空态；未配置的通知通道明确记为 SKIPPED，不把「未配置」伪装成「已送达」。
+
+## 你会得到什么
+
+<img src="assets/features.webp" alt="三个可验证的结果：统一中文门户、真实优先的边界、AI Ready 数据产品" width="100%">
+
+三件事都已在开发环境跑通：数据接入、质量闭环、主索引复核、资产血缘、分析看板、AI Data 与数据服务串成一条可操作链路；演示数据被显式隔离，不可用即空态；AI Data 域完成 6C 评估（17 项检查）、认证门与数据飞轮，真实 EP 语料首轮检索评测 recall 0.85 → 0.9833、MRR 0.6575 → 0.9208。
+
+## 快速开始
 
 ```bash
+# 门户原型（React 19 + Vite）
 cd prototype
 npm install
 npm run dev
 ```
 
-生产构建与路由回退要求见 `prototype/README.md`。
-控制面运行环境默认按生产处理并关闭演示数据；开发/验收环境如需演示种子和 DEMO 执行器，应显式配置 `DATAOS_RUNTIME_ENV=development`、`DATAOS_SEED_DEMO=true` 和 `DATAOS_QUALITY_DEMO_ENABLED=true`。生产环境设置 `DATAOS_RUNTIME_ENV=production`，控制面会启动阻断演示配置与历史 FakeSource 任务。
+完整开发环境（Compose 覆盖、组件端口与账号）见 `deploy/dev/README.md`；各子工程的测试命令见 `AGENTS.md`；生产部署基线见 `deploy/production/README.md`。生产构建与路由回退要求见 `prototype/README.md`。
+
+## 运行模式与演示数据
+
+门户默认真实模式：未设置 `VITE_DATAOS_DEMO_MODE` 时不渲染任何静态样例，未接入的页面显示待接入边界；控制面运行状态由 `GET /api/v1/system/status` 提供。
+
+控制面运行环境默认按生产处理并关闭演示数据；开发/验收环境如需演示种子和 DEMO 执行器，应显式配置 `DATAOS_RUNTIME_ENV=development`、`DATAOS_SEED_DEMO=true` 和 `DATAOS_QUALITY_DEMO_ENABLED=true`。生产环境设置 `DATAOS_RUNTIME_ENV=production`，控制面启动时会阻断演示配置与历史 FakeSource 任务。详见 `docs/mock-production-readiness.md`。
+
+## 工作方式
+
+门户只访问控制面的版本化业务 API，不直连任何组件；控制面是模块化单体，业务事实落一个 PostgreSQL 控制库，可重试命令携带 `Idempotency-Key`，执行器状态由适配器统一归一回写。控制流、数据流与观测流分离；跨组件状态同步用 PostgreSQL Outbox + 后台 Worker，MVP 不引入消息总线。
+
+配置缺口不会被伪装成成功：未配置 OpenMetadata 时资产/血缘端点为 503；质量执行器地址或通知 Webhook 未配置时，运行状态接口返回告警而不是「已执行 / 已送达」。
+
+动 `controlplane/run/` 或做跨栈抽象前，先读 `docs/agents/architecture.md`（单一来源清单与判断规则）与 `CONTEXT.md`（领域词汇表）。
+
+## 项目现状
+
+- 架构蓝图与技术架构已定稿为实施基线（见下「文档地图」）。
+- 门户已完成 13 个桌面路由页面与 2 条深链（资产技术视图、问数工作区）；数据接入、治理驾驶舱、质量闭环、主索引、资产血缘、分析看板、AI Data 与数据服务均已接真实链路。
+- 控制面在首条采集切片（数据源、任务、运行、治理闭环、通知发件箱）之外已扩展多个域：凭据服务、OM 资产与血缘只读 BFF、嵌入式分析访客令牌、AI Data Product、ToB 数据服务管理与临床工作流模板；API 面覆盖 `/api/v1/{sources, jobs, governance, credentials, assets, lineage, analytics, ai-data-products, data-services, workflow-templates}`，患者主索引经独立 `mpi-service` 以 `/api/v1/mpi/` 直路由。
+- AI Data 域已交付至 G20 验收：6C 检查 17 项、真实 EP 语料全链 SERVING、构建 API 异步任务化（提交返回 202 + 作业轮询）、SERVING 支持撤回再认证。
+- 已部署到隔离开发机：门户 `18081`、SeaTunnel `18082`、DolphinScheduler `18083`、Superset 嵌入端口 `18084`、RustFS `19000/19001`；入口与账号查询见 `docs/environment-access-reference.md`。
+- 当前阶段为生产化收口（H1–H5 批次）与功能迭代并行，批次纪律见 `AGENTS.md`。
+
+## 文档地图
+
+- `CONTEXT.md`：领域词汇表（外部运行、通知发件箱、质量引擎、运行模式、患者主索引）——评审与设计讨论以其术语为准。
+- `AGENTS.md`：工程约定、测试命令与生产化批次纪律。
+- `docs/medical-data-platform-blueprint.md`：平台架构蓝图——组件选型、数据分层、门户页面、部署档位、交付路线与安全合规。
+- `docs/technical-architecture.md`：技术架构实施基线——控制面模块、组件适配契约、数据与边缘架构、部署、降级和回滚。
+- `docs/implementation-plan.md`：20 周 MVP 实施计划——工作包、团队、里程碑、验收门槛、依赖和风险。
+- `docs/agents/`：按需阅读的工程边界（架构边界、后端服务、门户前端）。
+- `docs/quality-runner.md`：质量执行器跨服务契约（批次号 / 幂等键 / 租约协同）。
+- `docs/mock-production-readiness.md`：mock/真实运行模式边界、落地使用方式与验收清单。
+- `docs/environment-access-reference.md`：开发环境主机、访问入口、组件账号角色及密码/Token 的受保护查询位置（脱敏，不提交秘密值）。
+- `docs/architecture/ai-ready-data.md`：AI Ready Data 架构方案 v1.0（G8 评审通过，已转为实施基线）；实施节奏见 `docs/ai-ready-iteration-plan-20260826.md`。
+- `docs/validation/`：各 Gate 的验收证据归档。
+- `deploy/dev/`：不含密钥的开发环境 Compose 覆盖；生产基线见 `deploy/production/README.md`。
+- `prototype/README.md`：门户路由与数据说明；`DESIGN.md`：第一版原型的视觉设计系统。
+- `tasks/`：执行计划与结果复盘（`todo.md`）、经验教训（`lessons.md`）。
+
+## 许可证
+
+[Apache License 2.0](./LICENSE)
