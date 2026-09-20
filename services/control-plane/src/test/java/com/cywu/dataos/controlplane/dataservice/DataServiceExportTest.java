@@ -1,6 +1,7 @@
 package com.cywu.dataos.controlplane.dataservice;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 
@@ -58,7 +59,9 @@ class DataServiceExportTest {
         assertThat(service.claimExport(export.id())).isFalse();
 
         // 终态：RUNNING → SUCCEEDED（带产物与到期）
-        var expiresAt = Instant.now().plusSeconds(3600);
+        // H2 TIMESTAMP(6) 落库把纳秒瞬时舍入到微秒（Linux 时钟纳秒精度、macOS 微秒精度），
+        // 到期时间断言统一按微秒口径构造，避免「本地过、CI 挂」
+        var expiresAt = Instant.now().plusSeconds(3600).truncatedTo(ChronoUnit.MICROS);
         assertThat(service.finalizeExport(export.id(), DataServiceExport.ExportStatus.SUCCEEDED,
                 12345, 678901L, "s3://dataos-data-api-exports/x.csv", null, expiresAt)).isTrue();
         var succeeded = service.findExport(export.id()).orElseThrow();

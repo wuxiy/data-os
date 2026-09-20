@@ -123,6 +123,9 @@ class DataApiAdminServiceTest {
         var keyHash = DataApiAdminService.sha256Hex(issued.apiKey());
 
         var idempotencyKey = "idem-" + UUID.randomUUID();
+        // callsToday 是跨服务的全局当日计数（共享测试库、类执行顺序平台间不同），
+        // 只断言本用例的增量恰好 +1，不断绝对值
+        var callsTodayBefore = (Long) service.overview(null).get("callsToday");
         assertThat(service.recordCall(code, keyHash, "{\"start_date\":\"2026-08-01\"}",
                 12, false, 45, 200, idempotencyKey)).isTrue();
         // 同 idempotency_key 重复回写被忽略
@@ -138,7 +141,7 @@ class DataApiAdminServiceTest {
         assertThat(calls.get(0)).containsEntry("statusCode", 200);
 
         var overview = service.overview(null);
-        assertThat(overview).containsEntry("callsToday", 1L);
+        assertThat(overview).containsEntry("callsToday", callsTodayBefore + 1L);
     }
 
     @Test

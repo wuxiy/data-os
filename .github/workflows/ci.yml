@@ -99,7 +99,7 @@ jobs:
       - name: Test quality runner contract
         run: |
           python -m pip install --disable-pip-version-check \
-            pytest==8.3.4 pytest-asyncio==0.25.3 PyYAML==6.0.2 SQLAlchemy==2.0.37 PyMySQL==1.1.1 boto3==1.36.20
+            pytest==8.3.4 pytest-asyncio==0.25.3 PyYAML==6.0.2 SQLAlchemy==2.0.37 PyMySQL==1.1.1 boto3==1.36.20 httpx==0.28.1
           PYTHONPATH=services/quality-runner/app python -m pytest -q services/quality-runner/tests
           python -m compileall -q services/quality-runner/app
 
@@ -217,6 +217,14 @@ jobs:
             -f deploy/production/docker-compose.yml \
             -f deploy/production/dolphinscheduler-compose.yml \
             config --quiet
+          # dev compose 的 :? 必填守卫面向真实部署机的 .env（如 G18 OIDC 断链护栏），
+          # CI 只做配置校验：为全部必填变量动态注入非秘密占位，不弱化守卫本身，
+          # 也避免后续新增必填变量再次压红 CI
+          for var in $(grep -hoE '\$\{[A-Z0-9_]+:\?' \
+                deploy/dev/docker-compose.yml deploy/dev/dolphinscheduler/docker-compose.yml \
+                | sed -E 's/^\$\{//; s/:\?$//' | sort -u); do
+            export "$var=ci-placeholder"
+          done
           docker compose \
             -f deploy/dev/docker-compose.yml \
             -f deploy/dev/dolphinscheduler/docker-compose.yml \

@@ -604,8 +604,10 @@ class ControlPlaneApiTest {
         var now = Instant.now();
         var run = qualityRunRepository.createQualityRun("DQ-TEST-007C", "default", "demo-hospital",
                 "rule-pass", "asset-test", "DEMO", "qr-lease-007c", now);
+        // 创建时 next_poll_at=submitted_at；H2 微秒舍入在 Linux 纳秒时钟下会把存量值抬高 ≤1µs，
+        // 「与创建同瞬间的 <=」边界断言随即失真——认领时刻取严格晚于创建的 1ms（真实 worker 亦然）
         org.assertj.core.api.Assertions.assertThat(qualityRunRepository.claimQualityRunForSubmission(
-                run.id(), "worker-a", now.plusSeconds(120), now)).isEqualTo(1);
+                run.id(), "worker-a", now.plusSeconds(120), now.plusMillis(1))).isEqualTo(1);
         org.assertj.core.api.Assertions.assertThat(qualityRunRepository.markQualityRunSubmitted(
                 run.id(), "worker-b", "external-b", "错误 worker", now)).isEqualTo(0);
         org.assertj.core.api.Assertions.assertThat(qualityRunRepository.markQualityRunSubmitted(
