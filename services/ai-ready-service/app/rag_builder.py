@@ -380,8 +380,8 @@ def build(recipe_path: Path, documents_dir: Path, adapter=None) -> tuple[list[di
     for doc in unique:
         pii_total = 0
         if "pii_detection" in pipeline:
-            # 检测算子只负责命中文档标记；命中计数以脱敏算子的替换数为准
-            #（两者同规则，分开声明可只检测不替换）。
+            # 检测算子负责命中文档标记（进 phi_documents → contains_phi 证据）；
+            # 替换命中计数以脱敏算子为准（两者同规则，分开声明可只检测不替换）。
             for block in doc["blocks"]:
                 if pii_detection(block["text"]):
                     stats.phi_documents.append(doc["name"])
@@ -420,7 +420,11 @@ def build(recipe_path: Path, documents_dir: Path, adapter=None) -> tuple[list[di
                        if kind == "doris_table" else
                        {"dataset": source["dataset"],
                         "documents": [d["name"] for d in unique]}),
-            "privacy": {"contains_phi": bool(stats.pii_hits), "deidentified": True},
+            # 隐私声明必须来自实际执行（G21-4）：contains_phi 由检测/脱敏任一算子的
+            # 命中证据推导（只检测不脱敏也要如实标 True）；deidentified 只在构建管道
+            # 确实执行过脱敏算子时才为 True
+            "privacy": {"contains_phi": bool(stats.pii_hits) or bool(stats.phi_documents),
+                        "deidentified": "deidentification" in pipeline},
             "lineage": {"recipe": recipe["metadata"]["name"], "git_commit": git_commit},
         },
     }

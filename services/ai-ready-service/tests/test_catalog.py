@@ -10,24 +10,26 @@ def catalog():
     return load_catalog(str(REPO))
 
 
-def test_loads_seventeen_requirements(catalog):
-    assert len(catalog.requirements) == 17
+def test_loads_eighteen_requirements(catalog):
+    assert len(catalog.requirements) == 18
     by_dimension = {}
     for requirement in catalog.requirements.values():
         by_dimension[requirement.dimension] = by_dimension.get(requirement.dimension, 0) + 1
-    # 六维覆盖（G20 第二批补厚后）：clean 3 / current 2 / contextual 3 / consumable 4 / correlated 2 / compliant 3
+    # 六维覆盖（G20 第二批补厚 + G21-4 清单探针）：clean 3 / current 2 / contextual 3 /
+    # consumable 4 / correlated 2 / compliant 4
     assert by_dimension == {"clean": 3, "current": 2, "contextual": 3,
-                            "consumable": 4, "correlated": 2, "compliant": 3}
+                            "consumable": 4, "correlated": 2, "compliant": 4}
 
 
 def test_both_profiles_reference_all_requirements(catalog):
     for profile_id in ("medical-rag", "medical-training"):
-        assert len(catalog.requirement_ids(profile_id)) == 17
+        assert len(catalog.requirement_ids(profile_id)) == 18
 
 
 def test_critical_severity_set(catalog):
     critical = {rid for rid, req in catalog.requirements.items() if req.severity == "critical"}
-    assert critical == {"pii_classification", "deidentification", "patient_split_leakage"}
+    assert critical == {"pii_classification", "deidentification", "patient_split_leakage",
+                        "artifact_privacy_declaration"}
 
 
 def test_gate_thresholds(catalog):

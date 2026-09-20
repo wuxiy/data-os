@@ -1,0 +1,20 @@
+id: artifact_privacy_declaration
+title: 产物脱敏声明有据（评估版本 Manifest 的 privacy 声明）
+dimension: compliant
+severity: critical
+applicable_profiles:
+- medical-rag
+- medical-training
+diagnostic: 评估版本对应的构建清单未声明已脱敏（或清单缺失）——脱敏主张缺少对应产物版本的清单证据
+check:
+  type: manifest_probe
+  probe: deidentified_claim
+  product: ep-prescription-rag
+  bucket: dataos-ai-data
+  prefix: ai-data/ep-prescription-rag
+  requires_table: dataos_ai.chunks_ep
+  metric: deidentified_claim
+  direction: higher_better
+  pass: 1.0
+  warn: 1.0
+  not_applicable_reason: 表 dataos_ai.chunks_ep 与产物清单由 EP 真实语料构建（G17）产生；存在后本项自动生效

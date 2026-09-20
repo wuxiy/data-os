@@ -15,6 +15,7 @@ requirements:
   ep_lineage_registration: 1.0
   pii_classification: 1.5
   deidentification: 1.5
+  artifact_privacy_declaration: 1.5
   patient_split_leakage: 1.5
   corpus_source_lag: 1.0
   fhir_mapping_coverage: 1.0

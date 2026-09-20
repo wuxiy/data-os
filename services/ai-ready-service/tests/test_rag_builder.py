@@ -76,6 +76,18 @@ def test_idempotent_build(built):
     assert ids_first == ids_again
 
 
+def test_privacy_declaration_follows_actual_pipeline(tmp_path):
+    """G21-4：只检测不脱敏的管道——deidentified 必须为 False、contains_phi 如实为 True。"""
+    recipe = yaml.safe_load((AI_DATA / "recipes" / "medical-rag-v1.yaml").read_text(encoding="utf-8"))
+    recipe["spec"]["pipeline"] = [op for op in recipe["spec"]["pipeline"] if op != "deidentification"]
+    recipe_path = tmp_path / "recipe.yaml"
+    recipe_path.write_text(yaml.safe_dump(recipe, allow_unicode=True), encoding="utf-8")
+    _chunks, artifacts, _stats = rb.build(recipe_path, DOCUMENTS)
+    privacy = artifacts["manifest"]["spec"]["privacy"]
+    assert privacy["deidentified"] is False  # 未执行脱敏算子，不得无据声明已脱敏
+    assert privacy["contains_phi"] is True   # 检测算子命中的文档是 PII 证据
+
+
 def test_pipeline_is_consumed_not_decorative(tmp_path):
     """声明=行为：去掉 deidentification 步后，产物保留原文 PII、计数归零。"""
     recipe = yaml.safe_load(RECIPE.read_text(encoding="utf-8"))

@@ -68,6 +68,12 @@ _RUSTFS_PROBE_REQUIRED_KEYS = {
     "artifact_availability": ("requires_table", "bucket", "prefix"),
 }
 
+# manifest_probe（G21-4）：读被评估 product@version 的 manifest.yaml，
+# requires_table 为产物面在册守卫（无构建即 N/A，与 rustfs_probe 同口径）。
+_MANIFEST_PROBE_REQUIRED_KEYS = {
+    "deidentified_claim": ("requires_table", "product", "bucket", "prefix"),
+}
+
 
 def _check_shape(check: dict, rid: str) -> None:
     _check_thresholds(check, rid)
@@ -99,9 +105,19 @@ def _check_shape(check: dict, rid: str) -> None:
             value = check.get(key)
             if value is None or value == "" or value == [] or value == {}:
                 raise CatalogError(f"requirement {rid} 的 {probe} 探针缺少 {key}")
+    elif check_type == "manifest_probe":
+        probe = check.get("probe")
+        required = _MANIFEST_PROBE_REQUIRED_KEYS.get(probe)
+        if required is None:
+            raise CatalogError(f"requirement {rid} 的 manifest_probe 探针未知：{probe}"
+                               f"（已知：{sorted(_MANIFEST_PROBE_REQUIRED_KEYS)}）")
+        for key in required:
+            value = check.get(key)
+            if value is None or value == "" or value == [] or value == {}:
+                raise CatalogError(f"requirement {rid} 的 {probe} 探针缺少 {key}")
     else:
         raise CatalogError(f"requirement {rid} 的 check.type 非法：{check_type}"
-                           f"（已知：doris_metric / om_probe / rustfs_probe）")
+                           f"（已知：doris_metric / om_probe / rustfs_probe / manifest_probe）")
 
 
 def load_catalog(repo_dir: str) -> Catalog:

@@ -12,6 +12,7 @@ from typing import Any
 
 import httpx
 import pymysql
+import yaml
 
 
 def rustfs_client(settings: Any):
@@ -195,6 +196,22 @@ class RustFSAdapter:
             Bucket=bucket, Key=f"{prefix}/{latest}/data/chunks.jsonl")["Body"].read()
         lines = sum(1 for line in body.decode("utf-8").splitlines() if line.strip())
         return 1.0 if lines == doris_count else 0.0
+
+    def deidentified_claim(self, check: dict, version: str) -> float:
+        """清单探针（G21-4）：评估版本 manifest.yaml 的 spec.privacy.deidentified
+        声明为 True 时 1.0；清单缺失/未声明/声明为否均 0.0——脱敏主张必须有
+        对应构建版本的清单证据，不许无据默认。"""
+        client = self._client_factory()
+        bucket = check.get("bucket") or os.environ.get("DATAOS_AI_BUCKET", "dataos-ai-data")
+        prefix = check["prefix"]
+        key = f"{prefix}/{version}/manifest.yaml"
+        try:
+            body = client.get_object(Bucket=bucket, Key=key)["Body"].read()
+        except client.exceptions.ClientError as exc:
+            raise RuntimeError(f"清单不存在：{key}（{exc}）") from exc
+        manifest = yaml.safe_load(body.decode("utf-8")) or {}
+        privacy = (manifest.get("spec") or {}).get("privacy") or {}
+        return 1.0 if privacy.get("deidentified") is True else 0.0
 
     @staticmethod
     def _latest_version(client, bucket: str, prefix: str) -> str | None:

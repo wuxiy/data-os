@@ -37,8 +37,8 @@ class AssessRequest(BaseModel):
     # profile 必填无缺省：词汇表唯一源是声明仓库 profiles/，未知值由引擎拒绝。
     profile: str = Field(min_length=1)
     # 控制面 build 链路随请求发送的 recipe 关联（G9 契约）。显式收下留档，
-    # 不再被 pydantic 静默丢弃；当前评估不消费——构建与版本登记在
-    # rag_builder / 控制面侧完成。
+    # 不再被 pydantic 静默丢弃；构建与版本登记在 rag_builder / 控制面侧完成。
+    # （G21-4 起评估经 manifest_probe 消费 product@version 的产物清单事实。）
     recipe_ref: str = Field(default="", alias="recipeRef")
 
 

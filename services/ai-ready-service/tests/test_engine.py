@@ -124,20 +124,57 @@ def test_cli_render_matches_reference_layout():
 
 
 def test_second_batch_checks_with_chunks_table_present():
-    """G20 第二批：产物表在册时 corpus_source_lag（SQL）/ artifact_availability（rustfs
-    探针）真实生效，fhir_mapping 维持条件 N/A；17 项全 PASS 时 Overall 1.0。"""
+    """G20 第二批 + G21-4：产物表在册时 corpus_source_lag（SQL）/ artifact_availability
+    （rustfs 探针）/ artifact_privacy_declaration（清单探针，绑定 ep-prescription-rag）
+    真实生效，fhir_mapping 维持条件 N/A；18 项全 PASS 时 Overall 1.0。"""
     catalog = load_catalog(str(REPO))
     engine = Engine(catalog, StubDoris(all_pass_metrics(), {"dataos_ai.chunks_ep"}),
                     StubOm(all_pass_metrics()), StubRustfs(all_pass_metrics()))
-    report = engine.assess("p", "v0.3.0", "medical-rag")
+    report = engine.assess("ep-prescription-rag", "v0.3.0", "medical-rag")
     statuses = {item.id: item.status for item in report.requirements}
     assert statuses["corpus_source_lag"] == "PASS"
     assert statuses["artifact_availability"] == "PASS"
     assert statuses["fhir_mapping_coverage"] == "NOT_APPLICABLE"
     assert statuses["patient_split_leakage"] == "NOT_APPLICABLE"
-    assert len(report.requirements) == 17
+    assert len(report.requirements) == 18
+    assert statuses["artifact_privacy_declaration"] == "PASS"
     assert report.overall == 1.0
     assert report.gate.certification == "CANDIDATE"
+
+
+def test_manifest_probe_facts_follow_assessed_version():
+    """G21-4：评估读取指定产品版本的 Manifest——不同版本的清单声明产生不同评估事实。"""
+    class VersionedRustfs(StubRustfs):
+        def __init__(self, claims: dict[str, float]):
+            self._claims = claims
+
+        def deidentified_claim(self, check: dict, version: str) -> float:
+            return self._claims[version]
+
+    from catalog import load_catalog
+    catalog = load_catalog(str(REPO))
+    engine = Engine(catalog, StubDoris(all_pass_metrics(), {"dataos_ai.chunks_ep"}),
+                    StubOm(all_pass_metrics()),
+                    VersionedRustfs({"v1.0.0": 1.0, "v2.0.0": 0.0}))
+    v1 = engine.assess("ep-prescription-rag", "v1.0.0", "medical-rag")
+    v2 = engine.assess("ep-prescription-rag", "v2.0.0", "medical-rag")
+    s1 = {item.id: item.status for item in v1.requirements}
+    s2 = {item.id: item.status for item in v2.requirements}
+    assert s1["artifact_privacy_declaration"] == "PASS"
+    assert s2["artifact_privacy_declaration"] == "FAIL"
+    assert v1.overall != v2.overall
+
+
+def test_manifest_probe_rejects_product_mismatch():
+    """清单绑定具体产品：评估对象不符时无事实可依，按探针失败 FAIL 收口。"""
+    from catalog import load_catalog
+    catalog = load_catalog(str(REPO))
+    engine = Engine(catalog, StubDoris(all_pass_metrics(), {"dataos_ai.chunks_ep"}),
+                    StubOm(all_pass_metrics()), StubRustfs(all_pass_metrics()))
+    report = engine.assess("other-product", "v1.0.0", "medical-rag")
+    item = next(r for r in report.requirements if r.id == "artifact_privacy_declaration")
+    assert item.status == "FAIL"
+    assert "清单绑定产品" in item.note
 
 
 def test_rustfs_probe_without_adapter_fails_requirement():

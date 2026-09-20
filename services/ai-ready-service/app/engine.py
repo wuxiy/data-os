@@ -49,7 +49,8 @@ class Engine:
         profile = self._catalog.profiles[profile_id]
         thresholds = self._catalog.gate_thresholds(profile_id)
 
-        results = [self._run(self._catalog.requirements[rid]) for rid in requirement_ids]
+        results = [self._run(self._catalog.requirements[rid], product, version)
+                   for rid in requirement_ids]
 
         # N/A 剔除后聚合：维度分 = 维内 weight 加权平均；Overall = 有值维度等权平均
         dimensions: dict[str, float] = {}
@@ -96,7 +97,7 @@ class Engine:
 
     # ---- 单项执行 ----
 
-    def _run(self, requirement: RequirementDef) -> RequirementResult:
+    def _run(self, requirement: RequirementDef, product: str, version: str) -> RequirementResult:
         check = requirement.check
         base = dict(id=requirement.id, title=requirement.title, dimension=requirement.dimension,
                     severity=requirement.severity, diagnostic=requirement.diagnostic,
@@ -114,6 +115,8 @@ class Engine:
                 metric = self._om_probe(check)
             elif check.get("type") == "rustfs_probe":
                 metric = self._rustfs_probe(check)
+            elif check.get("type") == "manifest_probe":
+                metric = self._manifest_probe(check, product, version)
             else:
                 raise RuntimeError(f"未知 check 类型：{check.get('type')}")
         except Exception as exc:  # 探针失败按 FAIL 收口（诊断信息保留），不让单点炸整场
@@ -135,6 +138,19 @@ class Engine:
         if handler is None:
             raise RuntimeError(f"未知 OM 探针：{probe}")
         return float(handler(check))
+
+    def _manifest_probe(self, check: dict, product: str, version: str) -> float:
+        """清单探针（G21-4）：读「被评估 product@version」的 manifest.yaml——
+        评估事实随指定版本的清单内容变化，product/version 不再只是报告标签。"""
+        if self._rustfs is None:
+            raise RuntimeError("RustFS 探针未装配")
+        if check.get("product") and str(product) != str(check["product"]):
+            raise RuntimeError(f"清单绑定产品 {check['product']} 与评估对象 {product} 不符")
+        probe = check.get("probe")
+        handler = getattr(self._rustfs, str(probe), None)
+        if handler is None:
+            raise RuntimeError(f"未知清单探针：{probe}")
+        return float(handler(check, version))
 
     def _rustfs_probe(self, check: dict) -> float:
         if self._rustfs is None:
