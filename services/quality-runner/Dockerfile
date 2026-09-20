@@ -1,4 +1,5 @@
-FROM python:3.12.8-slim
+# G21-1 CVE 收口：3.12.8 基础镜像的 openssl/gnutls/krb5/pcre2/perl 全部过期，升到当前补丁
+FROM python:3.12.14-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
