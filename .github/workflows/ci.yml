@@ -99,7 +99,8 @@ jobs:
       - name: Test quality runner contract
         run: |
           python -m pip install --disable-pip-version-check \
-            pytest==8.3.4 pytest-asyncio==0.25.3 PyYAML==6.0.2 SQLAlchemy==2.0.37 PyMySQL==1.1.1 boto3==1.36.20 httpx==0.28.1
+            pytest==8.3.4 pytest-asyncio==0.25.3 PyYAML==6.0.2 SQLAlchemy==2.0.37 PyMySQL==1.1.1 boto3==1.36.20 httpx==0.28.1 \
+            PyJWT[crypto]==2.10.1 fastapi==0.115.6
           PYTHONPATH=services/quality-runner/app python -m pytest -q services/quality-runner/tests
           python -m compileall -q services/quality-runner/app
 

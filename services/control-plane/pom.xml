@@ -7,7 +7,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.4.5</version>
+        <version>3.5.14</version>
         <relativePath/>
     </parent>
 
@@ -20,6 +20,15 @@
     <properties>
         <java.version>21</java.version>
         <flyway.version>10.20.1</flyway.version>
+        <!-- G21-1 CVE 收口：覆写 Boot 3.5.14 托管版本，清零 Trivy HIGH/CRITICAL
+             （tomcat ≥10.1.58、postgresql ≥42.7.12、jackson-databind ≥2.21.4
+             （2.19/2.20 不在修复列）、micrometer ≥1.15.12、spring-framework ≥6.2.19；
+             spring-security 由 Boot 托管 6.5.10 已覆盖 6.5.9） -->
+        <tomcat.version>10.1.60</tomcat.version>
+        <postgresql.version>42.7.12</postgresql.version>
+        <jackson-bom.version>2.21.4</jackson-bom.version>
+        <micrometer.version>1.15.12</micrometer.version>
+        <spring-framework.version>6.2.19</spring-framework.version>
     </properties>
 
     <dependencies>
