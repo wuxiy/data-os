@@ -115,8 +115,17 @@ public class DataApiInternalController {
 
     @PatchMapping("/exports/{id}")
     public Map<String, Object> updateExport(@PathVariable String id, @RequestBody ExportUpdate update) {
+        if ("claim".equals(update.action())) {
+            // CAS 结果必须以 claimed 布尔回传：竞争失败方（false）依约放弃执行；
+            // 只回投影会让失败方把 RUNNING 误读为认领成功，造成双执行
+            var claimed = service.claimExport(id);
+            var export = service.findExport(id)
+                    .orElseThrow(() -> new ResourceNotFoundException("导出任务不存在: " + id));
+            var projection = new java.util.LinkedHashMap<String, Object>(exportProjection(export));
+            projection.put("claimed", claimed);
+            return projection;
+        }
         switch (update.action()) {
-            case "claim" -> service.claimExport(id);
             case "finalize" -> service.finalizeExport(id,
                     DataServiceExport.ExportStatus.valueOf(update.target()),
                     update.rowCountOrDefault(), update.fileBytes(), update.artifactUri(),

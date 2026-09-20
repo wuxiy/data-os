@@ -118,6 +118,12 @@ public class OidcSecurityConfiguration {
                         .hasAnyRole("platform-admin", "tenant-admin", "data-engineer")
                         .requestMatchers(HttpMethod.GET, "/api/v1/data-services/**")
                         .hasAnyRole("platform-admin", "tenant-admin", "data-engineer", "data-governance", "data-analyst", "viewer")
+                        // Key 签发/吊销收紧到管理员（G21-3）：数据工程师保留服务定义编辑，
+                        // 但不得发放/回收调用方凭据（与控制器注释宣称一致，规则首次落地）
+                        .requestMatchers(HttpMethod.POST, "/api/v1/data-services/*/keys")
+                        .hasAnyRole("platform-admin", "tenant-admin")
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/data-services/*/keys/*")
+                        .hasAnyRole("platform-admin", "tenant-admin")
                         .requestMatchers("/api/v1/data-services/**")
                         .hasAnyRole("platform-admin", "tenant-admin", "data-engineer")
                         .requestMatchers(HttpMethod.POST, "/api/v1/analytics/guest-token")

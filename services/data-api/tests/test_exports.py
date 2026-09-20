@@ -144,3 +144,53 @@ def test_export_recovery_picks_pending(client, control_plane):
     body = _wait_status(http, pending["id"], {"X-API-Key": API_KEY})
     assert body["status"] == "SUCCEEDED"
     assert body["rowCount"] == 2
+
+
+def test_claim_competition_and_claim_failure_abort_execution(client, control_plane):
+    """G21-2：claim CAS 竞争失败/认领异常都必须放弃执行，不得产生任何副作用。"""
+    http, _ = client
+    import api as api_module
+
+    control_plane.registry_data["keys"] = [key_entry(KEY_HASH)]
+    key = key_entry(KEY_HASH)
+    values = {"start_date": "2026-08-01", "end_date": "2026-08-31"}
+
+    # 竞争失败：任务已被其他 worker 认领（RUNNING）→ 本 worker 直接退出
+    export = control_plane.create_export(CODE, KEY_HASH,
+                                         '{"end_date": "2026-08-31", "start_date": "2026-08-01"}')
+    control_plane.exports[export["id"]]["status"] = "RUNNING"
+    api_module._exports._execute(export["id"], CODE, values, key)
+    assert control_plane.exports[export["id"]]["status"] == "RUNNING"
+    assert control_plane.exports[export["id"]]["rowCount"] == 0
+    assert [r for r in control_plane.reported if r.get("kind") == "export"] == []
+
+    # 认领异常：控制面不可达 → 放弃执行，任务仍 PENDING 留待恢复重试
+    pending = control_plane.create_export(CODE, KEY_HASH,
+                                          '{"end_date": "2026-08-31", "start_date": "2026-08-01"}')
+
+    def broken_claim(export_id):
+        raise RuntimeError("control-plane down")
+
+    control_plane.claim_export = broken_claim
+    api_module._exports._execute(pending["id"], CODE, values, key)
+    assert control_plane.exports[pending["id"]]["status"] == "PENDING"
+    assert [r for r in control_plane.reported if r.get("kind") == "export"] == []
+
+
+def test_service_missing_reaches_failed_terminal_with_404_audit(client, control_plane):
+    """G21-2：服务缺失分支必须进入 FAILED 终态并按 404 计审计，不得卡 RUNNING。"""
+    http, _ = client
+    import api as api_module
+
+    control_plane.registry_data["keys"] = [key_entry(KEY_HASH)]
+    export = control_plane.create_export(CODE, KEY_HASH,
+                                         '{"end_date": "2026-08-31", "start_date": "2026-08-01"}')
+    control_plane.registry_data["services"] = []  # 服务已下线/不存在
+    api_module._exports._execute(export["id"], CODE,
+                                 {"start_date": "2026-08-01", "end_date": "2026-08-31"},
+                                 key_entry(KEY_HASH))
+    final = control_plane.exports[export["id"]]
+    assert final["status"] == "FAILED"
+    assert "服务不存在" in final["error"]
+    export_reports = [r for r in control_plane.reported if r.get("kind") == "export"]
+    assert export_reports[-1]["statusCode"] == 404

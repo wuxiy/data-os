@@ -145,6 +145,20 @@ class DataApiAdminServiceTest {
     }
 
     @Test
+    void updateWithoutParametersKeepsPersistedParameters() {
+        // G21-3 回归锁定：PUT 未传 parameters（null）必须沿用持久化参数，不得空值覆盖
+        var code = "keep-" + UUID.randomUUID().toString().substring(0, 8);
+        var definition = service.create(null, request(code, cleanTemplate(), dateParams()));
+        service.publish(definition.id(), null);
+
+        var updated = service.update(definition.id(), null,
+                new UpdateDataServiceRequest("改名不变参", null, null, null, null, null, null));
+
+        assertThat(updated.parametersJson()).isEqualTo(definition.parametersJson());
+        assertThat(updated.name()).isEqualTo("改名不变参");
+    }
+
+    @Test
     void unknownCodeCallReportIsRejected() {
         assertThat(service.recordCall("no-such-code", "hash", null, 0, false, 1, 200, "idem"))
                 .isFalse();

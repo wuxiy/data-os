@@ -96,13 +96,16 @@ class ExportManager:
     def _execute(self, export_id: str, code: str, values: dict[str, Any], key: dict[str, Any]) -> None:
         try:
             claimed = self._control_plane.claim_export(export_id)
-        except Exception:
-            claimed = True  # 控制面暂不可达：仍尝试执行（终态回写会重试路径覆盖）
+        except Exception:  # noqa: BLE001
+            # CAS 属主未确认不得执行（双执行风险）：任务留待 reap-stale 清算
+            #（已认领）或恢复拾取重试（仍 PENDING）
+            logger.exception("导出认领失败，放弃执行 %s", export_id)
+            return
         if not claimed:
-            return  # 已被认领（启动拾取竞态）
+            return  # 已被其他 worker 认领（启动拾取/恢复竞态）
         service = self._control_plane.find_service(code)
         if service is None:
-            self._finalize_failure(export_id, code, key, f"服务不存在或未发布: {code}", 0)
+            self._finalize_failure(export_id, code, key, f"服务不存在或未发布: {code}", 0, 404)
             return
         started = time.monotonic()
         try:
@@ -144,10 +147,6 @@ class ExportManager:
         except Exception as exc:  # noqa: BLE001  Doris/存储失败统一终态
             if self._breaker is not None:
                 self._breaker.record_failure()
-            logger.exception("导出失败 %s", export_id)
-            self._finalize_failure(export_id, code, key, "查询引擎或对象存储暂不可用",
-                                   int((time.monotonic() - started) * 1000), 503)
-        except Exception as exc:  # noqa: BLE001  Doris/存储失败统一终态
             logger.exception("导出失败 %s", export_id)
             self._finalize_failure(export_id, code, key, "查询引擎或对象存储暂不可用",
                                    int((time.monotonic() - started) * 1000), 503)

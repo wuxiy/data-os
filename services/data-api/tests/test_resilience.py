@@ -157,3 +157,32 @@ def test_registry_stale_grace_serves_old_projection_then_gives_up():
     client._registry_fetched_at = time.time() - 301  # 超出 grace
     with pytest.raises(httpx.HTTPError):
         client.registry(force=True)
+
+
+def test_report_call_buffers_http_5xx_and_replays(tmp_path):
+    """G21-2：控制面 HTTP 4xx/5xx（非传输失败）同样入持久缓冲，恢复后重放成功。"""
+    state = {"status": 503, "received": []}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/calls"):
+            if state["status"] >= 400:
+                return httpx.Response(state["status"], json={"code": "INTERNAL"})
+            state["received"].append(json.loads(request.content))
+            return httpx.Response(200, json={"accepted": True})
+        raise AssertionError(f"unexpected {request.url}")
+
+    settings = type("S", (), {
+        "controlplane_base_url": "http://control-plane:8080",
+        "oidc_client_id": "", "oidc_client_secret": "", "internal_token": "t",
+        "registry_ttl_s": 30, "audit_timeout_s": 0.1, "registry_grace_s": 300})()
+    buffer = AuditBuffer(tmp_path / "audit.jsonl")
+    client = ControlPlaneClient(settings, client=httpx.Client(
+        transport=httpx.MockTransport(handler), verify=False), audit_buffer=buffer)
+
+    client.report_call(CODE, KEY_HASH, "{}", 5, False, 10, 200)
+    assert len(buffer) == 1  # HTTP 503：入持久缓冲（不得当成功丢弃）
+
+    state["status"] = 200
+    result = client.replay_audit()
+    assert result == {"replayed": 1, "remaining": 0}
+    assert state["received"][0]["code"] == CODE

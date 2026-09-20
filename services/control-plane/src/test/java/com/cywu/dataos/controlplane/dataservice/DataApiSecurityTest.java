@@ -17,6 +17,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -67,6 +68,18 @@ class DataApiSecurityTest {
                 .claim("roles", List.of("viewer"))
                 .build();
         when(jwtDecoder.decode("viewer-token")).thenReturn(viewerToken);
+        var adminToken = Jwt.withTokenValue("admin-token")
+                .header("alg", "none")
+                .issuer("https://id.example.test/realms/data-os")
+                .subject("admin-1")
+                .audience(List.of("data-os"))
+                .issuedAt(Instant.now().minusSeconds(5))
+                .expiresAt(Instant.now().plusSeconds(300))
+                .claim("tenant_id", "tenant-a")
+                .claim("institution_id", "hospital-a")
+                .claim("roles", List.of("tenant-admin"))
+                .build();
+        when(jwtDecoder.decode("admin-token")).thenReturn(adminToken);
         var serviceToken = Jwt.withTokenValue("data-api-service-token")
                 .header("alg", "none")
                 .issuer("https://id.example.test/realms/data-os")
@@ -110,7 +123,7 @@ class DataApiSecurityTest {
     }
 
     @Test
-    void engineerCreatesPublishesAndIssuesKey() throws Exception {
+    void engineerCreatesPublishesButKeyIssuanceIsAdminOnly() throws Exception {
         String body = mockMvc.perform(post("/api/v1/data-services")
                         .header("Authorization", "Bearer engineer-token")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -126,12 +139,37 @@ class DataApiSecurityTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("PUBLISHED"));
 
+        // G21-3：Key 签发/吊销收紧到平台/租户管理员——数据工程师 403
         mockMvc.perform(post("/api/v1/data-services/" + id + "/keys")
                         .header("Authorization", "Bearer engineer-token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"callerName\":\"合作方\",\"dailyQuota\":50}"))
+                .andExpect(status().isForbidden());
+
+        // 工程师保留服务定义编辑权（PUT 改名仍可）
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .put("/api/v1/data-services/" + id)
+                        .header("Authorization", "Bearer engineer-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"改名\"}"))
+                .andExpect(status().isOk());
+
+        // 管理员签发 → 201；吊销 → 204
+        String keyBody = mockMvc.perform(post("/api/v1/data-services/" + id + "/keys")
+                        .header("Authorization", "Bearer admin-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"callerName\":\"合作方\",\"dailyQuota\":50}"))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.apiKey").isNotEmpty());
+                .andExpect(jsonPath("$.apiKey").isNotEmpty())
+                .andReturn().getResponse().getContentAsString();
+        var keyId = com.fasterxml.jackson.databind.json.JsonMapper.builder().build()
+                .readTree(keyBody).get("keyId").asText();
+        mockMvc.perform(delete("/api/v1/data-services/" + id + "/keys/" + keyId)
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isNoContent());
+        mockMvc.perform(delete("/api/v1/data-services/" + id + "/keys/" + keyId)
+                        .header("Authorization", "Bearer engineer-token"))
+                .andExpect(status().isForbidden());
 
         mockMvc.perform(get("/api/v1/data-services/" + id + "/calls")
                         .header("Authorization", "Bearer viewer-token"))

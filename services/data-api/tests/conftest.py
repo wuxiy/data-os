@@ -85,11 +85,13 @@ class StubControlPlane:
             raise RuntimeError("404 not found")
         return dict(self.exports[export_id])
 
-    def claim_export(self, export_id: str) -> dict[str, Any]:
+    def claim_export(self, export_id: str) -> bool:
+        """CAS 语义（对齐控制面 claimed 投影）：仅 PENDING 可认领；否则 False。"""
         export = self.exports[export_id]
-        if export["status"] == "PENDING":
-            export["status"] = "RUNNING"
-        return dict(export)
+        if export["status"] != "PENDING":
+            return False
+        export["status"] = "RUNNING"
+        return True
 
     def finalize_export(self, export_id: str, target: str, **fields: Any) -> dict[str, Any]:
         export = self.exports[export_id]

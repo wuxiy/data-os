@@ -134,11 +134,16 @@ class ControlPlaneClient:
 
     def _post_call(self, payload: dict[str, Any], headers: dict[str, str]) -> bool:
         try:
-            self._client.post(
+            response = self._client.post(
                 self._settings.controlplane_base_url.rstrip("/") + "/internal/data-api/calls",
                 headers={**self._headers(), **headers},
                 json=payload,
                 timeout=self._settings.audit_timeout_s)
+            if response.status_code >= 400:
+                # HTTP 层失败（4xx/5xx）与传输失败同观：入持久缓冲待重放，
+                # 不得当成功丢弃（网关 5xx/令牌过期恢复后可补齐）
+                logger.warning("审计回写被控制面拒绝（HTTP %d），入持久缓冲", response.status_code)
+                return False
             return True
         except httpx.HTTPError:
             return False
@@ -177,13 +182,14 @@ class ControlPlaneClient:
         response.raise_for_status()
         return response.json().get("items", [])
 
-    def claim_export(self, export_id: str) -> dict[str, Any]:
+    def claim_export(self, export_id: str) -> bool:
+        """CAS 认领结果：False = 已被其他 worker 认领（或状态不匹配），必须放弃执行。"""
         response = self._client.patch(
             self._settings.controlplane_base_url.rstrip("/")
             + f"/internal/data-api/exports/{export_id}",
             headers=self._headers(), json={"action": "claim"})
         response.raise_for_status()
-        return response.json()
+        return bool(response.json().get("claimed"))
 
     def finalize_export(self, export_id: str, target: str, *, row_count: int = 0,
                         file_bytes: int | None = None, artifact_uri: str | None = None,
