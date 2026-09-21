@@ -54,6 +54,19 @@ class StubOm:
         return self._metrics["pii_classification"]
 
 
+class StubControlplane:
+    """G23：按指标名返回固定值；可注入异常形态（NotApplicable/失败）。"""
+
+    def __init__(self, metrics: dict[str, float]):
+        self._metrics = metrics
+
+    def fhir_mapping_coverage(self, check: dict) -> float:
+        value = self._metrics["fhir_mapping_coverage"]
+        if isinstance(value, Exception):
+            raise value
+        return float(value)
+
+
 class StubRustfs:
     def __init__(self, metrics: dict[str, float]):
         self._metrics = metrics

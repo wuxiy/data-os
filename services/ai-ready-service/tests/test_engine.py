@@ -3,7 +3,7 @@
 Stub 探针按 requirement id 注入固定指标，与真实 Adapter 同接口。
 """
 from catalog import load_catalog
-from conftest import REPO, StubDoris, StubOm, StubRustfs, all_pass_metrics
+from conftest import REPO, StubControlplane, StubDoris, StubOm, StubRustfs, all_pass_metrics
 from engine import Engine, render_cli
 
 def make_engine(metrics: dict[str, float], tables: set[str] | None = None) -> Engine:
@@ -175,6 +175,53 @@ def test_manifest_probe_rejects_product_mismatch():
     item = next(r for r in report.requirements if r.id == "artifact_privacy_declaration")
     assert item.status == "FAIL"
     assert "清单绑定产品" in item.note
+
+
+def test_controlplane_probe_follows_active_mapping_coverage():
+    """G23：fhir_mapping_coverage 消费控制面 ACTIVE 映射覆盖率——不同覆盖率不同事实。"""
+    from engine import Engine
+
+    catalog = load_catalog(str(REPO))
+    high = Engine(catalog, StubDoris(all_pass_metrics()), StubOm(all_pass_metrics()),
+                  StubRustfs(all_pass_metrics()),
+                  StubControlplane({"fhir_mapping_coverage": 1.0}))
+    low = Engine(catalog, StubDoris(all_pass_metrics()), StubOm(all_pass_metrics()),
+                 StubRustfs(all_pass_metrics()),
+                 StubControlplane({"fhir_mapping_coverage": 0.5}))
+    h = {item.id: item.status for item in high.assess("p", "v1", "medical-rag").requirements}
+    l = {item.id: item.status for item in low.assess("p", "v1", "medical-rag").requirements}
+    assert h["fhir_mapping_coverage"] == "PASS"
+    assert l["fhir_mapping_coverage"] == "FAIL"
+
+
+def test_controlplane_probe_not_configured_is_na():
+    """未配置 ACTIVE 映射（ProbeNotApplicable）→ N/A，与旧口径兼容。"""
+    from engine import Engine, ProbeNotApplicable
+
+    catalog = load_catalog(str(REPO))
+    engine = Engine(catalog, StubDoris(all_pass_metrics()), StubOm(all_pass_metrics()),
+                    StubRustfs(all_pass_metrics()),
+                    StubControlplane({"fhir_mapping_coverage":
+                                      ProbeNotApplicable("未配置 ACTIVE 标准映射")}))
+    report = engine.assess("p", "v1", "medical-rag")
+    item = next(r for r in report.requirements if r.id == "fhir_mapping_coverage")
+    assert item.status == "NOT_APPLICABLE"
+    assert "未配置" in item.note
+
+
+def test_controlplane_probe_failure_is_fail_not_na():
+    """G23 红线：已配置但投影失败必须 FAIL，不得静默回 N/A。"""
+    from engine import Engine
+
+    catalog = load_catalog(str(REPO))
+    engine = Engine(catalog, StubDoris(all_pass_metrics()), StubOm(all_pass_metrics()),
+                    StubRustfs(all_pass_metrics()),
+                    StubControlplane({"fhir_mapping_coverage":
+                                      RuntimeError("控制面映射投影不可达: conn")}))
+    report = engine.assess("p", "v1", "medical-rag")
+    item = next(r for r in report.requirements if r.id == "fhir_mapping_coverage")
+    assert item.status == "FAIL"
+    assert "不可达" in item.note
 
 
 def test_rustfs_probe_without_adapter_fails_requirement():

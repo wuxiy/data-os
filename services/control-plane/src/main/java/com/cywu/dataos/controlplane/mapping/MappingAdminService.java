@@ -112,7 +112,11 @@ public class MappingAdminService {
             throw new ConflictException("映射集代码已存在: " + code);
         }
         var standard = requireStandard(resolved, request.standardId());
-        var items = validatedItems(resolved, request.standardId(), request.items());
+        // 建集允许空草稿（映射项随后经导入补齐）；非空才做白名单/目标校验，
+        // 提交与验证仍强制非空（validatedItems 的空列表拒绝在 submit/validate 路径生效）
+        var items = request.items() == null || request.items().isEmpty()
+                ? List.<StandardMappingItem>of()
+                : validatedItems(resolved, request.standardId(), request.items());
         var now = Instant.now();
         var setId = MappingRepository.newId();
         var versionId = MappingRepository.newId();
@@ -477,7 +481,10 @@ public class MappingAdminService {
         var required = new HashSet<>(repository.publishedCodeElements(resolved));
         var covered = new HashSet<>(repository.activeMappedElements(resolved));
         covered.retainAll(required);
-        Double coverage = required.isEmpty() ? null : (double) covered.size() / required.size();
+        long activeMappings = repository.countActiveSets(resolved);
+        // 未配置 ACTIVE 映射 = 覆盖率 null（ai-ready 侧 N/A）；已配置才有数值（0.0 也是事实）
+        Double coverage = required.isEmpty() || activeMappings == 0
+                ? null : (double) covered.size() / required.size();
         var projection = new LinkedHashMap<String, Object>();
         projection.put("asOf", Instant.now().toString());
         projection.put("activeMappingVersions", repository.countActiveSets(resolved));
