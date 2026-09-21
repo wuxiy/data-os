@@ -74,6 +74,11 @@ _MANIFEST_PROBE_REQUIRED_KEYS = {
     "deidentified_claim": ("requires_table", "product", "bucket", "prefix"),
 }
 
+# controlplane_probe（G23）：控制面只读投影（如 ACTIVE 映射覆盖率）。
+_CONTROLPLANE_PROBE_REQUIRED_KEYS = {
+    "fhir_mapping_coverage": ("probe",),
+}
+
 
 def _check_shape(check: dict, rid: str) -> None:
     _check_thresholds(check, rid)
@@ -115,9 +120,15 @@ def _check_shape(check: dict, rid: str) -> None:
             value = check.get(key)
             if value is None or value == "" or value == [] or value == {}:
                 raise CatalogError(f"requirement {rid} 的 {probe} 探针缺少 {key}")
+    elif check_type == "controlplane_probe":
+        probe = check.get("probe")
+        required = _CONTROLPLANE_PROBE_REQUIRED_KEYS.get(probe)
+        if required is None:
+            raise CatalogError(f"requirement {rid} 的 controlplane_probe 探针未知：{probe}"
+                               f"（已知：{sorted(_CONTROLPLANE_PROBE_REQUIRED_KEYS)}）")
     else:
         raise CatalogError(f"requirement {rid} 的 check.type 非法：{check_type}"
-                           f"（已知：doris_metric / om_probe / rustfs_probe / manifest_probe）")
+                           f"（已知：doris_metric / om_probe / rustfs_probe / manifest_probe / controlplane_probe）")
 
 
 def load_catalog(repo_dir: str) -> Catalog:

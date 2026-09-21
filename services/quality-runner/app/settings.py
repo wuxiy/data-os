@@ -57,6 +57,9 @@ class Settings:
     artifact_s3_secret_key: str = field(default_factory=lambda: os.getenv("QUALITY_RUNNER_S3_SECRET_KEY", ""))
     artifact_retention_days: int = field(default_factory=lambda: _int_env("QUALITY_RUNNER_ARTIFACT_RETENTION_DAYS", 30))
     evidence_hash_key: str = field(default_factory=lambda: os.getenv("QUALITY_RUNNER_EVIDENCE_HASH_KEY", ""))
+    # G23 映射聚合验证的已登记数据集白名单（库.表，逗号分隔）；未登记数据集 400
+    mapping_datasets: frozenset[str] = field(default_factory=lambda: frozenset(
+        item.strip() for item in _env("QUALITY_RUNNER_MAPPING_DATASETS", "ods_ep.ep_mz_cfzb").split(",") if item.strip()))
 
     def validate(self) -> None:
         environment = self.environment.strip().lower()

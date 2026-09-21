@@ -20,6 +20,9 @@ class Settings:
 
     # Doris 只读检查面
     doris_host: str = field(default_factory=lambda: _env("DORIS_FE_HOST"))
+    # G23 控制面映射覆盖率投影（只读 GET /api/v1/standard-mappings/coverage）
+    controlplane_base_url: str = field(default_factory=lambda: _env("DATAOS_CONTROLPLANE_BASE_URL"))
+    controlplane_token: str = field(default_factory=lambda: _env("DATAOS_CONTROLPLANE_TOKEN"))
     doris_port: int = field(default_factory=lambda: int(_env("DORIS_FE_PORT", "9030")))
     doris_user: str = field(default_factory=lambda: _env("DORIS_USER", "dataos_om_ro"))
     doris_password: str = field(default_factory=lambda: _env("DORIS_PASSWORD"))

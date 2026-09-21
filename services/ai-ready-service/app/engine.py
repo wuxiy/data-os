@@ -21,14 +21,23 @@ from models import (
 DEFAULT_STATUS_SCORES = {"PASS": 1.0, "WARN": 0.5, "FAIL": 0.0}
 
 
+class ProbeNotApplicable(Exception):
+    """探针「条件不适用」（如映射未配置/投影未装配）：按 NOT_APPLICABLE 收口，
+    与「已配置但探针失败」的 FAIL 严格区分（G23：失败不得静默回 N/A）。"""
+
+
 class Engine:
-    def __init__(self, catalog: Catalog, doris: Any, om: Any, rustfs: Any = None):
+    def __init__(self, catalog: Catalog, doris: Any, om: Any, rustfs: Any = None,
+                 controlplane: Any = None):
         self._catalog = catalog
         self._doris = doris
         self._om = om
         # rustfs 缺省 None：rustfs_probe 检查项在未装配时按探针失败 FAIL（诚实收口）；
         # 测试注入 Stub 时与 Doris/OM 同接口。
         self._rustfs = rustfs
+        # controlplane（G23）：fhir_mapping_coverage 消费控制面 ACTIVE 映射覆盖率投影；
+        # 未装配/未配置映射 → ProbeNotApplicable（N/A），已配置但不可达 → FAIL。
+        self._controlplane = controlplane
         self._status_scores = self._load_status_scores(catalog.policy)
 
     @staticmethod
@@ -117,8 +126,12 @@ class Engine:
                 metric = self._rustfs_probe(check)
             elif check.get("type") == "manifest_probe":
                 metric = self._manifest_probe(check, product, version)
+            elif check.get("type") == "controlplane_probe":
+                metric = self._controlplane_probe(check)
             else:
                 raise RuntimeError(f"未知 check 类型：{check.get('type')}")
+        except ProbeNotApplicable as not_applicable:
+            return RequirementResult(**base, status="NOT_APPLICABLE", note=str(not_applicable))
         except Exception as exc:  # 探针失败按 FAIL 收口（诊断信息保留），不让单点炸整场
             return RequirementResult(**base, status="FAIL", note=f"探针执行失败：{exc}")
         status = self._verdict(metric, float(check["pass"]), float(check["warn"]),
@@ -151,6 +164,16 @@ class Engine:
         if handler is None:
             raise RuntimeError(f"未知清单探针：{probe}")
         return float(handler(check, version))
+
+    def _controlplane_probe(self, check: dict) -> float:
+        """控制面投影探针（G23）：未装配/未配置映射按 N/A；已配置失败按 FAIL。"""
+        if self._controlplane is None:
+            raise ProbeNotApplicable("控制面投影未装配（fhir 映射覆盖率不可用）")
+        probe = check.get("probe")
+        handler = getattr(self._controlplane, str(probe), None)
+        if handler is None:
+            raise RuntimeError(f"未知控制面探针：{probe}")
+        return float(handler(check))
 
     def _rustfs_probe(self, check: dict) -> float:
         if self._rustfs is None:

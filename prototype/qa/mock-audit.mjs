@@ -36,6 +36,16 @@ assert.match(src('src/pages/DataStandardsLive.tsx'), /fetchStandards/, '数据�
 assert.match(src('src/pages/OperationsCenterPage.tsx'), /fetchWorkItems/, '运营中心必须读取运营待办投影')
 assert.match(src('src/components/ui/RuntimeStatusBanner.tsx'), /组件就绪/, '运行状态横幅必须显示组件覆盖数')
 
+// G23 接真锁：标准映射真实构建切 Live、治理导航三入口不再是无动作占位
+assert.match(src('src/pages/StandardMappingPage.tsx'), /frontendDemoMode[\s\S]*StandardMappingLive/, '标准映射页真实构建必须渲染 StandardMappingLive')
+assert.match(src('src/pages/StandardMappingLive.tsx'), /fetchMappingSets/, '标准映射真实页必须读取映射 API')
+assert.match(src('src/pages/StandardMappingLive.tsx'), /validateMappingVersion|activateMappingVersion/, '标准映射真实页必须提供验证与生效动作')
+const governanceTabs = src('src/components/ui/GovernanceTabs.tsx')
+assert.match(governanceTabs, /'血缘与影响', route: 'assetTechnical'/, '治理导航「血缘与影响」必须进入资产技术视图')
+assert.match(governanceTabs, /'问题闭环', route: 'quality'/, '治理导航「问题闭环」必须进入质量问题工作台')
+assert.match(governanceTabs, /'数据合同', route: 'dataServices'/, '治理导航「数据合同」必须进入数据服务合同视图')
+assert.doesNotMatch(governanceTabs, /规划中/, '治理导航不得再有无动作占位')
+
 const ingestion = src('src/pages/DataIngestionPage.tsx')
 assert.match(ingestion, /真实模式不允许使用 FakeSource 演示模板/, '真实模式不得保存 FakeSource 演示采集模板')
 assert.match(ingestion, /defaultTemplateKey\(DEFAULT_TEMPLATE_KEY, LIVE_TEMPLATE_KEY\)/, '采集任务默认模板必须随运行模式切换')

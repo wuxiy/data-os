@@ -275,6 +275,15 @@ public class OperationsProjectionService {
         }, resolved);
 
         jdbc.query("""
+                SELECT event_type, detail, created_at FROM data_os.standard_mapping_event
+                WHERE tenant_id = ? ORDER BY created_at DESC LIMIT 20
+                """, (rs, i) -> {
+            events.add(event("MAPPING", rs.getString("event_type"), rs.getString("detail"),
+                    rs.getTimestamp("created_at").toInstant()));
+            return null;
+        }, resolved);
+
+        jdbc.query("""
                 SELECT service_code, change_type, from_version, to_version, created_at
                 FROM data_os.data_service_contract_event
                 WHERE tenant_id = ? ORDER BY created_at DESC LIMIT 20

@@ -139,6 +139,17 @@ public class OidcSecurityConfiguration {
                         .hasAnyRole("platform-admin", "tenant-admin")
                         .requestMatchers("/api/v1/data-standards/**", "/api/v1/data-standard-versions/**")
                         .hasAnyRole("platform-admin", "tenant-admin", "data-engineer")
+                        // 标准映射（G23）：读=六角色；生效/回退/停用=管理员（checksum 门控之上的
+                        // 权限门）；起草/导入/提交/验证=工程师及以上。两个前缀都要声明（同 G22 教训）
+                        .requestMatchers(HttpMethod.GET, "/api/v1/standard-mappings/**",
+                                "/api/v1/standard-mapping-versions/**")
+                        .hasAnyRole("platform-admin", "tenant-admin", "data-engineer", "data-governance", "data-analyst", "viewer")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/standard-mapping-versions/*/activate",
+                                "/api/v1/standard-mapping-versions/*/retire",
+                                "/api/v1/standard-mappings/*/rollback/*")
+                        .hasAnyRole("platform-admin", "tenant-admin")
+                        .requestMatchers("/api/v1/standard-mappings/**", "/api/v1/standard-mapping-versions/**")
+                        .hasAnyRole("platform-admin", "tenant-admin", "data-engineer")
                         // 运营只读投影（G24）：面向治理负责人与技术运维；viewer/analyst 不见跨域待办
                         .requestMatchers(HttpMethod.GET, "/api/v1/operations/**")
                         .hasAnyRole("platform-admin", "tenant-admin", "data-governance", "data-engineer")

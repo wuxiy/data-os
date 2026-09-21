@@ -23,7 +23,7 @@ import com.cywu.dataos.controlplane.api.ResourceNotFoundException;
  */
 @SpringBootTest
 @ActiveProfiles("test")
-class StandardAdminServiceTest {
+public class StandardAdminServiceTest {
 
     @Autowired
     private StandardAdminService service;
@@ -32,7 +32,7 @@ class StandardAdminServiceTest {
         return "std-" + UUID.randomUUID().toString().substring(0, 8);
     }
 
-    private static CreateStandardRequest.ElementContract element(String elementCode, String type,
+    public static CreateStandardRequest.ElementContract element(String elementCode, String type,
                                                                   String... valueCodes) {
         return new CreateStandardRequest.ElementContract(
                 elementCode, elementCode + "名称", type, true, elementCode + "定义", "NORMAL",

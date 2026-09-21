@@ -234,7 +234,7 @@ public class StandardController {
     }
 
     /** 最小 RFC4180 解析（引号包裹与转义；无第三方依赖）。 */
-    static List<List<String>> parseCsvRows(String csv) {
+    public static List<List<String>> parseCsvRows(String csv) {
         var rows = new ArrayList<List<String>>();
         var current = new ArrayList<String>();
         var field = new StringBuilder();

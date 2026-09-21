@@ -1,6 +1,8 @@
 import { ArrowRight, CheckCircle2, Filter, Link2, Search } from 'lucide-react'
 import { useState } from 'react'
 import { DemoDataBoundary } from '../components/ui/DemoDataBoundary'
+import { frontendDemoMode } from '../data/runtimeMode'
+import { StandardMappingLive } from './StandardMappingLive'
 import { GovernanceTabs } from '../components/ui/GovernanceTabs'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Button, StatusTag } from '../components/ui/Primitives'
@@ -22,6 +24,10 @@ interface Props {
 }
 
 export function StandardMappingPage({ onNavigate, onUnavailable, onNotice }: Props) {
+  // 真实构建走 G23 标准映射真实链路；演示构建保留静态样例。
+  if (!frontendDemoMode) {
+    return <StandardMappingLive onNotice={onNotice} />
+  }
   const [selectedField, setSelectedField] = useState('diagnosis_code')
   const [onlyPending, setOnlyPending] = useState(false)
   const current = mappings.find((mapping) => mapping[0] === selectedField) ?? mappings[0]

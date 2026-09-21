@@ -169,6 +169,34 @@ class OpenMetadataAdapter:
         return tagged / len(wanted) if wanted else 0.0
 
 
+class ControlPlaneAdapter:
+    """控制面只读投影探针（G23）：fhir_mapping_coverage 消费 ACTIVE 标准映射覆盖率。
+    未配置 base-url 或覆盖率为空（无 ACTIVE 映射）→ ProbeNotApplicable（N/A）；
+    已配置但不可达 → RuntimeError（引擎按 FAIL 收口，绝不静默回 N/A）。"""
+
+    def __init__(self, settings: Any, client: httpx.Client | None = None):
+        self._base = (settings.controlplane_base_url or "").rstrip("/")
+        self._token = settings.controlplane_token or ""
+        self._client = client or httpx.Client(verify=False, timeout=10.0)
+
+    def fhir_mapping_coverage(self, check: dict) -> float:
+        from engine import ProbeNotApplicable
+        if not self._base:
+            raise ProbeNotApplicable("控制面映射投影未配置（DATAOS_CONTROLPLANE_BASE_URL 为空）")
+        try:
+            headers = {"Authorization": f"Bearer {self._token}"} if self._token else {}
+            response = self._client.get(
+                self._base + "/api/v1/standard-mappings/coverage", headers=headers)
+            response.raise_for_status()
+            payload = response.json()
+        except (httpx.HTTPError, ValueError) as exc:
+            raise RuntimeError(f"控制面映射投影不可达: {exc}") from exc
+        coverage = payload.get("coverage") if isinstance(payload, dict) else None
+        if coverage is None:
+            raise ProbeNotApplicable("未配置 ACTIVE 标准映射（覆盖率为空）")
+        return float(coverage)
+
+
 class RustFSAdapter:
     """产物对象面探针（G20）：RustFS 最新版本清单与 Doris 产物表对拍。
     client_factory 注入点供测试替换；生产默认走 rustfs_client(settings)。"""
