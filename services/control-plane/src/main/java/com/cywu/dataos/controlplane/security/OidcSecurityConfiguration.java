@@ -126,6 +126,22 @@ public class OidcSecurityConfiguration {
                         .hasAnyRole("platform-admin", "tenant-admin")
                         .requestMatchers("/api/v1/data-services/**")
                         .hasAnyRole("platform-admin", "tenant-admin", "data-engineer")
+                        // 数据标准（G22）：读=六角色；发布/停用/同步重试=管理员（越级发布在网关层即拒）；
+                        // 起草/提交/导入=工程师及以上；普通治理用户只读。
+                        // 注意两个前缀都要声明：data-standards 与 data-standard-versions
+                        // 是不同路径段，单靠 /data-standards/** 罩不住版本端点
+                        .requestMatchers(HttpMethod.GET, "/api/v1/data-standards/**",
+                                "/api/v1/data-standard-versions/**")
+                        .hasAnyRole("platform-admin", "tenant-admin", "data-engineer", "data-governance", "data-analyst", "viewer")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/data-standard-versions/*/publish",
+                                "/api/v1/data-standard-versions/*/deprecate",
+                                "/api/v1/data-standard-versions/*/sync")
+                        .hasAnyRole("platform-admin", "tenant-admin")
+                        .requestMatchers("/api/v1/data-standards/**", "/api/v1/data-standard-versions/**")
+                        .hasAnyRole("platform-admin", "tenant-admin", "data-engineer")
+                        // 运营只读投影（G24）：面向治理负责人与技术运维；viewer/analyst 不见跨域待办
+                        .requestMatchers(HttpMethod.GET, "/api/v1/operations/**")
+                        .hasAnyRole("platform-admin", "tenant-admin", "data-governance", "data-engineer")
                         .requestMatchers(HttpMethod.POST, "/api/v1/analytics/guest-token")
                         .hasAnyRole("platform-admin", "tenant-admin", "data-engineer", "data-governance", "data-analyst", "viewer")
                         .requestMatchers(HttpMethod.GET, "/api/v1/analytics/dashboards")

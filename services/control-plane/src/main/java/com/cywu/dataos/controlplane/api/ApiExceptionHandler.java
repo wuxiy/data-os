@@ -48,6 +48,12 @@ public class ApiExceptionHandler {
         return problem(HttpStatus.CONFLICT, "DUPLICATE_RESOURCE", "相同业务对象已经存在");
     }
 
+    /** 控制器内抛出的越权（如 TenantScope 拒绝跨租户参数）按 403 收口，不落 500。 */
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    ProblemDetail accessDenied(org.springframework.security.access.AccessDeniedException exception) {
+        return problem(HttpStatus.FORBIDDEN, "ACCESS_DENIED", exception.getMessage());
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     ProblemDetail invalid(MethodArgumentNotValidException exception) {
         var detail = problem(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "请求参数不完整或格式不正确");

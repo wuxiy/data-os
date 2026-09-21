@@ -1,6 +1,8 @@
 import { ChevronRight, Filter, Plus, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { DemoDataBoundary } from '../components/ui/DemoDataBoundary'
+import { frontendDemoMode } from '../data/runtimeMode'
+import { DataStandardsLive } from './DataStandardsLive'
 import { GovernanceTabs } from '../components/ui/GovernanceTabs'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Button, StatusTag } from '../components/ui/Primitives'
@@ -17,6 +19,10 @@ interface Props {
 const categories = ['全部标准', '患者基本信息', '门急诊诊疗', '诊断与治疗', '检验检查', '机构与人员']
 
 export function DataStandardsPage({ onNavigate, onUnavailable, onNotice }: Props) {
+  // 真实构建走 G22 标准中心真实链路；演示构建保留静态样例。
+  if (!frontendDemoMode) {
+    return <DataStandardsLive onNotice={onNotice} />
+  }
   const [category, setCategory] = useState('全部标准')
   const [selectedId, setSelectedId] = useState(standards[0].id)
   const [query, setQuery] = useState('')
