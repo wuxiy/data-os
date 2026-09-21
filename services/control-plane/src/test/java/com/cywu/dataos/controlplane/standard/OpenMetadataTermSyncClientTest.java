@@ -80,7 +80,7 @@ class OpenMetadataTermSyncClientTest {
     void pushesTermsAndTreatsConflictAsIdempotent() {
         conflicts.set(1);  // 第一次 409（已存在），第二次成功 —— 幂等口径
         client.pushTerms("reg-channel", 3, elements());
-        assertThat(lastTermBody.get()).contains("\"reg-channel.channel\"").contains("gloss-1");
+        assertThat(lastTermBody.get()).contains("\"reg-channel.channel\"").contains("\"glossary\":\"数据标准\"");
     }
 
     @Test

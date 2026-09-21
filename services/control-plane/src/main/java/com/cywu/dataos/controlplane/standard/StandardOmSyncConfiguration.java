@@ -41,7 +41,9 @@ public class StandardOmSyncConfiguration {
             @Override
             public void pushTerms(String standardCode, int versionNo,
                                   List<DataStandardElement> elements) {
-                var glossaryId = requireGlossary();
+                // OM 1.6 CreateGlossaryTerm.glossary 收词表名/fqn 字符串——
+                // 对象形式 400、裸 id 404「instance not found」（dev 实测 2026-09-21）
+                var glossaryName = requireGlossary();
                 for (var element : elements) {
                     var termName = standardCode + "." + element.code();
                     var body = Map.of(
@@ -49,7 +51,7 @@ public class StandardOmSyncConfiguration {
                             "displayName", element.name(),
                             "description", (element.definition() == null || element.definition().isBlank()
                                     ? element.name() : element.definition()),
-                            "glossary", Map.of("id", glossaryId));
+                            "glossary", glossaryName);
                     try {
                         restClient.post()
                                 .uri("/glossaryTerms")
@@ -74,6 +76,7 @@ public class StandardOmSyncConfiguration {
 
             @SuppressWarnings("unchecked")
             private String requireGlossary() {
+                // 校验词表存在并返回其名（术语创建按名字引用，见 pushTerms 注释）
                 try {
                     var response = restClient.get()
                             .uri("/glossaries?limit=25")
@@ -91,8 +94,7 @@ public class StandardOmSyncConfiguration {
                         for (var item : list) {
                             if (item instanceof Map<?, ?> glossary
                                     && "数据标准".equals(glossary.get("name"))) {
-                                var id = glossary.get("id");
-                                return id == null ? "" : id.toString();
+                                return "数据标准";
                             }
                         }
                     }
