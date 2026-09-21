@@ -16,6 +16,7 @@ import { AssetTechnicalPage } from './pages/AssetTechnicalPage'
 import { AssistantPage } from './pages/AssistantPage'
 import { GovernanceDashboardPage } from './pages/GovernanceDashboardPage'
 import { ManagementDashboardPage } from './pages/ManagementDashboardPage'
+import { OperationsCenterPage } from './pages/OperationsCenterPage'
 import { MpiReviewPage } from './pages/MpiReviewPage'
 import { QualityIssuesPage } from './pages/QualityIssuesPage'
 import { StandardMappingPage } from './pages/StandardMappingPage'
@@ -156,6 +157,9 @@ export function App() {
       break
     case 'assistantWorkspace':
       page = <AssistantPage onNotice={setNotice} onNavigate={navigate} professional />
+      break
+    case 'operationsCenter':
+      page = <OperationsCenterPage onNotice={setNotice} onNavigate={navigate} />
       break
     case 'operations':
       page = <PlatformOperationsPage canAccess={technicalAccess} />

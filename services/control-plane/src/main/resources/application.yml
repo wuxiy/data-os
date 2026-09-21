@@ -67,6 +67,10 @@ data-os:
       guest-role: ${DATAOS_SUPERSET_GUEST_ROLE:Viewer}
       guest-token-ttl-seconds: ${DATAOS_SUPERSET_GUEST_TOKEN_TTL_SECONDS:300}
       allowed-dashboards: ${DATAOS_SUPERSET_ALLOWED_DASHBOARDS:2}
+  operations:
+    # 运营投影的 MPI 域事实来源（G24）：mpi-service 独立部署，未配置则投影局部
+    # NOT_CONFIGURED（诚实缺席，不伪造 0）。
+    mpi-base-url: ${DATAOS_OPERATIONS_MPI_BASE_URL:}
   openmetadata:
     # 血缘/资产读链（G1 锚点 → G2 BFF）：不配置则整链不装配，血缘 API 返回 503。
     base-url: ${DATAOS_OPENMETADATA_BASE_URL:}

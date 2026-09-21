@@ -13,6 +13,7 @@ export type RouteKey =
   | 'dataServices'
   | 'assistant'
   | 'assistantWorkspace'
+  | 'operationsCenter'
   | 'operations'
 
 export type Tone = 'healthy' | 'warning' | 'danger' | 'neutral'

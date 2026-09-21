@@ -5,9 +5,15 @@ import { PageHeader } from '../components/ui/PageHeader'
 import { Button, MetricStrip, StatusTag } from '../components/ui/Primitives'
 import { managementMetrics, riskRanking } from '../data/mock'
 import { demoFlowSnapshotLabel, demoSnapshotAsOf } from '../data/runtimeMode'
+import { frontendDemoMode } from '../data/runtimeMode'
+import { ManagementDashboardLive } from './ManagementDashboardLive'
 import styles from './Pages.module.css'
 
-export function ManagementDashboardPage({ onOpenChain, onNotice, onNavigate }: { onOpenChain: () => void; onNotice: (message: string) => void; onNavigate: (route: 'ingestion' | 'governance' | 'quality') => void }) {
+export function ManagementDashboardPage({ onOpenChain, onNotice, onNavigate }: { onOpenChain: () => void; onNotice: (message: string) => void; onNavigate: (route: 'ingestion' | 'governance' | 'quality' | 'mpi' | 'aiData' | 'dataServices') => void }) {
+  // 真实构建走 G24 运营投影；演示构建保留静态样例。
+  if (!frontendDemoMode) {
+    return <ManagementDashboardLive onNotice={onNotice} onNavigate={onNavigate} />
+  }
   return (
     <div className={styles.page}>
       <PageHeader title="医院数据运营总览" eyebrow="管理驾驶舱" subtitle="以结果、风险和交付进展为中心" asOf={demoSnapshotAsOf} />

@@ -6,7 +6,7 @@ import { frontendDemoMode, isDemoRuntime } from '../../data/runtimeMode'
 import { StatusTag } from './Primitives'
 import styles from './RuntimeStatusBanner.module.css'
 
-const SCOPE_SUMMARY = '首期真实范围：数据接入、采集运行、治理问题、质量复检、通知、MPI、资产、分析、数据服务与 AI Ready 评估；数据标准、标准映射、问数和交付中心为规划/待接入。'
+const SCOPE_SUMMARY = '首期真实范围：数据接入、采集运行、治理问题、质量复检、通知、MPI、资产、分析、数据服务、AI Ready 评估、数据标准中心与管理驾驶舱/运营中心；标准映射、问数和交付中心为规划/待接入。'
 
 export function RuntimeStatusBanner() {
   const [status, setStatus] = useState<RuntimeStatusApiResponse | null>(null)
@@ -28,9 +28,12 @@ export function RuntimeStatusBanner() {
   // 控制面返回部分字段时不得让整站白屏：逐级可选链。
   const warning = status?.warnings?.[0]
   const operationalState = status?.operational?.state ?? 'UNKNOWN'
+  // 组件覆盖数（G24）：不再以三个探针的 READY 代表整个平台
+  const coverage = status?.operational
+    ? `${status.operational.ready}/${status.operational.total} 组件就绪` : ''
   const operationalLabel = operationalState === 'READY'
-    ? '核心链路就绪'
-    : operationalState === 'DEGRADED' ? '核心链路降级' : '核心链路未知'
+    ? `核心链路就绪${coverage ? `（${coverage}）` : ''}`
+    : operationalState === 'DEGRADED' ? `核心链路降级${coverage ? `（${coverage}）` : ''}` : '核心链路未知'
   return (
     <div className={`${styles.banner} ${demo ? styles.demo : operationalState === 'READY' ? styles.live : styles.warning}`} role="status">
       {demo ? <CloudCog size={14} /> : <span className={styles.liveDot} />}

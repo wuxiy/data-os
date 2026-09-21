@@ -27,6 +27,15 @@ assert.match(governance, /控制面暂不可用 · 未加载真实治理指标�
 assert.match(governance, /showStaticSamples\(apiState\)/, '治理静态链路和趋势必须经运行模式模块同时满足演示模式与控制面可用')
 assert.match(src('src/data/runtimeMode.ts'), /frontendDemoMode && apiState === 'live'/, '静态样例可见性谓词必须由运行模式模块单一实现')
 
+// G22/G24 接真锁：标准中心与管理驾驶舱在真实构建必须切到 Live 组件（不再只显示「暂未接入」）
+assert.match(src('src/pages/DataStandardsPage.tsx'), /frontendDemoMode[\s\S]*DataStandardsLive/, '数据标准页真实构建必须渲染 DataStandardsLive')
+assert.match(src('src/pages/ManagementDashboardPage.tsx'), /frontendDemoMode[\s\S]*ManagementDashboardLive/, '管理驾驶舱真实构建必须渲染 ManagementDashboardLive')
+assert.match(src('src/pages/ManagementDashboardLive.tsx'), /fetchOperationsSummary/, '管理驾驶舱必须读取运营投影摘要')
+assert.doesNotMatch(src('src/pages/ManagementDashboardLive.tsx'), /managementMetrics|riskRanking/, '管理驾驶舱真实页不得读取静态事实')
+assert.match(src('src/pages/DataStandardsLive.tsx'), /fetchStandards/, '数据标准真实页必须读取标准 API')
+assert.match(src('src/pages/OperationsCenterPage.tsx'), /fetchWorkItems/, '运营中心必须读取运营待办投影')
+assert.match(src('src/components/ui/RuntimeStatusBanner.tsx'), /组件就绪/, '运行状态横幅必须显示组件覆盖数')
+
 const ingestion = src('src/pages/DataIngestionPage.tsx')
 assert.match(ingestion, /真实模式不允许使用 FakeSource 演示模板/, '真实模式不得保存 FakeSource 演示采集模板')
 assert.match(ingestion, /defaultTemplateKey\(DEFAULT_TEMPLATE_KEY, LIVE_TEMPLATE_KEY\)/, '采集任务默认模板必须随运行模式切换')
