@@ -94,7 +94,9 @@ public class DeliveryEvidenceCollector {
         };
     }
 
-    // ---- DATA_SERVICE：PUBLISHED 才可交付；合同事件为证据 ----
+    // ---- DATA_SERVICE：PUBLISHED 才可交付；合同证据=定义行本身（版本/状态），
+    //      合同事件清单作为证据内容如实呈现（可为空——seed 旁路创建的服务没有
+    //      发布通知史，不构成「不可读取」，验收方在证据包中可见该事实）----
 
     private ItemEvidence dataService(String tenantId, DeliveryItem item) {
         var blockers = new ArrayList<String>();
@@ -106,10 +108,10 @@ public class DeliveryEvidenceCollector {
         if (definition.status() != com.cywu.dataos.controlplane.dataservice.DataApiLifecycle.PUBLISHED) {
             blockers.add("状态不可交付：" + definition.status());
         }
-        var events = contractEvents.findEventsByService(definition.id(), 10);
-        if (events.isEmpty()) {
-            blockers.add("合同证据缺失：无任何合同事件");
+        if (definition.versionSn() == null || definition.versionSn().isBlank()) {
+            blockers.add("合同证据缺失：定义行没有合同版本");
         }
+        var events = contractEvents.findEventsByService(definition.id(), 10);
         var evidence = new LinkedHashMap<String, Object>();
         evidence.put("code", definition.code());
         evidence.put("name", definition.name());

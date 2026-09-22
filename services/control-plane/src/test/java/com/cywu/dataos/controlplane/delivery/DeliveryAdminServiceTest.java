@@ -310,8 +310,9 @@ class DeliveryAdminServiceTest {
     }
 
     @Test
-    void missingContractEvidenceBlocksSubmit() {
-        // PUBLISHED 但没有任何合同事件
+    void emptyContractHistoryIsHonestEvidenceButNotABlocker() {
+        // PUBLISHED 但没有合同事件（seed 旁路创建的形态）：不阻断提交——合同证据
+        // 的「可读取」指定义行（版本/状态）可读；事件清单在证据包中如实为空。
         var definition = dataServices.save(new DataServiceDefinition(
                 UUID.randomUUID().toString(), TENANT, "svc-nocontract", "n", "", "v1",
                 DataApiLifecycle.PUBLISHED, "SELECT 1", "[]", "[]", 10, 30, "t",
@@ -319,9 +320,12 @@ class DeliveryAdminServiceTest {
         var projectId = createProject("dl-nocontract");
         addDataItem(projectId, definition.id());
         service.start(TENANT, projectId, "nc-start", "tester");
-
-        var blocked = (DeliveryBlockedException) catchSubmit(projectId, "nc-submit");
-        assertThat(flattenReasons(blocked)).anyMatch(reason -> reason.contains("合同证据缺失"));
+        service.submit(TENANT, projectId, "nc-submit", "tester");
+        assertThat(status(service.detail(TENANT, projectId))).isEqualTo("READY_FOR_ACCEPTANCE");
+        var snapshot = service.snapshot(TENANT, projectId, "nc-snap", "tester");
+        var manifest = repository.findSnapshot(TENANT, String.valueOf(snapshot.get("snapshotId")))
+                .map(DeliverySnapshot::manifestJson).orElse("");
+        assertThat(manifest).contains("\"contractEvents\" : [ ]");
     }
 
     @Test
