@@ -14,6 +14,7 @@ export type RouteKey =
   | 'assistant'
   | 'assistantWorkspace'
   | 'operationsCenter'
+  | 'deliveryCenter'
   | 'operations'
 
 export type Tone = 'healthy' | 'warning' | 'danger' | 'neutral'

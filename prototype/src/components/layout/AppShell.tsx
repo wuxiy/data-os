@@ -42,7 +42,7 @@ const navItems: NavItem[] = [
   { label: 'AI Data', icon: BrainCircuit, route: 'aiData' },
   { label: '智能问数', icon: MessageSquareText, route: 'assistant' },
   { label: '运营中心', icon: Workflow, route: 'operationsCenter' },
-  { label: '交付中心', icon: PackageCheck },
+  { label: '交付中心', icon: PackageCheck, route: 'deliveryCenter' },
   { label: '平台运维', icon: ServerCog, route: 'operations' },
 ]
 

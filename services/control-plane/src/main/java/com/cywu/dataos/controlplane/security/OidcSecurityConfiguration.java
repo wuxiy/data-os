@@ -153,6 +153,15 @@ public class OidcSecurityConfiguration {
                         // 运营只读投影（G24）：面向治理负责人与技术运维；viewer/analyst 不见跨域待办
                         .requestMatchers(HttpMethod.GET, "/api/v1/operations/**")
                         .hasAnyRole("platform-admin", "tenant-admin", "data-governance", "data-engineer")
+                        // 交付中心（G25）：读（含证据包下载）=六角色；验收/归档=管理员
+                        // （验收是治理动作，工程师只到提交）；建项/交付项/快照/启动/提交=工程师及以上
+                        .requestMatchers(HttpMethod.GET, "/api/v1/deliveries/**")
+                        .hasAnyRole("platform-admin", "tenant-admin", "data-engineer", "data-governance", "data-analyst", "viewer")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/deliveries/*/accept",
+                                "/api/v1/deliveries/*/archive")
+                        .hasAnyRole("platform-admin", "tenant-admin")
+                        .requestMatchers("/api/v1/deliveries/**")
+                        .hasAnyRole("platform-admin", "tenant-admin", "data-engineer")
                         .requestMatchers(HttpMethod.POST, "/api/v1/analytics/guest-token")
                         .hasAnyRole("platform-admin", "tenant-admin", "data-engineer", "data-governance", "data-analyst", "viewer")
                         .requestMatchers(HttpMethod.GET, "/api/v1/analytics/dashboards")

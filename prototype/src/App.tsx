@@ -14,6 +14,7 @@ import { DataServicesPage } from './pages/DataServicesPage'
 import { AssetCatalogPage } from './pages/AssetCatalogPage'
 import { AssetTechnicalPage } from './pages/AssetTechnicalPage'
 import { AssistantPage } from './pages/AssistantPage'
+import { DeliveryCenterPage } from './pages/DeliveryCenterPage'
 import { GovernanceDashboardPage } from './pages/GovernanceDashboardPage'
 import { ManagementDashboardPage } from './pages/ManagementDashboardPage'
 import { OperationsCenterPage } from './pages/OperationsCenterPage'
@@ -40,6 +41,8 @@ const paletteCommands: PaletteCommand[] = [
   { label: '分析看板', route: 'analytics' },
   { label: 'AI Data', route: 'aiData' },
   { label: '智能问数', route: 'assistant' },
+  { label: '运营中心', route: 'operationsCenter' },
+  { label: '交付中心', route: 'deliveryCenter' },
   { label: '平台运维', route: 'operations' },
 ]
 
@@ -160,6 +163,9 @@ export function App() {
       break
     case 'operationsCenter':
       page = <OperationsCenterPage onNotice={setNotice} onNavigate={navigate} />
+      break
+    case 'deliveryCenter':
+      page = <DeliveryCenterPage onNotice={setNotice} />
       break
     case 'operations':
       page = <PlatformOperationsPage canAccess={technicalAccess} />

@@ -17,5 +17,6 @@ export const routePaths = {
   assistant: '/assistant',
   assistantWorkspace: '/assistant/workspace',
   operationsCenter: '/operations-center',
+  deliveryCenter: '/delivery-center',
   operations: '/operations',
 } as const

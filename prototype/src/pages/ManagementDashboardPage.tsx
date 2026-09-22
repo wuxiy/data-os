@@ -40,7 +40,7 @@ export function ManagementDashboardPage({ onOpenChain, onNotice, onNavigate }: {
           </div>
         </section>
         <section className={styles.tablePanel}>
-          <div className={styles.panelHeader}><div><h2>重点交付进展</h2><p>面向院内经营、临床与上报场景 · 完整清单在交付中心（规划中）</p></div></div>
+          <div className={styles.panelHeader}><div><h2>重点交付进展</h2><p>面向院内经营、临床与上报场景 · 完整清单在交付中心</p></div></div>
           <div className={styles.tableScroll}>
             <table className={styles.table}>
               <thead><tr><th>交付主题</th><th>使用部门</th><th>当前阶段</th><th>数据可用率</th><th>计划上线</th><th>状态</th></tr></thead>

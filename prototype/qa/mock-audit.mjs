@@ -14,6 +14,7 @@ const staticPages = [
   'src/pages/AssetTechnicalPage.tsx',
   'src/pages/AnalyticsPage.tsx',
   'src/pages/AssistantPage.tsx',
+  'src/pages/DeliveryCenterPage.tsx',
 ]
 
 for (const page of staticPages) {
@@ -45,6 +46,14 @@ assert.match(governanceTabs, /'血缘与影响', route: 'assetTechnical'/, '治�
 assert.match(governanceTabs, /'问题闭环', route: 'quality'/, '治理导航「问题闭环」必须进入质量问题工作台')
 assert.match(governanceTabs, /'数据合同', route: 'dataServices'/, '治理导航「数据合同」必须进入数据服务合同视图')
 assert.doesNotMatch(governanceTabs, /规划中/, '治理导航不得再有无动作占位')
+
+// G25 接真锁：交付中心真实构建切 Live、一级路由可达、不回静态数据
+assert.match(src('src/pages/DeliveryCenterPage.tsx'), /frontendDemoMode[\s\S]*DeliveryCenterLive/, '交付中心页真实构建必须渲染 DeliveryCenterLive')
+assert.match(src('src/pages/DeliveryCenterPage.tsx'), /fetchDeliveries/, '交付中心真实页必须读取交付项目 API')
+assert.match(src('src/pages/DeliveryCenterPage.tsx'), /submitDelivery|acceptDelivery/, '交付中心真实页必须提供提交与验收动作')
+assert.match(src('src/pages/DeliveryCenterPage.tsx'), /downloadEvidenceZip/, '交付中心真实页必须提供证据包下载')
+assert.match(src('src/data/routes.ts'), /deliveryCenter/, '路由表必须注册交付中心路径')
+assert.match(src('src/components/layout/AppShell.tsx'), /label: '交付中心', icon: PackageCheck, route: 'deliveryCenter'/, '一级导航「交付中心」必须挂真实路由（不再是规划中占位）')
 
 const ingestion = src('src/pages/DataIngestionPage.tsx')
 assert.match(ingestion, /真实模式不允许使用 FakeSource 演示模板/, '真实模式不得保存 FakeSource 演示采集模板')

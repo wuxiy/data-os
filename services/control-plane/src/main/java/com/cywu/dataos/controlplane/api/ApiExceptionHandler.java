@@ -48,6 +48,14 @@ public class ApiExceptionHandler {
         return problem(HttpStatus.CONFLICT, "DUPLICATE_RESOURCE", "相同业务对象已经存在");
     }
 
+    /** 交付提交被可交付性检查阻断（G25-2）：409 + 逐项 blockers 供门户渲染。 */
+    @ExceptionHandler(com.cywu.dataos.controlplane.delivery.DeliveryBlockedException.class)
+    ProblemDetail deliveryBlocked(com.cywu.dataos.controlplane.delivery.DeliveryBlockedException exception) {
+        var detail = problem(HttpStatus.CONFLICT, "DELIVERY_BLOCKED", exception.getMessage());
+        detail.setProperty("blockers", exception.blockers());
+        return detail;
+    }
+
     /** 控制器内抛出的越权（如 TenantScope 拒绝跨租户参数）按 403 收口，不落 500。 */
     @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
     ProblemDetail accessDenied(org.springframework.security.access.AccessDeniedException exception) {
