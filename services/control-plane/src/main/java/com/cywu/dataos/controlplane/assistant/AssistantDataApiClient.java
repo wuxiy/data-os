@@ -44,9 +44,13 @@ public class AssistantDataApiClient {
                                   @Value("${data-os.assistant.oidc.client-id:}") String clientId,
                                   @Value("${data-os.assistant.oidc.client-secret:}") String clientSecret,
                                   @Value("${data-os.assistant.oidc.audience:}") String audience) {
+        // AdapterHttp 强制 HTTP/1.1：JDK HttpClient 默认 HTTP/2 会对明文端点发
+        // h2c Upgrade，uvicorn 拒绝升级并丢弃请求体（G9 实测坑，dev 全链 422 复现）
         this.client = baseUrl == null || baseUrl.isBlank()
                 ? null
-                : builder.baseUrl(baseUrl.trim()).build();
+                : com.cywu.dataos.controlplane.executor.AdapterHttp.restClient(
+                        builder.baseUrl(baseUrl.trim()), java.time.Duration.ofSeconds(3),
+                        java.time.Duration.ofSeconds(60));
         this.tokenProvider = new OidcClientCredentialsTokenProvider(builder,
                 tokenUri, clientId, clientSecret, audience, "");
     }
@@ -70,7 +74,7 @@ public class AssistantDataApiClient {
             body = client.post()
                     .uri("/internal/v1/verified-queries/{code}/query", serviceCode)
                     .headers(headers -> headers.setBearerAuth(token))
-                    .header("Content-Type", "application/json")
+                    .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
                     .body(Map.of("parameters", parameters))
                     .retrieve()
                     .body(Map.class);

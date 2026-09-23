@@ -102,6 +102,15 @@ data-os:
     client-id: ${DATAOS_AI_READY_OIDC_CLIENT_ID:}
     client-secret: ${DATAOS_AI_READY_OIDC_CLIENT_SECRET:}
     api-token: ${DATAOS_AI_READY_API_TOKEN:}
+  assistant:
+    # 受控智能问数（G26）：执行面未配置时问数诚实拒答（REFUSED_UNAVAILABLE）。
+    # env 键经本文件显式声明映射（@Value 宽松绑定不认 DATAOS_* 连写形态，H3 坑）。
+    data-api-base-url: ${DATAOS_ASSISTANT_DATA_API_BASE_URL:}
+    oidc:
+      token-uri: ${DATAOS_ASSISTANT_OIDC_TOKEN_URI:}
+      client-id: ${DATAOS_ASSISTANT_OIDC_CLIENT_ID:}
+      client-secret: ${DATAOS_ASSISTANT_OIDC_CLIENT_SECRET:}
+      audience: ${DATAOS_ASSISTANT_OIDC_AUDIENCE:}
   quality:
     executor: ${DATAOS_QUALITY_EXECUTOR:HTTP}
     # 逻辑数据集（rules.yml 的 dataset_id）-> OM 表全限定名映射（G7-5）。
