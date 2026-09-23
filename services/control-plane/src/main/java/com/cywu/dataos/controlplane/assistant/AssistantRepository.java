@@ -109,6 +109,13 @@ public class AssistantRepository {
                 """, this::mapQuestionEvent, tenantId, code, limit);
     }
 
+    public int countQuestionEvents(String tenantId, String code) {
+        return jdbc.queryForObject("""
+                SELECT COUNT(*) FROM data_os.assistant_question_event
+                WHERE tenant_id = ? AND question_code = ?
+                """, Integer.class, tenantId, code);
+    }
+
     private AssistantQuestionEvent mapQuestionEvent(java.sql.ResultSet rs, int row)
             throws java.sql.SQLException {
         return new AssistantQuestionEvent(
@@ -201,6 +208,22 @@ public class AssistantRepository {
                 SELECT * FROM data_os.assistant_query_audit
                 WHERE tenant_id = ? ORDER BY created_at DESC LIMIT ?
                 """, this::mapAudit, tenantId, limit);
+    }
+
+    /** 审计管理面（G27 余项）：outcome 过滤 + 分页（倒序）。 */
+    public List<AssistantQueryAudit> findAudits(String tenantId, String outcome, int offset, int limit) {
+        return jdbc.query("""
+                SELECT * FROM data_os.assistant_query_audit
+                WHERE tenant_id = ? AND (? = '' OR outcome = ?)
+                ORDER BY created_at DESC LIMIT ? OFFSET ?
+                """, this::mapAudit, tenantId, outcome, outcome, limit, offset);
+    }
+
+    public int countAudits(String tenantId, String outcome) {
+        return jdbc.queryForObject("""
+                SELECT COUNT(*) FROM data_os.assistant_query_audit
+                WHERE tenant_id = ? AND (? = '' OR outcome = ?)
+                """, Integer.class, tenantId, outcome, outcome);
     }
 
     private AssistantQueryAudit mapAudit(java.sql.ResultSet rs, int row) throws java.sql.SQLException {

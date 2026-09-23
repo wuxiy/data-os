@@ -146,10 +146,19 @@ class AssistantSecurityTest {
         stub("engineer-token", "engineer-a", "tenant-a", List.of("data-engineer"));
         stub("admin-token", "admin-a", "tenant-a", List.of("tenant-admin"));
 
-        // 治理列表：viewer 403；工程/治理/管理员可见
+        // 治理列表与审计面：viewer 403；工程/治理/管理员可见（G27 余项：审计同角色集）
         mockMvc.perform(get("/api/v1/assistant/admin/questions")
                         .header("Authorization", "Bearer viewer-token"))
                 .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/v1/assistant/admin/audits")
+                        .header("Authorization", "Bearer viewer-token"))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/v1/assistant/admin/audits")
+                        .header("Authorization", "Bearer governance-token"))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/v1/assistant/admin/audits/export")
+                        .header("Authorization", "Bearer governance-token"))
+                .andExpect(status().isOk());
         mockMvc.perform(get("/api/v1/assistant/admin/questions")
                         .header("Authorization", "Bearer governance-token"))
                 .andExpect(status().isOk());

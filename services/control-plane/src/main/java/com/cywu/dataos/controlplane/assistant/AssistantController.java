@@ -110,7 +110,28 @@ public class AssistantController {
 
     @GetMapping("/admin/questions/{code}/events")
     public Map<String, Object> questionEvents(@PathVariable String code,
+                                              @RequestParam(required = false, defaultValue = "100") int limit,
                                               @RequestParam(required = false) String tenantId) {
-        return service.questionEvents(tenantId, code);
+        return service.questionEvents(tenantId, code, limit);
+    }
+
+    // ---- 审计管理面（G27 余项）----
+
+    @GetMapping("/admin/audits")
+    public Map<String, Object> audits(@RequestParam(required = false, defaultValue = "") String outcome,
+                                      @RequestParam(required = false, defaultValue = "0") int page,
+                                      @RequestParam(required = false, defaultValue = "20") int pageSize,
+                                      @RequestParam(required = false) String tenantId) {
+        return service.audits(tenantId, outcome, page, pageSize);
+    }
+
+    @GetMapping(value = "/admin/audits/export", produces = "text/csv")
+    public org.springframework.http.ResponseEntity<String> auditExport(
+            @RequestParam(required = false, defaultValue = "") String outcome,
+            @RequestParam(required = false) String tenantId) {
+        var body = service.auditCsv(tenantId, outcome);
+        return org.springframework.http.ResponseEntity.ok()
+                .header("Content-Disposition", "attachment; filename=assistant-audits.csv")
+                .body(body);
     }
 }

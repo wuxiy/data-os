@@ -1,23 +1,28 @@
-import { FlaskConical, Pencil, Play, Plus, ShieldQuestion, Trash2 } from 'lucide-react'
+import { Download, FlaskConical, Pencil, Play, Plus, ShieldQuestion, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Drawer } from '../components/ui/Drawer'
+import { Pager } from '../components/ui/Pager'
 import { Button, StatusTag } from '../components/ui/Primitives'
 import {
   assistantQuestionAction,
+  AUDIT_OUTCOME_OPTIONS,
   deleteAssistantQuestion,
+  downloadAssistantAuditCsv,
   fetchAssistantAdminQuestions,
+  fetchAssistantAudits,
   fetchAssistantQuestionEvents,
   QUESTION_STATUS_LABEL,
   saveAssistantQuestion,
   testAssistantQuestion,
   type AssistantAdminQuestionView,
   type AssistantAnswer,
-  type AssistantParamContract,
+  type AssistantAuditView,
   type AssistantQuestionDraft,
   type AssistantQuestionEventView,
 } from '../data/assistantApi'
 import { useApiResource } from '../hooks/useApiResource'
+import { usePaged } from '../hooks/usePaged'
 import pageStyles from './Pages.module.css'
 import styles from './IntegrationPages.module.css'
 
@@ -25,9 +30,15 @@ import styles from './IntegrationPages.module.css'
  * 问数治理面（G27）：已验证问题生命周期管理——草稿建/改、试运行（发布前
  * 验证配置）、发布（须最近成功试运行晚于最后编辑）、停用、重新起草与草稿
  * 删除。动作全部走控制面治理接口并留事件痕；试运行结果与拒答信封同构。
+ * G27 余项：治理/事件分页、Schema 编辑器 defaultValue/枚举入口、审计管理面。
  */
 
-type ParamRow = AssistantParamContract & { required: boolean }
+/** 编辑态参数行：values 以逗号分隔文本承载（保存时解析为枚举数组）。 */
+type ParamRow = { name: string; type: string; required: boolean; defaultValue: string; valuesText: string }
+
+const TABLE_PAGE_SIZE = 6
+const EVENTS_PAGE_SIZE = 6
+const AUDIT_PAGE_SIZE = 10
 
 const EMPTY_FORM = {
   code: '',
@@ -40,8 +51,11 @@ const EMPTY_FORM = {
 
 function paramRowsOf(question: AssistantAdminQuestionView): ParamRow[] {
   return (question.paramSchema ?? []).map((contract) => ({
-    ...contract,
+    name: contract.name,
+    type: contract.type,
     required: contract.required ?? false,
+    defaultValue: contract.defaultValue ?? '',
+    valuesText: (contract.values ?? []).join(','),
   }))
 }
 
@@ -69,7 +83,21 @@ export function AssistantGovernance({ onNotice, onQuestionsChanged }: {
   const [testing, setTesting] = useState(false)
 
   const [eventsTarget, setEventsTarget] = useState<AssistantAdminQuestionView | null>(null)
-  const [events, setEvents] = useState<AssistantQuestionEventView[] | null>(null)
+  const [events, setEvents] = useState<{ total: number; returned: number; items: AssistantQuestionEventView[] } | null>(null)
+
+  // 审计管理面（G27 余项）：服务端分页 + outcome 过滤 + CSV 导出
+  const [auditsOpen, setAuditsOpen] = useState(false)
+  const [auditOutcome, setAuditOutcome] = useState('')
+  const [auditPage, setAuditPage] = useState(0)
+  const [auditTotal, setAuditTotal] = useState(0)
+  const [audits, setAudits] = useState<AssistantAuditView[]>([])
+  const [auditState, setAuditState] = useState<'idle' | 'loading' | 'unavailable'>('idle')
+  const [exporting, setExporting] = useState(false)
+
+  // 治理表客户端分页（问题数预期小，沿用 usePaged+Pager 先例）
+  const { page: questionsPage, setPage: setQuestionsPage, paged: pagedQuestions, pageCount: questionsPageCount } = usePaged(questions, TABLE_PAGE_SIZE)
+  // 事件 Drawer 客户端分页（单次取最近 100 条，total 超出如实提示）
+  const { page: eventsPage, setPage: setEventsPage, paged: pagedEvents, pageCount: eventsPageCount } = usePaged(events?.items ?? [], EVENTS_PAGE_SIZE)
 
   // 停用/删除是不可逆治理动作：两步确认，与数据服务下线同型。
   const [confirmKey, setConfirmKey] = useState('')
@@ -106,7 +134,16 @@ export function AssistantGovernance({ onNotice, onQuestionsChanged }: {
       aliases: form.aliasesText.split('\n').map((line) => line.trim()).filter(Boolean),
       paramSchema: form.paramRows
         .filter((row) => row.name.trim())
-        .map(({ name, type, required, ...rest }) => ({ name: name.trim(), type, required, ...rest })),
+        .map((row) => ({
+          name: row.name.trim(),
+          type: row.type,
+          required: row.required,
+          ...(row.defaultValue.trim() ? { defaultValue: row.defaultValue.trim() } : {}),
+          ...(() => {
+            const values = row.valuesText.split(',').map((value) => value.trim()).filter(Boolean)
+            return values.length > 0 ? { values } : {}
+          })(),
+        })),
       serviceCode: form.serviceCode.trim(),
       answerTemplate: form.answerTemplate,
     }
@@ -171,10 +208,52 @@ export function AssistantGovernance({ onNotice, onQuestionsChanged }: {
   async function openEvents(question: AssistantAdminQuestionView) {
     setEventsTarget(question)
     setEvents(null)
+    setEventsPage(0)
     try {
-      setEvents(await fetchAssistantQuestionEvents(question.code, undefined))
+      const payload = await fetchAssistantQuestionEvents(question.code, undefined)
+      setEvents({ total: payload.total, returned: payload.returned, items: payload.events })
     } catch {
-      setEvents([])
+      setEvents({ total: 0, returned: 0, items: [] })
+    }
+  }
+
+  async function loadAudits(page: number, outcome: string) {
+    setAuditState('loading')
+    try {
+      const payload = await fetchAssistantAudits(outcome, page, AUDIT_PAGE_SIZE, undefined)
+      setAudits(payload.audits)
+      setAuditTotal(payload.total)
+      setAuditState('idle')
+    } catch {
+      setAudits([])
+      setAuditTotal(0)
+      setAuditState('unavailable')
+    }
+  }
+
+  function openAudits() {
+    setAuditsOpen(true)
+    setAuditPage(0)
+    setAuditOutcome('')
+    void loadAudits(0, '')
+  }
+
+  function changeAuditOutcome(outcome: string) {
+    setAuditOutcome(outcome)
+    setAuditPage(0)
+    void loadAudits(0, outcome)
+  }
+
+  async function exportAudits() {
+    if (exporting) return
+    setExporting(true)
+    try {
+      await downloadAssistantAuditCsv(auditOutcome)
+      onNotice('问数审计 CSV 已开始下载（同当前过滤口径）')
+    } catch (error) {
+      onNotice(error instanceof Error && error.message ? error.message : '审计导出失败')
+    } finally {
+      setExporting(false)
     }
   }
 
@@ -193,6 +272,7 @@ export function AssistantGovernance({ onNotice, onQuestionsChanged }: {
         <h2>问题治理</h2>
         <div className={styles.toolbarActions}>
           <Button onClick={() => setRefreshTick((tick) => tick + 1)}>刷新</Button>
+          <Button onClick={openAudits}><Download size={14} />问数审计</Button>
           <Button variant="primary" onClick={openCreate}><Plus size={14} />新建问题（草稿）</Button>
         </div>
       </div>
@@ -208,7 +288,7 @@ export function AssistantGovernance({ onNotice, onQuestionsChanged }: {
             <tr><th>问题 / 代码</th><th>状态</th><th>数据服务</th><th>试运行验证</th><th>操作</th></tr>
           </thead>
           <tbody>
-            {questions.map((question) => {
+            {pagedQuestions.map((question) => {
               const key = `${'deprecate'}:${question.code}`
               const deleteKey = `delete:${question.code}`
               return (
@@ -268,6 +348,8 @@ export function AssistantGovernance({ onNotice, onQuestionsChanged }: {
           </tbody>
         </table>
       </div>
+      <Pager label="问题治理分页" page={questionsPage} pageCount={questionsPageCount} pageSize={TABLE_PAGE_SIZE}
+        onPageChange={setQuestionsPage} />
       {questions.length === 0 && governanceState !== 'loading'
         ? <p className={styles.composerNote}>当前租户暂无已验证问题（含草稿）。</p> : null}
 
@@ -340,6 +422,16 @@ export function AssistantGovernance({ onNotice, onQuestionsChanged }: {
                       <option value="true">是</option>
                     </select>
                   </label>
+                  <label className={styles.assistantParamField}>
+                    <span>默认值（可留空）</span>
+                    <input value={row.defaultValue}
+                      onChange={(event) => setForm({ ...form, paramRows: form.paramRows.map((item, itemIndex) => itemIndex === index ? { ...item, defaultValue: event.target.value } : item) })} />
+                  </label>
+                  <label className={styles.assistantParamField}>
+                    <span>枚举取值（逗号分隔，可留空）</span>
+                    <input value={row.valuesText}
+                      onChange={(event) => setForm({ ...form, paramRows: form.paramRows.map((item, itemIndex) => itemIndex === index ? { ...item, valuesText: event.target.value } : item) })} />
+                  </label>
                   <Button type="button" aria-label={`移除参数 ${row.name || index + 1}`}
                     onClick={() => setForm({ ...form, paramRows: form.paramRows.filter((_, itemIndex) => itemIndex !== index) })}>
                     <Trash2 size={13} />
@@ -347,7 +439,7 @@ export function AssistantGovernance({ onNotice, onQuestionsChanged }: {
                 </div>
               ))}
               <Button type="button"
-                onClick={() => setForm({ ...form, paramRows: [...form.paramRows, { name: '', type: 'date', required: true }] })}>
+                onClick={() => setForm({ ...form, paramRows: [...form.paramRows, { name: '', type: 'date', required: true, defaultValue: '', valuesText: '' }] })}>
                 <Plus size={13} />添加参数
               </Button>
             </div>
@@ -432,14 +524,85 @@ export function AssistantGovernance({ onNotice, onQuestionsChanged }: {
           footer={<Button type="button" onClick={() => setEventsTarget(null)}>关闭</Button>}
         >
           <ul className={styles.sourceList}>
-            {(events ?? []).map((event, index) => (
+            {pagedEvents.map((event, index) => (
               <li key={index}>
                 <strong>{QUESTION_STATUS_LABEL[event.action] ?? event.action}</strong>
                 <span>{event.actor || 'system'} · {new Date(event.createdAt).toLocaleString('zh-CN')}</span>
               </li>
             ))}
           </ul>
-          {events && events.length === 0 ? <p className={styles.composerNote}>暂无事件记录。</p> : null}
+          {events && events.items.length === 0 ? <p className={styles.composerNote}>暂无事件记录。</p> : null}
+          {events && events.total > events.returned ? (
+            <p className={styles.composerNote}>共 {events.total} 条，仅显示最近 {events.returned} 条。</p>
+          ) : null}
+          <Pager label="事件分页" page={eventsPage} pageCount={eventsPageCount} pageSize={EVENTS_PAGE_SIZE}
+            onPageChange={setEventsPage} />
+        </Drawer>
+      ) : null}
+
+      {auditsOpen ? (
+        <Drawer
+          titleId="assistant-audits-title"
+          eyebrow="问数治理 · 审计"
+          title="问数审计（含拒答与试运行）"
+          closeLabel="关闭问数审计"
+          onClose={() => setAuditsOpen(false)}
+          footer={<>
+            <Button type="button" onClick={() => void loadAudits(auditPage, auditOutcome)}>刷新</Button>
+            <Button type="button" disabled={exporting} onClick={() => void exportAudits()}>
+              <Download size={14} />{exporting ? '导出中…' : '导出 CSV'}
+            </Button>
+            <Button type="button" variant="primary" onClick={() => setAuditsOpen(false)}>关闭</Button>
+          </>}
+        >
+          <div className={styles.assistantParamBar} role="search">
+            <label className={styles.assistantParamField}>
+              <span>结局过滤</span>
+              <select value={auditOutcome} onChange={(event) => changeAuditOutcome(event.target.value)}>
+                {AUDIT_OUTCOME_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+            </label>
+            <span className={styles.composerNote}>共 {auditTotal} 条（每次提问一行，含拒答；不存结果数据）</span>
+          </div>
+          {auditState === 'unavailable' ? (
+            <p className={styles.composerNote}>审计读取失败（接口不可用或无权限）。</p>
+          ) : null}
+          <div className={styles.horizontalScroll}>
+            <table className={styles.resultTable}>
+              <thead>
+                <tr><th>时间 / 用户</th><th>问题</th><th>结局</th><th>行数 / 耗时</th><th>反馈</th></tr>
+              </thead>
+              <tbody>
+                {auditState === 'loading' ? <tr><td colSpan={5}>正在加载审计…</td></tr> : null}
+                {auditState === 'idle' && audits.length === 0 ? <tr><td colSpan={5}>当前过滤口径下暂无审计记录。</td></tr> : null}
+                {audits.map((audit) => (
+                  <tr key={audit.id}>
+                    <td>
+                      <strong>{new Date(audit.createdAt).toLocaleString('zh-CN')}</strong>
+                      <span className={styles.composerNote}>{audit.userId || '—'}{audit.detail.startsWith('test-run') ? ' · 试运行' : ''}</span>
+                    </td>
+                    <td>
+                      <strong>{audit.questionText || '（未匹配）'}</strong>
+                      <span className={styles.composerNote}>{audit.questionCode || '—'}{audit.serviceCode ? ` · ${audit.serviceCode}` : ''}</span>
+                    </td>
+                    <td>{audit.outcome === 'ANSWERED'
+                      ? <StatusTag tone="healthy">已回答</StatusTag>
+                      : <StatusTag tone="warning">{audit.outcome.replace('REFUSED_', '拒答·')}</StatusTag>}</td>
+                    <td>{audit.outcome === 'ANSWERED' ? `${audit.rowCount} 行 · ${audit.elapsedMs} ms` : '—'}</td>
+                    <td>{audit.feedbackRating
+                      ? <span>{audit.feedbackRating === 'helpful' ? '有帮助' : '待改进'}{audit.feedbackNote ? ` · ${audit.feedbackNote}` : ''}</span>
+                      : <span className={styles.composerNote}>—</span>}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <Pager label="问数审计分页" page={auditPage}
+            pageCount={Math.max(1, Math.ceil(auditTotal / AUDIT_PAGE_SIZE))}
+            pageSize={AUDIT_PAGE_SIZE}
+            onPageChange={(page) => { setAuditPage(page); void loadAudits(page, auditOutcome) }} />
         </Drawer>
       ) : null}
     </section>

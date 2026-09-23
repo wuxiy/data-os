@@ -81,7 +81,7 @@ class AssistantGovernanceTest {
         assertThat(view.get("verified")).isEqualTo(false);
         assertThat(view.get("lastPassedTestRun")).isNull();
 
-        var events = (List<?>) service.questionEvents(TENANT, code).get("events");
+        var events = (List<?>) service.questionEvents(TENANT, code, 50).get("events");
         assertThat(((Map<?, ?>) events.get(0)).get("action")).isEqualTo("CREATED");
     }
 
@@ -201,7 +201,7 @@ class AssistantGovernanceTest {
         assertThat(service.reopenQuestion(TENANT, code).get("status")).isEqualTo("DRAFT");
 
         // 事件链完整（倒序：UPDATED(reopen) → DEPRECATED → PUBLISHED → CREATED）
-        var events = (List<?>) service.questionEvents(TENANT, code).get("events");
+        var events = (List<?>) service.questionEvents(TENANT, code, 50).get("events");
         assertThat(events.stream().map(item -> String.valueOf(((Map<?, ?>) item).get("action"))).toList())
                 .containsExactly("UPDATED", "DEPRECATED", "PUBLISHED", "CREATED");
     }
@@ -211,7 +211,7 @@ class AssistantGovernanceTest {
         var code = uniqueCode();
         service.createQuestion(TENANT, draft(code));
         assertThat(service.deleteQuestion(TENANT, code).get("deleted")).isEqualTo(true);
-        assertThatThrownBy(() -> service.questionEvents(TENANT, code))
+        assertThatThrownBy(() -> service.questionEvents(TENANT, code, 50))
                 .isInstanceOf(com.cywu.dataos.controlplane.api.ResourceNotFoundException.class);
 
         // 种子 PUBLISHED 不可删（须停用留痕）
@@ -234,5 +234,62 @@ class AssistantGovernanceTest {
         assertThat(testAudit.outcome()).isEqualTo("ANSWERED");
         assertThat(testAudit.detail()).isEqualTo("test-run");
         assertThat(testAudit.rowCount()).isEqualTo(1);
+    }
+
+    // ---- 审计管理面与事件总数（G27 余项）----
+
+    @Test
+    void auditSurfaceFiltersByOutcomeAndPages() {
+        var code = uniqueCode();
+        service.createQuestion(TENANT, draft(code));
+        // 一次拒答（坏日期）+ 一次成功试运行
+        service.testQuestion(TENANT, code, Map.of("start_date", "bad-date"));
+        passTestRun(code);
+
+        var all = service.audits(TENANT, "", 0, 10);
+        assertThat((Integer) all.get("total")).isGreaterThanOrEqualTo(2);
+        assertThat(((List<?>) all.get("audits")).size()).isGreaterThanOrEqualTo(2);
+
+        var refusedOnly = service.audits(TENANT, "REFUSED_PARAM_INVALID", 0, 10);
+        assertThat(((List<?>) refusedOnly.get("audits")))
+                .allSatisfy(item -> assertThat(((Map<?, ?>) item).get("outcome")).isEqualTo("REFUSED_PARAM_INVALID"));
+        assertThat(((List<?>) refusedOnly.get("audits")).size()).isGreaterThanOrEqualTo(1);
+
+        // 分页：pageSize=1 时首页 1 条、total 不变
+        var paged = service.audits(TENANT, "", 0, 1);
+        assertThat(((List<?>) paged.get("audits"))).hasSize(1);
+        assertThat(paged.get("total")).isEqualTo(all.get("total"));
+        // pageSize 钳制上限 100
+        assertThat(service.audits(TENANT, "", 0, 10_000).get("pageSize")).isEqualTo(100);
+    }
+
+    @Test
+    void auditCsvEscapesAndCarriesFeedbackColumns() {
+        var code = uniqueCode();
+        service.createQuestion(TENANT, draft(code));
+        var refused = service.testQuestion(TENANT, code, Map.of("start_date", "bad-date"));
+        assertThat(refused.get("answered")).isEqualTo(false);
+        // 反馈带逗号与引号（CSV 转义口径）
+        service.feedback(TENANT, String.valueOf(refused.get("auditId")), "not_helpful", "含,逗号\"引号");
+
+        var csv = service.auditCsv(TENANT, "");
+        assertThat(csv).startsWith("audit_id,created_at,user_id,institution_id,question_text");
+        assertThat(csv).contains("REFUSED_PARAM_INVALID");
+        assertThat(csv).contains("\"含,逗号\"\"引号\"");  // RFC 4180：整体加引号 + 引号双写
+        var filtered = service.auditCsv(TENANT, "ANSWERED");
+        assertThat(filtered).doesNotContain(code);
+    }
+
+    @Test
+    void questionEventsExposeTotalForHonestTruncation() {
+        var code = uniqueCode();
+        service.createQuestion(TENANT, draft(code));
+        passTestRun(code);
+        service.publishQuestion(TENANT, code);
+
+        var payload = service.questionEvents(TENANT, code, 1);
+        assertThat(payload.get("total")).isEqualTo(2);  // CREATED + PUBLISHED
+        assertThat(payload.get("returned")).isEqualTo(1);
+        assertThat(((List<?>) payload.get("events"))).hasSize(1);  // 倒序最近一条
     }
 }

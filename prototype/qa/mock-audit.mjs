@@ -66,6 +66,8 @@ assert.match(src('src/pages/AssistantLive.tsx'), /AssistantGovernance/, '专业�
 assert.match(src('src/pages/AssistantGovernance.tsx'), /fetchAssistantAdminQuestions/, '治理面必须读取治理清单接口')
 assert.match(src('src/pages/AssistantGovernance.tsx'), /testAssistantQuestion|assistantQuestionAction/, '治理面必须提供试运行与生命周期动作')
 assert.match(src('src/pages/AssistantGovernance.tsx'), /verified/, '治理面必须呈现发布门验证状态')
+assert.match(src('src/pages/AssistantGovernance.tsx'), /fetchAssistantAudits|downloadAssistantAuditCsv/, '治理面必须提供审计管理面（G27 余项）')
+assert.match(src('src/pages/AssistantGovernance.tsx'), /Pager/, '治理列表与审计面必须分页（usePaged+Pager 先例）')
 assert.doesNotMatch(src('src/pages/AssistantGovernance.tsx'), /assistantScenarios/, '治理面不得使用演示场景数据')
 
 const ingestion = src('src/pages/DataIngestionPage.tsx')

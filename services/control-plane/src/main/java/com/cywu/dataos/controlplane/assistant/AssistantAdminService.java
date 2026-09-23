@@ -318,18 +318,91 @@ public class AssistantAdminService {
                 params == null ? Map.of() : params, published, true);
     }
 
-    /** 问题生命周期事件（治理动作留痕，倒序）。 */
-    public Map<String, Object> questionEvents(String tenantId, String code) {
+    /** 问题生命周期事件（治理动作留痕，倒序；total 供分页与诚实截断提示）。 */
+    public Map<String, Object> questionEvents(String tenantId, String code, int limit) {
         var scope = tenantScope.resolve(tenantId, null);
         requireQuestion(scope.tenantId(), code);
-        var events = repository.findQuestionEvents(scope.tenantId(), code, 50);
-        return Map.of("code", code, "total", events.size(), "events", events.stream()
-                .map(event -> Map.of(
-                        "action", event.action(),
-                        "actor", event.actor(),
-                        "detail", event.detailJson(),
-                        "createdAt", event.createdAt().toString()))
-                .toList());
+        var events = repository.findQuestionEvents(scope.tenantId(), code, limit);
+        return Map.of("code", code,
+                "total", repository.countQuestionEvents(scope.tenantId(), code),
+                "returned", events.size(),
+                "events", events.stream()
+                        .map(event -> Map.of(
+                                "action", event.action(),
+                                "actor", event.actor(),
+                                "detail", event.detailJson(),
+                                "createdAt", event.createdAt().toString()))
+                        .toList());
+    }
+
+    // ---- 审计管理面（G27 余项）：只读 + CSV 导出，反馈随行呈现 ----
+
+    public Map<String, Object> audits(String tenantId, String outcome, int page, int pageSize) {
+        var scope = tenantScope.resolve(tenantId, null);
+        var safeOutcome = outcome == null ? "" : outcome.strip();
+        var safePageSize = Math.min(Math.max(pageSize, 1), 100);
+        var safePage = Math.max(page, 0);
+        var audits = repository.findAudits(scope.tenantId(), safeOutcome,
+                safePage * safePageSize, safePageSize);
+        return Map.of(
+                "total", repository.countAudits(scope.tenantId(), safeOutcome),
+                "page", safePage,
+                "pageSize", safePageSize,
+                "audits", audits.stream().map(this::auditView).toList());
+    }
+
+    /** CSV 导出（同租户同过滤口径；上限 10000 行防失控导出）。 */
+    public String auditCsv(String tenantId, String outcome) {
+        var scope = tenantScope.resolve(tenantId, null);
+        var safeOutcome = outcome == null ? "" : outcome.strip();
+        var audits = repository.findAudits(scope.tenantId(), safeOutcome, 0, 10_000);
+        var builder = new StringBuilder();
+        builder.append("audit_id,created_at,user_id,institution_id,question_text,question_code,")
+                .append("service_code,outcome,row_count,elapsed_ms,detail,feedback_rating,feedback_note\n");
+        for (AssistantQueryAudit audit : audits) {
+            builder.append(csv(audit.id())).append(',')
+                    .append(csv(audit.createdAt().toString())).append(',')
+                    .append(csv(audit.userId())).append(',')
+                    .append(csv(audit.institutionId())).append(',')
+                    .append(csv(audit.questionText())).append(',')
+                    .append(csv(audit.questionCode())).append(',')
+                    .append(csv(audit.serviceCode())).append(',')
+                    .append(csv(audit.outcome())).append(',')
+                    .append(audit.rowCount()).append(',')
+                    .append(audit.elapsedMs()).append(',')
+                    .append(csv(audit.detail())).append(',')
+                    .append(csv(audit.feedbackRating() == null ? "" : audit.feedbackRating())).append(',')
+                    .append(csv(audit.feedbackNote() == null ? "" : audit.feedbackNote()))
+                    .append('\n');
+        }
+        return builder.toString();
+    }
+
+    private Map<String, Object> auditView(AssistantQueryAudit audit) {
+        var view = new LinkedHashMap<String, Object>();
+        view.put("id", audit.id());
+        view.put("createdAt", audit.createdAt().toString());
+        view.put("userId", audit.userId());
+        view.put("institutionId", audit.institutionId());
+        view.put("questionText", audit.questionText());
+        view.put("questionCode", audit.questionCode());
+        view.put("serviceCode", audit.serviceCode());
+        view.put("outcome", audit.outcome());
+        view.put("rowCount", audit.rowCount());
+        view.put("elapsedMs", audit.elapsedMs());
+        view.put("detail", audit.detail());
+        view.put("feedbackRating", audit.feedbackRating());
+        view.put("feedbackNote", audit.feedbackNote());
+        return view;
+    }
+
+    /** RFC 4180 转义：含逗号/引号/换行即整体加引号并双写引号。 */
+    private static String csv(String value) {
+        var text = value == null ? "" : value;
+        if (text.contains(",") || text.contains("\"") || text.contains("\n") || text.contains("\r")) {
+            return '"' + text.replace("\"", "\"\"") + '"';
+        }
+        return text;
     }
 
     private AssistantQuestion requireQuestion(String tenantId, String code) {

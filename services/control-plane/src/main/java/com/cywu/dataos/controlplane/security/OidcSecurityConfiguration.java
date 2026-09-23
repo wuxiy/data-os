@@ -162,9 +162,10 @@ public class OidcSecurityConfiguration {
                         .hasAnyRole("platform-admin", "tenant-admin")
                         .requestMatchers("/api/v1/deliveries/**")
                         .hasAnyRole("platform-admin", "tenant-admin", "data-engineer")
-                        // 问数治理面（G27）：治理列表=工程/治理/管理员可见；建/改/删/试运行/
+                        // 问数治理面（G27）：治理列表/审计面=工程/治理/管理员可见；建/改/删/试运行/
                         // 事件=工程师及以上；发布/停用/重新起草=管理员（治理动作，对齐交付验收口径）
-                        .requestMatchers(HttpMethod.GET, "/api/v1/assistant/admin/questions")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/assistant/admin/questions",
+                                "/api/v1/assistant/admin/audits/**")
                         .hasAnyRole("platform-admin", "tenant-admin", "data-engineer", "data-governance")
                         .requestMatchers(HttpMethod.POST, "/api/v1/assistant/admin/questions/*/publish",
                                 "/api/v1/assistant/admin/questions/*/deprecate",
