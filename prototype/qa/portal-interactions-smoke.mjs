@@ -48,7 +48,7 @@ assert.match(oidc, /sessionStorage/, '门户 OIDC 会话必须限制在当前浏
 assert.match(app, /OidcLoginGate/, '生产门户必须在 OIDC 未登录时阻断业务页面')
 assert.match(read('src/components/ui/RuntimeStatusBanner.tsx'), /首期真实范围/, '门户必须持续显示首期真实产品范围（由运行状态横幅承载）')
 assert.match(scopeNotice, /首期真实范围/, '门户范围提示必须明确首期真实能力')
-assert.match(scopeNotice, /规划\/待接入模块/, '门户范围提示必须明确未接入模块')
+assert.match(scopeNotice, /受控智能问数（Beta，仅已验证问题/, '门户范围提示必须声明问数边界（Beta · 仅已验证问题）')
 assert.doesNotMatch(quality, /from ['"]\.\.\/data\/mock['"]/, '质量闭环不得继续依赖本地演示问题数据')
 assert.match(quality, /控制面暂不可用 · 未加载治理问题/, '质量闭环必须有真实控制面不可用状态')
 assert.match(quality, /updateGovernanceIssueWorkflow/, '处理说明必须回写控制面')

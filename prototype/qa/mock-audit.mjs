@@ -55,6 +55,13 @@ assert.match(src('src/pages/DeliveryCenterPage.tsx'), /downloadEvidenceZip/, '�
 assert.match(src('src/data/routes.ts'), /deliveryCenter/, '路由表必须注册交付中心路径')
 assert.match(src('src/components/layout/AppShell.tsx'), /label: '交付中心', icon: PackageCheck, route: 'deliveryCenter'/, '一级导航「交付中心」必须挂真实路由（不再是规划中占位）')
 
+// G26 接真锁：智能问数真实构建切 Live、拒答显式呈现、不回退演示场景
+assert.match(src('src/pages/AssistantPage.tsx'), /frontendDemoMode[\s\S]*AssistantLive/, '问数页真实构建必须渲染 AssistantLive')
+assert.match(src('src/pages/AssistantLive.tsx'), /fetchAssistantQuestions/, '问数真实页必须读取已验证问题清单')
+assert.match(src('src/pages/AssistantLive.tsx'), /askAssistantQuery|submitAssistantFeedback/, '问数真实页必须提供提问与反馈动作')
+assert.match(src('src/pages/AssistantLive.tsx'), /REFUSED_|answered/, '问数真实页必须显式呈现拒答信封')
+assert.doesNotMatch(src('src/pages/AssistantLive.tsx'), /assistantScenarios/, '问数真实页不得回退演示场景数据')
+
 const ingestion = src('src/pages/DataIngestionPage.tsx')
 assert.match(ingestion, /真实模式不允许使用 FakeSource 演示模板/, '真实模式不得保存 FakeSource 演示采集模板')
 assert.match(ingestion, /defaultTemplateKey\(DEFAULT_TEMPLATE_KEY, LIVE_TEMPLATE_KEY\)/, '采集任务默认模板必须随运行模式切换')

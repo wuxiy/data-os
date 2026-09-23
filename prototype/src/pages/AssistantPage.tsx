@@ -4,11 +4,22 @@ import type { FormEvent } from 'react'
 import { DemoDataBoundary } from '../components/ui/DemoDataBoundary'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Button, StatusTag } from '../components/ui/Primitives'
+import { frontendDemoMode } from '../data/runtimeMode'
 import { assistantScenarios } from '../data/integrations'
 import { routePaths } from '../data/routes'
+import { AssistantLive } from './AssistantLive'
 import styles from './IntegrationPages.module.css'
 
 export function AssistantPage({ onNotice, onNavigate, professional = false }: { onNotice: (message: string) => void; onNavigate: (route: 'ingestion' | 'governance' | 'quality') => void; professional?: boolean }) {
+  // 真实构建走 G26 受控问数链路（已验证问题 + 受控执行 + 审计/反馈）；
+  // 演示构建保留静态场景样例并显式标记。
+  if (!frontendDemoMode) {
+    return <AssistantLive onNotice={onNotice} professional={professional} />
+  }
+  return <DemoAssistantPage onNotice={onNotice} onNavigate={onNavigate} professional={professional} />
+}
+
+function DemoAssistantPage({ onNotice, onNavigate, professional = false }: { onNotice: (message: string) => void; onNavigate: (route: 'ingestion' | 'governance' | 'quality') => void; professional?: boolean }) {
   const initialScenario = assistantScenarios.find((scenario) => scenario.id === new URLSearchParams(window.location.search).get('scenario')) ?? assistantScenarios[0]
   const [selectedId, setSelectedId] = useState(initialScenario.id)
   const [draft, setDraft] = useState('')

@@ -6,7 +6,7 @@ import { frontendDemoMode, isDemoRuntime } from '../../data/runtimeMode'
 import { StatusTag } from './Primitives'
 import styles from './RuntimeStatusBanner.module.css'
 
-const SCOPE_SUMMARY = '首期真实范围：数据接入、采集运行、治理问题、质量复检、通知、MPI、资产、分析、数据服务、AI Ready 评估、数据标准中心与管理驾驶舱/运营中心；标准映射与交付中心已接入；智能问数为规划/待接入。'
+const SCOPE_SUMMARY = '首期真实范围：数据接入、采集运行、治理问题、质量复检、通知、MPI、资产、分析、数据服务、AI Ready 评估、数据标准中心与管理驾驶舱/运营中心；标准映射、交付中心与受控智能问数已接入（已验证问题口径）。'
 
 export function RuntimeStatusBanner() {
   const [status, setStatus] = useState<RuntimeStatusApiResponse | null>(null)

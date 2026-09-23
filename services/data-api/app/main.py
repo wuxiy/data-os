@@ -7,12 +7,14 @@ from pathlib import Path
 
 from fastapi import FastAPI
 
-from api import bind, bind_breaker, bind_exports, router
+from api import bind, bind_breaker, bind_exports, bind_resource_auth, router
 from artifacts import ExportArtifactStore
 from auditbuffer import AuditBuffer
 from breaker import DorisBreaker
 from controlplane import ControlPlaneClient
 from exports import ExportManager
+from ratelimit import SlidingWindowLimiter
+from resource_auth import ResourceAuth, ResourceAuthNotConfigured
 from settings import Settings
 
 logger = logging.getLogger(__name__)
@@ -26,6 +28,17 @@ _breaker = DorisBreaker(failure_threshold=settings.breaker_failure_threshold,
                         open_seconds=settings.breaker_open_seconds)
 bind(_control_plane, settings)
 bind_breaker(_breaker)
+# G26 资源侧服务身份：三键齐备才装配（未配置时 internal verified-queries 面
+# fail-closed 503，与控制面 /internal 独立强制语义对齐）
+try:
+    _resource_auth = ResourceAuth(settings.resource_issuer, settings.resource_audience,
+                                  settings.resource_jwks_uri)
+    bind_resource_auth(_resource_auth,
+                       SlidingWindowLimiter(settings.verified_query_rate_per_minute))
+    logger.info("资源侧服务身份已启用（audience=%s）", settings.resource_audience)
+except ResourceAuthNotConfigured:
+    bind_resource_auth(None)
+    logger.warning("资源侧服务身份未配置：/internal/v1/verified-queries 将拒绝服务（503）")
 _artifacts = ExportArtifactStore(settings)
 _export_manager = ExportManager(_control_plane, settings, _artifacts, breaker=_breaker)
 bind_exports(_export_manager)

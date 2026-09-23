@@ -2004,3 +2004,35 @@
   min-height: 640px;
   width: 100%;
 }
+
+/* 受控智能问数（G26）：参数条——已验证问题的参数契约内联在对话区顶部。 */
+.assistantParamBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-end;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  background: rgba(248, 250, 252, 0.9);
+}
+
+.assistantParamField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 140px;
+  font-size: 12px;
+}
+
+.assistantParamField span {
+  color: rgba(51, 65, 85, 0.85);
+}
+
+.assistantParamField input,
+.assistantParamField select {
+  padding: 5px 8px;
+  border: 1px solid rgba(15, 23, 42, 0.16);
+  border-radius: 6px;
+  font-size: 13px;
+  background: #fff;
+}

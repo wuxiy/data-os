@@ -46,6 +46,12 @@ class Settings:
     s3_access_key: str = field(default_factory=lambda: os.environ.get("DATA_API_S3_ACCESS_KEY", ""))
     s3_secret_key: str = field(default_factory=lambda: os.environ.get("DATA_API_S3_SECRET_KEY", ""))
     export_dir: str = field(default_factory=lambda: os.environ.get("DATA_API_EXPORT_DIR", "/tmp/dataos-data-api-exports"))
+    # ---- G26 受控智能问数：资源侧服务身份（internal 面独立强制，三键齐备才启用）----
+    resource_issuer: str = field(default_factory=lambda: os.environ.get("DATA_API_RESOURCE_ISSUER", ""))
+    resource_audience: str = field(default_factory=lambda: os.environ.get("DATA_API_RESOURCE_AUDIENCE", ""))
+    resource_jwks_uri: str = field(default_factory=lambda: os.environ.get("DATA_API_RESOURCE_JWKS_URI", ""))
+    verified_query_rate_per_minute: int = field(
+        default_factory=lambda: int(os.environ.get("DATA_API_VERIFIED_QUERY_RATE_PER_MINUTE", "30")))
 
     def validate(self) -> None:
         if not self.doris_password:
