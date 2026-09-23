@@ -211,7 +211,12 @@ class AssistantGovernanceTest {
         var code = uniqueCode();
         service.createQuestion(TENANT, draft(code));
         assertThat(service.deleteQuestion(TENANT, code).get("deleted")).isEqualTo(true);
-        assertThatThrownBy(() -> service.questionEvents(TENANT, code, 50))
+        // 删除后事件按 code 仍可追溯（CREATED + DELETED）
+        var events = (List<?>) service.questionEvents(TENANT, code, 50).get("events");
+        assertThat(events.stream().map(item -> String.valueOf(((Map<?, ?>) item).get("action"))).toList())
+                .containsExactly("DELETED", "CREATED");
+        // 既无问题也无事件（未知 code）才 404
+        assertThatThrownBy(() -> service.questionEvents(TENANT, "no-such-question-code", 50))
                 .isInstanceOf(com.cywu.dataos.controlplane.api.ResourceNotFoundException.class);
 
         // 种子 PUBLISHED 不可删（须停用留痕）

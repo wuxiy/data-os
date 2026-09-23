@@ -49,6 +49,10 @@ const EMPTY_FORM = {
   paramRows: [] as ParamRow[],
 }
 
+function truncate(text: string, max: number): string {
+  return text.length <= max ? text : text.slice(0, max) + '…'
+}
+
 function paramRowsOf(question: AssistantAdminQuestionView): ParamRow[] {
   return (question.paramSchema ?? []).map((contract) => ({
     name: contract.name,
@@ -569,36 +573,28 @@ export function AssistantGovernance({ onNotice, onQuestionsChanged }: {
           {auditState === 'unavailable' ? (
             <p className={styles.composerNote}>审计读取失败（接口不可用或无权限）。</p>
           ) : null}
-          <div className={styles.horizontalScroll}>
-            <table className={styles.resultTable}>
-              <thead>
-                <tr><th>时间 / 用户</th><th>问题</th><th>结局</th><th>行数 / 耗时</th><th>反馈</th></tr>
-              </thead>
-              <tbody>
-                {auditState === 'loading' ? <tr><td colSpan={5}>正在加载审计…</td></tr> : null}
-                {auditState === 'idle' && audits.length === 0 ? <tr><td colSpan={5}>当前过滤口径下暂无审计记录。</td></tr> : null}
-                {audits.map((audit) => (
-                  <tr key={audit.id}>
-                    <td>
-                      <strong>{new Date(audit.createdAt).toLocaleString('zh-CN')}</strong>
-                      <span className={styles.composerNote}>{audit.userId || '—'}{audit.detail.startsWith('test-run') ? ' · 试运行' : ''}</span>
-                    </td>
-                    <td>
-                      <strong>{audit.questionText || '（未匹配）'}</strong>
-                      <span className={styles.composerNote}>{audit.questionCode || '—'}{audit.serviceCode ? ` · ${audit.serviceCode}` : ''}</span>
-                    </td>
-                    <td>{audit.outcome === 'ANSWERED'
-                      ? <StatusTag tone="healthy">已回答</StatusTag>
-                      : <StatusTag tone="warning">{audit.outcome.replace('REFUSED_', '拒答·')}</StatusTag>}</td>
-                    <td>{audit.outcome === 'ANSWERED' ? `${audit.rowCount} 行 · ${audit.elapsedMs} ms` : '—'}</td>
-                    <td>{audit.feedbackRating
-                      ? <span>{audit.feedbackRating === 'helpful' ? '有帮助' : '待改进'}{audit.feedbackNote ? ` · ${audit.feedbackNote}` : ''}</span>
-                      : <span className={styles.composerNote}>—</span>}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          {auditState === 'loading' ? <p className={styles.composerNote}>正在加载审计…</p> : null}
+          {auditState === 'idle' && audits.length === 0 ? <p className={styles.composerNote}>当前过滤口径下暂无审计记录。</p> : null}
+          <ul className={styles.sourceList}>
+            {audits.map((audit) => (
+              <li key={audit.id}>
+                <strong className={styles.assistantAuditHead}>
+                  {new Date(audit.createdAt).toLocaleString('zh-CN')}
+                  {audit.outcome === 'ANSWERED'
+                    ? <StatusTag tone="healthy">已回答</StatusTag>
+                    : <StatusTag tone="warning">{audit.outcome.replace('REFUSED_', '拒答·')}</StatusTag>}
+                </strong>
+                <span>{truncate(audit.questionText, 44) || '（未匹配）'}{audit.questionCode ? ` · ${audit.questionCode}` : ''}{audit.detail.startsWith('test-run') ? ' · 试运行' : ''}</span>
+                <span className={styles.composerNote}>
+                  {audit.outcome === 'ANSWERED' ? `${audit.rowCount} 行 · ${audit.elapsedMs} ms` : '未执行'}
+                  {audit.feedbackRating
+                    ? ` · 反馈：${audit.feedbackRating === 'helpful' ? '有帮助' : '待改进'}${audit.feedbackNote ? `（${truncate(audit.feedbackNote, 30)}）` : ''}`
+                    : ''}
+                  {` · ${audit.userId || '—'}`}
+                </span>
+              </li>
+            ))}
+          </ul>
           <Pager label="问数审计分页" page={auditPage}
             pageCount={Math.max(1, Math.ceil(auditTotal / AUDIT_PAGE_SIZE))}
             pageSize={AUDIT_PAGE_SIZE}

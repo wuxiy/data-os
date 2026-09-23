@@ -318,13 +318,16 @@ public class AssistantAdminService {
                 params == null ? Map.of() : params, published, true);
     }
 
-    /** 问题生命周期事件（治理动作留痕，倒序；total 供分页与诚实截断提示）。 */
+    /** 问题生命周期事件（治理动作留痕，倒序；删除后按 code 仍可查——留痕可追溯）。 */
     public Map<String, Object> questionEvents(String tenantId, String code, int limit) {
         var scope = tenantScope.resolve(tenantId, null);
-        requireQuestion(scope.tenantId(), code);
         var events = repository.findQuestionEvents(scope.tenantId(), code, limit);
+        var total = repository.countQuestionEvents(scope.tenantId(), code);
+        if (events.isEmpty() && repository.findQuestionByCode(scope.tenantId(), code).isEmpty()) {
+            throw new ResourceNotFoundException("已验证问题不存在: " + code);
+        }
         return Map.of("code", code,
-                "total", repository.countQuestionEvents(scope.tenantId(), code),
+                "total", total,
                 "returned", events.size(),
                 "events", events.stream()
                         .map(event -> Map.of(

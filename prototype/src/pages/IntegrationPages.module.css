@@ -2052,3 +2052,11 @@
   color: var(--tone-healthy, #1b7f4d);
   font-weight: 600;
 }
+
+/* 提特异性压过 .sourceList strong 的 display:block（同文件 (0,1,1) > (0,1,0)） */
+.sourceList .assistantAuditHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
