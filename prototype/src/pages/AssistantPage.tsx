@@ -10,11 +10,12 @@ import { routePaths } from '../data/routes'
 import { AssistantLive } from './AssistantLive'
 import styles from './IntegrationPages.module.css'
 
-export function AssistantPage({ onNotice, onNavigate, professional = false }: { onNotice: (message: string) => void; onNavigate: (route: 'ingestion' | 'governance' | 'quality') => void; professional?: boolean }) {
+export function AssistantPage({ onNotice, onNavigate, professional = false, governance = false }: { onNotice: (message: string) => void; onNavigate: (route: 'ingestion' | 'governance' | 'quality') => void; professional?: boolean; governance?: boolean }) {
   // 真实构建走 G26 受控问数链路（已验证问题 + 受控执行 + 审计/反馈）；
+  // 专业工作区在治理角色内呈现问题治理区块（G27）；
   // 演示构建保留静态场景样例并显式标记。
   if (!frontendDemoMode) {
-    return <AssistantLive onNotice={onNotice} professional={professional} />
+    return <AssistantLive onNotice={onNotice} professional={professional} governance={governance} />
   }
   return <DemoAssistantPage onNotice={onNotice} onNavigate={onNavigate} professional={professional} />
 }

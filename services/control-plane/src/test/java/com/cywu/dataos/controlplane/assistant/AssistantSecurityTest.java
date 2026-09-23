@@ -73,12 +73,13 @@ class AssistantSecurityTest {
         var id = java.util.UUID.randomUUID().toString();
         var now = Instant.now();
         // 每次唯一 code（H2 上下文跨用例共享，租户内 code 唯一约束）
+        var code = "assistant-sec-" + java.util.UUID.randomUUID().toString().substring(0, 8);
         repository.insertQuestion(new AssistantQuestion(
-                id, "tenant-a", "assistant-sec-" + java.util.UUID.randomUUID().toString().substring(0, 8),
+                id, "tenant-a", code,
                 "安全测试问题",
                 List.of("安全别名"), "[{\"name\":\"start_date\",\"type\":\"date\",\"required\":true}]",
                 "assistant-sec-service", "回答 {start_date}", "PUBLISHED", "tester", now, now));
-        return id;
+        return code;
     }
 
     @Test
@@ -137,5 +138,61 @@ class AssistantSecurityTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.answered").value(false))
                 .andExpect(jsonPath("$.outcome").value("REFUSED_UNAVAILABLE"));
+    }
+
+    @Test
+    void governanceSurfaceEnforcesRoleMatrix() throws Exception {
+        stub("governance-token", "gov-a", "tenant-a", List.of("data-governance"));
+        stub("engineer-token", "engineer-a", "tenant-a", List.of("data-engineer"));
+        stub("admin-token", "admin-a", "tenant-a", List.of("tenant-admin"));
+
+        // 治理列表：viewer 403；工程/治理/管理员可见
+        mockMvc.perform(get("/api/v1/assistant/admin/questions")
+                        .header("Authorization", "Bearer viewer-token"))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/v1/assistant/admin/questions")
+                        .header("Authorization", "Bearer governance-token"))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/v1/assistant/admin/questions")
+                        .header("Authorization", "Bearer engineer-token"))
+                .andExpect(status().isOk());
+
+        var code = "gov-sec-" + java.util.UUID.randomUUID().toString().substring(0, 8);
+        var body = "{\"code\":\"" + code + "\",\"question\":\"治理安全问题\",\"aliases\":[],"
+                + "\"paramSchema\":[],\"serviceCode\":\"assistant-sec-service\",\"answerTemplate\":\"\"}";
+
+        // 建/试运行：工程师可以，治理角色 403（治理动作之外只读）
+        mockMvc.perform(post("/api/v1/assistant/admin/questions")
+                        .header("Authorization", "Bearer governance-token")
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/api/v1/assistant/admin/questions")
+                        .header("Authorization", "Bearer engineer-token")
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("DRAFT"));
+
+        // 发布：工程师 403（治理动作），管理员过关（业务 409 属正常语义——未试运行）
+        mockMvc.perform(post("/api/v1/assistant/admin/questions/" + code + "/publish")
+                        .header("Authorization", "Bearer engineer-token"))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/api/v1/assistant/admin/questions/" + code + "/publish")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void crossTenantGovernanceIsInvisible() throws Exception {
+        var tenantACode = seededQuestionInTenantA();
+        // tenant-b 工程师看 tenant-a 的问题：列表 0（不可见）
+        mockMvc.perform(get("/api/v1/assistant/admin/questions")
+                        .header("Authorization", "Bearer engineer-b-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(0));
+        // tenant-b 工程师按 tenant-a 的 code 操作（试探）→ 404 不泄漏存在性
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .delete("/api/v1/assistant/admin/questions/" + tenantACode)
+                        .header("Authorization", "Bearer engineer-b-token"))
+                .andExpect(status().isNotFound());
     }
 }

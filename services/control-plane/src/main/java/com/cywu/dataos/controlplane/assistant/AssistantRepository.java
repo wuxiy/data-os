@@ -33,6 +33,49 @@ public class AssistantRepository {
                 """, this::mapQuestion, tenantId);
     }
 
+    /** 治理面全量列表（含 DRAFT/DEPRECATED）。 */
+    public List<AssistantQuestion> findAllQuestions(String tenantId) {
+        return jdbc.query("""
+                SELECT * FROM data_os.assistant_verified_question
+                WHERE tenant_id = ? ORDER BY code
+                """, this::mapQuestion, tenantId);
+    }
+
+    public Optional<AssistantQuestion> findQuestionByCode(String tenantId, String code) {
+        return jdbc.query("""
+                SELECT * FROM data_os.assistant_verified_question
+                WHERE tenant_id = ? AND code = ?
+                """, this::mapQuestion, tenantId, code).stream().findFirst();
+    }
+
+    /** DRAFT 编辑（全字段覆盖，updated_at 前移使既有试运行失效）。 */
+    public int updateQuestion(AssistantQuestion question) {
+        return jdbc.update("""
+                UPDATE data_os.assistant_verified_question
+                SET question = ?, aliases_json = ?, param_schema_json = ?, service_code = ?,
+                    answer_template = ?, updated_at = ?
+                WHERE tenant_id = ? AND id = ? AND status = 'DRAFT'
+                """, question.question(), writeAliases(question.aliases()),
+                question.paramSchemaJson(), question.serviceCode(), question.answerTemplate(),
+                Timestamp.from(question.updatedAt()), question.tenantId(), question.id());
+    }
+
+    /** 状态条件推进（CAS：fromStatus 不符即 0 行，防并发双推进）。 */
+    public int casStatus(String tenantId, String id, String fromStatus, String toStatus) {
+        return jdbc.update("""
+                UPDATE data_os.assistant_verified_question
+                SET status = ?, updated_at = ? WHERE tenant_id = ? AND id = ? AND status = ?
+                """, toStatus, Timestamp.from(Instant.now()), tenantId, id, fromStatus);
+    }
+
+    /** 删除（仅 DRAFT；事件留痕使删除可追溯）。 */
+    public int deleteQuestion(String tenantId, String id) {
+        return jdbc.update("""
+                DELETE FROM data_os.assistant_verified_question
+                WHERE tenant_id = ? AND id = ? AND status = 'DRAFT'
+                """, tenantId, id);
+    }
+
     /** 插入问题（Beta 期种子路径：迁移播种 + 测试播种；管理端点不在 G26 范围）。 */
     public void insertQuestion(AssistantQuestion question) {
         jdbc.update("""
@@ -46,6 +89,45 @@ public class AssistantRepository {
                 question.createdBy(), Timestamp.from(question.createdAt()),
                 Timestamp.from(question.updatedAt()));
     }
+
+    // ---- 生命周期事件（G27）----
+
+    public void insertQuestionEvent(AssistantQuestionEvent event) {
+        jdbc.update("""
+                INSERT INTO data_os.assistant_question_event
+                    (id, tenant_id, question_id, question_code, action, actor, detail_json, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """, event.id(), event.tenantId(), event.questionId(), event.questionCode(),
+                event.action(), event.actor(), event.detailJson(),
+                Timestamp.from(event.createdAt()));
+    }
+
+    public List<AssistantQuestionEvent> findQuestionEvents(String tenantId, String code, int limit) {
+        return jdbc.query("""
+                SELECT * FROM data_os.assistant_question_event
+                WHERE tenant_id = ? AND question_code = ? ORDER BY created_at DESC LIMIT ?
+                """, this::mapQuestionEvent, tenantId, code, limit);
+    }
+
+    private AssistantQuestionEvent mapQuestionEvent(java.sql.ResultSet rs, int row)
+            throws java.sql.SQLException {
+        return new AssistantQuestionEvent(
+                rs.getString("id"), rs.getString("tenant_id"), rs.getString("question_id"),
+                rs.getString("question_code"), rs.getString("action"), rs.getString("actor"),
+                rs.getString("detail_json"), rs.getTimestamp("created_at").toInstant());
+    }
+
+    /** 最近一次成功试运行（发布门证据：须晚于问题最后编辑）。 */
+    public Optional<Instant> findLatestPassedTestRun(String tenantId, String code) {
+        return jdbc.query("""
+                SELECT created_at FROM data_os.assistant_query_audit
+                WHERE tenant_id = ? AND question_code = ?
+                  AND outcome = 'ANSWERED' AND detail LIKE 'test-run%'
+                ORDER BY created_at DESC LIMIT 1
+                """, (rs, row) -> rs.getTimestamp("created_at").toInstant(),
+                tenantId, code).stream().findFirst();
+    }
+
 
     private String writeAliases(List<String> aliases) {
         try {

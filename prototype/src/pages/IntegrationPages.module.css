@@ -2036,3 +2036,19 @@
   font-size: 13px;
   background: #fff;
 }
+
+/* 问数治理面（G27）：行内动作组与验证徽标 */
+.assistantGovActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.assistantVerified {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--tone-healthy, #1b7f4d);
+  font-weight: 600;
+}

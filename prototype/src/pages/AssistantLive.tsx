@@ -12,12 +12,14 @@ import {
   type AssistantQuestionView,
 } from '../data/assistantApi'
 import { useApiResource } from '../hooks/useApiResource'
+import { AssistantGovernance } from './AssistantGovernance'
 import styles from './IntegrationPages.module.css'
 
 /**
  * 智能问数真实页（G26）：只回答已验证问题（确定性匹配），执行经 Data API
  * 受控路径；拒答显式呈现（无匹配/参数越界/无权限/下游不可用），真实构建
  * 不回退演示答案。反馈回写具体审计行。与演示页共用样式骨架。
+ * 专业工作区在治理角色内附加问题治理区块（G27，{@link AssistantGovernance}）。
  */
 
 const DATE_LIKE = /^\d{4}-\d{2}-\d{2}/
@@ -41,7 +43,7 @@ function paramLabel(question: AssistantQuestionView | null): string {
   return question.serviceCode
 }
 
-export function AssistantLive({ onNotice, professional = false }: { onNotice: (message: string) => void; professional?: boolean }) {
+export function AssistantLive({ onNotice, professional = false, governance = false }: { onNotice: (message: string) => void; professional?: boolean; governance?: boolean }) {
   const [reloadKey, setReloadKey] = useState(0)
   const [questions, setQuestions] = useState<AssistantQuestionView[]>([])
   const questionsState = useApiResource({
@@ -305,6 +307,9 @@ export function AssistantLive({ onNotice, professional = false }: { onNotice: (m
           </div>
         </aside>
       </div>
+      {professional && governance ? (
+        <AssistantGovernance onNotice={onNotice} onQuestionsChanged={() => setReloadKey((key) => key + 1)} />
+      ) : null}
     </div>
   )
 }

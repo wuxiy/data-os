@@ -61,6 +61,12 @@ assert.match(src('src/pages/AssistantLive.tsx'), /fetchAssistantQuestions/, '问
 assert.match(src('src/pages/AssistantLive.tsx'), /askAssistantQuery|submitAssistantFeedback/, '问数真实页必须提供提问与反馈动作')
 assert.match(src('src/pages/AssistantLive.tsx'), /REFUSED_|answered/, '问数真实页必须显式呈现拒答信封')
 assert.doesNotMatch(src('src/pages/AssistantLive.tsx'), /assistantScenarios/, '问数真实页不得回退演示场景数据')
+// G27 治理面：专业工作区在治理角色内呈现问题治理区块；治理动作走真实接口
+assert.match(src('src/pages/AssistantLive.tsx'), /AssistantGovernance/, '专业工作区必须接入问数治理区块（G27）')
+assert.match(src('src/pages/AssistantGovernance.tsx'), /fetchAssistantAdminQuestions/, '治理面必须读取治理清单接口')
+assert.match(src('src/pages/AssistantGovernance.tsx'), /testAssistantQuestion|assistantQuestionAction/, '治理面必须提供试运行与生命周期动作')
+assert.match(src('src/pages/AssistantGovernance.tsx'), /verified/, '治理面必须呈现发布门验证状态')
+assert.doesNotMatch(src('src/pages/AssistantGovernance.tsx'), /assistantScenarios/, '治理面不得使用演示场景数据')
 
 const ingestion = src('src/pages/DataIngestionPage.tsx')
 assert.match(ingestion, /真实模式不允许使用 FakeSource 演示模板/, '真实模式不得保存 FakeSource 演示采集模板')

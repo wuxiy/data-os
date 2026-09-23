@@ -81,3 +81,82 @@ export async function submitAssistantFeedback(auditId: string, rating: 'helpful'
   })
   return parseJsonOrThrow(response, '反馈提交失败') as Promise<{ recorded: boolean }>
 }
+
+// ---- 治理面（G27）：问题生命周期管理 ----
+
+/** 治理列表项（全状态；verified=最近成功试运行晚于最后编辑，即可发布）。 */
+export interface AssistantAdminQuestionView {
+  code: string
+  question: string
+  aliases: string[]
+  paramSchema: AssistantParamContract[]
+  serviceCode: string
+  answerTemplate: string
+  status: 'DRAFT' | 'PUBLISHED' | 'DEPRECATED' | string
+  createdBy: string
+  createdAt: string
+  updatedAt: string
+  lastPassedTestRun: string | null
+  verified: boolean
+}
+
+export interface AssistantQuestionEventView {
+  action: string
+  actor: string
+  detail: string
+  createdAt: string
+}
+
+/** 问题草稿（新建/编辑共用；code 唯一且不可改）。 */
+export interface AssistantQuestionDraft {
+  code: string
+  question: string
+  aliases: string[]
+  paramSchema: AssistantParamContract[]
+  serviceCode: string
+  answerTemplate: string
+}
+
+export const QUESTION_STATUS_LABEL: Record<string, string> = {
+  DRAFT: '草稿',
+  PUBLISHED: '已发布',
+  DEPRECATED: '已停用',
+}
+
+export async function fetchAssistantAdminQuestions(signal: AbortSignal | undefined): Promise<AssistantAdminQuestionView[]> {
+  const payload = await fetchJson<{ questions: AssistantAdminQuestionView[] }>('/v1/assistant/admin/questions', signal, '问数治理清单读取失败')
+  return payload.questions ?? []
+}
+
+export async function saveAssistantQuestion(draft: AssistantQuestionDraft, code?: string): Promise<{ code: string; status: string }> {
+  const response = await portalFetch(code ? `/v1/assistant/admin/questions/${encodeURIComponent(code)}` : '/v1/assistant/admin/questions', {
+    method: code ? 'PUT' : 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(draft),
+  })
+  return parseJsonOrThrow(response, '问题保存失败') as Promise<{ code: string; status: string }>
+}
+
+export async function testAssistantQuestion(code: string, parameters: Record<string, string | number | boolean>): Promise<AssistantAnswer> {
+  const response = await portalFetch(`/v1/assistant/admin/questions/${encodeURIComponent(code)}/test`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ parameters }),
+  })
+  return parseJsonOrThrow(response, '试运行失败') as Promise<AssistantAnswer>
+}
+
+export async function assistantQuestionAction(code: string, action: 'publish' | 'deprecate' | 'reopen'): Promise<{ code: string; status: string }> {
+  const response = await portalFetch(`/v1/assistant/admin/questions/${encodeURIComponent(code)}/${action}`, { method: 'POST' })
+  return parseJsonOrThrow(response, '问题状态变更失败') as Promise<{ code: string; status: string }>
+}
+
+export async function deleteAssistantQuestion(code: string): Promise<{ deleted: boolean }> {
+  const response = await portalFetch(`/v1/assistant/admin/questions/${encodeURIComponent(code)}`, { method: 'DELETE' })
+  return parseJsonOrThrow(response, '问题删除失败') as Promise<{ deleted: boolean }>
+}
+
+export async function fetchAssistantQuestionEvents(code: string, signal: AbortSignal | undefined): Promise<AssistantQuestionEventView[]> {
+  const payload = await fetchJson<{ events: AssistantQuestionEventView[] }>(`/v1/assistant/admin/questions/${encodeURIComponent(code)}/events`, signal, '问题事件读取失败')
+  return payload.events ?? []
+}

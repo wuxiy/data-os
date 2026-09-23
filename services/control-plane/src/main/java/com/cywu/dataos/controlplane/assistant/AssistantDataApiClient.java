@@ -19,6 +19,20 @@ import com.cywu.dataos.controlplane.quality.OidcClientCredentialsTokenProvider;
 @Component
 public class AssistantDataApiClient {
 
+    /** 404 体为 {"detail":{"code":...,"message":...}}（FastAPI HTTPException）；取 message 失败时回退。 */
+    private static String errorDetail(String body, String fallback) {
+        if (body == null || body.isBlank()) {
+            return fallback;
+        }
+        try {
+            var root = new com.fasterxml.jackson.databind.ObjectMapper().readTree(body);
+            var message = root.path("detail").path("message").asText("");
+            return message.isBlank() ? fallback : message;
+        } catch (Exception exception) {
+            return fallback;
+        }
+    }
+
     /** 执行结果（rows 为受限行集，超出 maxRows 截断）。 */
     public record QueryResult(String serviceCode, String serviceVersion, java.util.List<String> columns,
                               java.util.List<java.util.List<Object>> rows, int rowCount,
@@ -79,7 +93,9 @@ public class AssistantDataApiClient {
                     .retrieve()
                     .body(Map.class);
         } catch (org.springframework.web.client.HttpClientErrorException.NotFound exception) {
-            throw new QueryRejected("SERVICE_OFFLINE", "服务不存在或未发布: " + serviceCode);
+            // data-api 404 体区分「已下线（DEPRECATED）」与「不存在或未发布」（G27 粒度修正）
+            throw new QueryRejected("SERVICE_OFFLINE",
+                    "服务不可用: " + errorDetail(exception.getResponseBodyAsString(), serviceCode));
         } catch (org.springframework.web.client.HttpClientErrorException.BadRequest exception) {
             throw new QueryRejected("PARAM_REJECTED", "执行面参数校验未通过: "
                     + exception.getResponseBodyAsString());

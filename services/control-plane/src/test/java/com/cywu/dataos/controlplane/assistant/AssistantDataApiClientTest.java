@@ -96,7 +96,8 @@ class AssistantDataApiClientTest {
         var base = "http://127.0.0.1:" + server.getAddress().getPort();
         server.createContext("/internal/v1/verified-queries/missing/query", exchange -> {
             capture(exchange);
-            respond(exchange, 404, "{\"detail\":{\"code\":\"SERVICE_NOT_PUBLISHED\"}}");
+            respond(exchange, 404, "{\"detail\":{\"code\":\"SERVICE_NOT_PUBLISHED\","
+                    + "\"message\":\"服务已下线（DEPRECATED）: missing\"}}");
         });
         var client = new AssistantDataApiClient(RestClient.builder(),
                 base, base + "/token", "client", "secret", "");
@@ -104,6 +105,8 @@ class AssistantDataApiClientTest {
                 () -> client.query("missing", Map.of()));
         assertThat(thrown).isInstanceOf(AssistantDataApiClient.QueryRejected.class);
         assertThat(((AssistantDataApiClient.QueryRejected) thrown).kind).isEqualTo("SERVICE_OFFLINE");
+        // G27 粒度修正：404 体 message 透出（区分已下线与不存在），不再笼统覆盖
+        assertThat(thrown.getMessage()).contains("服务已下线（DEPRECATED）");
 
         var unconfigured = new AssistantDataApiClient(RestClient.builder(), "", "", "", "", "");
         assertThat(unconfigured.configured()).isFalse();

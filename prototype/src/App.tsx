@@ -4,7 +4,7 @@ import { ResponsibilityDrawer } from './components/governance/ResponsibilityChai
 import { AppShell } from './components/layout/AppShell'
 import { CommandPalette, type PaletteCommand } from './components/ui/CommandPalette'
 import { Toast } from './components/ui/Primitives'
-import { clearOidcSession, hasTechnicalAccess, initializeOidc, logoutOidc, oidcIsConfigured, type AuthSnapshot } from './data/oidc'
+import { canGovernAssistant, clearOidcSession, hasTechnicalAccess, initializeOidc, logoutOidc, oidcIsConfigured, type AuthSnapshot } from './data/oidc'
 import { routePaths } from './data/routes'
 import { DataStandardsPage } from './pages/DataStandardsPage'
 import { DataIngestionPage } from './pages/DataIngestionPage'
@@ -159,7 +159,7 @@ export function App() {
       page = <AssistantPage onNotice={setNotice} onNavigate={navigate} />
       break
     case 'assistantWorkspace':
-      page = <AssistantPage onNotice={setNotice} onNavigate={navigate} professional />
+      page = <AssistantPage onNotice={setNotice} onNavigate={navigate} professional governance={canGovernAssistant(auth)} />
       break
     case 'operationsCenter':
       page = <OperationsCenterPage onNotice={setNotice} onNavigate={navigate} />

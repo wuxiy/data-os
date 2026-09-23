@@ -33,6 +33,8 @@ const stateKey = 'dataos.oidc.state'
 const verifierKey = 'dataos.oidc.pkce-verifier'
 let metadataPromise: Promise<OidcMetadata> | undefined
 const technicalRoles = new Set(['data-engineer', 'platform-operator', 'platform-admin'])
+// 问数治理面（G27）：与控制面 GET /assistant/admin/questions 角色集一致
+const assistantGovernanceRoles = new Set(['platform-admin', 'tenant-admin', 'data-engineer', 'data-governance'])
 
 export function oidcIsConfigured(): boolean {
   return Boolean(issuer && clientId)
@@ -63,6 +65,15 @@ export function hasTechnicalAccess(snapshot: Pick<AuthSnapshot, 'status' | 'role
   }
   return snapshot.status === 'authenticated'
     && (snapshot.roles ?? []).some(role => technicalRoles.has(role.toLowerCase()))
+}
+
+/** 问数治理可见性（列表角色集；写操作仍由控制面逐端点强制）。 */
+export function canGovernAssistant(snapshot: Pick<AuthSnapshot, 'status' | 'roles'>): boolean {
+  if (!oidcIsConfigured()) {
+    return String(import.meta.env.VITE_DATAOS_ASSISTANT_GOVERNANCE ?? 'true').toLowerCase() !== 'false'
+  }
+  return snapshot.status === 'authenticated'
+    && (snapshot.roles ?? []).some(role => assistantGovernanceRoles.has(role.toLowerCase()))
 }
 
 export async function initializeOidc(): Promise<AuthSnapshot> {

@@ -7,10 +7,12 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 import org.springframework.stereotype.Service;
 
+import com.cywu.dataos.controlplane.api.ConflictException;
 import com.cywu.dataos.controlplane.api.InvalidRequestException;
 import com.cywu.dataos.controlplane.api.ResourceNotFoundException;
 import com.cywu.dataos.controlplane.executor.AdapterUnavailableException;
@@ -73,16 +75,23 @@ public class AssistantAdminService {
             return refused(scope, questionText, "REFUSED_NO_MATCH",
                     "没有可回答的已验证问题；请从支持的问题清单中选择表达。", questions);
         }
+        return execute(scope, questionText, matched, params, questions, false);
+    }
+
+    /** 匹配后的执行编排（提问与试运行共享）：校验→执行→渲染→审计。 */
+    private Map<String, Object> execute(TenantScope.Scope scope, String questionText,
+                                        AssistantQuestion matched, Map<String, Object> params,
+                                        List<AssistantQuestion> questions, boolean testRun) {
         var validation = validateParams(matched, params);
         if (!validation.errors().isEmpty()) {
             return refused(scope, questionText, "REFUSED_PARAM_INVALID",
                     "参数不满足问题 Schema: " + String.join("; ", validation.errors()), questions,
-                    matched, validation.normalized());
+                    matched, validation.normalized(), testRun);
         }
         if (!dataApi.configured()) {
             return refused(scope, questionText, "REFUSED_UNAVAILABLE",
                     "问数执行面未配置或服务身份不可用（data-os.assistant.*）", questions,
-                    matched, validation.normalized());
+                    matched, validation.normalized(), testRun);
         }
 
         AssistantDataApiClient.QueryResult result;
@@ -96,14 +105,15 @@ public class AssistantAdminService {
                 default -> "REFUSED_UNAVAILABLE";
             };
             return refused(scope, questionText, outcome, rejected.getMessage(), questions,
-                    matched, validation.normalized());
+                    matched, validation.normalized(), testRun);
         } catch (AdapterUnavailableException exception) {
             return refused(scope, questionText, "REFUSED_UNAVAILABLE", exception.getMessage(),
-                    questions, matched, validation.normalized());
+                    questions, matched, validation.normalized(), testRun);
         }
 
         var auditId = writeAudit(scope, questionText, matched, validation.normalized(),
-                "ANSWERED", "", result.rowCount(), result.elapsedMs(), result.serviceVersion());
+                "ANSWERED", testRun ? "test-run" : "", result.rowCount(), result.elapsedMs(),
+                result.serviceVersion());
         var answer = new LinkedHashMap<String, Object>();
         answer.put("answered", true);
         answer.put("auditId", auditId);
@@ -115,6 +125,9 @@ public class AssistantAdminService {
         answer.put("rowCount", result.rowCount());
         answer.put("truncated", result.truncated());
         answer.put("evidence", evidence(matched, result, validation.normalized()));
+        if (testRun) {
+            answer.put("testRun", true);
+        }
         return answer;
     }
 
@@ -122,20 +135,25 @@ public class AssistantAdminService {
     private Map<String, Object> refused(TenantScope.Scope scope, String questionText,
                                         String outcome, String reason,
                                         List<AssistantQuestion> questions) {
-        return refused(scope, questionText, outcome, reason, questions, null, Map.of());
+        return refused(scope, questionText, outcome, reason, questions, null, Map.of(), false);
     }
 
     private Map<String, Object> refused(TenantScope.Scope scope, String questionText,
                                         String outcome, String reason,
                                         List<AssistantQuestion> questions,
-                                        AssistantQuestion matched, Map<String, Object> params) {
-        var auditId = writeAudit(scope, questionText, matched, params, outcome, reason, 0, 0, "");
+                                        AssistantQuestion matched, Map<String, Object> params,
+                                        boolean testRun) {
+        var auditId = writeAudit(scope, questionText, matched, params, outcome,
+                (testRun ? "test-run: " : "") + reason, 0, 0, "");
         var answer = new LinkedHashMap<String, Object>();
         answer.put("answered", false);
         answer.put("auditId", auditId);
         answer.put("outcome", outcome);
         answer.put("reason", reason);
         answer.put("supportedQuestions", questions.stream().map(AssistantQuestion::question).toList());
+        if (testRun) {
+            answer.put("testRun", true);
+        }
         return answer;
     }
 
@@ -166,6 +184,270 @@ public class AssistantAdminService {
         repository.updateFeedback(resolvedTenant, auditId, rating, note == null ? "" : note.trim());
         return Map.of("auditId", auditId, "rating", rating, "recorded", true);
     }
+
+    // ---- 治理面（G27：问题生命周期管理）----
+
+    public static final Pattern CODE_PATTERN = Pattern.compile("^[a-z0-9][a-z0-9-]{2,63}$");
+    private static final Pattern PARAM_NAME_PATTERN = Pattern.compile("^[a-z_][a-z0-9_]{0,63}$");
+    private static final Set<String> PARAM_TYPES = Set.of("string", "date", "number", "boolean");
+
+    /** 治理列表（全状态，含发布门证据：最近成功试运行是否晚于最后编辑）。 */
+    public Map<String, Object> adminQuestions(String tenantId) {
+        var scope = tenantScope.resolve(tenantId, null);
+        var questions = repository.findAllQuestions(scope.tenantId());
+        return Map.of("total", questions.size(), "questions", questions.stream()
+                .map(this::adminQuestionView).toList());
+    }
+
+    private Map<String, Object> adminQuestionView(AssistantQuestion question) {
+        var view = new LinkedHashMap<String, Object>();
+        view.put("code", question.code());
+        view.put("question", question.question());
+        view.put("aliases", question.aliases());
+        view.put("paramSchema", parseSchema(question.paramSchemaJson()));
+        view.put("serviceCode", question.serviceCode());
+        view.put("answerTemplate", question.answerTemplate());
+        view.put("status", question.status());
+        view.put("createdBy", question.createdBy());
+        view.put("createdAt", question.createdAt().toString());
+        view.put("updatedAt", question.updatedAt().toString());
+        var lastPassed = repository.findLatestPassedTestRun(question.tenantId(), question.code());
+        view.put("lastPassedTestRun", lastPassed.map(Instant::toString).orElse(null));
+        view.put("verified", lastPassed.isPresent()
+                && lastPassed.get().isAfter(question.updatedAt()));
+        return view;
+    }
+
+    public Map<String, Object> createQuestion(String tenantId, QuestionDraft draft) {
+        var scope = tenantScope.resolve(tenantId, null);
+        validateDraft(draft);
+        if (repository.findQuestionByCode(scope.tenantId(), draft.code()).isPresent()) {
+            throw new ConflictException("问题代码已存在: " + draft.code());
+        }
+        var now = Instant.now();
+        var question = new AssistantQuestion(AssistantRepository.newId(), scope.tenantId(),
+                draft.code(), draft.question().strip(), dedupeAliases(draft.aliases()),
+                writeSchema(draft.paramSchema()), draft.serviceCode().strip(),
+                draft.answerTemplate() == null ? "" : draft.answerTemplate().strip(),
+                "DRAFT", scope.subject(), now, now);
+        repository.insertQuestion(question);
+        recordEvent(scope, question, "CREATED", "{}");
+        return Map.of("code", question.code(), "status", question.status());
+    }
+
+    public Map<String, Object> updateQuestion(String tenantId, String code, QuestionDraft draft) {
+        var scope = tenantScope.resolve(tenantId, null);
+        var question = requireQuestion(scope.tenantId(), code);
+        requireStatus(question, "DRAFT", "仅草稿可编辑（已发布/已停用问题不可改）");
+        validateDraft(draft, code);
+        var updated = new AssistantQuestion(question.id(), question.tenantId(), question.code(),
+                draft.question().strip(), dedupeAliases(draft.aliases()),
+                writeSchema(draft.paramSchema()), draft.serviceCode().strip(),
+                draft.answerTemplate() == null ? "" : draft.answerTemplate().strip(),
+                question.status(), question.createdBy(), question.createdAt(), Instant.now());
+        if (repository.updateQuestion(updated) == 0) {
+            throw new ConflictException("仅草稿可编辑（并发状态已变化）");
+        }
+        recordEvent(scope, updated, "UPDATED", "{}");
+        return Map.of("code", code, "status", updated.status());
+    }
+
+    /** 发布门：最近一次成功试运行必须晚于最后编辑（配置验证过才可上线）。 */
+    public Map<String, Object> publishQuestion(String tenantId, String code) {
+        var scope = tenantScope.resolve(tenantId, null);
+        var question = requireQuestion(scope.tenantId(), code);
+        requireStatus(question, "DRAFT", "仅草稿可发布");
+        var lastPassed = repository.findLatestPassedTestRun(scope.tenantId(), code);
+        if (lastPassed.isEmpty()) {
+            throw new ConflictException("发布需先试运行成功（该问题尚无成功试运行记录）");
+        }
+        if (!lastPassed.get().isAfter(question.updatedAt())) {
+            throw new ConflictException("发布需最近一次成功试运行晚于最后一次编辑（当前配置未验证，请重新试运行）");
+        }
+        if (repository.casStatus(scope.tenantId(), question.id(), "DRAFT", "PUBLISHED") == 0) {
+            throw new ConflictException("仅草稿可发布（并发状态已变化）");
+        }
+        recordEvent(scope, question, "PUBLISHED",
+                "{\"testedAt\":\"" + lastPassed.get() + "\"}");
+        return Map.of("code", code, "status", "PUBLISHED");
+    }
+
+    public Map<String, Object> deprecateQuestion(String tenantId, String code) {
+        var scope = tenantScope.resolve(tenantId, null);
+        var question = requireQuestion(scope.tenantId(), code);
+        requireStatus(question, "PUBLISHED", "仅已发布问题可停用");
+        if (repository.casStatus(scope.tenantId(), question.id(), "PUBLISHED", "DEPRECATED") == 0) {
+            throw new ConflictException("仅已发布问题可停用（并发状态已变化）");
+        }
+        recordEvent(scope, question, "DEPRECATED", "{}");
+        return Map.of("code", code, "status", "DEPRECATED");
+    }
+
+    /** 重新起草：DEPRECATED→DRAFT（服务恢复后重新验证上线；走正常 编辑→试运行→发布 门）。 */
+    public Map<String, Object> reopenQuestion(String tenantId, String code) {
+        var scope = tenantScope.resolve(tenantId, null);
+        var question = requireQuestion(scope.tenantId(), code);
+        requireStatus(question, "DEPRECATED", "仅已停用问题可重新起草");
+        if (repository.casStatus(scope.tenantId(), question.id(), "DEPRECATED", "DRAFT") == 0) {
+            throw new ConflictException("仅已停用问题可重新起草（并发状态已变化）");
+        }
+        recordEvent(scope, question, "UPDATED", "{\"reopened\":true}");
+        return Map.of("code", code, "status", "DRAFT");
+    }
+
+    public Map<String, Object> deleteQuestion(String tenantId, String code) {
+        var scope = tenantScope.resolve(tenantId, null);
+        var question = requireQuestion(scope.tenantId(), code);
+        requireStatus(question, "DRAFT", "仅草稿可删除（已发布问题请停用留痕）");
+        if (repository.deleteQuestion(scope.tenantId(), question.id()) == 0) {
+            throw new ConflictException("仅草稿可删除（并发状态已变化）");
+        }
+        recordEvent(scope, question, "DELETED", "{}");
+        return Map.of("code", code, "deleted", true);
+    }
+
+    /** 试运行：DRAFT/PUBLISHED 均可（发布前验证配置；审计 detail 以 test-run 前缀区分）。 */
+    public Map<String, Object> testQuestion(String tenantId, String code, Map<String, Object> params) {
+        var scope = tenantScope.resolve(tenantId, null);
+        var question = requireQuestion(scope.tenantId(), code);
+        if ("DEPRECATED".equals(question.status())) {
+            throw new ConflictException("已停用问题不可试运行（请先重新起草）");
+        }
+        var published = repository.findPublished(scope.tenantId());
+        return execute(scope, question.code(), question,
+                params == null ? Map.of() : params, published, true);
+    }
+
+    /** 问题生命周期事件（治理动作留痕，倒序）。 */
+    public Map<String, Object> questionEvents(String tenantId, String code) {
+        var scope = tenantScope.resolve(tenantId, null);
+        requireQuestion(scope.tenantId(), code);
+        var events = repository.findQuestionEvents(scope.tenantId(), code, 50);
+        return Map.of("code", code, "total", events.size(), "events", events.stream()
+                .map(event -> Map.of(
+                        "action", event.action(),
+                        "actor", event.actor(),
+                        "detail", event.detailJson(),
+                        "createdAt", event.createdAt().toString()))
+                .toList());
+    }
+
+    private AssistantQuestion requireQuestion(String tenantId, String code) {
+        return repository.findQuestionByCode(tenantId, code)
+                .orElseThrow(() -> new ResourceNotFoundException("已验证问题不存在: " + code));
+    }
+
+    private void requireStatus(AssistantQuestion question, String expected, String message) {
+        if (!expected.equals(question.status())) {
+            throw new ConflictException(message + "，当前状态: " + question.status());
+        }
+    }
+
+    private void recordEvent(TenantScope.Scope scope, AssistantQuestion question,
+                             String action, String detailJson) {
+        repository.insertQuestionEvent(new AssistantQuestionEvent(
+                AssistantRepository.newId(), scope.tenantId(), question.id(), question.code(),
+                action, scope.subject(), detailJson, Instant.now()));
+    }
+
+    private void validateDraft(QuestionDraft draft) {
+        validateDraft(draft, draft.code());
+    }
+
+    private void validateDraft(QuestionDraft draft, String existingCode) {
+        if (draft.code() == null || !CODE_PATTERN.matcher(draft.code()).matches()) {
+            throw new InvalidRequestException(
+                    "code 须为 3-64 位小写字母/数字/连字符，且以字母或数字开头: " + draft.code());
+        }
+        if (!draft.code().equals(existingCode)) {
+            throw new InvalidRequestException("问题代码不可修改（当前: " + existingCode + "）");
+        }
+        if (draft.question() == null || draft.question().isBlank()
+                || draft.question().length() > 256) {
+            throw new InvalidRequestException("question 必填且不超过 256 字符");
+        }
+        if (draft.serviceCode() == null || !CODE_PATTERN.matcher(draft.serviceCode()).matches()) {
+            throw new InvalidRequestException("serviceCode 须为 3-64 位小写字母/数字/连字符: "
+                    + draft.serviceCode());
+        }
+        if (draft.answerTemplate() != null && draft.answerTemplate().length() > 512) {
+            throw new InvalidRequestException("answerTemplate 不超过 512 字符");
+        }
+        validateSchemaShape(draft.paramSchema());
+    }
+
+    /** 参数 Schema 形状校验（与执行面类型集一致：string/date/number/boolean）。 */
+    private void validateSchemaShape(java.util.List<Map<String, Object>> schema) {
+        if (schema == null) {
+            return;
+        }
+        if (schema.size() > 16) {
+            throw new InvalidRequestException("paramSchema 参数不超过 16 个");
+        }
+        var names = new java.util.HashSet<String>();
+        for (var item : schema) {
+            var name = String.valueOf(item.getOrDefault("name", "")).strip();
+            if (!PARAM_NAME_PATTERN.matcher(name).matches()) {
+                throw new InvalidRequestException("paramSchema.name 须为 1-64 位小写字母/数字/下划线: "
+                        + name);
+            }
+            if (!names.add(name)) {
+                throw new InvalidRequestException("paramSchema.name 重复: " + name);
+            }
+            var type = String.valueOf(item.getOrDefault("type", "string")).strip();
+            if (!PARAM_TYPES.contains(type)) {
+                throw new InvalidRequestException("paramSchema.type 仅允许 "
+                        + String.join("/", PARAM_TYPES) + ": " + type);
+            }
+            if (item.containsKey("required")
+                    && !(item.get("required") instanceof Boolean)) {
+                throw new InvalidRequestException("paramSchema.required 须为布尔: " + name);
+            }
+            if (item.get("values") instanceof java.util.List<?> values) {
+                if (values.isEmpty()) {
+                    throw new InvalidRequestException("paramSchema.values 须非空: " + name);
+                }
+            } else if (item.containsKey("values")) {
+                throw new InvalidRequestException("paramSchema.values 须为字符串数组: " + name);
+            }
+        }
+    }
+
+    private List<String> dedupeAliases(List<String> aliases) {
+        if (aliases == null || aliases.isEmpty()) {
+            return List.of();
+        }
+        var seen = new java.util.LinkedHashSet<String>();
+        for (String alias : aliases) {
+            var text = alias == null ? "" : alias.strip();
+            if (!text.isEmpty()) {
+                seen.add(text);
+            }
+        }
+        return List.copyOf(seen);
+    }
+
+    private String writeSchema(java.util.List<Map<String, Object>> schema) {
+        if (schema == null || schema.isEmpty()) {
+            return "[]";
+        }
+        try {
+            return objectMapper.writeValueAsString(schema);
+        } catch (Exception exception) {
+            throw new InvalidRequestException("paramSchema 序列化失败");
+        }
+    }
+
+    /** 治理面问题草稿（新建/编辑共用；code 唯一且不可改）。 */
+    public record QuestionDraft(
+            String code,
+            String question,
+            List<String> aliases,
+            java.util.List<Map<String, Object>> paramSchema,
+            String serviceCode,
+            String answerTemplate) {
+    }
+
 
     // ---- 匹配与校验 ----
 
