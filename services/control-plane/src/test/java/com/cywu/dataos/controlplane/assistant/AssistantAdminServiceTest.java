@@ -58,7 +58,8 @@ class AssistantAdminServiceTest {
     @Test
     void publishedQuestionsAreListedFromSeed() {
         var payload = service.questions(TENANT);
-        assertThat(payload.get("total")).isEqualTo(3);
+        // 治理面测试会在同租户发布临时问题：种子用存在性断言而非精确计数（顺序无关）
+        assertThat((Integer) payload.get("total")).isGreaterThanOrEqualTo(3);
         var questions = (List<?>) payload.get("questions");
         var codes = questions.stream().map(item -> String.valueOf(((Map<?, ?>) item).get("code"))).toList();
         assertThat(codes).contains("prescription-daily-summary", "prescription-department-daily",
@@ -88,7 +89,8 @@ class AssistantAdminServiceTest {
                 Map.of("start_date", "2026-09-01", "end_date", "2026-09-02"));
         assertThat(answer.get("answered")).isEqualTo(false);
         assertThat(answer.get("outcome")).isEqualTo("REFUSED_NO_MATCH");
-        assertThat((List<?>) answer.get("supportedQuestions")).hasSize(3);
+        assertThat(((List<?>) answer.get("supportedQuestions")).stream().map(String::valueOf).toList())
+                .contains(SUMMARY_QUESTION, "查询各科室每天的处方量", "查询每天的用药记录量");
         // 拒答同样落审计行
         var audits = repository.findAudits(TENANT, 10);
         assertThat(audits.stream().anyMatch(audit -> "REFUSED_NO_MATCH".equals(audit.outcome())
