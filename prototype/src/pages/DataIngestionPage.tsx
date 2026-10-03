@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   CircleAlert,
   Clock3,
+  Database,
   FileCog,
   Archive,
   Pause,
@@ -48,6 +49,7 @@ import {
 } from '../data/controlPlane'
 import { PortalHttpError } from '../data/http'
 import { ACTIVE_RUN_STATUSES, formatDateTime, retryableRunStatus, runStatusView } from '../data/domain'
+import { SourceExplorer } from './SourceExplorer'
 import { useAction } from '../hooks/useAction'
 import { useKeyedResource } from '../hooks/useKeyedResource'
 import { usePolling } from '../hooks/usePolling'
@@ -154,6 +156,7 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
   const [checkingSource, setCheckingSource] = useState<SourceApiItem | null>(null)
   const [sourceCheckText, setSourceCheckText] = useState('')
   const [sourceCheckError, setSourceCheckError] = useState<string | null>(null)
+  const [exploringSource, setExploringSource] = useState<SourceApiItem | null>(null)
   // 主载入有意手写（不用 useApiResource）：列表先落位进入 live、各作业最新
   // 运行随后补齐的两段渐进 UX 需要在 onData 之后继续持有同一中止信号。
   useEffect(() => {
@@ -305,9 +308,24 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
     setJobFormOpen(false)
     setConfiguringJob(null)
     setDetailsJob(null)
+    setExploringSource(null)
     setCheckingSource(source)
     setSourceCheckError(null)
     setSourceCheckText(JSON.stringify(sourceCheckDefaults(source.protocol), null, 2))
+  }
+
+  function openSourceExplorer(source: SourceApiItem) {
+    setSourceFormOpen(false)
+    setJobFormOpen(false)
+    setConfiguringJob(null)
+    setDetailsJob(null)
+    setCheckingSource(null)
+    setExploringSource(source)
+  }
+
+  function applySourceUpdate(updated: SourceApiItem) {
+    setSources((current) => current.map((item) => item.id === updated.id ? updated : item))
+    setExploringSource((current) => current?.id === updated.id ? updated : current)
   }
 
   function selectJobTemplate(templateKey: string) {
@@ -411,6 +429,7 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
     setSourceFormOpen(false)
     setJobFormOpen(false)
     setCheckingSource(null)
+    setExploringSource(null)
     setDetailsJob(null)
     setConfiguringJob(job)
     setConfigLoading(true)
@@ -461,6 +480,7 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
     setSourceFormOpen(false)
     setJobFormOpen(false)
     setCheckingSource(null)
+    setExploringSource(null)
     setConfiguringJob(null)
     setDetailsError(null)
     setDetailsRuns([])
@@ -492,7 +512,7 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
           <section className={styles.panel}>
             <div className={styles.panelHeader}><div><h2>已登记数据源</h2><p>前置机、院内系统与区域交换入口</p></div><button className={styles.textButton} onClick={() => window.location.reload()}><RefreshCw size={13} />刷新</button></div>
             <ul className={styles.ranking}>
-              {pagedSources.map((source) => { const health = sourceStatusLabel(source.status); return <li key={source.id}><span className={styles.rank}><Server size={16} /></span><div className={styles.rankBody}><strong>{source.name}</strong><span>{source.systemType} · {source.protocol} · {source.institutionId}</span>{source.lastCheckMessage ? <small className={styles.statusDetail}>{source.lastCheckMessage} · {formatDateTime(source.lastCheckedAt)}</small> : null}</div><div className={styles.sourceRowActions}><StatusTag tone={health.tone}>{health.label}</StatusTag>{state === 'live' ? <button className={styles.tableButton} onClick={() => openSourceCheck(source)}><CheckCircle2 size={13} />检查</button> : null}</div></li> })}
+              {pagedSources.map((source) => { const health = sourceStatusLabel(source.status); return <li key={source.id}><span className={styles.rank}><Server size={16} /></span><div className={styles.rankBody}><strong>{source.name}</strong><span>{source.systemType} · {source.protocol} · {source.institutionId}</span>{source.lastCheckMessage ? <small className={styles.statusDetail}>{source.lastCheckMessage} · {formatDateTime(source.lastCheckedAt)}</small> : null}</div><div className={styles.sourceRowActions}><StatusTag tone={health.tone}>{health.label}</StatusTag>{state === 'live' ? <button className={styles.tableButton} onClick={() => openSourceCheck(source)}><CheckCircle2 size={13} />检查</button> : null}{state === 'live' && source.protocol.toUpperCase() === 'JDBC' ? <button className={styles.tableButton} onClick={() => openSourceExplorer(source)}><Database size={13} />浏览</button> : null}</div></li> })}
               {visibleSources.length === 0 ? <li className={styles.emptyState}>暂无已登记数据源</li> : null}
             </ul>
             <Pager inset label="数据源分页" page={sourcesCurrentPage} pageCount={sourcesPageCount} pageSize={SOURCES_PAGE_SIZE} onPageChange={setSourcesPage} />
@@ -584,6 +604,16 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
             <div className={styles.formField}><label htmlFor="source-check-editor">检查配置 JSON</label><textarea id="source-check-editor" className={`${styles.codeInput} ${styles.codeInputLarge}`} value={sourceCheckText} onChange={(event) => setSourceCheckText(event.target.value)} spellCheck={false} disabled={sourceCheckLoading} /></div>
             {sourceCheckError ? <p className={styles.formError} role="alert">{sourceCheckError}</p> : null}
             {checkingSource.lastCheckMessage ? <div className={styles.checkResult}><StatusTag tone={sourceStatusLabel(checkingSource.status).tone}>{sourceStatusLabel(checkingSource.status).label}</StatusTag><p>{checkingSource.lastCheckMessage}</p><small>最近检查：{formatDateTime(checkingSource.lastCheckedAt)}</small></div> : null}
+      </Drawer> : null}
+
+            {exploringSource ? <Drawer
+        titleId="source-explorer-title"
+        eyebrow={`数据源浏览 · ${exploringSource.protocol}`}
+        title={exploringSource.name}
+        closeLabel="关闭数据源浏览"
+        onClose={() => setExploringSource(null)}
+      >
+            <SourceExplorer source={exploringSource} onNotice={onNotice} onSourceUpdated={applySourceUpdate} />
       </Drawer> : null}
 
             {configuringJob ? <Drawer

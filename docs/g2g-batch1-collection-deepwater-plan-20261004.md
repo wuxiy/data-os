@@ -1,6 +1,8 @@
 # G2G 批次 1 · 采集操作深水区（规划与交接，2026-10-04）
 
 > 背景：nema（一代平台，已转维护态）→ data-os（2.0 主线）的能力复制计划，共七批。依据与裁决见 nema 仓库 `docs/design/nema-vs-dataos-coverage-matrix.md` §G2G。本文档为批次 1 的开工勘察成果与第一刀实施设计，供新会话直接续作。
+>
+> **进度（2026-10-04）**：第一刀已交付并过 gate——连接登记补全（V22 `connection_json`，规划空白：原 `sources` 表不持久化连接信息）+ 目录浏览三端点 + 受控查询 + 门户 SourceExplorer。契约与浏览器核验证据见 [docs/validation/gate-g2g-b1-explorer-20261004.md](validation/gate-g2g-b1-explorer-20261004.md)；三项边界（Oracle 方言包层/真实驱动超时/驱动报文泄敏面）已记备忘账。**下一刀：dataCollection 深水区（见文末）。**
 
 ## 批次目标
 

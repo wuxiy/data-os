@@ -158,6 +158,7 @@ export interface SourceApiItem {
   createdAt: string
   lastCheckedAt: string | null
   lastCheckMessage: string | null
+  connection: Record<string, unknown> | null
 }
 
 export interface IngestionJobApiItem {
@@ -359,7 +360,7 @@ export async function createSource(input: {
 }
 
 export async function checkSource(sourceId: string, config: JobConfig, signal?: AbortSignal): Promise<SourceApiItem> {
-  const response = await portalFetch(`/v1/sources/${sourceId}/check`, {
+  const response = await portalFetch(`/v1/sources/${encodeURIComponent(sourceId)}/check`, {
     method: 'POST',
     headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
     body: JSON.stringify({ config }),
@@ -367,6 +368,65 @@ export async function checkSource(sourceId: string, config: JobConfig, signal?: 
   })
   if (!response.ok) await throwHttpError(response, '数据源检查失败')
   return response.json() as Promise<SourceApiItem>
+}
+
+// —— 数据源浏览与受控查询（G2G 批次 1）——
+
+export interface SourceTableApiItem {
+  name: string
+  type: string
+  remark: string
+}
+
+export interface SourceColumnApiItem {
+  name: string
+  typeName: string
+  nullable: boolean
+  remark: string
+}
+
+export interface SourceQueryResultApiItem {
+  columns: string[]
+  rows: (string | null)[][]
+  truncated: boolean
+}
+
+/** 登记非敏感连接配置（jdbcUrl / username / credentialRef）；明文凭据由服务端拒绝。 */
+export async function saveSourceConnection(sourceId: string, config: JobConfig, signal?: AbortSignal): Promise<SourceApiItem> {
+  const response = await portalFetch(`/v1/sources/${encodeURIComponent(sourceId)}/connection`, {
+    method: 'PUT',
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ config }),
+    signal,
+  })
+  if (!response.ok) await throwHttpError(response, '连接登记失败')
+  return response.json() as Promise<SourceApiItem>
+}
+
+export async function fetchSourceCatalogs(sourceId: string, signal?: AbortSignal): Promise<{ catalogs: string[]; truncated: boolean }> {
+  return getJson(`/v1/sources/${encodeURIComponent(sourceId)}/catalogs`, signal)
+}
+
+export async function fetchSourceTables(sourceId: string, catalog: string, signal?: AbortSignal): Promise<{ tables: SourceTableApiItem[]; truncated: boolean }> {
+  const query = `?catalog=${encodeURIComponent(catalog)}`
+  return getJson(`/v1/sources/${encodeURIComponent(sourceId)}/tables${query}`, signal)
+}
+
+export async function fetchSourceColumns(sourceId: string, catalog: string, table: string, signal?: AbortSignal): Promise<{ columns: SourceColumnApiItem[] }> {
+  const query = `?catalog=${encodeURIComponent(catalog)}&table=${encodeURIComponent(table)}`
+  return getJson(`/v1/sources/${encodeURIComponent(sourceId)}/columns${query}`, signal)
+}
+
+/** 受控查询：仅单条 SELECT/WITH；行数上限与超时由服务端强制。 */
+export async function runSourceQuery(sourceId: string, input: { sql: string; catalog?: string; maxRows?: number }, signal?: AbortSignal): Promise<SourceQueryResultApiItem> {
+  const response = await portalFetch(`/v1/sources/${encodeURIComponent(sourceId)}/query`, {
+    method: 'POST',
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+    signal,
+  })
+  if (!response.ok) await throwHttpError(response, '查询执行失败')
+  return response.json() as Promise<SourceQueryResultApiItem>
 }
 
 export async function createIngestionJob(input: CreateIngestionJobInput, signal?: AbortSignal): Promise<IngestionJobApiItem> {
