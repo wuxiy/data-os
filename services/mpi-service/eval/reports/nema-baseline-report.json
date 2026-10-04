@@ -1,0 +1,193 @@
+{
+  "date" : "2026-10-05",
+  "batch" : "G2G-6 nema 实战基线对拍",
+  "nemaParams" : "linkTh=0.9 suspectTh=0.5（empi-algo AlgoConstants 默认值）",
+  "rules" : "SAME_XM_ZJHM / SAME_XM_LXFS / SAME_ZJHM_LXFS(退化:无出生日期) / DIFF_ZJHM_XM",
+  "t5Params" : "T5b 重锚定版权重（MpiWeights.packaged），tVeto=-1.09",
+  "totalPairs" : 10084,
+  "coveredPairs" : 2622,
+  "agreedPairs" : 1086,
+  "agreementRate" : 0.41418764302059496,
+  "matrix" : {
+    "LINK→AUTO_MATCH" : 973,
+    "LINK→REVIEW" : 1536,
+    "LINK→NO_MATCH" : 0,
+    "SUSPECT→AUTO_MATCH" : 0,
+    "SUSPECT→REVIEW" : 0,
+    "SUSPECT→NO_MATCH" : 0,
+    "DIFFERENT→AUTO_MATCH" : 0,
+    "DIFFERENT→REVIEW" : 0,
+    "DIFFERENT→NO_MATCH" : 113
+  },
+  "ruleBreakdown" : {
+    "SAME_XM_LXFS→P-ep2" : 953,
+    "SAME_XM_ZJHM→M-ep2" : 620,
+    "SAME_XM_LXFS→P-fallback" : 480,
+    "SAME_XM_LXFS→M-ep1" : 353,
+    "SAME_XM_ZJHM→P-ep1" : 103,
+    "DIFF_ZJHM_XM→P-fallback/V2-VETO" : 94,
+    "DIFF_ZJHM_XM→P-fallback" : 19
+  },
+  "disagreements" : [ {
+    "index" : 0,
+    "source" : "calibration",
+    "pairId" : "p000001",
+    "truth" : true,
+    "nemaBand" : "LINK",
+    "t5Outcome" : "REVIEW",
+    "fields" : "card=511529****3143|SYN000****0001 name=产品测试|产品测试 gender=U|M contact=set|set"
+  }, {
+    "index" : 3,
+    "source" : "calibration",
+    "pairId" : "p000004",
+    "truth" : true,
+    "nemaBand" : "LINK",
+    "t5Outcome" : "REVIEW",
+    "fields" : "card=null|null name=吴曦|吴曦 gender=M|M contact=set|set"
+  }, {
+    "index" : 4,
+    "source" : "calibration",
+    "pairId" : "p000005",
+    "truth" : true,
+    "nemaBand" : "LINK",
+    "t5Outcome" : "REVIEW",
+    "fields" : "card=990000****1721|990000****1721 name=龙洋|龙洋 gender=U|M contact=set|set"
+  }, {
+    "index" : 5,
+    "source" : "calibration",
+    "pairId" : "p000006",
+    "truth" : true,
+    "nemaBand" : "LINK",
+    "t5Outcome" : "REVIEW",
+    "fields" : "card=null|null name=测试重选药店006|测试重选药店006 gender=U|U contact=set|set"
+  }, {
+    "index" : 8,
+    "source" : "calibration",
+    "pairId" : "p000009",
+    "truth" : true,
+    "nemaBand" : "LINK",
+    "t5Outcome" : "REVIEW",
+    "fields" : "card=510722****8670|510722****8670 name=李杰|李杰 gender=U|M contact=set|set"
+  }, {
+    "index" : 9,
+    "source" : "calibration",
+    "pairId" : "p000010",
+    "truth" : true,
+    "nemaBand" : "LINK",
+    "t5Outcome" : "REVIEW",
+    "fields" : "card=null|null name=李杰|李杰 gender=M|M contact=set|set"
+  }, {
+    "index" : 15,
+    "source" : "calibration",
+    "pairId" : "p000016",
+    "truth" : true,
+    "nemaBand" : "LINK",
+    "t5Outcome" : "REVIEW",
+    "fields" : "card=null|null name=夏耩|夏耩 gender=F|F contact=set|set"
+  }, {
+    "index" : 16,
+    "source" : "calibration",
+    "pairId" : "p000017",
+    "truth" : true,
+    "nemaBand" : "LINK",
+    "t5Outcome" : "REVIEW",
+    "fields" : "card=511323****2113|SYN000****0017 name=邹杭师|邹杭师 gender=M|M contact=set|set"
+  }, {
+    "index" : 19,
+    "source" : "calibration",
+    "pairId" : "p000020",
+    "truth" : true,
+    "nemaBand" : "LINK",
+    "t5Outcome" : "REVIEW",
+    "fields" : "card=null|null name=王志坚|王志坚 gender=M|M contact=set|set"
+  }, {
+    "index" : 25,
+    "source" : "calibration",
+    "pairId" : "p000026",
+    "truth" : true,
+    "nemaBand" : "LINK",
+    "t5Outcome" : "REVIEW",
+    "fields" : "card=null|SYN000****0026 name=左磊|左磊 gender=M|M contact=set|set"
+  }, {
+    "index" : 30,
+    "source" : "calibration",
+    "pairId" : "p000031",
+    "truth" : true,
+    "nemaBand" : "LINK",
+    "t5Outcome" : "REVIEW",
+    "fields" : "card=152629****6817|SYN000****0031 name=于杨|于杨 gender=M|M contact=set|set"
+  }, {
+    "index" : 34,
+    "source" : "calibration",
+    "pairId" : "p000035",
+    "truth" : true,
+    "nemaBand" : "LINK",
+    "t5Outcome" : "REVIEW",
+    "fields" : "card=342623****2727|SYN000****0035 name=燕梅|燕梅 gender=M|M contact=set|set"
+  }, {
+    "index" : 38,
+    "source" : "calibration",
+    "pairId" : "p000039",
+    "truth" : true,
+    "nemaBand" : "LINK",
+    "t5Outcome" : "REVIEW",
+    "fields" : "card=130930****0616|SYN000****0039 name=冯浩|冯浩 gender=M|M contact=set|set"
+  }, {
+    "index" : 39,
+    "source" : "calibration",
+    "pairId" : "p000040",
+    "truth" : true,
+    "nemaBand" : "LINK",
+    "t5Outcome" : "REVIEW",
+    "fields" : "card=null|SYN000****0040 name=冯浩|冯浩 gender=M|M contact=set|set"
+  }, {
+    "index" : 40,
+    "source" : "calibration",
+    "pairId" : "p000041",
+    "truth" : true,
+    "nemaBand" : "LINK",
+    "t5Outcome" : "REVIEW",
+    "fields" : "card=620403****0036|SYN000****0041 name=徐风|徐风 gender=M|U contact=set|set"
+  }, {
+    "index" : 45,
+    "source" : "calibration",
+    "pairId" : "p000046",
+    "truth" : true,
+    "nemaBand" : "LINK",
+    "t5Outcome" : "REVIEW",
+    "fields" : "card=null|SYN000****0046 name=产品测试|产品测试 gender=F|F contact=set|set"
+  }, {
+    "index" : 47,
+    "source" : "calibration",
+    "pairId" : "p000048",
+    "truth" : true,
+    "nemaBand" : "LINK",
+    "t5Outcome" : "REVIEW",
+    "fields" : "card=null|null name=邓先生|邓先生 gender=F|F contact=set|set"
+  }, {
+    "index" : 49,
+    "source" : "calibration",
+    "pairId" : "p000050",
+    "truth" : true,
+    "nemaBand" : "LINK",
+    "t5Outcome" : "REVIEW",
+    "fields" : "card=null|SYN000****0050 name=小辛|小辛 gender=F|F contact=set|set"
+  }, {
+    "index" : 54,
+    "source" : "calibration",
+    "pairId" : "p000055",
+    "truth" : true,
+    "nemaBand" : "LINK",
+    "t5Outcome" : "REVIEW",
+    "fields" : "card=141002****0027|141002****0027 name=柏安茹|柏安茹 gender=F|U contact=set|set"
+  }, {
+    "index" : 56,
+    "source" : "calibration",
+    "pairId" : "p000057",
+    "truth" : true,
+    "nemaBand" : "LINK",
+    "t5Outcome" : "REVIEW",
+    "fields" : "card=210811****2133|SYN000****0057 name=陈测一252|陈测一252 gender=F|U contact=set|set"
+  } ],
+  "tuningCandidates" : [ ]
+}
