@@ -1,7 +1,6 @@
 package com.cywu.dataos.controlplane.executor;
 
 import java.net.URI;
-import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -17,8 +16,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.web.client.HttpClientErrorException;
@@ -42,10 +39,9 @@ public class DolphinSchedulerExecutorAdapter implements ExecutorAdapter {
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private static final int MAX_MESSAGE_LENGTH = 240;
 
-    private final RestClient restClient;
+    private final DolphinHttp http;
     private final ObjectMapper objectMapper;
     private final String baseUrl;
-    private final SchedulerTokenProvider tokenProvider;
     private final ZoneId schedulerZone;
     private final String configuredTenantCode;
     private final boolean production;
@@ -79,10 +75,9 @@ public class DolphinSchedulerExecutorAdapter implements ExecutorAdapter {
             String password,
             String timeZone,
             RuntimeContext runtimeContext) {
-        this.restClient = AdapterHttp.restClient(builder, Duration.ofSeconds(3), Duration.ofSeconds(10));
+        this.http = new DolphinHttp(builder, objectMapper, token, tokenFile);
         this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper");
         this.baseUrl = AdapterHttp.normalizeBaseUrl(baseUrl);
-        this.tokenProvider = new SchedulerTokenProvider(objectMapper, token, tokenFile);
         try {
             this.schedulerZone = ZoneId.of(normalize(timeZone).isBlank()
                     ? "Asia/Shanghai" : normalize(timeZone));
@@ -134,8 +129,7 @@ public class DolphinSchedulerExecutorAdapter implements ExecutorAdapter {
     @SuppressWarnings("unchecked")
     public Map<String, String> healthFacts() {
         if (!configured()) return Map.of();
-        Map<String, Object> response = restClient.get().uri(baseUrl + "/actuator/health")
-                .retrieve().body(Map.class);
+        Map<String, Object> response = http.get(URI.create(baseUrl + "/actuator/health"));
         var status = response == null ? null : response.get("status");
         var facts = new HashMap<String, String>();
         if (status != null && !String.valueOf(status).isBlank()) {
@@ -156,8 +150,8 @@ public class DolphinSchedulerExecutorAdapter implements ExecutorAdapter {
             throw new AdapterUnavailableException("DolphinScheduler 编排器未配置");
         }
         var binding = workflowBinding(requestConfig);
-        var projectCode = requiredLong(binding, "projectCode", "项目编号");
-        var workflowCode = requiredLong(binding, "workflowDefinitionCode", "工作流定义编号");
+        var projectCode = DolphinBinding.requiredLong(binding, "projectCode", "项目编号");
+        var workflowCode = DolphinBinding.requiredLong(binding, "workflowDefinitionCode", "工作流定义编号");
         var scheduleTime = LocalDateTime.now(schedulerZone).format(SCHEDULE_TIME);
         var query = new LinkedMultiValueMap<String, String>();
         query.add("workflowDefinitionCode", String.valueOf(workflowCode));
@@ -200,7 +194,7 @@ public class DolphinSchedulerExecutorAdapter implements ExecutorAdapter {
         }
 
         try {
-            var response = postWithAuth(
+            var response = http.post(
                     workflowUri(projectCode, "/executors/start-workflow-instance", query),
                     null);
             ensureSuccess(response, "工作流提交");
@@ -259,33 +253,7 @@ public class DolphinSchedulerExecutorAdapter implements ExecutorAdapter {
     }
 
     private Map<String, Object> workflowBinding(Map<String, Object> requestConfig) {
-        if (requestConfig == null || requestConfig.isEmpty()) {
-            throw new AdapterConfigurationException("未提供 DolphinScheduler 工作流绑定配置");
-        }
-        Object configured = requestConfig.get("dolphinscheduler");
-        if (!(configured instanceof Map<?, ?>)) {
-            configured = requestConfig.get("orchestrator");
-        }
-        if (!(configured instanceof Map<?, ?> map)) {
-            throw new AdapterConfigurationException("缺少 dolphinscheduler 工作流绑定配置");
-        }
-        var binding = new HashMap<String, Object>();
-        map.forEach((key, value) -> binding.put(String.valueOf(key), value));
-        return binding;
-    }
-
-    private long requiredLong(Map<String, Object> binding, String key, String label) {
-        var value = binding.get(key);
-        if (value == null || String.valueOf(value).isBlank()) {
-            throw new AdapterConfigurationException("DolphinScheduler 缺少" + label);
-        }
-        try {
-            var result = Long.parseLong(String.valueOf(value));
-            if (result <= 0) throw new NumberFormatException();
-            return result;
-        } catch (NumberFormatException exception) {
-            throw new AdapterConfigurationException("DolphinScheduler " + label + "必须是正整数");
-        }
+        return DolphinBinding.locate(requestConfig);
     }
 
     private String value(Map<String, Object> binding, String key, String fallback) {
@@ -302,58 +270,14 @@ public class DolphinSchedulerExecutorAdapter implements ExecutorAdapter {
     }
 
     @SuppressWarnings("unchecked")
-    private Map<String, Object> postWithAuth(URI uri, Object body) {
-        try {
-            return post(uri, body, tokenProvider.snapshot().current());
-        } catch (HttpClientErrorException exception) {
-            if (exception.getStatusCode().value() != 401) {
-                throw exception;
-            }
-            var previous = tokenProvider.snapshot().previous();
-            if (previous.isBlank()) throw new AdapterUnavailableException("DolphinScheduler Token 已失效");
-            return post(uri, body, previous);
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    private Map<String, Object> post(URI uri, Object body, String tokenOverride) {
-        var request = restClient.post().uri(uri).headers(headers -> applyAuth(headers, tokenOverride))
-                .contentType(MediaType.APPLICATION_JSON);
-        return body == null ? request.retrieve().body(Map.class) : request.body(body).retrieve().body(Map.class);
-    }
-
-    @SuppressWarnings("unchecked")
     private Map<String, Object> getWorkflow(long projectCode, long instanceId) {
         try {
-            return get(workflowUri(projectCode, "/workflow-instances/" + instanceId, null));
+            return http.get(workflowUri(projectCode, "/workflow-instances/" + instanceId, null));
         } catch (HttpClientErrorException exception) {
             if (exception.getStatusCode().value() != 404) throw exception;
             // Older DS 3.x installations expose the same resource as process-instances.
-            return get(workflowUri(projectCode, "/process-instances/" + instanceId, null));
+            return http.get(workflowUri(projectCode, "/process-instances/" + instanceId, null));
         }
-    }
-
-    @SuppressWarnings("unchecked")
-    private Map<String, Object> get(URI uri) {
-        try {
-            return restClient.get().uri(uri).headers(headers -> applyAuth(headers, tokenProvider.snapshot().current()))
-                    .retrieve().body(Map.class);
-        } catch (HttpClientErrorException exception) {
-            if (exception.getStatusCode().value() != 401) {
-                throw exception;
-            }
-            var previous = tokenProvider.snapshot().previous();
-            if (previous.isBlank()) throw new AdapterUnavailableException("DolphinScheduler Token 已失效");
-            return restClient.get().uri(uri).headers(headers -> applyAuth(headers, previous))
-                    .retrieve().body(Map.class);
-        }
-    }
-
-    private void applyAuth(HttpHeaders headers, String token) {
-        if (token == null || token.isBlank()) {
-            throw new AdapterUnavailableException("DolphinScheduler 未配置访问凭据");
-        }
-        headers.set("token", token);
     }
 
     private URI workflowUri(long projectCode, String path, LinkedMultiValueMap<String, String> query) {

@@ -55,44 +55,57 @@ public class JobConfigService {
 
     @Transactional
     public IngestionJobConfig save(String jobId, SaveJobConfigRequest request) {
-        requireJob(jobId);
+        var job = requireJob(jobId);
         if (request.structured() != null) {
             return saveStructured(jobId, StructuredTaskSpec.fromMap(request.structured()));
         }
         if (request.config().isEmpty()) {
             throw new InvalidRequestException("config 不能为空");
         }
-        validate(request);
+        validate(request, job);
         return configRepository.save(jobId, request, Instant.now());
     }
 
     /** 结构化保存路径：意图先对着源目录实校验，编译产物再走与 JSON 相同的守卫。 */
     @Transactional
     public IngestionJobConfig saveStructured(String jobId, StructuredTaskSpec spec) {
-        requireJob(jobId);
+        var job = requireJob(jobId);
         var normalized = structuredCompiler.validate(spec);
         var compiled = structuredCompiler.compile(normalized, jobId);
         var request = new SaveJobConfigRequest(StructuredTaskCompiler.TEMPLATE_KEY,
                 StructuredTaskCompiler.TEMPLATE_VERSION, compiled, normalized.toMap());
-        validate(request);
+        validate(request, job);
         return configRepository.save(jobId, request, Instant.now());
     }
 
-    private void validate(SaveJobConfigRequest request) {
+    private void validate(SaveJobConfigRequest request, IngestionJob job) {
         configurationPolicy.validateTemplateForSave(request.templateKey());
         if (request.templateVersion() == null || request.templateVersion() < 1) {
             throw new InvalidRequestException("templateVersion 必须大于 0");
         }
         var config = request.config();
+        if (JobConfigTree.containsSecretKey(config)) {
+            throw new InvalidRequestException("任务配置不得保存明文密码或密钥，请改用凭据引用");
+        }
+        if (isDolphinExecutor(job)) {
+            // 平台调度通道：配置即工作流绑定（projectCode/workflowDefinitionCode），
+            // 不走 SeaTunnel 的 env/source/sink 形状；模板目录校验同样不适用。
+            if (!(config.get("dolphinscheduler") instanceof Map<?, ?>)) {
+                throw new InvalidRequestException("平台调度任务的配置必须包含 dolphinscheduler 工作流绑定对象");
+            }
+            return;
+        }
         if (!(config.get("env") instanceof Map<?, ?>)) {
             throw new InvalidRequestException("任务配置必须包含 env 对象");
         }
         requirePlugins(config, "source");
         requirePlugins(config, "sink");
-        if (JobConfigTree.containsSecretKey(config)) {
-            throw new InvalidRequestException("任务配置不得保存明文密码或密钥，请改用凭据引用");
-        }
         workflowCatalog.validateConfig(request.templateKey(), request.templateVersion(), config);
+    }
+
+    private boolean isDolphinExecutor(IngestionJob job) {
+        return "DOLPHINSCHEDULER".equalsIgnoreCase(job.executor())
+                || "DOLPHIN_SCHEDULER".equalsIgnoreCase(job.executor());
     }
 
     private void requirePlugins(Map<String, Object> config, String key) {
@@ -101,10 +114,9 @@ public class JobConfigService {
         }
     }
 
-    private void requireJob(String jobId) {
+    private IngestionJob requireJob(String jobId) {
         var scope = tenantScope.current();
-        if (jobRepository.findById(jobId, scope.tenantId(), scope.institutionId()).isEmpty()) {
-            throw new ResourceNotFoundException("未找到采集作业：" + jobId);
-        }
+        return jobRepository.findById(jobId, scope.tenantId(), scope.institutionId())
+                .orElseThrow(() -> new ResourceNotFoundException("未找到采集作业：" + jobId));
     }
 }

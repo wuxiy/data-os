@@ -214,6 +214,32 @@ export interface CreateIngestionJobInput {
   config: JobConfig
 }
 
+/** 周期调度状态（G2G 批次 5）：scheduled=false 即手动调度；DS 为唯一事实源。 */
+export interface JobScheduleApiItem {
+  scheduleId: number | null
+  crontab: string | null
+  startTime: string | null
+  endTime: string | null
+  timezoneId: string | null
+  online: boolean
+  warningType: string | null
+  nextFireTime: string | null
+  scheduled: boolean
+}
+
+export interface SaveJobScheduleInput {
+  crontab: string
+  startTime?: string
+  endTime?: string
+  timezoneId?: string
+  warningType?: string
+}
+
+export interface JobSchedulePreviewApiItem {
+  source: 'DS' | 'LOCAL'
+  fireTimes: string[]
+}
+
 export interface IngestionRunApiItem {
   id: string
   jobId: string
@@ -686,6 +712,51 @@ export async function recordEdgeDeployment(nodeId: string, input: { version: str
 /** 采集水位：代理质量执行器的白名单聚合只读端点（边缘表）。 */
 export async function fetchEdgeWatermarks(signal?: AbortSignal): Promise<EdgeWatermarksApiResponse> {
   return getJson('/v1/edge/nodes/watermarks', signal)
+}
+
+export async function fetchJobSchedule(jobId: string, signal?: AbortSignal): Promise<JobScheduleApiItem> {
+  return getJson(`/v1/jobs/${encodeURIComponent(jobId)}/schedule`, signal)
+}
+
+export async function saveJobSchedule(jobId: string, input: SaveJobScheduleInput, signal?: AbortSignal): Promise<JobScheduleApiItem> {
+  const response = await portalFetch(`/v1/jobs/${encodeURIComponent(jobId)}/schedule`, {
+    method: 'PUT',
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+    signal,
+  })
+  if (!response.ok) await throwHttpError(response, '调度配置保存失败')
+  return response.json() as Promise<JobScheduleApiItem>
+}
+
+export async function changeJobScheduleState(jobId: string, online: boolean, signal?: AbortSignal): Promise<JobScheduleApiItem> {
+  const response = await portalFetch(`/v1/jobs/${encodeURIComponent(jobId)}/schedule/${online ? 'online' : 'offline'}`, {
+    method: 'POST',
+    headers: { Accept: 'application/json' },
+    signal,
+  })
+  if (!response.ok) await throwHttpError(response, online ? '调度上线失败' : '调度下线失败')
+  return response.json() as Promise<JobScheduleApiItem>
+}
+
+export async function deleteJobSchedule(jobId: string, signal?: AbortSignal): Promise<void> {
+  const response = await portalFetch(`/v1/jobs/${encodeURIComponent(jobId)}/schedule`, {
+    method: 'DELETE',
+    headers: { Accept: 'application/json' },
+    signal,
+  })
+  if (!response.ok && response.status !== 204) await throwHttpError(response, '调度删除失败')
+}
+
+export async function previewJobSchedule(jobId: string, input: { crontab: string; startTime?: string; endTime?: string }, signal?: AbortSignal): Promise<JobSchedulePreviewApiItem> {
+  const response = await portalFetch(`/v1/jobs/${encodeURIComponent(jobId)}/schedule/preview`, {
+    method: 'POST',
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+    signal,
+  })
+  if (!response.ok) await throwHttpError(response, '触发时间预览失败')
+  return response.json() as Promise<JobSchedulePreviewApiItem>
 }
 
 export async function createIngestionJob(input: CreateIngestionJobInput, signal?: AbortSignal): Promise<IngestionJobApiItem> {
