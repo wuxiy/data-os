@@ -19,15 +19,21 @@ public class JobConfigService {
     private final JobConfigRepository configRepository;
     private final JobConfigurationPolicy configurationPolicy;
     private final ClinicalWorkflowCatalog workflowCatalog;
+    private final StructuredTaskCompiler structuredCompiler;
+    private final IngestionCheckpointRepository checkpointRepository;
     private final TenantScope tenantScope;
 
     public JobConfigService(JobRepository jobRepository, JobConfigRepository configRepository,
                             JobConfigurationPolicy configurationPolicy, ClinicalWorkflowCatalog workflowCatalog,
+                            StructuredTaskCompiler structuredCompiler,
+                            IngestionCheckpointRepository checkpointRepository,
                             TenantScope tenantScope) {
         this.jobRepository = jobRepository;
         this.configRepository = configRepository;
         this.configurationPolicy = configurationPolicy;
         this.workflowCatalog = workflowCatalog;
+        this.structuredCompiler = structuredCompiler;
+        this.checkpointRepository = checkpointRepository;
         this.tenantScope = tenantScope;
     }
 
@@ -41,9 +47,33 @@ public class JobConfigService {
                 .orElseThrow(() -> new ResourceNotFoundException("采集任务尚未配置：" + jobId));
     }
 
+    /** 最近一次成功运行的水位（增量序列键的回放起点；尚无成功运行为 null）。 */
+    public Instant lastSuccessWatermark(String jobId) {
+        requireJob(jobId);
+        return checkpointRepository.findLastSuccessWatermark(jobId).orElse(null);
+    }
+
     @Transactional
     public IngestionJobConfig save(String jobId, SaveJobConfigRequest request) {
         requireJob(jobId);
+        if (request.structured() != null) {
+            return saveStructured(jobId, StructuredTaskSpec.fromMap(request.structured()));
+        }
+        if (request.config().isEmpty()) {
+            throw new InvalidRequestException("config 不能为空");
+        }
+        validate(request);
+        return configRepository.save(jobId, request, Instant.now());
+    }
+
+    /** 结构化保存路径：意图先对着源目录实校验，编译产物再走与 JSON 相同的守卫。 */
+    @Transactional
+    public IngestionJobConfig saveStructured(String jobId, StructuredTaskSpec spec) {
+        requireJob(jobId);
+        var normalized = structuredCompiler.validate(spec);
+        var compiled = structuredCompiler.compile(normalized, jobId);
+        var request = new SaveJobConfigRequest(StructuredTaskCompiler.TEMPLATE_KEY,
+                StructuredTaskCompiler.TEMPLATE_VERSION, compiled, normalized.toMap());
         validate(request);
         return configRepository.save(jobId, request, Instant.now());
     }

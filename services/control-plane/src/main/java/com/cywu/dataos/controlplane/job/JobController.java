@@ -43,6 +43,14 @@ public class JobController {
         return service.changeStatus(jobId, request);
     }
 
+    /** 任务复制：结构化任务重定向目标源重编译；JSON 任务原样复制。 */
+    @PostMapping("/{jobId}/copy")
+    public ResponseEntity<IngestionJob> copy(@PathVariable String jobId,
+                                             @RequestBody(required = false) CopyJobRequest request) {
+        var copy = service.copy(jobId, request);
+        return ResponseEntity.created(URI.create("/api/v1/jobs/" + copy.id())).body(copy);
+    }
+
     public record JobListResponse(java.util.List<IngestionJob> items, int total) {
     }
 }

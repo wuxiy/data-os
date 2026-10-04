@@ -2,7 +2,7 @@
 
 > 背景：nema（一代平台，已转维护态）→ data-os（2.0 主线）的能力复制计划，共七批。依据与裁决见 nema 仓库 `docs/design/nema-vs-dataos-coverage-matrix.md` §G2G。本文档为批次 1 的开工勘察成果与第一刀实施设计，供新会话直接续作。
 >
-> **进度（2026-10-04）**：第一刀已交付并过 gate——连接登记补全（V22 `connection_json`，规划空白：原 `sources` 表不持久化连接信息）+ 目录浏览三端点 + 受控查询 + 门户 SourceExplorer。契约与浏览器核验证据见 [docs/validation/gate-g2g-b1-explorer-20261004.md](validation/gate-g2g-b1-explorer-20261004.md)；三项边界（Oracle 方言包层/真实驱动超时/驱动报文泄敏面）已记备忘账。**下一刀：dataCollection 深水区（见文末）。**
+> **进度（2026-10-04）**：第一刀已交付并过 gate——连接登记补全（V22 `connection_json`，规划空白：原 `sources` 表不持久化连接信息）+ 目录浏览三端点 + 受控查询 + 门户 SourceExplorer。契约与浏览器核验证据见 [docs/validation/gate-g2g-b1-explorer-20261004.md](validation/gate-g2g-b1-explorer-20261004.md)；三项边界（Oracle 方言包层/真实驱动超时/驱动报文泄敏面）已记备忘账。**第二刀同日交付并过 gate**——V23 structured_json + StructuredTaskCompiler + 复制/水位端点 + 门户 JobStructuredForm，见 [docs/validation/gate-g2g-b1-structured-task-20261004.md](validation/gate-g2g-b1-structured-task-20261004.md)；三项边界（整数序列键增量/批量建事务包边/SQL 水位占位符自管）已记备忘账。**批次 1 两刀收官。**
 
 ## 批次目标
 
@@ -61,6 +61,36 @@
 - prototype：`npx tsc -b && npx vitest run && node qa/mock-audit.mjs && node qa/portal-interactions-smoke.mjs && npm run build` 全绿
 - 纪律：提交信息英文；功能迭代（G 系列扩展）不与生产化批次混提交；完成后更新 `docs/deferred-hardening-backlog.md`（若发现新边界事项）
 
-## 第二刀预告（dataCollection 深水区，本批后半）
+## 第二刀实施设计（dataCollection 深水区，2026-10-04 定稿）
+
+### 映射裁决（nema → data-os）
+
+- **层级坍缩**：nema「采集任务 → 子任务」两级坍缩为 data-os 单级 job——一 job = 一表或一 SQL；「表任务(批量)」保留为表单内**多选表一次创建 N 个 job**（前端循环，后端不加批量端点）。
+- **OrderKey/序列键**：时间类型序列键编译为 `WHERE key >= '${last_success_time}' AND key < '${run_start_time}'` 水位占位符——直接复用既有 checkpoint 机制（`IngestionCheckpointRepository` 已在运行领取/成功推进两端工作）；整数序列键只作 `partition_column`（SeaTunnel 并行分片），增量方式对整数键拒绝并提示改全量+幂等唯一键模型（外部执行器无整型位点回放能力，如实声明边界）。
+- **字段白名单**：编译进 SELECT 列清单，保存前经 DatabaseMetaData 实校验列存在。
+- **子任务/日志两级钻取** → 既有运行详情抽屉（run 时间线）+ 新暴露「上次成功水位」（checkpoint 读端口）。
+- **任务复制** → `POST /api/v1/jobs/{id}/copy`：结构化任务按目标源重编译（表/列在目标源实校验），JSON 任务原样复制。
+
+### 后端（control-plane job 域）
+
+1. V23 迁移：`ingestion_job_configs.structured_json TEXT NULL`——结构化意图（表单形态）与编译产物 config_json 同存，可再编辑/复制；JSON 直接覆盖时清空结构化意图（显式弃结构化）。
+2. `SaveJobConfigRequest`/`IngestionJobConfig` 增可选 `structured` 字段（附兼容构造器，既有调用点零修改）。
+3. `StructuredTaskCompiler`：spec{form=TABLE/SQL, sourceId, catalog, tables[], columns[], orderKey, mode=FULL/INCREMENTAL, customSql, targetDatabase, targetTable, sinkFenodes, sinkCredentialRef} → 编译 env + source(Jdbc, url/credentialRef 取自源登记连接，driver 按 URL 推断) + sink(Doris, label-prefix 按 jobId 派生稳定)。templateKey=`STRUCTURED_JDBC_TO_DORIS`（不在临床模板目录，走透传校验 + 密钥守卫）。表单校验：源必须 JDBC 且已登记连接；表/列/序列键经目录元数据实校验；SQL 形态走第一刀的只读语句校验。
+4. `JobConfigService.save`：structured 存在 → 服务端编译（门户只提交意图，编译单一属主）。
+5. `GET /jobs/{id}/config` 响应增 `structured` 与 `lastSuccessWatermark`。
+6. `POST /api/v1/jobs/{jobId}/copy`（body `{sourceId?, name?}`）。
+
+### 前端（prototype）
+
+7. `controlPlane.ts`：结构化 spec 类型与 save/copy client 扩展。
+8. `JobStructuredForm.tsx`：双形态表单（表多选/SQL+测试）+ 白名单列选择（复用第一刀 columns 端点）+ 序列键选择（时间类型过滤）+ 目标库表/fenodes/sink 凭据引用。
+9. `DataIngestionPage`：新建任务抽屉加「结构化表任务 / 结构化 SQL 任务 / 模板 JSON」模式切换；配置抽屉对结构化任务显示结构化编辑器 + 水位；任务行加「复制」动作。
+
+### 验收
+
+- control-plane 契约测试：编译正路径（表全量/增量/白名单子集/SQL 形态）、负向（非 JDBC 源/未登记连接/列不存在/整型序列键增量/SQL 写语句/缺 sink 字段/明文凭据守卫沿用）、copy 重编译、水位暴露、既有 307 测试零修改。
+- prototype：tsc + vitest + mock-audit + portal-interactions-smoke + build 全绿；浏览器核验双形态表单→编译产物→复制链。
+
+## 第二刀预告（原文，2026-10-04 上午勘察时）
 
 表/SQL 双形态任务 + 字段白名单 + OrderKey + 子任务/日志两级钻取（1081 行交互）+ 任务复制 → 对接 data-os 已有 `job`/`run` 域与 SeaTunnel 执行器，交互设计照搬 nema 信息架构。

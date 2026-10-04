@@ -184,6 +184,24 @@ export interface IngestionJobConfigApiItem {
   templateVersion: number
   config: JobConfig
   updatedAt: string
+  structured: StructuredTaskSpec | null
+  lastSuccessWatermark: string | null
+}
+
+/** 结构化任务意图（G2G 批次 1 第二刀）：门户只声明表单形态，服务端编译产物。 */
+export interface StructuredTaskSpec {
+  form: 'TABLE' | 'SQL'
+  sourceId: string
+  catalog?: string
+  tables?: string[]
+  columns?: string[]
+  orderKey?: string
+  mode: 'FULL' | 'INCREMENTAL'
+  customSql?: string
+  targetDatabase?: string
+  targetTable?: string
+  sinkFenodes: string
+  sinkCredentialRef: string
 }
 
 export interface CreateIngestionJobInput {
@@ -452,7 +470,7 @@ export async function updateIngestionJobStatus(jobId: string, status: string, si
 }
 
 export async function fetchJobConfig(jobId: string, signal?: AbortSignal): Promise<IngestionJobConfigApiItem> {
-  return getJson(`/v1/jobs/${jobId}/config`, signal)
+  return getJson(`/v1/jobs/${encodeURIComponent(jobId)}/config`, signal)
 }
 
 export async function saveJobConfig(jobId: string, input: {
@@ -460,7 +478,7 @@ export async function saveJobConfig(jobId: string, input: {
   templateVersion: number
   config: JobConfig
 }, signal?: AbortSignal): Promise<IngestionJobConfigApiItem> {
-  const response = await portalFetch(`/v1/jobs/${jobId}/config`, {
+  const response = await portalFetch(`/v1/jobs/${encodeURIComponent(jobId)}/config`, {
     method: 'PUT',
     headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
@@ -468,6 +486,30 @@ export async function saveJobConfig(jobId: string, input: {
   })
   if (!response.ok) await throwHttpError(response, '采集任务配置保存失败')
   return response.json() as Promise<IngestionJobConfigApiItem>
+}
+
+/** 结构化保存：门户只提交表单意图；编译产物由控制面生成并落库。 */
+export async function saveStructuredJobConfig(jobId: string, structured: StructuredTaskSpec, signal?: AbortSignal): Promise<IngestionJobConfigApiItem> {
+  const response = await portalFetch(`/v1/jobs/${encodeURIComponent(jobId)}/config`, {
+    method: 'PUT',
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ templateKey: 'STRUCTURED_JDBC_TO_DORIS', structured }),
+    signal,
+  })
+  if (!response.ok) await throwHttpError(response, '采集任务配置保存失败')
+  return response.json() as Promise<IngestionJobConfigApiItem>
+}
+
+/** 任务复制：结构化任务重定向目标源重编译；JSON 任务原样复制。 */
+export async function copyIngestionJob(jobId: string, input: { sourceId?: string; name?: string }, signal?: AbortSignal): Promise<IngestionJobApiItem> {
+  const response = await portalFetch(`/v1/jobs/${encodeURIComponent(jobId)}/copy`, {
+    method: 'POST',
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+    signal,
+  })
+  if (!response.ok) await throwHttpError(response, '任务复制失败')
+  return response.json() as Promise<IngestionJobApiItem>
 }
 
 export async function startIngestionRun(jobId: string, options: {

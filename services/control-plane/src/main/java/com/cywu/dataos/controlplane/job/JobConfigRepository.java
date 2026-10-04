@@ -27,7 +27,7 @@ public class JobConfigRepository {
 
     public Optional<IngestionJobConfig> findByJobId(String jobId) {
         return jdbc.query("""
-                SELECT job_id, template_key, template_version, config_json, updated_at
+                SELECT job_id, template_key, template_version, config_json, structured_json, updated_at
                 FROM data_os.ingestion_job_configs
                 WHERE job_id = ?
                 """, (resultSet, rowNumber) -> new IngestionJobConfig(
@@ -35,26 +35,40 @@ public class JobConfigRepository {
                 resultSet.getString("template_key"),
                 resultSet.getInt("template_version"),
                 readConfig(resultSet.getString("config_json")),
-                resultSet.getTimestamp("updated_at").toInstant()), jobId).stream().findFirst();
+                resultSet.getTimestamp("updated_at").toInstant(),
+                readStructured(resultSet.getString("structured_json"))), jobId).stream().findFirst();
     }
 
     public IngestionJobConfig save(String jobId, SaveJobConfigRequest request, Instant updatedAt) {
         var json = writeConfig(request.config());
+        var structuredJson = request.structured() == null ? null : writeConfig(request.structured());
         jdbc.update("DELETE FROM data_os.ingestion_job_configs WHERE job_id = ?", jobId);
         jdbc.update("""
                 INSERT INTO data_os.ingestion_job_configs
-                    (job_id, template_key, template_version, config_json, updated_at)
-                VALUES (?, ?, ?, ?, ?)
-                """, jobId, request.templateKey().trim(), request.templateVersion(), json, Timestamp.from(updatedAt));
+                    (job_id, template_key, template_version, config_json, structured_json, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """, jobId, request.templateKey().trim(), request.templateVersion(), json, structuredJson,
+                Timestamp.from(updatedAt));
         return new IngestionJobConfig(jobId, request.templateKey().trim(), request.templateVersion(),
-                request.config(), updatedAt);
+                request.config(), updatedAt, request.structured());
     }
 
     private Map<String, Object> readConfig(String json) {
+        if (json == null || json.isBlank()) return Map.of();
         try {
             return objectMapper.readValue(json, CONFIG_TYPE);
         } catch (JsonProcessingException exception) {
             throw new IllegalStateException("任务配置存储内容无法解析", exception);
+        }
+    }
+
+    private Map<String, Object> readStructured(String json) {
+        if (json == null || json.isBlank()) return null;
+        try {
+            return objectMapper.readValue(json, CONFIG_TYPE);
+        } catch (JsonProcessingException exception) {
+            // 结构化意图列只由本仓储写入；损坏按无意图处理，配置面回退 JSON 编辑。
+            return null;
         }
     }
 

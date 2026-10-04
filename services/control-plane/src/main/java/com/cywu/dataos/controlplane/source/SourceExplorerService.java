@@ -174,6 +174,14 @@ public class SourceExplorerService {
         }
     }
 
+    /** 对外语义校验入口：供结构化任务等保存链校验只读语句（剥注释后校验，不执行）。 */
+    public void assertReadOnlyQuery(String sql) {
+        if (sql == null || sql.isBlank()) {
+            throw new InvalidRequestException("查询语句不能为空");
+        }
+        validateReadOnly(stripComments(sql.trim()));
+    }
+
     private String stripComments(String sql) {
         var withoutBlock = BLOCK_COMMENT.matcher(sql).replaceAll(" ");
         return LINE_COMMENT.matcher(withoutBlock).replaceAll(" ").trim();

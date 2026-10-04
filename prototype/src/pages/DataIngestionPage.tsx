@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   CircleAlert,
   Clock3,
+  Copy,
   Database,
   FileCog,
   Archive,
@@ -27,6 +28,7 @@ import { PageHeader } from '../components/ui/PageHeader'
 import { Pager } from '../components/ui/Pager'
 import { StatusTag } from '../components/ui/Primitives'
 import {
+  copyIngestionJob,
   createIngestionJob,
   createSource,
   checkSource,
@@ -37,6 +39,7 @@ import {
   fetchSources,
   fetchWorkflowTemplates,
   saveJobConfig,
+  saveStructuredJobConfig,
   startIngestionRun,
   syncIngestionRun,
   retryIngestionRun,
@@ -45,10 +48,12 @@ import {
   type IngestionRunApiItem,
   type JobConfig,
   type SourceApiItem,
+  type StructuredTaskSpec,
   type WorkflowTemplateApiItem,
 } from '../data/controlPlane'
 import { PortalHttpError } from '../data/http'
 import { ACTIVE_RUN_STATUSES, formatDateTime, retryableRunStatus, runStatusView } from '../data/domain'
+import { JobStructuredForm } from './JobStructuredForm'
 import { SourceExplorer } from './SourceExplorer'
 import { useAction } from '../hooks/useAction'
 import { useKeyedResource } from '../hooks/useKeyedResource'
@@ -70,6 +75,8 @@ interface JobFormState {
   templateKey: string
   templateVersion: number
   configText: string
+  /** 配置方式：结构化表 / 结构化 SQL / 模板 JSON（G2G 批次 1 第二刀）。 */
+  configMode: 'table' | 'sql' | 'json'
 }
 
 const DEFAULT_TEMPLATE_KEY = 'FAKE_TO_CONSOLE'
@@ -121,6 +128,7 @@ function newJobForm(sourceId = ''): JobFormState {
     templateKey,
     templateVersion: DEFAULT_TEMPLATE_VERSION,
     configText: JSON.stringify(configForTemplate(templateKey, 'BATCH'), null, 2),
+    configMode: 'table',
   }
 }
 
@@ -146,9 +154,13 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
   const [configuringJob, setConfiguringJob] = useState<IngestionJobApiItem | null>(null)
   const [configLoading, setConfigLoading] = useState(false)
   const [configError, setConfigError] = useState<string | null>(null)
+  const [configStructured, setConfigStructured] = useState<StructuredTaskSpec | null>(null)
+  const [configWatermark, setConfigWatermark] = useState<string | null>(null)
   const [configTemplateKey, setConfigTemplateKey] = useState(DEFAULT_TEMPLATE_KEY)
   const [configTemplateVersion, setConfigTemplateVersion] = useState(DEFAULT_TEMPLATE_VERSION)
   const [configText, setConfigText] = useState('')
+  const [copyingJob, setCopyingJob] = useState<IngestionJobApiItem | null>(null)
+  const [copyForm, setCopyForm] = useState({ sourceId: '', name: '' })
   const [detailsJob, setDetailsJob] = useState<IngestionJobApiItem | null>(null)
   const [detailsRuns, setDetailsRuns] = useState<IngestionRunApiItem[]>([])
   const [detailsLoading, setDetailsLoading] = useState(false)
@@ -235,6 +247,10 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
   const sourceById = useMemo(() => new Map(sources.map((source) => [source.id, source])), [sources])
   const visibleSources = sources
   const visibleJobs = jobs
+  const jobFormSource = jobForm.sourceId ? sourceById.get(jobForm.sourceId) : undefined
+  const jobFormStructuredReady = Boolean(jobFormSource
+    && jobFormSource.protocol.toUpperCase() === 'JDBC' && jobFormSource.connection)
+  const configuringSource = configuringJob ? sourceById.get(configuringJob.sourceId) : undefined
   // 页码随列表收缩自动钳制到最后一页；新建数据源/任务后显式回到第一页。
   const sourcesPageCount = Math.max(1, Math.ceil(visibleSources.length / SOURCES_PAGE_SIZE))
   const sourcesCurrentPage = Math.min(sourcesPage, sourcesPageCount - 1)
@@ -309,6 +325,7 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
     setConfiguringJob(null)
     setDetailsJob(null)
     setExploringSource(null)
+    setCopyingJob(null)
     setCheckingSource(source)
     setSourceCheckError(null)
     setSourceCheckText(JSON.stringify(sourceCheckDefaults(source.protocol), null, 2))
@@ -320,6 +337,7 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
     setConfiguringJob(null)
     setDetailsJob(null)
     setCheckingSource(null)
+    setCopyingJob(null)
     setExploringSource(source)
   }
 
@@ -363,6 +381,76 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
     }, (message) => setSourceCheckError(message))
   }
 
+  /** 结构化创建（G2G 批次 1 第二刀）：多表形态拆成多个作业，逐个建任务存意图。 */
+  async function submitStructuredJob(spec: StructuredTaskSpec) {
+    if (state !== 'live') return
+    if (!jobForm.sourceId || !jobForm.name.trim()) {
+      onNotice('请先选择数据源并填写任务名称')
+      return
+    }
+    if (!jobFormStructuredReady) {
+      onNotice('结构化任务要求所选数据源已登记连接配置（在数据源「浏览」中保存）')
+      return
+    }
+    const tables = spec.form === 'TABLE' ? (spec.tables ?? []) : [spec.targetTable ?? 'sql']
+    if (tables.length === 0) {
+      onNotice('请先选择要采集的表')
+      return
+    }
+    void runJobAction('create-job', '采集任务创建失败，请检查表单内容与控制面日志', async () => {
+      const created: IngestionJobApiItem[] = []
+      for (const table of tables) {
+        const job = await createIngestionJob({
+          sourceId: jobForm.sourceId,
+          name: tables.length > 1 ? `${jobForm.name.trim()}_${table}` : jobForm.name.trim(),
+          mode: jobForm.mode,
+          executor: 'SEATUNNEL',
+          templateKey: '',
+          templateVersion: DEFAULT_TEMPLATE_VERSION,
+          config: {},
+        })
+        const saved = await saveStructuredJobConfig(job.id,
+          spec.form === 'TABLE' ? { ...spec, tables: [table] } : spec)
+        created.push({
+          ...job,
+          configured: true,
+          templateKey: saved.templateKey,
+          templateVersion: saved.templateVersion,
+        })
+      }
+      setJobs((current) => [...created].reverse().concat(current))
+      setJobForm(newJobForm(jobForm.sourceId))
+      setJobFormOpen(false)
+      setJobsPage(0)
+      onNotice(created.length > 1 ? `已创建 ${created.length} 个结构化采集任务` : `采集任务已创建：${created[0].name}`)
+    }, (message) => onNotice(message))
+  }
+
+  async function submitCopy() {
+    if (!copyingJob || state !== 'live') return
+    await runJobAction('copy-job', '任务复制失败，请稍后重试', async () => {
+      const copy = await copyIngestionJob(copyingJob.id, {
+        sourceId: copyForm.sourceId || undefined,
+        name: copyForm.name.trim() || undefined,
+      })
+      setJobs((current) => [copy, ...current])
+      setJobsPage(0)
+      setCopyingJob(null)
+      onNotice(`任务已复制：${copy.name}${copy.configured ? '' : '（配置未随行，请检查）'}`)
+    })
+  }
+
+  function openJobCopy(job: IngestionJobApiItem) {
+    setSourceFormOpen(false)
+    setJobFormOpen(false)
+    setCheckingSource(null)
+    setExploringSource(null)
+    setConfiguringJob(null)
+    setDetailsJob(null)
+    setCopyingJob(job)
+    setCopyForm({ sourceId: job.sourceId, name: `${job.name}-副本` })
+  }
+
   async function submitSource(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (state !== 'live' || !sourceForm.name.trim()) return
@@ -386,6 +474,11 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
     event.preventDefault()
     if (state !== 'live') {
       onNotice('控制面未连接，无法创建采集任务')
+      return
+    }
+    if (jobForm.configMode !== 'json') {
+      // 结构化模式经表单内保存按钮提交；回车误触表单提交时给出指向。
+      onNotice('请在下方表单完成配置后点击「保存任务配置」')
       return
     }
     if (!jobForm.sourceId || !jobForm.name.trim()) {
@@ -431,9 +524,12 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
     setCheckingSource(null)
     setExploringSource(null)
     setDetailsJob(null)
+    setCopyingJob(null)
     setConfiguringJob(job)
     setConfigLoading(true)
     setConfigError(null)
+    setConfigStructured(null)
+    setConfigWatermark(null)
     setConfigTemplateKey(job.templateKey ?? defaultTemplateKey(DEFAULT_TEMPLATE_KEY, LIVE_TEMPLATE_KEY))
     setConfigTemplateVersion(job.templateVersion ?? DEFAULT_TEMPLATE_VERSION)
     setConfigText(JSON.stringify(configForTemplate(job.templateKey ?? defaultTemplateKey(DEFAULT_TEMPLATE_KEY, LIVE_TEMPLATE_KEY), job.mode, workflowTemplates), null, 2))
@@ -442,11 +538,30 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
       setConfigTemplateKey(saved.templateKey)
       setConfigTemplateVersion(saved.templateVersion)
       setConfigText(JSON.stringify(saved.config, null, 2))
+      setConfigStructured(saved.structured)
+      setConfigWatermark(saved.lastSuccessWatermark)
     } catch (error) {
       if (!isNotFound(error)) setConfigError('配置读取失败，请检查控制面日志')
     } finally {
       setConfigLoading(false)
     }
+  }
+
+  /** 结构化配置保存：表单意图提交控制面编译，报错（目录实校验）如实回显。 */
+  async function saveStructuredConfiguration(spec: StructuredTaskSpec) {
+    if (!configuringJob || state !== 'live') return
+    void runJobAction('save-config', '配置保存失败。请确认表单内容，且未填写明文密码或密钥。', async () => {
+      const saved = await saveStructuredJobConfig(configuringJob.id, spec)
+      setConfigStructured(saved.structured)
+      setConfigWatermark(saved.lastSuccessWatermark)
+      setJobs((current) => current.map((item) => item.id === configuringJob.id
+        ? { ...item, configured: true, templateKey: saved.templateKey, templateVersion: saved.templateVersion }
+        : item))
+      setConfiguringJob((current) => current
+        ? { ...current, configured: true, templateKey: saved.templateKey, templateVersion: saved.templateVersion }
+        : current)
+      onNotice(`任务配置已保存：${saved.templateKey}（增量序列键按水位回放）`)
+    }, (message) => setConfigError(message))
   }
 
   async function saveConfiguration() {
@@ -482,6 +597,7 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
     setCheckingSource(null)
     setExploringSource(null)
     setConfiguringJob(null)
+    setCopyingJob(null)
     setDetailsError(null)
     setDetailsRuns([])
     setDetailsJob(job)
@@ -550,7 +666,7 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
             const canRetry = Boolean(run && retryableRunStatus(run.status))
             const lifecycle = jobLifecycleStatusLabel(job.status)
             const canStart = job.status !== 'PAUSED' && job.status !== 'ARCHIVED'
-            return <tr key={job.id}><td><strong>{job.name}</strong><small>{job.id.slice(0, 8)}</small><span className={`${styles.configPill} ${job.configured ? styles.configPillReady : styles.configPillMissing}`}>{job.configured ? `${job.templateKey ?? '自定义'} v${job.templateVersion ?? 1}` : '未配置'}</span><span className={`${styles.lifecyclePill} ${lifecycleClass(lifecycle.tone)}`}>{lifecycle.label}</span></td><td>{sourceById.get(job.sourceId)?.name ?? '来源未登记'}</td><td>{job.mode === 'CDC' ? '增量变更' : '批量同步'}</td><td>{executorLabel(job.executor)}</td><td><StatusTag tone={status.tone}>{status.label}</StatusTag>{run ? <small className={styles.statusDetail}>{businessMessage(run.message)}</small> : null}</td><td><div className={styles.tableActions}><button className={styles.tableButton} disabled={runningJob === job.id || activeRun || !canStart} onClick={() => job.configured ? void runJob(job) : void openJobConfig(job)}><Play size={13} />{runningJob === job.id ? '处理中…' : activeRun ? '已有运行' : !canStart ? '已暂停' : job.configured ? '启动' : '配置后运行'}</button>{canRetry ? <button className={styles.tableButton} disabled={runningJob === job.id || !canStart || activeRun} onClick={() => void retryRun(job, run)}><RotateCcw size={13} />重试</button> : null}<button className={styles.tableButton} onClick={() => void openJobConfig(job)}><Settings2 size={13} />配置</button><button className={styles.tableButton} onClick={() => openRunDetails(job)}><Clock3 size={13} />详情</button>{job.status !== 'ARCHIVED' ? <details className={styles.rowMore}><summary><MoreHorizontal size={13} aria-hidden="true" />更多</summary><div className={styles.rowMoreMenu}>{job.status === 'ACTIVE' ? <button className={styles.tableButton} disabled={runningJob === job.id} onClick={(event) => { event.currentTarget.closest('details')?.removeAttribute('open'); void changeJobStatus(job, 'PAUSED') }}><Pause size={13} />暂停</button> : job.status === 'PAUSED' || job.status === 'DRAFT' ? <button className={styles.tableButton} disabled={runningJob === job.id} onClick={(event) => { event.currentTarget.closest('details')?.removeAttribute('open'); void changeJobStatus(job, 'ACTIVE') }}><Play size={13} />启用</button> : null}{job.status !== 'ARCHIVED' ? <button className={styles.tableButton} disabled={runningJob === job.id || activeRun} onClick={(event) => { event.currentTarget.closest('details')?.removeAttribute('open'); void changeJobStatus(job, 'ARCHIVED') }}><Archive size={13} />归档</button> : null}{canSync ? <button className={styles.tableButton} disabled={runningJob === job.id} onClick={(event) => { event.currentTarget.closest('details')?.removeAttribute('open'); void syncRun(job, run) }}><RefreshCw size={13} />同步</button> : null}</div></details> : null}</div></td></tr>
+            return <tr key={job.id}><td><strong>{job.name}</strong><small>{job.id.slice(0, 8)}</small><span className={`${styles.configPill} ${job.configured ? styles.configPillReady : styles.configPillMissing}`}>{job.configured ? `${job.templateKey ?? '自定义'} v${job.templateVersion ?? 1}` : '未配置'}</span><span className={`${styles.lifecyclePill} ${lifecycleClass(lifecycle.tone)}`}>{lifecycle.label}</span></td><td>{sourceById.get(job.sourceId)?.name ?? '来源未登记'}</td><td>{job.mode === 'CDC' ? '增量变更' : '批量同步'}</td><td>{executorLabel(job.executor)}</td><td><StatusTag tone={status.tone}>{status.label}</StatusTag>{run ? <small className={styles.statusDetail}>{businessMessage(run.message)}</small> : null}</td><td><div className={styles.tableActions}><button className={styles.tableButton} disabled={runningJob === job.id || activeRun || !canStart} onClick={() => job.configured ? void runJob(job) : void openJobConfig(job)}><Play size={13} />{runningJob === job.id ? '处理中…' : activeRun ? '已有运行' : !canStart ? '已暂停' : job.configured ? '启动' : '配置后运行'}</button>{canRetry ? <button className={styles.tableButton} disabled={runningJob === job.id || !canStart || activeRun} onClick={() => void retryRun(job, run)}><RotateCcw size={13} />重试</button> : null}<button className={styles.tableButton} onClick={() => void openJobConfig(job)}><Settings2 size={13} />配置</button><button className={styles.tableButton} onClick={() => openRunDetails(job)}><Clock3 size={13} />详情</button>{job.status !== 'ARCHIVED' ? <details className={styles.rowMore}><summary><MoreHorizontal size={13} aria-hidden="true" />更多</summary><div className={styles.rowMoreMenu}>{job.status === 'ACTIVE' ? <button className={styles.tableButton} disabled={runningJob === job.id} onClick={(event) => { event.currentTarget.closest('details')?.removeAttribute('open'); void changeJobStatus(job, 'PAUSED') }}><Pause size={13} />暂停</button> : job.status === 'PAUSED' || job.status === 'DRAFT' ? <button className={styles.tableButton} disabled={runningJob === job.id} onClick={(event) => { event.currentTarget.closest('details')?.removeAttribute('open'); void changeJobStatus(job, 'ACTIVE') }}><Play size={13} />启用</button> : null}{job.status !== 'ARCHIVED' ? <button className={styles.tableButton} disabled={runningJob === job.id || activeRun} onClick={(event) => { event.currentTarget.closest('details')?.removeAttribute('open'); void changeJobStatus(job, 'ARCHIVED') }}><Archive size={13} />归档</button> : null}<button className={styles.tableButton} disabled={runningJob === job.id} onClick={(event) => { event.currentTarget.closest('details')?.removeAttribute('open'); openJobCopy(job) }}><Copy size={13} />复制</button>{canSync ? <button className={styles.tableButton} disabled={runningJob === job.id} onClick={(event) => { event.currentTarget.closest('details')?.removeAttribute('open'); void syncRun(job, run) }}><RefreshCw size={13} />同步</button> : null}</div></details> : null}</div></td></tr>
           })}{visibleJobs.length === 0 ? <tr><td colSpan={6} className={styles.emptyState}>暂无采集任务，先登记数据源再新建任务。</td></tr> : null}</tbody></table></div>
           <Pager label="采集任务分页" page={jobsCurrentPage} pageCount={jobsPageCount} pageSize={JOBS_PAGE_SIZE} onPageChange={setJobsPage} />
         </section>
@@ -578,17 +694,33 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
         title="新建采集任务"
         closeLabel="关闭采集任务创建"
         onClose={() => setJobFormOpen(false)}
-        footer={<><button className={styles.secondaryButton} type="button" onClick={() => setJobFormOpen(false)}>取消</button><button className={styles.primaryButton} type="submit" form="job-form" disabled={creatingJob}><Plus size={14} />{creatingJob ? '创建中…' : '创建并保存配置'}</button></>}
+        footer={<><button className={styles.secondaryButton} type="button" onClick={() => setJobFormOpen(false)}>取消</button>{jobForm.configMode === 'json' ? <button className={styles.primaryButton} type="submit" form="job-form" disabled={creatingJob}><Plus size={14} />{creatingJob ? '创建中…' : '创建并保存配置'}</button> : null}</>}
       >
         <form id="job-form" className={styles.drawerForm} onSubmit={(event) => void submitJob(event)}>
-          <div className={styles.drawerNotice}><FileCog size={16} /><span>{offersDemoTemplate() ? '仅保存结构配置；密码、密钥请使用后续凭据引用，不写入任务 JSON。' : workflowTemplates.length > 0 ? '临床模板来自控制面目录；请替换端点和 credentialRef 后再保存，密码、密钥不会写入任务 JSON。' : '真实模式请填写院内连接器 JSON；密码、密钥请使用凭据引用，不写入任务 JSON。'}</span></div>
+          <div className={styles.drawerNotice}><FileCog size={16} /><span>{jobForm.configMode === 'json'
+            ? (offersDemoTemplate() ? '仅保存结构配置；密码、密钥请使用后续凭据引用，不写入任务 JSON。' : workflowTemplates.length > 0 ? '临床模板来自控制面目录；请替换端点和 credentialRef 后再保存，密码、密钥不会写入任务 JSON。' : '真实模式请填写院内连接器 JSON；密码、密钥请使用凭据引用，不写入任务 JSON。')
+            : '表单只收集采集意图；连接、库表、字段在保存前经控制面对源实校验后编译为作业配置，明文凭据不落库。'}</span></div>
           <div className={styles.drawerFormGrid}>
-            <div className={styles.formField}><label htmlFor="job-source">数据源</label><select id="job-source" required value={jobForm.sourceId} onChange={(event) => setJobForm((current) => ({ ...current, sourceId: event.target.value }))}>{sources.map((source) => <option value={source.id} key={source.id}>{source.name} · {source.systemType}</option>)}</select></div>
+            <div className={styles.formField}><label htmlFor="job-source">数据源</label><select id="job-source" required value={jobForm.sourceId} onChange={(event) => setJobForm((current) => ({ ...current, sourceId: event.target.value }))}>{sources.map((source) => <option value={source.id} key={source.id}>{source.name} · {source.systemType}{source.connection ? '' : ' · 未登记连接'}</option>)}</select></div>
             <div className={styles.formField}><label htmlFor="job-name">任务名称</label><input id="job-name" required value={jobForm.name} onChange={(event) => setJobForm((current) => ({ ...current, name: event.target.value }))} placeholder="例如：LIS 检验结果批量同步" /></div>
             <div className={styles.formField}><label htmlFor="job-mode">运行模式</label><select id="job-mode" value={jobForm.mode} onChange={(event) => setJobForm((current) => ({ ...current, mode: event.target.value, configText: JSON.stringify(configForTemplate(current.templateKey, event.target.value, workflowTemplates), null, 2) }))}><option value="BATCH">批量同步</option><option value="CDC">增量变更</option></select></div>
-            <div className={styles.formField}><label htmlFor="job-template">配置模板</label><select id="job-template" value={jobForm.templateKey} onChange={(event) => selectJobTemplate(event.target.value)}>{offersDemoTemplate() ? <option value={DEFAULT_TEMPLATE_KEY}>FakeSource → Console（演示）</option> : null}{workflowTemplates.map((template) => <option value={template.key} key={template.key}>{template.displayName} · {template.systemType}</option>)}<option value={LIVE_TEMPLATE_KEY}>自定义 JSON</option></select></div>
+            <div className={styles.formField}><label htmlFor="job-config-mode">配置方式</label><select id="job-config-mode" value={jobForm.configMode === 'json' ? 'json' : 'structured'} onChange={(event) => setJobForm((current) => ({ ...current, configMode: event.target.value === 'json' ? 'json' : 'table' }))}><option value="structured" disabled={!jobFormStructuredReady}>结构化表单{jobFormStructuredReady ? '' : '（需先登记连接）'}</option><option value="json">模板 JSON</option></select></div>
           </div>
+          {jobForm.configMode === 'json' ? <>
+          <div className={styles.formField}><label htmlFor="job-template">配置模板</label><select id="job-template" value={jobForm.templateKey} onChange={(event) => selectJobTemplate(event.target.value)}>{offersDemoTemplate() ? <option value={DEFAULT_TEMPLATE_KEY}>FakeSource → Console（演示）</option> : null}{workflowTemplates.map((template) => <option value={template.key} key={template.key}>{template.displayName} · {template.systemType}</option>)}<option value={LIVE_TEMPLATE_KEY}>自定义 JSON</option></select></div>
           <details className={styles.configDetails} open><summary>采集配置 JSON <span>默认展开 · 可编辑</span></summary><label htmlFor="job-config">配置内容</label><textarea id="job-config" className={`${styles.codeInput} ${styles.codeInputLarge}`} value={jobForm.configText} onChange={(event) => setJobForm((current) => ({ ...current, configText: event.target.value }))} spellCheck={false} /></details>
+          </> : jobFormStructuredReady && jobFormSource ? (
+            <JobStructuredForm
+              source={jobFormSource}
+              initial={null}
+              lastSuccessWatermark={null}
+              saving={creatingJob}
+              error={null}
+              onSubmit={(spec) => void submitStructuredJob(spec)}
+            />
+          ) : (
+            <p className={styles.drawerHint}>结构化配置要求所选数据源已登记连接配置——在数据源列表点「浏览」完成连接登记后即可使用表单。</p>
+          )}
         </form>
       </Drawer> : null}
 
@@ -622,13 +754,44 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
         title={configuringJob.name}
         closeLabel="关闭任务配置"
         onClose={() => setConfiguringJob(null)}
-        footer={<><button className={styles.secondaryButton} onClick={() => setConfiguringJob(null)}>取消</button><button className={styles.primaryButton} disabled={configLoading || configSaving} onClick={() => void saveConfiguration()}><Save size={14} />{configSaving ? '保存中…' : '保存配置'}</button></>}
+        footer={<><button className={styles.secondaryButton} onClick={() => setConfiguringJob(null)}>{configStructured ? '关闭' : '取消'}</button>{configStructured ? null : <button className={styles.primaryButton} disabled={configLoading || configSaving} onClick={() => void saveConfiguration()}><Save size={14} />{configSaving ? '保存中…' : '保存配置'}</button>}</>}
       >
+            {configStructured && configuringSource && configuringSource.protocol.toUpperCase() === 'JDBC' && configuringSource.connection ? (
+              <>
+                <div className={styles.drawerNotice}><Settings2 size={16} /><span>结构化任务：修改意图后由控制面重新对着源实校验并编译；增量进度（水位）不受重新保存影响。编译后的作业 JSON 由控制面持有，不再手工编辑。</span></div>
+                <JobStructuredForm
+                  source={configuringSource}
+                  initial={configStructured}
+                  lastSuccessWatermark={configWatermark}
+                  saving={configSaving}
+                  error={configError}
+                  onSubmit={(spec) => void saveStructuredConfiguration(spec)}
+                />
+              </>
+            ) : (
+              <>
             <div className={styles.drawerNotice}><Settings2 size={16} /><span>保存的是可审计的结构配置。连接密码、Token、Secret 等敏感值必须通过凭据引用接入，本版不会落库。</span></div>
             <div className={styles.drawerFields}><div className={styles.formField}><label htmlFor="config-template">模板标识</label><select id="config-template" value={configTemplateKey} onChange={(event) => selectConfigTemplate(event.target.value)}>{offersDemoTemplate() || configTemplateKey === DEFAULT_TEMPLATE_KEY ? <option value={DEFAULT_TEMPLATE_KEY} disabled={!offersDemoTemplate()}>FakeSource → Console（仅演示）</option> : null}{workflowTemplates.map((template) => <option value={template.key} key={template.key}>{template.displayName} · {template.systemType}</option>)}<option value={LIVE_TEMPLATE_KEY}>自定义 JSON</option></select></div><div className={styles.formField}><label htmlFor="config-version">模板版本</label><input id="config-version" type="number" min={1} value={configTemplateVersion} onChange={(event) => setConfigTemplateVersion(Math.max(1, Number(event.target.value) || 1))} /></div></div>
             <div className={styles.formField}><details className={styles.configDetails} open><summary>配置 JSON <span>默认展开 · 可编辑</span></summary><label htmlFor="config-editor">配置内容</label><textarea id="config-editor" className={`${styles.codeInput} ${styles.codeInputLarge}`} value={configText} onChange={(event) => setConfigText(event.target.value)} spellCheck={false} disabled={configLoading} /></details></div>
             {configLoading ? <p className={styles.drawerHint}>正在读取已保存配置…</p> : null}
             {configError ? <p className={styles.formError} role="alert">{configError}</p> : null}
+              </>
+            )}
+      </Drawer> : null}
+
+            {copyingJob ? <Drawer
+        titleId="job-copy-title"
+        eyebrow="任务复制"
+        title={copyingJob.name}
+        closeLabel="关闭任务复制"
+        onClose={() => setCopyingJob(null)}
+        footer={<><button className={styles.secondaryButton} onClick={() => setCopyingJob(null)}>取消</button><button className={styles.primaryButton} disabled={pendingKey === 'copy-job'} onClick={() => void submitCopy()}><Copy size={14} />{pendingKey === 'copy-job' ? '复制中…' : '创建副本'}</button></>}
+      >
+        <div className={styles.drawerNotice}><Copy size={16} /><span>结构化任务复制后会对目标源重新校验库表字段（跨源复用采集口径）；副本以草稿落库，不继承运行历史。</span></div>
+        <div className={styles.drawerFormGrid}>
+          <div className={styles.formField}><label htmlFor="copy-source">目标数据源</label><select id="copy-source" value={copyForm.sourceId} onChange={(event) => setCopyForm((current) => ({ ...current, sourceId: event.target.value }))}>{sources.map((source) => <option value={source.id} key={source.id}>{source.name} · {source.systemType}{source.connection ? '' : ' · 未登记连接'}</option>)}</select></div>
+          <div className={styles.formField}><label htmlFor="copy-name">副本名称</label><input id="copy-name" value={copyForm.name} onChange={(event) => setCopyForm((current) => ({ ...current, name: event.target.value }))} /></div>
+        </div>
       </Drawer> : null}
 
             {detailsJob ? <Drawer
