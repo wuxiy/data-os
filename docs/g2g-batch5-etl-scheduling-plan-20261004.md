@@ -71,3 +71,9 @@ DS 实例分页代理（中文状态映射复用 normalizeStatus）+ 任务实�
 ## 进度注记（2026-10-05，第一刀交付）
 
 第一刀（周期调度接线）已交付过 gate：docs/validation/gate-g2g-b5-scheduling-20261005.md（契约 3/3 + 全量 334/334 零回归；适配器重构行为保持零测试修改）。补充实施口径：JobConfigService 校验按执行通道分流（DS 绑定对象替代 env/source/sink 形状）；预览 DS 引擎优先、本地 fallback 标注来源。第二刀（调度实例/日志/补数 + DS 任务绑定编辑）待续。
+
+## 收官注记（2026-10-05，两刀全交付）
+
+- 第一刀（周期调度接线）：8553fb2，gate-g2g-b5-scheduling-20261005.md。
+- 第二刀（调度实例与补数中文化）：e1835de，实例/任务/日志 tail/终止/重跑/补数 + DS 任务绑定编辑；gate-g2g-b5-instances-20261005.md。
+- nema etl 域落地口径：调度语义（SchedulerConfig）、实例运维（终止/重跑/日志）、批量历史重跑（补数承接）已平移；任务开发/DAG 编辑/任务组维持不平移（DS workflow 为编排单位）。批次 5 收官。
