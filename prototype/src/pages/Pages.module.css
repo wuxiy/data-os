@@ -2352,3 +2352,63 @@
   border-radius: 999px;
   transition: width var(--ease-standard) 0.3s;
 }
+
+/* —— 前置机面板：采集水位卡（G2G 批次 4 第二刀）—— */
+
+.watermarkGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.watermarkCard {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.watermarkHead {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--jade-dark);
+  font-size: 12.5px;
+}
+
+.watermarkCard > p {
+  margin: 0;
+  color: var(--ink);
+  font-size: 12px;
+}
+
+.watermarkCard small {
+  color: var(--muted);
+  font-size: 10.5px;
+}
+
+.watermarkBars {
+  display: flex;
+  align-items: flex-end;
+  gap: 5px;
+  height: 42px;
+}
+
+.watermarkBars span {
+  display: flex;
+  flex: 1;
+  align-items: flex-end;
+  height: 100%;
+}
+
+.watermarkBars i {
+  display: block;
+  width: 100%;
+  min-height: 3px;
+  background: var(--jade);
+  border-radius: 2px 2px 0 0;
+  opacity: 0.75;
+}

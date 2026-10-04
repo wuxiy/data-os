@@ -19,9 +19,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class EdgeNodeController {
 
     private final EdgeNodeService service;
+    private final EdgeWatermarkClient watermarkClient;
 
-    public EdgeNodeController(EdgeNodeService service) {
+    public EdgeNodeController(EdgeNodeService service, EdgeWatermarkClient watermarkClient) {
         this.service = service;
+        this.watermarkClient = watermarkClient;
     }
 
     @GetMapping
@@ -51,6 +53,26 @@ public class EdgeNodeController {
     public ResponseEntity<Void> delete(@PathVariable String nodeId) {
         service.delete(nodeId);
         return ResponseEntity.noContent().build();
+    }
+
+    /** 发布记录（nema nodeDeploy 降格为登记面）。 */
+    @GetMapping("/{nodeId}/deployments")
+    public java.util.List<EdgeDeployment> deployments(@PathVariable String nodeId) {
+        return service.deployments(nodeId);
+    }
+
+    @PostMapping("/{nodeId}/deployments")
+    public ResponseEntity<java.util.List<EdgeDeployment>> recordDeployment(
+            @PathVariable String nodeId,
+            @Valid @RequestBody RecordEdgeDeploymentRequest request) {
+        var deployments = service.recordDeployment(nodeId, request);
+        return ResponseEntity.ok(deployments);
+    }
+
+    /** 采集水位：代理质量执行器的白名单聚合只读端点（边缘表）。 */
+    @GetMapping("/watermarks")
+    public java.util.Map<String, Object> watermarks() {
+        return watermarkClient.watermarks();
     }
 
     public record EdgeNodeListResponse(List<EdgeNode> items, int total) {

@@ -1,19 +1,25 @@
-import { Network, Pencil, Plus, Radar, Save, Trash2 } from 'lucide-react'
+import { Boxes, History, MoreHorizontal, Network, Pencil, Plus, Radar, Save, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Drawer } from '../components/ui/Drawer'
 import { StatusTag } from '../components/ui/Primitives'
 import {
   deleteEdgeNode,
+  fetchEdgeDeployments,
   fetchEdgeNodes,
+  fetchEdgeWatermarks,
   probeEdgeNode,
+  recordEdgeDeployment,
   saveEdgeNode,
+  type EdgeDeploymentApiItem,
   type EdgeNodeApiItem,
+  type EdgeWatermarkTable,
 } from '../data/controlPlane'
 import { formatDateTime } from '../data/domain'
 import { useAction } from '../hooks/useAction'
 import { useApiResource } from '../hooks/useApiResource'
 import pageStyles from './PlatformOperationsPage.module.css'
+import { rowMoreToggle } from './rowMoreToggle'
 import styles from './Pages.module.css'
 
 /**
@@ -27,6 +33,11 @@ export function EdgeNodesPanel() {
   const [editing, setEditing] = useState<EdgeNodeApiItem | null>(null)
   const [form, setForm] = useState({ name: '', groupName: '', site: '', host: '', port: '8443', version: '', relayPrefix: '' })
   const [formError, setFormError] = useState<string | null>(null)
+  const [watermarks, setWatermarks] = useState<EdgeWatermarkTable[]>([])
+  const [deployNode, setDeployNode] = useState<EdgeNodeApiItem | null>(null)
+  const [deployments, setDeployments] = useState<EdgeDeploymentApiItem[]>([])
+  const [deployForm, setDeployForm] = useState({ version: '', artifactRef: '', note: '' })
+  const [deployError, setDeployError] = useState<string | null>(null)
   const { pendingKey, run } = useAction()
   const probing = pendingKey?.startsWith('probe-')
   const saving = pendingKey === 'save-node'
@@ -35,6 +46,13 @@ export function EdgeNodesPanel() {
     load: (signal) => fetchEdgeNodes(signal),
     onData: (response) => setNodes(response.items),
     onUnavailable: () => setNodes([]),
+  })
+
+  // 采集水位为从属资源：台账 live 后加载，失败静默（水位缺失不塌节点面）
+  useApiResource({
+    load: (signal) => fetchEdgeWatermarks(signal),
+    onData: (response) => setWatermarks(response.tables),
+    onUnavailable: () => setWatermarks([]),
   })
 
   function openCreate() {
@@ -97,6 +115,35 @@ export function EdgeNodesPanel() {
     })
   }
 
+  async function openDeployments(node: EdgeNodeApiItem) {
+    setDeployNode(node)
+    setDeployForm({ version: '', artifactRef: '', note: '' })
+    setDeployError(null)
+    setDeployments([])
+    try {
+      setDeployments(await fetchEdgeDeployments(node.id))
+    } catch {
+      setDeployError('发布记录读取失败，请稍后重试')
+    }
+  }
+
+  function submitDeployment(event: FormEvent) {
+    event.preventDefault()
+    if (!deployNode || !deployForm.version.trim()) {
+      setDeployError('请填写发布版本号')
+      return
+    }
+    void run('record-deployment', '发布登记失败，请稍后重试', async () => {
+      const next = await recordEdgeDeployment(deployNode.id, {
+        version: deployForm.version.trim(),
+        artifactRef: deployForm.artifactRef.trim() || undefined,
+        note: deployForm.note.trim() || undefined,
+      })
+      setDeployments(next)
+      setDeployForm({ version: '', artifactRef: '', note: '' })
+    }, (message) => setDeployError(message))
+  }
+
   function remove(node: EdgeNodeApiItem) {
     void run(`delete-${node.id}`, '前置机节点删除失败，请稍后重试', async () => {
       await deleteEdgeNode(node.id)
@@ -114,6 +161,30 @@ export function EdgeNodesPanel() {
           {apiState === 'live' ? <button className={styles.primaryButton} onClick={openCreate}><Plus size={14} />登记节点</button> : null}
         </div>
       </div>
+      {watermarks.length > 0 ? (
+        <div className={styles.watermarkGrid} aria-label="边缘表采集水位">
+          {watermarks.map((table) => {
+            const max = Math.max(1, ...table.dailyCounts.map((item) => item.count))
+            return (
+              <div key={table.key} className={styles.watermarkCard}>
+                <div className={styles.watermarkHead}>
+                  <Boxes size={14} />
+                  <strong>{table.dataset}</strong>
+                </div>
+                <p>累计 {table.totalRows.toLocaleString()} 行 · 最近写入 {table.latestWriteAt ?? '—'}</p>
+                <div className={styles.watermarkBars}>
+                  {table.dailyCounts.map((item) => (
+                    <span key={item.date} title={`${item.date}：${item.count} 行`}>
+                      <i style={{ height: `${Math.max(6, (item.count / max) * 100)}%` }} />
+                    </span>
+                  ))}
+                </div>
+                <small>近 7 天按日入仓行数</small>
+              </div>
+            )
+          })}
+        </div>
+      ) : null}
       <div className={styles.tableScroll}><table className={styles.table}>
         <thead><tr><th>节点</th><th>分组 / 站点</th><th>地址</th><th>版本</th><th>最近探测</th><th>操作</th></tr></thead>
         <tbody>
@@ -131,8 +202,14 @@ export function EdgeNodesPanel() {
               </td>
               <td><div className={styles.tableActions}>
                 <button className={styles.tableButton} disabled={pendingKey !== null} onClick={() => probe(node)}><Radar size={13} className={pendingKey === `probe-${node.id}` ? styles.spin : undefined} />{pendingKey === `probe-${node.id}` ? '探测中…' : '探测'}</button>
-                <button className={styles.tableButton} onClick={() => openEdit(node)}><Pencil size={13} />编辑</button>
-                <button className={styles.tableButton} disabled={pendingKey !== null} onClick={() => remove(node)}><Trash2 size={13} />删除</button>
+                <button className={styles.tableButton} onClick={() => void openDeployments(node)}><History size={13} />发布</button>
+                <details className={styles.rowMore} onToggle={rowMoreToggle}>
+                  <summary aria-label="更多操作"><MoreHorizontal size={13} aria-hidden="true" /></summary>
+                  <div className={styles.rowMoreMenu}>
+                    <button className={styles.tableButton} onClick={(event) => { event.currentTarget.closest('details')?.removeAttribute('open'); openEdit(node) }}><Pencil size={13} />编辑</button>
+                    <button className={styles.tableButton} disabled={pendingKey !== null} onClick={(event) => { event.currentTarget.closest('details')?.removeAttribute('open'); remove(node) }}><Trash2 size={13} />删除</button>
+                  </div>
+                </details>
               </div></td>
             </tr>
           ))}
@@ -140,6 +217,38 @@ export function EdgeNodesPanel() {
           {apiState === 'unavailable' ? <tr><td colSpan={6} className={styles.emptyState}>前置机台账控制面暂不可用。</td></tr> : null}
         </tbody>
       </table></div>
+
+      {deployNode ? <Drawer
+        titleId="edge-deploy-title"
+        eyebrow={`发布记录 · ${deployNode.name}`}
+        title="版本登记与历史"
+        closeLabel="关闭发布记录"
+        onClose={() => setDeployNode(null)}
+      >
+        <div className={styles.drawerNotice}><History size={16} /><span>登记面只记录版本与说明（部署经 deploy/minifi 脚本执行）；这里不承载制品本体，发布人取当前登录身份。</span></div>
+        <form className={styles.drawerForm} onSubmit={(event) => submitDeployment(event)}>
+          <div className={styles.drawerFormGrid}>
+            <div className={styles.formField}><label htmlFor="deploy-version">版本号</label><input id="deploy-version" required value={deployForm.version} onChange={(event) => setDeployForm((current) => ({ ...current, version: event.target.value }))} placeholder="例如：minifi-1.22-flow-v3" /></div>
+            <div className={styles.formField}><label htmlFor="deploy-artifact">产物标识（可选）</label><input id="deploy-artifact" value={deployForm.artifactRef} onChange={(event) => setDeployForm((current) => ({ ...current, artifactRef: event.target.value }))} placeholder="例如：deploy/minifi@2026-10" /></div>
+          </div>
+          <div className={styles.formField}><label htmlFor="deploy-note">发布说明</label><input id="deploy-note" value={deployForm.note} onChange={(event) => setDeployForm((current) => ({ ...current, note: event.target.value }))} placeholder="例如：更换 EP 采集流并调大批次" /></div>
+          {deployError ? <p className={styles.formError} role="alert">{deployError}</p> : null}
+          <button className={styles.primaryButton} type="submit" disabled={pendingKey === 'record-deployment'}><Plus size={14} />{pendingKey === 'record-deployment' ? '登记中…' : '登记发布'}</button>
+        </form>
+        <ol className={styles.runTimeline}>
+          {deployments.map((deployment) => (
+            <li key={deployment.id}>
+              <div className={styles.timelineDot} data-tone="healthy" />
+              <div className={styles.timelineBody}>
+                <div className={styles.timelineTitle}><strong>{deployment.version}</strong><time>{formatDateTime(deployment.deployedAt)}</time></div>
+                {deployment.note ? <p>{deployment.note}</p> : null}
+                <dl><div><dt>发布人</dt><dd>{deployment.deployedBy}</dd></div>{deployment.artifactRef ? <div><dt>产物</dt><dd>{deployment.artifactRef}</dd></div> : null}</dl>
+              </div>
+            </li>
+          ))}
+          {deployments.length === 0 ? <li><div className={styles.timelineBody}><p>暂无发布记录。</p></div></li> : null}
+        </ol>
+      </Drawer> : null}
 
       {formOpen ? <Drawer
         titleId="edge-node-form-title"

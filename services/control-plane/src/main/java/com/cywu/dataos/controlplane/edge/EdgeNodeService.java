@@ -13,6 +13,8 @@ import java.util.UUID;
 import com.cywu.dataos.controlplane.api.ErrorMessages;
 import com.cywu.dataos.controlplane.api.InvalidRequestException;
 import com.cywu.dataos.controlplane.api.ResourceNotFoundException;
+import com.cywu.dataos.controlplane.executor.AdapterHttp;
+import com.cywu.dataos.controlplane.executor.AdapterUnavailableException;
 import com.cywu.dataos.controlplane.job.JobConfigTree;
 import com.cywu.dataos.controlplane.security.TenantScope;
 import com.cywu.dataos.controlplane.source.SourceNetworkPolicy;
@@ -35,14 +37,36 @@ public class EdgeNodeService {
     private static final Duration PROBE_TIMEOUT = Duration.ofSeconds(3);
 
     private final EdgeNodeRepository repository;
+    private final EdgeDeploymentRepository deployments;
     private final SourceNetworkPolicy networkPolicy;
     private final TenantScope tenantScope;
 
-    public EdgeNodeService(EdgeNodeRepository repository, SourceNetworkPolicy networkPolicy,
-                           TenantScope tenantScope) {
+    public EdgeNodeService(EdgeNodeRepository repository, EdgeDeploymentRepository deployments,
+                           SourceNetworkPolicy networkPolicy, TenantScope tenantScope) {
         this.repository = repository;
+        this.deployments = deployments;
         this.networkPolicy = networkPolicy;
         this.tenantScope = tenantScope;
+    }
+
+    /** 发布记录：节点必须已在台账（外键由库约束兜底，这里先给 404 语义）。 */
+    public List<EdgeDeployment> recordDeployment(String nodeId, RecordEdgeDeploymentRequest request) {
+        var scope = tenantScope.current();
+        require(nodeId, scope);
+        deployments.insert(new EdgeDeployment(
+                UUID.randomUUID().toString(), nodeId.trim(),
+                request.version().trim(),
+                text(request.artifactRef(), ""),
+                text(request.note(), ""),
+                scope.subject() == null || scope.subject().isBlank() ? "控制台" : scope.subject(),
+                Instant.now()));
+        return deployments.findByNode(nodeId.trim(), scope.tenantId(), scope.institutionId());
+    }
+
+    public List<EdgeDeployment> deployments(String nodeId) {
+        var scope = tenantScope.current();
+        require(nodeId, scope);
+        return deployments.findByNode(nodeId.trim(), scope.tenantId(), scope.institutionId());
     }
 
     public List<EdgeNode> list() {

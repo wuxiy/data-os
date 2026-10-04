@@ -59,6 +59,9 @@ app.include_router(rules_router(database))
 # G23 映射聚合验证：同步只读契约（登记数据集白名单 + 聚合查询，无行数据）
 from mapping_validation import doris_query_factory, router as mapping_validation_router
 app.include_router(mapping_validation_router(doris_query_factory(settings)))
+# G2G 批次 4 第二刀：前置机采集水位（白名单边缘表，聚合只读）
+from edge_watermark import router as edge_watermark_router
+app.include_router(edge_watermark_router(doris_query_factory(settings)))
 
 
 @app.get("/healthz")

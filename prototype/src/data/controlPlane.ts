@@ -645,6 +645,49 @@ export async function deleteEdgeNode(nodeId: string, signal?: AbortSignal): Prom
   if (!response.ok && response.status !== 404) await throwHttpError(response, '前置机节点删除失败')
 }
 
+export interface EdgeDeploymentApiItem {
+  id: string
+  nodeId: string
+  version: string
+  artifactRef: string
+  note: string
+  deployedBy: string
+  deployedAt: string
+}
+
+export interface EdgeWatermarkTable {
+  key: string
+  dataset: string
+  totalRows: number
+  latestWriteAt: string | null
+  dailyCounts: { date: string; count: number }[]
+}
+
+export interface EdgeWatermarksApiResponse {
+  asOf: string
+  tables: EdgeWatermarkTable[]
+}
+
+export async function fetchEdgeDeployments(nodeId: string, signal?: AbortSignal): Promise<EdgeDeploymentApiItem[]> {
+  return getJson(`/v1/edge/nodes/${encodeURIComponent(nodeId)}/deployments`, signal)
+}
+
+export async function recordEdgeDeployment(nodeId: string, input: { version: string; artifactRef?: string; note?: string }, signal?: AbortSignal): Promise<EdgeDeploymentApiItem[]> {
+  const response = await portalFetch(`/v1/edge/nodes/${encodeURIComponent(nodeId)}/deployments`, {
+    method: 'POST',
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+    signal,
+  })
+  if (!response.ok) await throwHttpError(response, '发布登记失败')
+  return response.json() as Promise<EdgeDeploymentApiItem[]>
+}
+
+/** 采集水位：代理质量执行器的白名单聚合只读端点（边缘表）。 */
+export async function fetchEdgeWatermarks(signal?: AbortSignal): Promise<EdgeWatermarksApiResponse> {
+  return getJson('/v1/edge/nodes/watermarks', signal)
+}
+
 export async function createIngestionJob(input: CreateIngestionJobInput, signal?: AbortSignal): Promise<IngestionJobApiItem> {
   const response = await portalFetch('/v1/jobs', {
     method: 'POST',
