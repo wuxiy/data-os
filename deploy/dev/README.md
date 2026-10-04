@@ -122,6 +122,31 @@ QUALITY_RUNNER_S3_BUCKET=dataos-quality-artifacts
 GET /api/v1/system/status
 ```
 
+## Keycloak 服务间认证种子与冒烟（G2G 批次 7）
+
+服务间 OIDC 链的 client/scope/audience/租户 claim 由幂等种子统一补件（已存在的 client
+不重建、不换 secret；`.env` 是 secret 唯一属主）。链路一览见
+[docs/deploy-auth-matrix.md](../../docs/deploy-auth-matrix.md)。
+
+```bash
+# 在开发机上（Keycloak 容器名 medical-platform-keycloak-1，host 端口以下述探测为准）：
+KC_ADMIN_USER=$(docker inspect medical-platform-keycloak-1 --format "{{range .Config.Env}}{{println .}}{{end}}" | grep "^KEYCLOAK_ADMIN=" | cut -d= -f2-)
+KC_ADMIN_PASS=$(docker inspect medical-platform-keycloak-1 --format "{{range .Config.Env}}{{println .}}{{end}}" | grep "^KEYCLOAK_ADMIN_PASSWORD=" | cut -d= -f2-)
+KEYCLOAK_ADMIN_URL="http://127.0.0.1:8180/auth" SEED_REALM=data-platform \
+KEYCLOAK_ADMIN_USER="$KC_ADMIN_USER" KEYCLOAK_ADMIN_PASSWORD="$KC_ADMIN_PASS" \
+QUALITY_CLIENT_SECRET=$(grep "^DATAOS_QUALITY_OIDC_CLIENT_SECRET=" .env | cut -d= -f2-) \
+bash keycloak-service-seed.sh
+
+# 冒烟（复刻被调方验签+claims 断言；dev 内网直连时 iss 仍按网关值签发，须传 EXPECTED_ISSUER）：
+OIDC_TOKEN_URI="http://127.0.0.1:8180/auth/realms/data-platform/protocol/openid-connect/token" \
+EXPECTED_ISSUER="https://172.16.65.59:8443/auth/realms/data-platform" \
+QUALITY_CLIENT_ID=... QUALITY_CLIENT_SECRET=...（其余链路凭据见 auth-matrix）\
+bash auth-smoke.sh
+```
+
+dev 全链 auth 仍为 DISABLED（门户免登录）；种子/冒烟只证明 token 侧正确。切 ENFORCED 属
+运行策略变更，须用户裁决（backlog 在案）。
+
 ## 门户内的技术组件入口
 
 登录门户的技术人员可以打开 `/operations`（左侧菜单为“平台运维”）。页面由控制面服务端探针聚合

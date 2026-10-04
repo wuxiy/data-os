@@ -131,3 +131,9 @@ curl -fsS http://172.16.65.59:19000/health
 `docs/environment-access-reference.local.md`，设置 `chmod 600` 后填写；仓库根目录的
 `.gitignore` 已忽略 `docs/*-local.md`，提交前仍必须用 `git status` 和敏感扫描复核，不能把该文件
 推送到远程仓库。
+
+## 11. 认证矩阵与种子（G2G 批次 7）
+
+服务间 OIDC 链路（client/scope/audience/env 键）、种子脚本与冒烟用法集中记录在
+[deploy-auth-matrix.md](deploy-auth-matrix.md)；开发机上的操作示例见
+[deploy/dev/README.md](../deploy/dev/README.md) 的「Keycloak 服务间认证种子与冒烟」一节。
