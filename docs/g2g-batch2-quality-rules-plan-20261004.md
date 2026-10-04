@@ -1,6 +1,6 @@
 # G2G 批次 2 · 质量规则动态化 + 16 类规则移植（规划，2026-10-04）
 
-> **进度（2026-10-04）**：首刀已交付并过 gate——8 类单表谓词（NOT_NULL/UNIQUE/VAL_SET/VAL_MINMAX/VAL_LEN/STR_REGEX/FK_REF/SQL）动态配置全链：V24 台账 + runner rulegen 编译器（dbt singular test）+ 推送 + 门户管理面。契约与浏览器核验见 [docs/validation/gate-g2g-b2-dynamic-rules-20261004.md](validation/gate-g2g-b2-dynamic-rules-20261004.md)；五项边界（第二刀 8 类/目标域限 Doris/推送事务语义/dev Keycloak admin scope/白名单列无预检）已记备忘账。**下一刀：8 类跨表/统计/时间宏。**
+> **进度（2026-10-04）**：首刀已交付并过 gate——8 类单表谓词动态配置全链（V24 台账 + runner rulegen 编译器 + 推送 + 门户管理面），见 [gate-g2g-b2-dynamic-rules-20261004.md](validation/gate-g2g-b2-dynamic-rules-20261004.md)。**第二刀同日交付并过 gate，批次 2 收官**——7 类跨表/统计/时间宏 + VAL_SET 标准值域字典引用（快照语义），nema 16 类规则语义全数移植，见 [gate-g2g-b2-dynamic-rules-cut2-20261004.md](validation/gate-g2g-b2-dynamic-rules-cut2-20261004.md)；边界（TIME_CONTINUITY 无窗口/VAL_SET 快照无跟随/宏 SQL 限 Doris 方言）已记备忘账。
 
 > 依据：nema 仓库 `docs/design/nema-vs-dataos-coverage-matrix.md` §G2G 批次 2 + 缺口 #1（后端最大缺口，3-4 周级）。参考物：`dqp-common/quality/rule/`（RuleType 16 类 + impl 配置形态 + Dimension 六维）。
 

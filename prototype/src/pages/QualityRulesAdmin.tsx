@@ -27,9 +27,20 @@ const PARAM_LABELS: Record<QualityRuleType, string> = {
   NOT_NULL: '非空校验', UNIQUE: '唯一性校验', FK_REF: '外键参照校验',
   VAL_SET: '值域校验', VAL_MINMAX: '数值范围校验', VAL_LEN: '长度范围校验',
   STR_REGEX: '正则校验', SQL: '自定义 SQL 校验',
+  CROSS_VAL_COMPARE: '跨表数据值比较', STAT_VAL_COMPARE: '统计数据值比较',
+  SQL_STAT_VAL: 'SQL 统计值比较', DETAIL_STAT: '明细汇总校验',
+  FIELD_LOGIC: '字段间关系', UPDATE_TIME: '更新时效校验', TIME_CONTINUITY: '时间连续性校验',
 }
 
-/** 编辑态的参数承载：值集/枚举以逗号分隔文本编辑，保存时解析。 */
+/** 失败列由执行器编译派生的类型：表单隐藏证据白名单编辑。 */
+const COMPUTED_EVIDENCE_TYPES: Set<QualityRuleType> = new Set([
+  'STAT_VAL_COMPARE', 'SQL_STAT_VAL', 'DETAIL_STAT', 'TIME_CONTINUITY',
+])
+
+const STAT_OPS = ['COUNT', 'SUM', 'AVG', 'MAX', 'MIN'] as const
+const TIME_UNITS = ['SECOND', 'MINUTE', 'HOUR', 'DAY'] as const
+
+/** 编辑态的参数承载：值集/关联键以逗号分隔文本编辑，保存时解析。 */
 interface RuleFormState {
   ruleId: string
   ruleType: QualityRuleType
@@ -37,6 +48,7 @@ interface RuleFormState {
   targetColumn: string
   checkBlank: boolean
   valuesText: string
+  standardElementId: string
   minVal: string
   maxVal: string
   minLen: string
@@ -44,15 +56,28 @@ interface RuleFormState {
   regex: string
   refDataset: string
   refColumn: string
+  targetJoinCols: string
+  refJoinCols: string
+  statOp: string
+  refStatOp: string
+  checkSql: string
+  refSql: string
   customSql: string
+  logic: string
+  ingestColumn: string
+  threshold: string
+  timeUnit: string
   evidenceColumns: QualityEvidenceColumn[]
 }
 
 function newForm(): RuleFormState {
   return {
     ruleId: '', ruleType: 'NOT_NULL', datasetId: '', targetColumn: '',
-    checkBlank: false, valuesText: '', minVal: '', maxVal: '', minLen: '', maxLen: '',
-    regex: '', refDataset: '', refColumn: '', customSql: '',
+    checkBlank: false, valuesText: '', standardElementId: '', minVal: '', maxVal: '',
+    minLen: '', maxLen: '', regex: '', refDataset: '', refColumn: '',
+    targetJoinCols: '', refJoinCols: '', statOp: 'COUNT', refStatOp: 'COUNT',
+    checkSql: '', refSql: '', customSql: '', logic: '', ingestColumn: '',
+    threshold: '', timeUnit: 'HOUR',
     evidenceColumns: [{ name: '', classification: 'REDACTED' }],
   }
 }
@@ -60,6 +85,7 @@ function newForm(): RuleFormState {
 function formFromRule(rule: QualityRuleDefinitionApiItem): RuleFormState {
   const params = rule.params ?? {}
   const values = Array.isArray(params.values) ? params.values.map(String).join(',') : ''
+  const joinText = (value: unknown) => Array.isArray(value) ? value.join(',') : ''
   return {
     ruleId: rule.ruleId,
     ruleType: rule.ruleType,
@@ -67,6 +93,7 @@ function formFromRule(rule: QualityRuleDefinitionApiItem): RuleFormState {
     targetColumn: rule.targetColumn,
     checkBlank: params.checkBlank === true,
     valuesText: values,
+    standardElementId: typeof params.standardElementId === 'string' ? params.standardElementId : '',
     minVal: params.minVal == null ? '' : String(params.minVal),
     maxVal: params.maxVal == null ? '' : String(params.maxVal),
     minLen: params.minLen == null ? '' : String(params.minLen),
@@ -74,7 +101,17 @@ function formFromRule(rule: QualityRuleDefinitionApiItem): RuleFormState {
     regex: typeof params.regex === 'string' ? params.regex : '',
     refDataset: typeof params.refDataset === 'string' ? params.refDataset : '',
     refColumn: typeof params.refColumn === 'string' ? params.refColumn : '',
+    targetJoinCols: joinText(params.targetJoinCols),
+    refJoinCols: joinText(params.refJoinCols),
+    statOp: typeof params.op === 'string' ? params.op : 'COUNT',
+    refStatOp: typeof params.refOp === 'string' ? params.refOp : 'COUNT',
+    checkSql: typeof params.checkSql === 'string' ? params.checkSql : '',
+    refSql: typeof params.refSql === 'string' ? params.refSql : '',
     customSql: typeof params.sql === 'string' ? params.sql : '',
+    logic: typeof params.logic === 'string' ? params.logic : '',
+    ingestColumn: typeof params.ingestColumn === 'string' ? params.ingestColumn : '',
+    threshold: params.threshold == null ? '' : String(params.threshold),
+    timeUnit: typeof params.timeUnit === 'string' ? params.timeUnit : 'HOUR',
     evidenceColumns: rule.evidenceColumns.length > 0 ? rule.evidenceColumns : [{ name: '', classification: 'REDACTED' }],
   }
 }
@@ -123,10 +160,15 @@ export function QualityRulesAdmin({ onNotice }: Props) {
 
   function buildParams(): Record<string, unknown> {
     const params: Record<string, unknown> = {}
+    const joinCols = (text: string) => text.split(',').map((item) => item.trim()).filter(Boolean)
     if (form.ruleType === 'NOT_NULL' && form.checkBlank) params.checkBlank = true
     if (form.ruleType === 'VAL_SET') {
-      params.values = form.valuesText.split(',').map((item) => item.trim())
-        .filter(Boolean).map((item) => (/^-?\d+(\.\d+)?$/.test(item) ? Number(item) : item))
+      if (form.standardElementId.trim()) {
+        params.standardElementId = form.standardElementId.trim()
+      } else {
+        params.values = form.valuesText.split(',').map((item) => item.trim())
+          .filter(Boolean).map((item) => (/^-?\d+(\.\d+)?$/.test(item) ? Number(item) : item))
+      }
     }
     if (form.ruleType === 'VAL_MINMAX') {
       if (form.minVal.trim()) params.minVal = Number(form.minVal)
@@ -142,6 +184,35 @@ export function QualityRulesAdmin({ onNotice }: Props) {
       params.refColumn = form.refColumn
     }
     if (form.ruleType === 'SQL') params.sql = form.customSql
+    if (form.ruleType === 'CROSS_VAL_COMPARE') {
+      params.refDataset = form.refDataset
+      params.refColumn = form.refColumn
+      params.targetJoinCols = joinCols(form.targetJoinCols)
+      params.refJoinCols = joinCols(form.refJoinCols)
+    }
+    if (form.ruleType === 'STAT_VAL_COMPARE') {
+      params.op = form.statOp
+      params.refOp = form.refStatOp
+      params.refDataset = form.refDataset
+      if (form.refColumn.trim()) params.refColumn = form.refColumn.trim()
+    }
+    if (form.ruleType === 'SQL_STAT_VAL') {
+      params.checkSql = form.checkSql
+      params.refSql = form.refSql
+    }
+    if (form.ruleType === 'DETAIL_STAT') {
+      params.refOp = form.refStatOp
+      params.refDataset = form.refDataset
+      params.refColumn = form.refColumn
+      params.targetJoinCols = joinCols(form.targetJoinCols)
+      params.refJoinCols = joinCols(form.refJoinCols)
+    }
+    if (form.ruleType === 'FIELD_LOGIC') params.logic = form.logic
+    if (form.ruleType === 'UPDATE_TIME') {
+      params.ingestColumn = form.ingestColumn
+      params.threshold = Number(form.threshold)
+      params.timeUnit = form.timeUnit
+    }
     return params
   }
 
@@ -152,10 +223,11 @@ export function QualityRulesAdmin({ onNotice }: Props) {
       setFormError('请填写规则编号（小写字母数字与 ._-）')
       return
     }
-    const evidenceColumns = form.evidenceColumns
+    const computed = COMPUTED_EVIDENCE_TYPES.has(form.ruleType)
+    const evidenceColumns = computed ? [] : form.evidenceColumns
       .map((column) => ({ name: column.name.trim(), classification: column.classification }))
       .filter((column) => column.name)
-    if (evidenceColumns.length === 0) {
+    if (!computed && evidenceColumns.length === 0) {
       setFormError('至少配置一个证据列（失败样本展示白名单）')
       return
     }
@@ -163,7 +235,7 @@ export function QualityRulesAdmin({ onNotice }: Props) {
       const saved = await saveQualityRule(ruleId, {
         ruleType: form.ruleType,
         datasetId: form.datasetId.trim(),
-        targetColumn: form.ruleType === 'SQL' ? '' : form.targetColumn.trim(),
+        targetColumn: form.ruleType === 'SQL' || form.ruleType === 'SQL_STAT_VAL' ? '' : form.targetColumn.trim(),
         params: buildParams(),
         evidenceColumns,
       })
@@ -193,7 +265,8 @@ export function QualityRulesAdmin({ onNotice }: Props) {
   }
 
   const update = (patch: Partial<RuleFormState>) => setForm((current) => ({ ...current, ...patch }))
-  const needsColumn = form.ruleType !== 'SQL'
+  const needsColumn = form.ruleType !== 'SQL' && form.ruleType !== 'SQL_STAT_VAL'
+  const computedEvidence = COMPUTED_EVIDENCE_TYPES.has(form.ruleType)
 
   return (
     <section className={styles.tablePanel}>
@@ -243,13 +316,16 @@ export function QualityRulesAdmin({ onNotice }: Props) {
           </div>
           <div className={styles.drawerFormGrid}>
             <div className={styles.formField}><label htmlFor="rule-dataset">目标「库.表」</label><input id="rule-dataset" value={form.datasetId} onChange={(event) => update({ datasetId: event.target.value })} placeholder="例如：ods_ep.ep_order" /></div>
-            <div className={styles.formField}><label htmlFor="rule-column">目标列{needsColumn ? '' : '（SQL 类型无需）'}</label><input id="rule-column" value={form.targetColumn} disabled={!needsColumn} onChange={(event) => update({ targetColumn: event.target.value })} placeholder="例如：PAY_STATUS" /></div>
+            <div className={styles.formField}><label htmlFor="rule-column">目标列{needsColumn ? (form.ruleType === 'UPDATE_TIME' ? '（业务时间列）' : '') : '（本类型无需）'}</label><input id="rule-column" value={form.targetColumn} disabled={!needsColumn} onChange={(event) => update({ targetColumn: event.target.value })} placeholder="例如：PAY_STATUS" /></div>
           </div>
           {form.ruleType === 'NOT_NULL' ? (
             <div className={styles.formField}><label className={styles.structuredColumnOption}><input type="checkbox" checked={form.checkBlank} onChange={(event) => update({ checkBlank: event.target.checked })} /><span>空字符串也算失败（checkBlank）</span></label></div>
           ) : null}
           {form.ruleType === 'VAL_SET' ? (
-            <div className={styles.formField}><label htmlFor="rule-values">值域集合（逗号分隔，数字自动识别）</label><input id="rule-values" value={form.valuesText} onChange={(event) => update({ valuesText: event.target.value })} placeholder="例如：0,1,PAID" /></div>
+            <>
+              <div className={styles.formField}><label htmlFor="rule-values">值域集合（逗号分隔，数字自动识别）</label><input id="rule-values" value={form.valuesText} onChange={(event) => update({ valuesText: event.target.value })} placeholder="例如：0,1,PAID" /></div>
+              <div className={styles.formField}><label htmlFor="rule-standard">或引用标准中心值域（数据元 id，保存时解析快照）</label><input id="rule-standard" value={form.standardElementId} onChange={(event) => update({ standardElementId: event.target.value })} placeholder="标准中心数据元 id；填写后忽略上方手写值集" /></div>
+            </>
           ) : null}
           {form.ruleType === 'VAL_MINMAX' ? (
             <div className={styles.drawerFormGrid}>
@@ -275,6 +351,55 @@ export function QualityRulesAdmin({ onNotice }: Props) {
           {form.ruleType === 'SQL' ? (
             <div className={styles.formField}><label htmlFor="rule-sql">校验 SQL（单条只读 SELECT，返回失败行）</label><textarea id="rule-sql" className={`${styles.codeInput} ${styles.codeInputLarge}`} value={form.customSql} onChange={(event) => update({ customSql: event.target.value })} spellCheck={false} placeholder="SELECT ID FROM ods_ep.ep_order WHERE PAY_STATUS IS NULL" /></div>
           ) : null}
+          {form.ruleType === 'CROSS_VAL_COMPARE' || form.ruleType === 'DETAIL_STAT' ? (
+            <>
+              <div className={styles.drawerFormGrid}>
+                <div className={styles.formField}><label htmlFor="rule-ref-dataset">参照「库.表」</label><input id="rule-ref-dataset" value={form.refDataset} onChange={(event) => update({ refDataset: event.target.value })} placeholder="例如：ods_ep.patient" /></div>
+                <div className={styles.formField}><label htmlFor="rule-ref-column">参照值列</label><input id="rule-ref-column" value={form.refColumn} onChange={(event) => update({ refColumn: event.target.value })} placeholder={form.ruleType === 'CROSS_VAL_COMPARE' ? '例如：NAME' : '明细值列，例如 PAY'} /></div>
+              </div>
+              <div className={styles.drawerFormGrid}>
+                <div className={styles.formField}><label htmlFor="rule-target-joins">目标表关联键（逗号分隔）</label><input id="rule-target-joins" value={form.targetJoinCols} onChange={(event) => update({ targetJoinCols: event.target.value })} placeholder="例如：PATIENT_ID" /></div>
+                <div className={styles.formField}><label htmlFor="rule-ref-joins">参照表关联键（逗号分隔，与左侧一一对应）</label><input id="rule-ref-joins" value={form.refJoinCols} onChange={(event) => update({ refJoinCols: event.target.value })} placeholder="例如：PID" /></div>
+              </div>
+            </>
+          ) : null}
+          {form.ruleType === 'STAT_VAL_COMPARE' ? (
+            <>
+              <div className={styles.drawerFormGrid}>
+                <div className={styles.formField}><label htmlFor="rule-stat-op">检查表统计函数</label><select id="rule-stat-op" value={form.statOp} onChange={(event) => update({ statOp: event.target.value })}>{STAT_OPS.map((op) => <option key={op} value={op}>{op}</option>)}</select></div>
+                <div className={styles.formField}><label htmlFor="rule-ref-stat-op">参照表统计函数</label><select id="rule-ref-stat-op" value={form.refStatOp} onChange={(event) => update({ refStatOp: event.target.value })}>{STAT_OPS.map((op) => <option key={op} value={op}>{op}</option>)}</select></div>
+              </div>
+              <div className={styles.drawerFormGrid}>
+                <div className={styles.formField}><label htmlFor="rule-ref-dataset">参照「库.表」</label><input id="rule-ref-dataset" value={form.refDataset} onChange={(event) => update({ refDataset: event.target.value })} placeholder="例如：ods_ep.ep_order_history" /></div>
+                <div className={styles.formField}><label htmlFor="rule-ref-column">参照值列（COUNT 可空）</label><input id="rule-ref-column" value={form.refColumn} onChange={(event) => update({ refColumn: event.target.value })} placeholder="例如：AMOUNT" /></div>
+              </div>
+            </>
+          ) : null}
+          {form.ruleType === 'SQL_STAT_VAL' ? (
+            <>
+              <div className={styles.formField}><label htmlFor="rule-check-sql">检查值 SQL（单条只读，返回单个统计值）</label><textarea id="rule-check-sql" className={styles.codeInput} value={form.checkSql} onChange={(event) => update({ checkSql: event.target.value })} spellCheck={false} placeholder="SELECT COUNT(*) FROM ods_ep.ep_order" /></div>
+              <div className={styles.formField}><label htmlFor="rule-ref-sql">参照值 SQL（单条只读，返回单个统计值）</label><textarea id="rule-ref-sql" className={styles.codeInput} value={form.refSql} onChange={(event) => update({ refSql: event.target.value })} spellCheck={false} placeholder="SELECT COUNT(*) FROM ods_ep.ep_order_history" /></div>
+            </>
+          ) : null}
+          {form.ruleType === 'DETAIL_STAT' ? (
+            <div className={styles.formField}><label htmlFor="rule-detail-op">明细表统计函数</label><select id="rule-detail-op" value={form.refStatOp} onChange={(event) => update({ refStatOp: event.target.value })}>{STAT_OPS.map((op) => <option key={op} value={op}>{op}</option>)}</select></div>
+          ) : null}
+          {form.ruleType === 'FIELD_LOGIC' ? (
+            <div className={styles.formField}><label htmlFor="rule-logic">字段间逻辑表达式（列名与比较符，例：AMOUNT &gt; 0 AND PAY_STATUS = 'PAID'）</label><input id="rule-logic" value={form.logic} onChange={(event) => update({ logic: event.target.value })} placeholder="AMOUNT > 0 AND PAY_STATUS = 'PAID'" /></div>
+          ) : null}
+          {form.ruleType === 'UPDATE_TIME' ? (
+            <>
+              <div className={styles.drawerFormGrid}>
+                <div className={styles.formField}><label htmlFor="rule-ingest">入库时间列</label><input id="rule-ingest" value={form.ingestColumn} onChange={(event) => update({ ingestColumn: event.target.value })} placeholder="例如：ETL_TIME" /></div>
+                <div className={styles.formField}><label htmlFor="rule-threshold">时效阈值（业务时间 → 入库时间）</label><input id="rule-threshold" type="number" min={0} value={form.threshold} onChange={(event) => update({ threshold: event.target.value })} placeholder="2" /></div>
+              </div>
+              <div className={styles.formField}><label htmlFor="rule-time-unit">阈值单位</label><select id="rule-time-unit" value={form.timeUnit} onChange={(event) => update({ timeUnit: event.target.value })}>{TIME_UNITS.map((unit) => <option key={unit} value={unit}>{unit}</option>)}</select></div>
+            </>
+          ) : null}
+          {form.ruleType === 'TIME_CONTINUITY' ? (
+            <p className={styles.drawerHint}>时间连续性检查目标列的全历史断档（相邻两期间隔 &gt; 1 天即失败行），失败列为（上一期, 本期）。目标列须为 DATE/DATETIME。</p>
+          ) : null}
+          {!computedEvidence ? (
           <div className={styles.formField}>
             <label>证据列白名单（失败样本展示 + 脱敏分类）</label>
             {form.evidenceColumns.map((column, index) => (
@@ -298,6 +423,9 @@ export function QualityRulesAdmin({ onNotice }: Props) {
             ))}
             <button type="button" className={styles.textButton} onClick={() => update({ evidenceColumns: [...form.evidenceColumns, { name: '', classification: 'REDACTED' }] })}><Plus size={13} />添加证据列</button>
           </div>
+          ) : (
+            <p className={styles.drawerHint}>本类型的失败列由执行器编译派生（如 check_value/ref_value、prev_period/cur_period），无需配置证据白名单。</p>
+          )}
           {formError ? <p className={styles.formError} role="alert">{formError}</p> : null}
         </form>
       </Drawer> : null}

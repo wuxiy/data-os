@@ -24,18 +24,25 @@ public class QualityRuleAdminController {
         this.service = service;
     }
 
-    /** 首刀支持的规则类型与维度归属（表单渲染用；语义校验在 runner）。 */
+    /** 类型目录（表单渲染用；语义校验在 runner）。 */
     @GetMapping("/types")
     public List<RuleTypeView> types() {
         return List.of(
-                new RuleTypeView("NOT_NULL", "非空校验", "完整性"),
-                new RuleTypeView("UNIQUE", "唯一性校验", "完整性"),
-                new RuleTypeView("FK_REF", "外键参照校验", "完整性"),
-                new RuleTypeView("VAL_SET", "值域校验", "规范性"),
-                new RuleTypeView("VAL_MINMAX", "数值范围校验", "规范性"),
-                new RuleTypeView("VAL_LEN", "长度范围校验", "规范性"),
-                new RuleTypeView("STR_REGEX", "正则校验", "规范性"),
-                new RuleTypeView("SQL", "自定义 SQL 校验", "准确性"));
+                new RuleTypeView("NOT_NULL", "非空校验", "完整性", false),
+                new RuleTypeView("UNIQUE", "唯一性校验", "完整性", false),
+                new RuleTypeView("FK_REF", "外键参照校验", "完整性", false),
+                new RuleTypeView("VAL_SET", "值域校验", "规范性", false),
+                new RuleTypeView("VAL_MINMAX", "数值范围校验", "规范性", false),
+                new RuleTypeView("VAL_LEN", "长度范围校验", "规范性", false),
+                new RuleTypeView("STR_REGEX", "正则校验", "规范性", false),
+                new RuleTypeView("SQL", "自定义 SQL 校验", "准确性", false),
+                new RuleTypeView("CROSS_VAL_COMPARE", "跨表数据值比较", "一致性", false),
+                new RuleTypeView("STAT_VAL_COMPARE", "统计数据值比较", "一致性", true),
+                new RuleTypeView("SQL_STAT_VAL", "SQL 统计值比较", "一致性", true),
+                new RuleTypeView("DETAIL_STAT", "明细汇总校验", "一致性", true),
+                new RuleTypeView("FIELD_LOGIC", "字段间关系", "准确性", false),
+                new RuleTypeView("UPDATE_TIME", "更新时效校验", "及时性", false),
+                new RuleTypeView("TIME_CONTINUITY", "时间连续性校验", "稳定性", true));
     }
 
     @GetMapping
@@ -67,7 +74,8 @@ public class QualityRuleAdminController {
         return ResponseEntity.noContent().build();
     }
 
-    public record RuleTypeView(String type, String label, String dimension) {
+    /** computedEvidence = 失败列由编译器派生（门户不提交白名单）。 */
+    public record RuleTypeView(String type, String label, String dimension, boolean computedEvidence) {
     }
 
     public record RuleListResponse(List<QualityRuleDefinition> items, int total) {

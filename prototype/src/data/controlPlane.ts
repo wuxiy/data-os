@@ -449,12 +449,17 @@ export async function runSourceQuery(sourceId: string, input: { sql: string; cat
 
 // —— 动态质量规则管理（G2G 批次 2）——
 
-export type QualityRuleType = 'NOT_NULL' | 'UNIQUE' | 'VAL_SET' | 'VAL_MINMAX' | 'VAL_LEN' | 'STR_REGEX' | 'FK_REF' | 'SQL'
+export type QualityRuleType =
+  | 'NOT_NULL' | 'UNIQUE' | 'VAL_SET' | 'VAL_MINMAX' | 'VAL_LEN' | 'STR_REGEX' | 'FK_REF' | 'SQL'
+  | 'CROSS_VAL_COMPARE' | 'STAT_VAL_COMPARE' | 'SQL_STAT_VAL' | 'DETAIL_STAT'
+  | 'FIELD_LOGIC' | 'UPDATE_TIME' | 'TIME_CONTINUITY'
 
 export interface QualityRuleTypeView {
   type: QualityRuleType
   label: string
   dimension: string
+  /** 失败列由编译器派生（门户不提交证据白名单）。 */
+  computedEvidence: boolean
 }
 
 export interface QualityRuleDefinitionApiItem {

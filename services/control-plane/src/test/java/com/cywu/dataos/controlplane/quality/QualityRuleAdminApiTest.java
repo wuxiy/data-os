@@ -103,12 +103,83 @@ class QualityRuleAdminApiTest {
     }
 
     @Test
-    void exposesFirstCutRuleTypeCatalog() throws Exception {
+    void exposesFullRuleTypeCatalog() throws Exception {
         mockMvc.perform(get("/api/v1/quality/rules/types"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(8)))
+                .andExpect(jsonPath("$", hasSize(15)))
                 .andExpect(jsonPath("$[0].type", is("NOT_NULL")))
-                .andExpect(jsonPath("$[7].type", is("SQL")));
+                .andExpect(jsonPath("$[8].type", is("CROSS_VAL_COMPARE")))
+                .andExpect(jsonPath("$[14].computedEvidence", is(true)));
+    }
+
+    @Test
+    void savesSecondCutConsistencyRuleAndPushesToRunner() throws Exception {
+        var ruleId = "quality.dynamic.detail-" + UUID.randomUUID().toString().substring(0, 8);
+        pushes.clear();
+        mockMvc.perform(put("/api/v1/quality/rules/" + ruleId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"ruleType":"DETAIL_STAT","datasetId":"ods_ep.ep_order","targetColumn":"AMOUNT",
+                                 "params":{"refOp":"SUM","refDataset":"ods_ep.ep_order_item","refColumn":"PAY",
+                                           "targetJoinCols":["PATIENT_ID"],"refJoinCols":["PID"]},
+                                 "evidenceColumns":[]}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ruleType", is("DETAIL_STAT")));
+        var last = pushes.stream().reduce((first, second) -> second).orElse(null);
+        assertThat(last).isNotNull();
+        JsonNode pushed = mapper.readTree(last.substring(last.indexOf('{')));
+        assertThat(pushed.path("params").path("refOp").asText()).isEqualTo("SUM");
+        assertThat(pushed.path("evidenceColumns").size()).isZero();
+    }
+
+    @Test
+    void valSetResolvesStandardValueSnapshotAtSave() throws Exception {
+        // 种入一个标准（集合 + 数据元 + 值域一次性内联）供字典引用解析
+        var suffix = UUID.randomUUID().toString().substring(0, 8);
+        var standard = mockMvc.perform(post("/api/v1/data-standards")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"code":"STD-QR-%s","name":"质量规则测试标准%s","description":"","owner":"测试",
+                                 "elements":[{"code":"gender-%s","name":"性别代码","dataType":"CODE","required":false,
+                                   "values":[{"code":"1","displayName":"男"},{"code":"2","displayName":"女"}]}]}
+                                """.formatted(suffix, suffix, suffix)))
+                .andReturn().getResponse();
+        assertThat(standard.getStatus()).isIn(200, 201);
+        var elementId = jdbc.queryForObject(
+                "SELECT id FROM data_os.data_standard_element WHERE code = ?", String.class, "gender-" + suffix);
+
+        var ruleId = "quality.dynamic.gender-values-" + suffix;
+        pushes.clear();
+        mockMvc.perform(put("/api/v1/quality/rules/" + ruleId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"ruleType":"VAL_SET","datasetId":"ods_ep.patient","targetColumn":"GENDER",
+                                 "params":{"standardElementId":"%s"},"evidenceColumns":[
+                                   {"name":"ID","classification":"IDENTIFIER"}]}
+                                """.formatted(elementId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.params.values[0]", is("1")))
+                .andExpect(jsonPath("$.params.values[1]", is("2")))
+                .andExpect(jsonPath("$.params.standardElementId", is(elementId)));
+        var last = pushes.stream().reduce((first, second) -> second).orElse(null);
+        JsonNode pushed = mapper.readTree(last.substring(last.indexOf('{')));
+        assertThat(pushed.path("params").path("values").size()).isEqualTo(2);
+
+        // 引用不存在的数据元 → 拒绝且不落账
+        mockMvc.perform(put("/api/v1/quality/rules/quality.dynamic.broken-dict-" + suffix)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"ruleType":"VAL_SET","datasetId":"ods_ep.patient","targetColumn":"GENDER",
+                                 "params":{"standardElementId":"no-such-element"},"evidenceColumns":[
+                                   {"name":"ID","classification":"IDENTIFIER"}]}
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message", org.hamcrest.Matchers.containsString("未找到可用代码")));
+        Integer count = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM data_os.quality_rule_definitions WHERE rule_id = ?",
+                Integer.class, "quality.dynamic.broken-dict-" + suffix);
+        assertThat(count).isZero();
     }
 
     @Test
@@ -166,9 +237,9 @@ class QualityRuleAdminApiTest {
     void unsupportedTypeRejectedBeforePush() throws Exception {
         mockMvc.perform(put("/api/v1/quality/rules/quality.dynamic.unknown-type")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(saveBody("TIME_CONTINUITY", "UPDATE_TIME", "{\"range\":1}")))
+                        .content(saveBody("NEVER_A_TYPE", "UPDATE_TIME", "{\"threshold\":1}")))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message", org.hamcrest.Matchers.containsString("首刀八类")));
+                .andExpect(jsonPath("$.message", org.hamcrest.Matchers.containsString("不支持的规则类型")));
     }
 
     @Test

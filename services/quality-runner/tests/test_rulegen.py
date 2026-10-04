@@ -60,6 +60,101 @@ def test_compiles_eight_rule_types_with_expected_shapes():
         assert target.validate().compile_sql() == expected, label
 
 
+def test_compiles_second_cut_rule_types_with_expected_shapes():
+    """第二刀 7 类：跨表比较、统计比较（表/SQL）、明细汇总、字段逻辑、更新率、时间连续。"""
+    join = {"targetJoinCols": ["PATIENT_ID"], "refJoinCols": ["PID"]}
+    cases = {
+        "CROSS_VAL_COMPARE": (
+            "SELECT t.`ID`, t.`PAY_STATUS` FROM `ods_ep`.`ep_order` t "
+            "JOIN `ods_ep`.`patient` r ON t.`PATIENT_ID` = r.`PID` "
+            "WHERE t.`PAY_STATUS` <> r.`NAME`",
+            spec(rule_type="CROSS_VAL_COMPARE",
+                 params={"refDataset": "ods_ep.patient", "refColumn": "NAME", **join})),
+        "STAT_VAL_COMPARE": (
+            "SELECT c.check_value, r.ref_value FROM (SELECT COUNT(*) FROM `ods_ep`.`ep_order`) c "
+            "JOIN (SELECT SUM(`AMOUNT`) FROM `ods_ep`.`ep_order_history`) r "
+            "WHERE c.check_value <> r.ref_value OR c.check_value IS NULL OR r.ref_value IS NULL",
+            spec(rule_type="STAT_VAL_COMPARE", params={
+                "op": "COUNT", "refOp": "SUM",
+                "refDataset": "ods_ep.ep_order_history", "refColumn": "AMOUNT"})),
+        "SQL_STAT_VAL": (
+            "SELECT c.check_value, r.ref_value FROM (SELECT COUNT(*) FROM ods_ep.ep_order) c "
+            "JOIN (SELECT COUNT(*) FROM ods_ep.ep_order_history) r "
+            "WHERE c.check_value <> r.ref_value OR c.check_value IS NULL OR r.ref_value IS NULL",
+            spec(rule_type="SQL_STAT_VAL", column="", params={
+                "checkSql": "SELECT COUNT(*) FROM ods_ep.ep_order",
+                "refSql": "SELECT COUNT(*) FROM ods_ep.ep_order_history"})),
+        "DETAIL_STAT": (
+            "SELECT `PATIENT_ID`, c.check_value, r.ref_value FROM "
+            "(SELECT `PATIENT_ID`, `AMOUNT` AS check_value FROM `ods_ep`.`ep_order`) c "
+            "JOIN (SELECT `PID` AS `PATIENT_ID`, SUM(`PAY`) AS ref_value "
+            "FROM `ods_ep`.`ep_order_item` GROUP BY `PID`) r "
+            "ON c.`PATIENT_ID` = r.`PATIENT_ID` WHERE c.check_value <> r.ref_value "
+            "OR c.check_value IS NULL OR r.ref_value IS NULL",
+            spec(rule_type="DETAIL_STAT", column="AMOUNT", params={
+                "refOp": "SUM", "refDataset": "ods_ep.ep_order_item", "refColumn": "PAY", **join})),
+        "FIELD_LOGIC": (
+            "SELECT `ID`, `PAY_STATUS` FROM `ods_ep`.`ep_order` "
+            "WHERE NOT (`PAY_STATUS` = 'PAID' OR AMOUNT > 0)",
+            spec(rule_type="FIELD_LOGIC",
+                 params={"logic": "`PAY_STATUS` = 'PAID' OR AMOUNT > 0"})),
+        "UPDATE_TIME": (
+            "SELECT `ID`, `PAY_STATUS` FROM `ods_ep`.`ep_order` "
+            "WHERE `ETL_TIME` IS NOT NULL AND `PAY_STATUS` IS NOT NULL "
+            "AND TIMESTAMPDIFF(SECOND, `PAY_STATUS`, `ETL_TIME`) > 7200",
+            spec(rule_type="UPDATE_TIME",
+                 params={"ingestColumn": "ETL_TIME", "threshold": 2, "timeUnit": "HOUR"})),
+        "TIME_CONTINUITY": (
+            "SELECT prev_period, cur_period FROM (SELECT LAG(p) OVER (ORDER BY p) AS prev_period, "
+            "p AS cur_period FROM (SELECT DISTINCT `PAY_STATUS` AS p FROM `ods_ep`.`ep_order` "
+            "WHERE `PAY_STATUS` IS NOT NULL) d) g "
+            "WHERE prev_period IS NOT NULL AND TIMESTAMPDIFF(DAY, prev_period, cur_period) > 1",
+            spec(rule_type="TIME_CONTINUITY")),
+    }
+    for label, (expected, target) in cases.items():
+        assert target.validate().compile_sql() == expected, label
+
+
+def test_second_cut_derived_evidence_for_computed_shapes():
+    stat = spec(rule_type="STAT_VAL_COMPARE", evidence_columns=[], params={
+        "op": "COUNT", "refOp": "COUNT", "refDataset": "ods_ep.ep_order_history"})
+    contract = stat.validate().evidence_contract()
+    assert [item["name"] for item in contract["columns"]] == ["check_value", "ref_value"]
+    detail = spec(rule_type="DETAIL_STAT", evidence_columns=[], params={
+        "refOp": "SUM", "refDataset": "ods_ep.ep_order_item", "refColumn": "PAY",
+        "targetJoinCols": ["PATIENT_ID"], "refJoinCols": ["PID"]})
+    names = [item["name"] for item in detail.validate().evidence_contract()["columns"]]
+    assert names == ["PATIENT_ID", "check_value", "ref_value"]
+
+
+def test_second_cut_validation_rejects_misuse():
+    join = {"targetJoinCols": ["A"], "refJoinCols": ["B", "C"]}
+    with pytest.raises(ValueError, match="数量不一致"):
+        spec(rule_type="CROSS_VAL_COMPARE",
+             params={"refDataset": "ods_ep.patient", "refColumn": "NAME", **join}).validate()
+    with pytest.raises(ValueError, match="统计函数"):
+        spec(rule_type="STAT_VAL_COMPARE", params={
+            "op": "MEDIAN", "refOp": "SUM", "refDataset": "a.b", "refColumn": "C"}).validate()
+    with pytest.raises(ValueError, match="checkSql 与 refSql"):
+        spec(rule_type="SQL_STAT_VAL", column="", params={"checkSql": "SELECT 1"}).validate()
+    with pytest.raises(ValueError, match="只读"):
+        spec(rule_type="SQL_STAT_VAL", column="", params={
+            "checkSql": "DELETE FROM x", "refSql": "SELECT 1"}).validate()
+    with pytest.raises(ValueError, match="分号或注释"):
+        spec(rule_type="FIELD_LOGIC", params={"logic": "a > 1; DROP TABLE x"}).validate()
+    with pytest.raises(ValueError, match="threshold"):
+        spec(rule_type="UPDATE_TIME",
+             params={"ingestColumn": "T", "threshold": -1, "timeUnit": "DAY"}).validate()
+    with pytest.raises(ValueError, match="timeUnit"):
+        spec(rule_type="UPDATE_TIME",
+             params={"ingestColumn": "T", "threshold": 1, "timeUnit": "WEEK"}).validate()
+    # 计算形状类型允许空证据白名单（服务端派生）；行形状仍要求非空
+    with pytest.raises(ValueError, match="证据列"):
+        spec(rule_type="CROSS_VAL_COMPARE", evidence_columns=[],
+             params={"refDataset": "a.b", "refColumn": "C",
+                     "targetJoinCols": ["A"], "refJoinCols": ["B"]}).validate()
+
+
 def test_evidence_contract_matches_failure_table_shape():
     assert spec().validate().evidence_contract()["kind"] == "not_null"
     assert spec(rule_type="UNIQUE").validate().evidence_contract()["kind"] == "unique"

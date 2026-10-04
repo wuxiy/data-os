@@ -229,6 +229,18 @@ public class StandardRepository {
         return List.copyOf(byId.values());
     }
 
+    /** 数据元值域代码（G2G 批次 2：VAL_SET 字典引用在保存时解析快照）。 */
+    public List<String> findElementCodes(String tenantId, String elementId) {
+        return jdbc.query("""
+                SELECT v.code FROM data_os.data_standard_value v
+                WHERE v.element_id = ?
+                  AND EXISTS (SELECT 1 FROM data_os.data_standard_element e
+                              JOIN data_os.data_standard_version ver ON e.version_id = ver.id
+                              WHERE e.id = v.element_id AND ver.tenant_id = ?)
+                ORDER BY v.sort_order, v.code
+                """, (rs, i) -> rs.getString("code"), elementId, tenantId);
+    }
+
     // ---- 事件 ----
 
     public void insertEvent(DataStandardEvent event) {
