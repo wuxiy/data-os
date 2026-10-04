@@ -207,14 +207,15 @@ public class JobScheduleService {
         }
     }
 
-    private record JobContext(DolphinBinding.Codes codes) {
+    record JobContext(DolphinBinding.Codes codes) {
     }
 
     private record ScheduleContext(DolphinBinding.Codes codes,
                                    DolphinScheduleClient.ScheduleRecord schedule) {
     }
 
-    private JobContext requireDolphinJob(String jobId) {
+    /** 通道/绑定守卫（实例域同包复用：DS 通道 + 工作流绑定在册）。 */
+    JobContext requireDolphinJob(String jobId) {
         var job = jobs.findById(jobId)
                 .orElseThrow(() -> new ResourceNotFoundException("未找到采集作业：" + jobId));
         if (!"DOLPHINSCHEDULER".equalsIgnoreCase(job.executor())

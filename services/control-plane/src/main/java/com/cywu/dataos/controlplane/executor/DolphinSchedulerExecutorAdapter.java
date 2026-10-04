@@ -344,7 +344,7 @@ public class DolphinSchedulerExecutorAdapter implements ExecutorAdapter {
         }
     }
 
-    static String normalizeStatus(String state) {
+    public static String normalizeStatus(String state) {
         if (state == null) return "UNKNOWN";
         return switch (state.trim().toUpperCase(Locale.ROOT)) {
             case "SUBMITTED_SUCCESS", "SERIAL_WAIT", "DISPATCH" -> "SUBMITTED";

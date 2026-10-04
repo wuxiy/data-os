@@ -169,6 +169,7 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
   const [configTemplateKey, setConfigTemplateKey] = useState(DEFAULT_TEMPLATE_KEY)
   const [configTemplateVersion, setConfigTemplateVersion] = useState(DEFAULT_TEMPLATE_VERSION)
   const [configText, setConfigText] = useState('')
+  const [dsBinding, setDsBinding] = useState({ projectCode: '', workflowDefinitionCode: '' })
   const [copyingJob, setCopyingJob] = useState<IngestionJobApiItem | null>(null)
   const [copyForm, setCopyForm] = useState({ sourceId: '', name: '' })
   const [detailsJob, setDetailsJob] = useState<IngestionJobApiItem | null>(null)
@@ -554,6 +555,7 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
     setConfigTemplateKey(job.templateKey ?? defaultTemplateKey(DEFAULT_TEMPLATE_KEY, LIVE_TEMPLATE_KEY))
     setConfigTemplateVersion(job.templateVersion ?? DEFAULT_TEMPLATE_VERSION)
     setConfigText(JSON.stringify(configForTemplate(job.templateKey ?? defaultTemplateKey(DEFAULT_TEMPLATE_KEY, LIVE_TEMPLATE_KEY), job.mode, workflowTemplates), null, 2))
+    setDsBinding({ projectCode: '', workflowDefinitionCode: '' })
     try {
       const saved = await fetchJobConfig(job.id)
       setConfigTemplateKey(saved.templateKey)
@@ -561,6 +563,14 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
       setConfigText(JSON.stringify(saved.config, null, 2))
       setConfigStructured(saved.structured)
       setConfigWatermark(saved.lastSuccessWatermark)
+      const binding = (saved.config as Record<string, unknown>)?.dolphinscheduler
+      if (binding && typeof binding === 'object') {
+        const record = binding as Record<string, unknown>
+        setDsBinding({
+          projectCode: record.projectCode === undefined ? '' : String(record.projectCode),
+          workflowDefinitionCode: record.workflowDefinitionCode === undefined ? '' : String(record.workflowDefinitionCode),
+        })
+      }
     } catch (error) {
       if (!isNotFound(error)) setConfigError('配置读取失败，请检查控制面日志')
     } finally {
@@ -582,6 +592,29 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
         ? { ...current, configured: true, templateKey: saved.templateKey, templateVersion: saved.templateVersion }
         : current)
       onNotice(`任务配置已保存：${saved.templateKey}（增量序列键按水位回放）`)
+    }, (message) => setConfigError(message))
+  }
+
+  function saveDsBinding() {
+    if (!configuringJob) return
+    const projectCode = Number(dsBinding.projectCode)
+    const workflowDefinitionCode = Number(dsBinding.workflowDefinitionCode)
+    if (!Number.isInteger(projectCode) || projectCode <= 0 || !Number.isInteger(workflowDefinitionCode) || workflowDefinitionCode <= 0) {
+      setConfigError('需填写正整数的项目编号与工作流定义编号')
+      return
+    }
+    setConfigError(null)
+    void runJobAction('save-config', '工作流绑定保存失败。请确认编号为 DS 中真实存在的项目与工作流定义。', async () => {
+      const saved = await saveJobConfig(configuringJob.id, {
+        templateKey: 'CUSTOM',
+        templateVersion: 1,
+        config: { dolphinscheduler: { projectCode, workflowDefinitionCode } },
+      })
+      setJobs((current) => current.map((item) => item.id === configuringJob.id
+        ? { ...item, configured: true, templateKey: saved.templateKey, templateVersion: saved.templateVersion }
+        : item))
+      setConfiguringJob((current) => current ? { ...current, configured: true } : current)
+      onNotice('工作流绑定已更新（周期调度配置不受影响）')
     }, (message) => setConfigError(message))
   }
 
@@ -788,9 +821,19 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
         title={configuringJob.name}
         closeLabel="关闭任务配置"
         onClose={() => setConfiguringJob(null)}
-        footer={<><button className={styles.secondaryButton} onClick={() => setConfiguringJob(null)}>{configStructured ? '关闭' : '取消'}</button>{configStructured ? null : <button className={styles.primaryButton} disabled={configLoading || configSaving} onClick={() => void saveConfiguration()}><Save size={14} />{configSaving ? '保存中…' : '保存配置'}</button>}</>}
+        footer={<><button className={styles.secondaryButton} onClick={() => setConfiguringJob(null)}>{configStructured || isDolphinJob(configuringJob) ? '关闭' : '取消'}</button>{configStructured ? null : isDolphinJob(configuringJob) ? <button className={styles.primaryButton} disabled={configLoading || configSaving} onClick={saveDsBinding}><Save size={14} />{configSaving ? '保存中…' : '保存绑定'}</button> : <button className={styles.primaryButton} disabled={configLoading || configSaving} onClick={() => void saveConfiguration()}><Save size={14} />{configSaving ? '保存中…' : '保存配置'}</button>}</>}
       >
-            {configStructured && configuringSource && configuringSource.protocol.toUpperCase() === 'JDBC' && configuringSource.connection ? (
+            {isDolphinJob(configuringJob) ? (
+              <>
+                <div className={styles.drawerNotice}><CalendarClock size={16} /><span>平台调度任务的配置即工作流绑定：指向 DolphinScheduler 中已发布的工作流。修改绑定不影响已配置的周期调度（调度随工作流生效）。</span></div>
+                <div className={styles.drawerFormGrid}>
+                  <div className={styles.formField}><label htmlFor="config-ds-project">DS 项目编号</label><input id="config-ds-project" type="number" min={1} value={dsBinding.projectCode} disabled={configLoading} onChange={(event) => setDsBinding((current) => ({ ...current, projectCode: event.target.value }))} /></div>
+                  <div className={styles.formField}><label htmlFor="config-ds-workflow">工作流定义编号</label><input id="config-ds-workflow" type="number" min={1} value={dsBinding.workflowDefinitionCode} disabled={configLoading} onChange={(event) => setDsBinding((current) => ({ ...current, workflowDefinitionCode: event.target.value }))} /></div>
+                </div>
+                {configLoading ? <p className={styles.drawerHint}>正在读取已保存绑定…</p> : null}
+                {configError ? <p className={styles.formError} role="alert">{configError}</p> : null}
+              </>
+            ) : configStructured && configuringSource && configuringSource.protocol.toUpperCase() === 'JDBC' && configuringSource.connection ? (
               <>
                 <div className={styles.drawerNotice}><Settings2 size={16} /><span>结构化任务：修改意图后由控制面重新对着源实校验并编译；增量进度（水位）不受重新保存影响。编译后的作业 JSON 由控制面持有，不再手工编辑。</span></div>
                 <JobStructuredForm
@@ -850,6 +893,10 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
 
 function Summary({ label, value, icon }: { label: string; value: string; icon: ReactNode }) {
   return <div className={styles.summaryCard}><span>{icon}</span><strong>{value}</strong><small>{label}</small></div>
+}
+
+function isDolphinJob(job: IngestionJobApiItem | null): boolean {
+  return !!job && job.executor.toUpperCase().includes('DOLPHIN')
 }
 
 function executorLabel(executor: string) {

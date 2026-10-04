@@ -1,14 +1,22 @@
-import { CalendarClock, CircleAlert, Eye, Power, Save, Trash2 } from 'lucide-react'
+import { CalendarClock, CircleAlert, Eye, ListTree, Power, RefreshCw, Save, Square, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
+  backfillScheduleInstances,
   changeJobScheduleState,
   deleteJobSchedule,
   fetchJobSchedule,
+  fetchScheduleInstances,
+  fetchScheduleTaskLog,
+  fetchScheduleTasks,
   previewJobSchedule,
+  retryScheduleInstance,
   saveJobSchedule,
+  stopScheduleInstance,
   type IngestionJobApiItem,
   type JobScheduleApiItem,
   type JobSchedulePreviewApiItem,
+  type ScheduleInstanceApiItem,
+  type ScheduleTaskApiItem,
 } from '../data/controlPlane'
 import { Drawer } from '../components/ui/Drawer'
 import { StatusTag } from '../components/ui/Primitives'
@@ -45,6 +53,22 @@ export function JobScheduleDrawer({ job, onClose, onNotice }: {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const confirmTimer = useRef<number | null>(null)
 
+  // 实例页签（G2G 批次 5 第二刀）：DS 触发/补数实例的实时代理面
+  const [tab, setTab] = useState<'config' | 'instances'>('config')
+  const [instList, setInstList] = useState<ScheduleInstanceApiItem[]>([])
+  const [instTotal, setInstTotal] = useState(0)
+  const [instPage, setInstPage] = useState(0)
+  const [instLoading, setInstLoading] = useState(false)
+  const [instError, setInstError] = useState('')
+  const [expandedInstance, setExpandedInstance] = useState<number | null>(null)
+  const [tasksByInstance, setTasksByInstance] = useState<Record<number, ScheduleTaskApiItem[]>>({})
+  const [logByTask, setLogByTask] = useState<Record<number, string>>({})
+  const [logOpenTask, setLogOpenTask] = useState<number | null>(null)
+  const [backfillStart, setBackfillStart] = useState('')
+  const [backfillEnd, setBackfillEnd] = useState('')
+  const [backfilling, setBackfilling] = useState(false)
+  const [instBusy, setInstBusy] = useState(false)
+
   const load = useCallback(async () => {
     setState('loading')
     try {
@@ -62,6 +86,91 @@ export function JobScheduleDrawer({ job, onClose, onNotice }: {
   useEffect(() => {
     void load()
   }, [load])
+
+  const loadInstances = useCallback(async (page = instPage) => {
+    setInstLoading(true)
+    try {
+      const result = await fetchScheduleInstances(job.id, { page: page + 1, size: 10 })
+      setInstList(result.items)
+      setInstTotal(result.total)
+      setInstPage(page)
+      setInstError('')
+    } catch (cause) {
+      setInstError(cause instanceof Error ? cause.message : '调度实例读取失败')
+    } finally {
+      setInstLoading(false)
+    }
+  }, [job.id, instPage])
+
+  function switchTab(next: 'config' | 'instances') {
+    setTab(next)
+    if (next === 'instances' && instList.length === 0 && instTotal === 0 && !instLoading) {
+      void loadInstances(0)
+    }
+  }
+
+  async function toggleInstanceTasks(instance: ScheduleInstanceApiItem) {
+    if (expandedInstance === instance.id) {
+      setExpandedInstance(null)
+      return
+    }
+    setExpandedInstance(instance.id)
+    if (!tasksByInstance[instance.id]) {
+      try {
+        const tasks = await fetchScheduleTasks(job.id, instance.id)
+        setTasksByInstance((current) => ({ ...current, [instance.id]: tasks }))
+      } catch (cause) {
+        onNotice(cause instanceof Error ? cause.message : '任务实例读取失败')
+      }
+    }
+  }
+
+  async function toggleTaskLog(instanceId: number, taskId: number) {
+    if (logOpenTask === taskId) {
+      setLogOpenTask(null)
+      return
+    }
+    setLogOpenTask(taskId)
+    if (logByTask[taskId] === undefined) {
+      try {
+        const result = await fetchScheduleTaskLog(job.id, instanceId, taskId, 200)
+        setLogByTask((current) => ({ ...current, [taskId]: result.logText }))
+      } catch (cause) {
+        onNotice(cause instanceof Error ? cause.message : '日志读取失败')
+      }
+    }
+  }
+
+  async function instanceAction(instance: ScheduleInstanceApiItem, action: 'stop' | 'retry') {
+    setInstBusy(true)
+    try {
+      if (action === 'stop') await stopScheduleInstance(job.id, instance.id)
+      else await retryScheduleInstance(job.id, instance.id)
+      onNotice(action === 'stop' ? '已发出终止指令，实例状态以 DS 为准' : '已发出重跑指令，实例状态以 DS 为准')
+      await loadInstances()
+    } catch (cause) {
+      onNotice(cause instanceof Error ? cause.message : (action === 'stop' ? '实例终止失败' : '实例重跑失败'))
+    } finally {
+      setInstBusy(false)
+    }
+  }
+
+  async function submitBackfill() {
+    if (!backfillStart || !backfillEnd) {
+      onNotice('补数需要开始与结束日期')
+      return
+    }
+    setBackfilling(true)
+    try {
+      await backfillScheduleInstances(job.id, { startDate: backfillStart, endDate: backfillEnd })
+      onNotice('补数已提交（DS 将按日期逐日触发）')
+      await loadInstances(0)
+    } catch (cause) {
+      onNotice(cause instanceof Error ? cause.message : '补数提交失败')
+    } finally {
+      setBackfilling(false)
+    }
+  }
 
   useEffect(() => () => {
     if (confirmTimer.current !== null) window.clearTimeout(confirmTimer.current)
@@ -184,10 +293,15 @@ export function JobScheduleDrawer({ job, onClose, onNotice }: {
     >
       <div className={styles.drawerNotice}><CalendarClock size={16} /><span>调度由 DolphinScheduler 引擎执行，DS 是唯一事实源；本页每次打开实时读取。保存不改变上下线状态，新建调度需显式上线。DS 定时触发的运行在「调度实例」中查看（门户发起的运行才进任务运行记录）。</span></div>
 
+      <div className={styles.drawerFields} role="tablist" aria-label="调度管理">
+        <button type="button" role="tab" aria-selected={tab === 'config'} className={tab === 'config' ? styles.primaryButton : styles.secondaryButton} onClick={() => switchTab('config')}><CalendarClock size={14} />调度配置</button>
+        <button type="button" role="tab" aria-selected={tab === 'instances'} className={tab === 'instances' ? styles.primaryButton : styles.secondaryButton} onClick={() => switchTab('instances')}><ListTree size={14} />调度实例</button>
+      </div>
+
       {state === 'loading' ? <p className={styles.drawerHint}>正在读取当前调度状态…</p> : null}
       {state === 'error' ? <p className={styles.formError} role="alert">{error}</p> : null}
 
-      {state === 'ready' && schedule ? <>
+      {tab === 'config' && state === 'ready' && schedule ? <>
         <div className={styles.drawerFormGrid}>
           <div className={styles.formField}><label>当前策略</label><div><StatusTag tone={strategy.tone}>{strategy.label}</StatusTag></div></div>
           <div className={styles.formField}><label>下次触发</label><div>{schedule.nextFireTime ? formatDateTime(schedule.nextFireTime) : '—'}</div></div>
@@ -268,8 +382,74 @@ export function JobScheduleDrawer({ job, onClose, onNotice }: {
           <p className={styles.drawerHint}><CircleAlert size={13} /> 手动调度=任务不在 DS 周期触发；仍可在任务列表手动启动。</p>
         )}
       </> : null}
+
+      {tab === 'instances' ? <>
+        <div className={styles.drawerFormGrid}>
+          <div className={styles.formField}><label htmlFor="backfill-start">补数开始日期</label><input id="backfill-start" type="date" value={backfillStart} onChange={(event) => setBackfillStart(event.target.value)} /></div>
+          <div className={styles.formField}><label htmlFor="backfill-end">补数结束日期</label><input id="backfill-end" type="date" value={backfillEnd} onChange={(event) => setBackfillEnd(event.target.value)} /></div>
+          <div className={styles.formField}><label>区间补数</label><button type="button" className={styles.secondaryButton} disabled={backfilling} onClick={() => void submitBackfill()}><RefreshCw size={14} />{backfilling ? '提交中…' : '按日补跑'}</button></div>
+        </div>
+        <p className={styles.drawerHint}>补数按日期区间让 DS 逐日重跑工作流（COMPLEMENT_DATA）；实例状态由 DS 实时读取，门户发起的运行仍在任务运行记录中。</p>
+
+        <div className={styles.drawerFields}>
+          <strong>调度实例（{instTotal}）</strong>
+          <button type="button" className={styles.secondaryButton} disabled={instLoading} onClick={() => void loadInstances()}><RefreshCw size={13} />刷新</button>
+          <button type="button" className={styles.secondaryButton} disabled={instLoading || instPage === 0} onClick={() => void loadInstances(instPage - 1)}>上一页</button>
+          <button type="button" className={styles.secondaryButton} disabled={instLoading || (instPage + 1) * 10 >= instTotal} onClick={() => void loadInstances(instPage + 1)}>下一页</button>
+        </div>
+        {instLoading ? <p className={styles.drawerHint}>正在读取调度实例…</p> : null}
+        {instError ? <p className={styles.formError} role="alert">{instError}</p> : null}
+
+        {instList.map((instance) => <div key={instance.id} className={styles.instanceBlock}>
+          <div className={styles.instanceHead}>
+            <StatusTag tone={instanceTone(instance.state)}>{instanceLabel(instance.state)}</StatusTag>
+            <strong>{instance.name ?? `实例 ${instance.id}`}</strong>
+            <small>#{instance.id} · {instance.startTime ? formatDateTime(instance.startTime) : '—'}{instance.endTime ? ` ~ ${formatDateTime(instance.endTime)}` : ''}{instance.host ? ` · ${instance.host}` : ''}</small>
+            <div className={styles.instanceActions}>
+              <button type="button" className={styles.tableButton} onClick={() => void toggleInstanceTasks(instance)}><ListTree size={13} />{expandedInstance === instance.id ? '收起任务' : '任务与日志'}</button>
+              {instance.state === 'RUNNING' ? <button type="button" className={styles.tableButton} disabled={instBusy} onClick={() => void instanceAction(instance, 'stop')}><Square size={13} />终止</button> : null}
+              {instance.state === 'SUCCEEDED' || instance.state === 'FAILED' || instance.state === 'CANCELED' ? <button type="button" className={styles.tableButton} disabled={instBusy} onClick={() => void instanceAction(instance, 'retry')}><RefreshCw size={13} />重跑</button> : null}
+            </div>
+          </div>
+          {expandedInstance === instance.id ? <div className={styles.instanceTasks}>
+            {(tasksByInstance[instance.id] ?? []).map((task) => <div key={task.id}>
+              <div className={styles.instanceHead}>
+                <StatusTag tone={instanceTone(task.state)}>{instanceLabel(task.state)}</StatusTag>
+                <strong>{task.name}</strong>
+                <small>{task.startTime ? formatDateTime(task.startTime) : '—'}{task.endTime ? ` ~ ${formatDateTime(task.endTime)}` : ''}</small>
+                <div className={styles.instanceActions}>
+                  <button type="button" className={styles.tableButton} onClick={() => void toggleTaskLog(instance.id, task.id)}>{logOpenTask === task.id ? '收起日志' : '日志尾部'}</button>
+                </div>
+              </div>
+              {logOpenTask === task.id ? <pre className={styles.logTail}>{logByTask[task.id] ?? '（无日志内容）'}</pre> : null}
+            </div>)}
+            {(tasksByInstance[instance.id] ?? []).length === 0 ? <p className={styles.drawerHint}>该实例暂无任务实例记录。</p> : null}
+          </div> : null}
+        </div>)}
+        {!instLoading && instList.length === 0 && !instError ? <p className={styles.drawerHint}>暂无调度实例——配置并上线调度，或提交补数后可见。</p> : null}
+      </> : null}
     </Drawer>
   )
+}
+
+function instanceLabel(state: string): string {
+  switch (state) {
+    case 'SUCCEEDED': return '成功'
+    case 'FAILED': return '失败'
+    case 'RUNNING': return '运行中'
+    case 'SUBMITTED': return '排队中'
+    case 'CANCELED': return '已终止'
+    default: return '未知'
+  }
+}
+
+function instanceTone(state: string): 'healthy' | 'warning' | 'danger' | 'neutral' {
+  switch (state) {
+    case 'SUCCEEDED': return 'healthy'
+    case 'FAILED': return 'danger'
+    case 'RUNNING': return 'warning'
+    default: return 'neutral'
+  }
 }
 
 /** 简易四预设 + 延迟一次 → cron 编译（只产出可精确表达的形态；其余走高级模式）。 */

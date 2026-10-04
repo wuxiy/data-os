@@ -240,6 +240,39 @@ export interface JobSchedulePreviewApiItem {
   fireTimes: string[]
 }
 
+/** 调度实例（G2G 批次 5 第二刀）：DS 触发/补数产生的实例，state 为归一六态。 */
+export interface ScheduleInstanceApiItem {
+  id: number
+  name: string
+  state: string
+  rawState: string
+  startTime: string | null
+  endTime: string | null
+  runTimes: number | null
+  host: string | null
+}
+
+export interface ScheduleInstancesApiResponse {
+  items: ScheduleInstanceApiItem[]
+  total: number
+  page: number
+  size: number
+}
+
+export interface ScheduleTaskApiItem {
+  id: number
+  name: string
+  state: string
+  rawState: string
+  startTime: string | null
+  endTime: string | null
+}
+
+export interface ScheduleTaskLogApiResponse {
+  lines: number
+  logText: string
+}
+
 export interface IngestionRunApiItem {
   id: string
   jobId: string
@@ -757,6 +790,49 @@ export async function previewJobSchedule(jobId: string, input: { crontab: string
   })
   if (!response.ok) await throwHttpError(response, '触发时间预览失败')
   return response.json() as Promise<JobSchedulePreviewApiItem>
+}
+
+export async function fetchScheduleInstances(jobId: string, params: { page: number; size: number; state?: string }, signal?: AbortSignal): Promise<ScheduleInstancesApiResponse> {
+  const search = new URLSearchParams({ page: String(params.page), size: String(params.size) })
+  if (params.state) search.set('state', params.state)
+  return getJson(`/v1/jobs/${encodeURIComponent(jobId)}/instances?${search.toString()}`, signal)
+}
+
+export async function fetchScheduleTasks(jobId: string, instanceId: number, signal?: AbortSignal): Promise<ScheduleTaskApiItem[]> {
+  return getJson(`/v1/jobs/${encodeURIComponent(jobId)}/instances/${instanceId}/tasks`, signal)
+}
+
+export async function fetchScheduleTaskLog(jobId: string, instanceId: number, taskInstanceId: number, lines?: number, signal?: AbortSignal): Promise<ScheduleTaskLogApiResponse> {
+  const search = lines ? `?lines=${lines}` : ''
+  return getJson(`/v1/jobs/${encodeURIComponent(jobId)}/instances/${instanceId}/tasks/${taskInstanceId}/log${search}`, signal)
+}
+
+export async function stopScheduleInstance(jobId: string, instanceId: number, signal?: AbortSignal): Promise<void> {
+  const response = await portalFetch(`/v1/jobs/${encodeURIComponent(jobId)}/instances/${instanceId}/stop`, {
+    method: 'POST',
+    headers: { Accept: 'application/json' },
+    signal,
+  })
+  if (!response.ok) await throwHttpError(response, '实例终止失败')
+}
+
+export async function retryScheduleInstance(jobId: string, instanceId: number, signal?: AbortSignal): Promise<void> {
+  const response = await portalFetch(`/v1/jobs/${encodeURIComponent(jobId)}/instances/${instanceId}/retry`, {
+    method: 'POST',
+    headers: { Accept: 'application/json' },
+    signal,
+  })
+  if (!response.ok) await throwHttpError(response, '实例重跑失败')
+}
+
+export async function backfillScheduleInstances(jobId: string, input: { startDate: string; endDate: string }, signal?: AbortSignal): Promise<void> {
+  const response = await portalFetch(`/v1/jobs/${encodeURIComponent(jobId)}/instances/backfill`, {
+    method: 'POST',
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+    signal,
+  })
+  if (!response.ok) await throwHttpError(response, '补数提交失败')
 }
 
 export async function createIngestionJob(input: CreateIngestionJobInput, signal?: AbortSignal): Promise<IngestionJobApiItem> {
