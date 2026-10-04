@@ -40,6 +40,9 @@ CREATE TABLE IF NOT EXISTS data_os.quality_runner_runs (
     finished_at TIMESTAMP NULL,
     heartbeat_at TIMESTAMP NULL,
     execution_generation BIGINT NOT NULL DEFAULT 0,
+    score DOUBLE NULL,
+    total_rows BIGINT NULL,
+    dirty_rows BIGINT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE (tenant_id, idempotency_key)
@@ -50,6 +53,9 @@ CREATE INDEX IF NOT EXISTS idx_quality_runner_tenant
     ON data_os.quality_runner_runs(tenant_id, status, created_at);
 ALTER TABLE data_os.quality_runner_runs
     ADD COLUMN IF NOT EXISTS execution_generation BIGINT NOT NULL DEFAULT 0;
+ALTER TABLE data_os.quality_runner_runs ADD COLUMN IF NOT EXISTS score DOUBLE NULL;
+ALTER TABLE data_os.quality_runner_runs ADD COLUMN IF NOT EXISTS total_rows BIGINT NULL;
+ALTER TABLE data_os.quality_runner_runs ADD COLUMN IF NOT EXISTS dirty_rows BIGINT NULL;
 """
 
 
@@ -204,12 +210,15 @@ class RunnerDatabase:
         return row is not None
 
     def finish(self, run_id: str, execution_generation: int, status: str, passed: bool | None, message: str,
-               evidence: list[dict[str, Any]], artifact_uri: str | None) -> bool:
+               evidence: list[dict[str, Any]], artifact_uri: str | None,
+               score: float | None = None, total_rows: int | None = None,
+               dirty_rows: int | None = None) -> bool:
         with self.engine.begin() as connection:
             result = connection.execute(text("""
                 UPDATE data_os.quality_runner_runs
                 SET status = :status, passed = :passed, message = :message,
                     sample_evidence_json = :evidence, artifact_uri = :artifact_uri,
+                    score = :score, total_rows = :total_rows, dirty_rows = :dirty_rows,
                     finished_at = CURRENT_TIMESTAMP, heartbeat_at = NULL, updated_at = CURRENT_TIMESTAMP
                 WHERE run_id = :run_id AND status = 'RUNNING'
                   AND execution_generation = :execution_generation
@@ -217,7 +226,8 @@ class RunnerDatabase:
                 "run_id": run_id, "execution_generation": execution_generation,
                 "status": status, "passed": passed,
                 "message": message[:1000], "evidence": json.dumps(evidence[:20], ensure_ascii=False),
-                "artifact_uri": artifact_uri,
+                "artifact_uri": artifact_uri, "score": score,
+                "total_rows": total_rows, "dirty_rows": dirty_rows,
             })
         return result.rowcount == 1
 
@@ -252,4 +262,6 @@ class RunnerDatabase:
             sample_evidence=json.loads(row["sample_evidence_json"] or "[]"),
             artifact_uri=row["artifact_uri"], started_at=row["started_at"], finished_at=row["finished_at"],
             created_at=row["created_at"], execution_generation=row["execution_generation"],
+            score=row.get("score"), total_rows=row.get("total_rows"),
+            dirty_rows=row.get("dirty_rows"),
         )

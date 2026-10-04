@@ -28,7 +28,7 @@ public class QualityRunRepository {
                    execution_batch_id, passed, result_message, sample_evidence_json,
                    artifact_uri, reconciliation_status, reconciliation_message,
                    submitted_at, started_at, finished_at, attempt_count, next_poll_at,
-                   last_error, updated_at
+                   last_error, updated_at, score, total_rows, dirty_rows
             FROM data_os.quality_rule_runs
             """;
 
@@ -226,6 +226,7 @@ public class QualityRunRepository {
                                       String executionBatchId, String message,
                                       List<Map<String, Object>> sampleEvidence,
                                       String artifactUri,
+                                      Double score, Long totalRows, Long dirtyRows,
                                       Instant startedAt, Instant finishedAt,
                                       Instant nextPollAt, String lastError,
                                       String expectedStatus, String expectedExternalId,
@@ -234,6 +235,8 @@ public class QualityRunRepository {
                 UPDATE data_os.quality_rule_runs
                 SET status = ?, passed = ?, execution_batch_id = COALESCE(NULLIF(?, ''), execution_batch_id),
                     result_message = ?, sample_evidence_json = ?, sample_evidence_count = ?, artifact_uri = ?,
+                    score = COALESCE(?, score), total_rows = COALESCE(?, total_rows),
+                    dirty_rows = COALESCE(?, dirty_rows),
                     reconciliation_status = CASE WHEN ? = 'UNKNOWN' THEN 'MANUAL_REQUIRED' ELSE NULL END,
                     reconciliation_message = CASE WHEN ? = 'UNKNOWN' THEN ? ELSE NULL END,
                     started_at = COALESCE(?, started_at), finished_at = ?,
@@ -245,7 +248,8 @@ public class QualityRunRepository {
                   AND status_lease_by = ?
                 """, normalizeRunStatus(status), passed,
                 executionBatchId == null ? "" : executionBatchId, safe(message), evidenceJson(sampleEvidence),
-                sampleEvidence == null ? 0 : sampleEvidence.size(), safe(artifactUri), normalizeRunStatus(status),
+                sampleEvidence == null ? 0 : sampleEvidence.size(), safe(artifactUri),
+                score, totalRows, dirtyRows, normalizeRunStatus(status),
                 normalizeRunStatus(status), safe(message), timestamp(startedAt), timestamp(finishedAt),
                 "UNKNOWN".equals(normalizeRunStatus(status)) ? null : timestamp(nextPollAt), safe(lastError),
                 timestamp(Instant.now()), runId, expectedStatus, expectedExternalId, expectedExternalId,
@@ -318,7 +322,10 @@ public class QualityRunRepository {
                 instant(resultSet.getTimestamp("submitted_at")), instant(resultSet.getTimestamp("started_at")),
                 instant(resultSet.getTimestamp("finished_at")), resultSet.getInt("attempt_count"),
                 instant(resultSet.getTimestamp("next_poll_at")), resultSet.getString("last_error"),
-                instant(resultSet.getTimestamp("updated_at")));
+                instant(resultSet.getTimestamp("updated_at")),
+                (Double) resultSet.getObject("score"),
+                resultSet.getObject("total_rows") == null ? null : ((Number) resultSet.getObject("total_rows")).longValue(),
+                resultSet.getObject("dirty_rows") == null ? null : ((Number) resultSet.getObject("dirty_rows")).longValue());
     }
 
     private List<Map<String, Object>> evidenceList(String json) {

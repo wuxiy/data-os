@@ -7,6 +7,7 @@ import { GovernanceTabs } from '../components/ui/GovernanceTabs'
 import { PageHeader } from '../components/ui/PageHeader'
 import { MetricStrip, StatusTag } from '../components/ui/Primitives'
 import { fetchGovernanceSummary, type GovernanceApiIssue } from '../data/controlPlane'
+import { QualityScorePanel } from './QualityScorePanel'
 import { formatDateTime, issueStatusLabel, issueStatusTone } from '../data/domain'
 import { frontendDemoMode, showStaticSamples } from '../data/runtimeMode'
 import type { Metric } from '../types'
@@ -51,6 +52,7 @@ export function GovernanceDashboardPage({ onOpenChain, onNavigate, onUnavailable
       </div>
       {apiState === 'unavailable' ? <div className={styles.connectionNotice} role="alert"><div><strong>治理控制面不可用</strong><span>为避免误导，当前没有展示本地演示指标、问题或责任链样例。请恢复控制面后重新连接。</span></div><button className={styles.secondaryButton} onClick={() => window.location.reload()}>重新连接</button></div> : null}
       <MetricStrip metrics={metrics} onSelect={showStaticSamples(apiState) ? onOpenChain : undefined} />
+      <QualityScorePanel onNotice={onNotice} />
       <div className={styles.content}>
         {showStaticSamples(apiState) ? <ResponsibilityChain onOpen={onOpenChain} /> : apiState === 'unavailable' ? null : <div className={styles.connectionNotice} role="status"><div><strong>责任链详情待接入真实溯源服务</strong><span>当前仅展示控制面真实指标和问题队列；静态责任链样例已关闭。</span></div></div>}
         <div className={styles.twoColumns}>

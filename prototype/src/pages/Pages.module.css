@@ -2285,3 +2285,70 @@
   gap: 10px;
   margin-bottom: 6px;
 }
+
+/* —— 质量评分面板（G2G 批次 3，QualityScorePanel）—— */
+
+.scoreHero {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 18px;
+  align-items: center;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.scoreTotal {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  color: var(--jade-dark);
+}
+
+.scoreTotal svg {
+  opacity: 0.8;
+}
+
+.scoreTotal strong {
+  font-family: var(--font-number);
+  font-size: 34px;
+  line-height: 1;
+}
+
+.scoreDimensions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 10px 18px;
+}
+
+.scoreDimension {
+  display: grid;
+  gap: 4px;
+  font-size: 11.5px;
+}
+
+.scoreDimension > span {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.scoreDimension small {
+  color: var(--muted);
+}
+
+.scoreBar {
+  height: 6px;
+  overflow: hidden;
+  background: var(--line);
+  border-radius: 999px;
+}
+
+.scoreBar i {
+  display: block;
+  height: 100%;
+  background: var(--jade);
+  border-radius: 999px;
+  transition: width var(--ease-standard) 0.3s;
+}

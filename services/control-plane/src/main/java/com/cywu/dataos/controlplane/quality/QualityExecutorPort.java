@@ -44,7 +44,8 @@ public class QualityExecutorPort
             var result = executor.status(run.externalId());
             return new ExternalStatus<>(result.status(), result.message(), result.startedAt(),
                     result.finishedAt(), new QualityResultPayload(result.passed(),
-                    result.executionBatchId(), result.sampleEvidence(), result.artifactUri()));
+                    result.executionBatchId(), result.sampleEvidence(), result.artifactUri(),
+                    result.score(), result.totalRows(), result.dirtyRows()));
         }
     }
 }

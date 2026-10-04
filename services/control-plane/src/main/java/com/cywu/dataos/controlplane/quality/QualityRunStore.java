@@ -87,6 +87,9 @@ public class QualityRunStore implements RunStateStore<QualityRuleRun, QualityRes
                 message,
                 payload == null ? null : payload.sampleEvidence(),
                 payload == null ? null : payload.artifactUri(),
+                payload == null ? null : payload.score(),
+                payload == null ? null : payload.totalRows(),
+                payload == null ? null : payload.dirtyRows(),
                 startedAt, finishedAt, nextPollAt, null,
                 run.status(), run.externalId(), workerId + ":status") == 1;
     }

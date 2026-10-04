@@ -133,7 +133,10 @@ public class HttpQualityRuleExecutor implements QualityRuleExecutor {
                     evidence(response == null ? null : response.get("sampleEvidence")),
                     AdapterHttp.first(response, "artifactUri", "artifactURI", "artifact_url"),
                     instant(response == null ? null : response.get("startedAt")),
-                    instant(response == null ? null : response.get("finishedAt")));
+                    instant(response == null ? null : response.get("finishedAt")),
+                    decimal(response == null ? null : response.get("score")),
+                    whole(response == null ? null : response.get("totalRows")),
+                    whole(response == null ? null : response.get("dirtyRows")));
         } catch (HttpClientErrorException exception) {
             if (exception.getStatusCode().value() == 404) {
                 return new QualityRuleExecutionStatus("UNKNOWN", null, "质量规则执行批次暂未找到",
@@ -163,6 +166,26 @@ public class HttpQualityRuleExecutor implements QualityRuleExecutor {
         if (value == null) return null;
         if (value instanceof Boolean booleanValue) return booleanValue;
         return Boolean.valueOf(String.valueOf(value));
+    }
+
+    private Double decimal(Object value) {
+        if (value == null) return null;
+        if (value instanceof Number number) return number.doubleValue();
+        try {
+            return Double.valueOf(String.valueOf(value));
+        } catch (NumberFormatException exception) {
+            return null;
+        }
+    }
+
+    private Long whole(Object value) {
+        if (value == null) return null;
+        if (value instanceof Number number) return number.longValue();
+        try {
+            return Long.valueOf(String.valueOf(value));
+        } catch (NumberFormatException exception) {
+            return null;
+        }
     }
 
     @SuppressWarnings("unchecked")

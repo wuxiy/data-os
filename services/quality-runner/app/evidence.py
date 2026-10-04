@@ -154,5 +154,70 @@ class EvidenceReader:
                     dropped += 1
         return dropped
 
+    # ---- 评分计数（G2G 批次 3）----
+
+    def _qualified_failure_table(self, selector: str, tenant_namespace: str) -> str | None:
+        table = (tenant_namespace + "__" + selector) if tenant_namespace else selector
+        return table if _IDENTIFIER.fullmatch(table) else None
+
+    def dirty_row_count(self, selector: str, evidence: dict[str, Any],
+                        tenant_namespace: str = "") -> int | None:
+        """违规行数：聚合形状取 SUM(n_records)（重复/非法值的实际行数），
+        其余形状取失败表行数。缺表（执行 error）返回 None。"""
+        if not self.enabled or self.engine is None:
+            return None
+        table = self._qualified_failure_table(selector, tenant_namespace)
+        if table is None:
+            return None
+        kind = str(evidence.get("kind", "")).lower()
+        if kind in {"unique", "accepted_values"}:
+            projection = "COALESCE(SUM(n_records), 0)"
+        else:
+            projection = "COUNT(*)"
+        try:
+            with self.engine.connect() as connection:
+                row = connection.execute(text(
+                    f"SELECT {projection} AS dirty FROM {table}")).mappings().first()
+                return int(row["dirty"]) if row else 0
+        except (ProgrammingError, OperationalError) as exc:
+            if _is_missing_table(exc):
+                return None
+            raise
+
+    def total_row_count(self, dataset_id: str) -> int | None:
+        """目标表总行数：经审计连接直查业务库全限定名（同集群跨库）。"""
+        if not self.enabled or self.engine is None:
+            return None
+        database, _, table = str(dataset_id).partition(".")
+        if not _IDENTIFIER.fullmatch(database) or not _IDENTIFIER.fullmatch(table):
+            return None
+        try:
+            with self.engine.connect() as connection:
+                row = connection.execute(text(
+                    f"SELECT COUNT(*) AS total FROM `{database}`.`{table}`")).mappings().first()
+                return int(row["total"]) if row else None
+        except (ProgrammingError, OperationalError):
+            # 逻辑数据集（非「库.表」形态）或不可达：无总行数 → 评分退化为二元
+            return None
+
+    def stat_pair(self, selector: str, tenant_namespace: str = "") -> tuple[float, float] | None:
+        """统计比较类失败表里的 (check_value, ref_value) 唯一行。"""
+        if not self.enabled or self.engine is None:
+            return None
+        table = self._qualified_failure_table(selector, tenant_namespace)
+        if table is None:
+            return None
+        try:
+            with self.engine.connect() as connection:
+                row = connection.execute(text(
+                    f"SELECT check_value, ref_value FROM {table} LIMIT 1")).mappings().first()
+                if row is None:
+                    return None
+                return float(row["check_value"]), float(row["ref_value"])
+        except (ProgrammingError, OperationalError) as exc:
+            if _is_missing_table(exc):
+                return None
+            raise
+
     def cleanup_registered_failure_tables(self, selectors: list[str]) -> int:
         return sum(self.cleanup_failure_tables(selector) for selector in selectors)

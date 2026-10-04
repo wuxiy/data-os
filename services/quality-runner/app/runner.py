@@ -130,7 +130,8 @@ class QualityRunManager:
                 accepted = await asyncio.to_thread(
                     self.database.finish, run.run_id, run.execution_generation,
                     result.status, result.passed, result.message,
-                    result.evidence, artifact_uri
+                    result.evidence, artifact_uri,
+                    result.score, result.total_rows, result.dirty_rows
                 )
                 if not accepted and artifact_uri:
                     self.artifacts.delete(artifact_uri)

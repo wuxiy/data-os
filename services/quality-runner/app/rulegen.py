@@ -275,6 +275,8 @@ class DynamicRuleSpec:
             "kind": KIND_BY_TYPE[self.rule_type],
             "column": self.column if self.rule_type not in COLUMN_OPTIONAL_TYPES else "check_value",
             "columns": [dict(item) for item in self.derived_evidence_columns()],
+            # 评分分支依据（G2G 批次 3）：runner 按类型选公式
+            "ruleType": self.rule_type,
         }
 
     def derived_evidence_columns(self) -> list[dict[str, str]]:

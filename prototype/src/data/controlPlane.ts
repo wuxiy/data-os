@@ -526,6 +526,60 @@ export async function deleteQualityRule(ruleId: string, signal?: AbortSignal): P
   if (!response.ok && response.status !== 404) await throwHttpError(response, '规则删除失败')
 }
 
+// —— 质量评分（G2G 批次 3）——
+
+export interface QualityGradeView {
+  grade: string
+  lowScore: number
+}
+
+export interface QualityScoreStandard {
+  passScore: number
+  weights: Record<string, number>
+  grades: QualityGradeView[]
+  updatedAt: string
+}
+
+export interface QualityDimensionScore {
+  dimension: string
+  score: number
+  ruleCount: number
+}
+
+export interface QualityRuleScoreItem {
+  ruleId: string
+  datasetId: string
+  score: number | null
+  passed: boolean | null
+}
+
+export interface QualityScoreSummary {
+  standard: QualityScoreStandard
+  dimensions: QualityDimensionScore[]
+  totalScore: number | null
+  grade: string | null
+  rules: QualityRuleScoreItem[]
+}
+
+export async function fetchQualityScore(signal?: AbortSignal): Promise<QualityScoreSummary> {
+  return getJson('/v1/quality/score', signal)
+}
+
+export async function updateQualityScoreStandard(input: {
+  passScore?: number
+  weights?: Record<string, number>
+  grades?: QualityGradeView[]
+}, signal?: AbortSignal): Promise<QualityScoreStandard> {
+  const response = await portalFetch('/v1/quality/score/standard', {
+    method: 'PUT',
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+    signal,
+  })
+  if (!response.ok) await throwHttpError(response, '评分标准更新失败')
+  return response.json() as Promise<QualityScoreStandard>
+}
+
 export async function createIngestionJob(input: CreateIngestionJobInput, signal?: AbortSignal): Promise<IngestionJobApiItem> {
   const response = await portalFetch('/v1/jobs', {
     method: 'POST',

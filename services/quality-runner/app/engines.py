@@ -26,13 +26,18 @@ def safe_message(value: str) -> str:
 @dataclass
 class EngineResult:
     """单次引擎执行的结论。artifact_payload 为 None 表示不落产物
-    （超时、执行代次已失效等）。"""
+    （超时、执行代次已失效等）。score 三值为规则级得分（G2G 批次 3，
+    None = 无法计分，聚合端跳过）。"""
 
     status: str
     passed: bool
     message: str
     evidence: list[dict[str, Any]] = field(default_factory=list)
     artifact_payload: dict[str, Any] | None = None
+    score: float | None = None
+    total_rows: int | None = None
+    dirty_rows: int | None = None
+    score_basis: dict[str, Any] = field(default_factory=dict)
 
 
 class RuleEngine(Protocol):
@@ -87,10 +92,15 @@ class DbtEngine:
             if not result.passed:
                 result.evidence = await asyncio.to_thread(
                     self.evidence.read, rule.selector, rule.evidence, namespace)
+            # 规则级评分（G2G 批次 3）：通过一律 100，失败按公式取计数/统计值对
+            await asyncio.to_thread(
+                self.attach_rule_score, result, rule, namespace)
             payload = {
                 "runId": run.run_id, "ruleId": rule.rule_id, "selector": rule.selector,
                 "status": result.status, "passed": result.passed, "message": result.message,
                 "evidenceCount": len(result.evidence),
+                "score": result.score, "totalRows": result.total_rows,
+                "dirtyRows": result.dirty_rows,
             }
             result.artifact_payload = payload
             return result
@@ -99,6 +109,27 @@ class DbtEngine:
             # This finally block also runs for timeout, cancellation and dbt
             # startup failures, preventing audit-table residue.
             await asyncio.to_thread(self.evidence.cleanup_failure_tables, rule.selector, namespace)
+
+    def attach_rule_score(self, result: EngineResult, rule: RuleDefinition, namespace: str) -> None:
+        """失败时补计数来源（通过即 100，无需查询）。计数异常不掩盖执行结论：
+        评分留 None，消息保持 dbt 原文。"""
+        from score import rule_score
+        dirty = total = None
+        stat_pair = None
+        if not result.passed:
+            try:
+                dirty = self.evidence.dirty_row_count(rule.selector, rule.evidence, namespace)
+                total = self.evidence.total_row_count(rule.dataset_id)
+                rule_type = str(rule.evidence.get("ruleType", "") or "").upper()
+                if rule_type in {"STAT_VAL_COMPARE", "SQL_STAT_VAL", "DETAIL_STAT"}:
+                    stat_pair = self.evidence.stat_pair(rule.selector, namespace)
+            except Exception:
+                dirty = total = stat_pair = None
+        score, basis = rule_score(result.passed, rule.evidence, dirty, total, stat_pair)
+        result.score = score
+        result.total_rows = total
+        result.dirty_rows = dirty
+        result.score_basis = basis
 
     def maintenance(self) -> None:
         self.evidence.cleanup_registered_failure_tables(

@@ -11,9 +11,18 @@ public record QualityResultPayload(
         Boolean passed,
         String executionBatchId,
         List<Map<String, Object>> sampleEvidence,
-        String artifactUri) {
+        String artifactUri,
+        Double score,
+        Long totalRows,
+        Long dirtyRows) {
 
     public QualityResultPayload {
         sampleEvidence = sampleEvidence == null ? List.of() : List.copyOf(sampleEvidence);
+    }
+
+    /** 既有四参形态（不带评分）。 */
+    public QualityResultPayload(Boolean passed, String executionBatchId,
+                                List<Map<String, Object>> sampleEvidence, String artifactUri) {
+        this(passed, executionBatchId, sampleEvidence, artifactUri, null, null, null);
     }
 }

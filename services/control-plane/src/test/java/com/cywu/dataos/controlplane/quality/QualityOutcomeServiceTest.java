@@ -89,6 +89,7 @@ class QualityOutcomeServiceTest {
             public int updateQualityRunStatus(String runId, String status, Boolean passed,
                                               String executionBatchId, String message,
                                               List<Map<String, Object>> sampleEvidence, String artifactUri,
+                                              Double score, Long totalRows, Long dirtyRows,
                                               Instant startedAt, Instant finishedAt, Instant nextPollAt,
                                               String lastError, String expectedStatus, String expectedExternalId,
                                               String statusWorkerId) {

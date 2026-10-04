@@ -32,3 +32,6 @@ class QualityRun:
     finished_at: datetime | None
     created_at: datetime
     execution_generation: int = 0
+    score: float | None = None
+    total_rows: int | None = None
+    dirty_rows: int | None = None

@@ -65,7 +65,8 @@ def router(manager: QualityRunManager) -> APIRouter:
                 "passed": run.passed, "executionBatchId": run.execution_batch_id,
                 "message": run.message, "sampleEvidence": run.sample_evidence,
                 "artifactUri": run.artifact_uri, "startedAt": run.started_at,
-                "finishedAt": run.finished_at}
+                "finishedAt": run.finished_at,
+                "score": run.score, "totalRows": run.total_rows, "dirtyRows": run.dirty_rows}
 
     @api.post("/runs/{run_id}/cancel")
     async def cancel(run_id: str, current: Principal = Depends(principal)) -> dict[str, Any]:

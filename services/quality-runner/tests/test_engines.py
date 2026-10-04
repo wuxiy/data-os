@@ -47,7 +47,8 @@ class FakeDatabase:
     def get_run(self, run_id: str) -> QualityRun:
         return self._current
 
-    def finish(self, run_id, generation, status, passed, message, evidence, artifact_uri) -> bool:
+    def finish(self, run_id, generation, status, passed, message, evidence, artifact_uri,
+               score=None, total_rows=None, dirty_rows=None) -> bool:
         self.finish_calls.append((status, passed, message, evidence, artifact_uri))
         return self.finish_accepted
 
