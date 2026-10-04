@@ -447,6 +447,80 @@ export async function runSourceQuery(sourceId: string, input: { sql: string; cat
   return response.json() as Promise<SourceQueryResultApiItem>
 }
 
+// —— 动态质量规则管理（G2G 批次 2）——
+
+export type QualityRuleType = 'NOT_NULL' | 'UNIQUE' | 'VAL_SET' | 'VAL_MINMAX' | 'VAL_LEN' | 'STR_REGEX' | 'FK_REF' | 'SQL'
+
+export interface QualityRuleTypeView {
+  type: QualityRuleType
+  label: string
+  dimension: string
+}
+
+export interface QualityRuleDefinitionApiItem {
+  ruleId: string
+  ruleType: QualityRuleType
+  datasetId: string
+  targetColumn: string
+  params: Record<string, unknown>
+  evidenceColumns: QualityEvidenceColumn[]
+  enabled: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface QualityEvidenceColumn {
+  name: string
+  classification: 'IDENTIFIER' | 'CATEGORY' | 'SAFE' | 'REDACTED'
+}
+
+export interface SaveQualityRuleInput {
+  ruleType: QualityRuleType
+  datasetId: string
+  targetColumn: string
+  params: Record<string, unknown>
+  evidenceColumns: QualityEvidenceColumn[]
+}
+
+export async function fetchQualityRuleTypes(signal?: AbortSignal): Promise<QualityRuleTypeView[]> {
+  return getJson('/v1/quality/rules/types', signal)
+}
+
+export async function fetchQualityRules(signal?: AbortSignal): Promise<{ items: QualityRuleDefinitionApiItem[]; total: number }> {
+  return getJson('/v1/quality/rules', signal)
+}
+
+export async function saveQualityRule(ruleId: string, input: SaveQualityRuleInput, signal?: AbortSignal): Promise<QualityRuleDefinitionApiItem> {
+  const response = await portalFetch(`/v1/quality/rules/${encodeURIComponent(ruleId)}`, {
+    method: 'PUT',
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+    signal,
+  })
+  if (!response.ok) await throwHttpError(response, '质量规则保存失败')
+  return response.json() as Promise<QualityRuleDefinitionApiItem>
+}
+
+export async function setQualityRuleEnabled(ruleId: string, enabled: boolean, signal?: AbortSignal): Promise<QualityRuleDefinitionApiItem> {
+  const action = enabled ? 'enable' : 'disable'
+  const response = await portalFetch(`/v1/quality/rules/${encodeURIComponent(ruleId)}/${action}`, {
+    method: 'POST',
+    headers: { Accept: 'application/json' },
+    signal,
+  })
+  if (!response.ok) await throwHttpError(response, enabled ? '规则启用失败' : '规则停用失败')
+  return response.json() as Promise<QualityRuleDefinitionApiItem>
+}
+
+export async function deleteQualityRule(ruleId: string, signal?: AbortSignal): Promise<void> {
+  const response = await portalFetch(`/v1/quality/rules/${encodeURIComponent(ruleId)}`, {
+    method: 'DELETE',
+    headers: { Accept: 'application/json' },
+    signal,
+  })
+  if (!response.ok && response.status !== 404) await throwHttpError(response, '规则删除失败')
+}
+
 export async function createIngestionJob(input: CreateIngestionJobInput, signal?: AbortSignal): Promise<IngestionJobApiItem> {
   const response = await portalFetch('/v1/jobs', {
     method: 'POST',

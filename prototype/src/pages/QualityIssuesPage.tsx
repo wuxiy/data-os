@@ -34,6 +34,7 @@ import {
   severityTone,
 } from '../data/domain'
 import type { RouteKey } from '../types'
+import { QualityRulesAdmin } from './QualityRulesAdmin'
 import styles from './Pages.module.css'
 
 interface Props {
@@ -233,6 +234,7 @@ export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props
           </> : null}
         </aside>
       </div>
+      <QualityRulesAdmin onNotice={onNotice} />
     </div>
   )
 }

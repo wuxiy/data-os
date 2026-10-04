@@ -87,6 +87,18 @@ class RunnerDatabase:
                     "evidence_json": json.dumps(rule.evidence, ensure_ascii=False),
                 })
 
+    def disable_rule(self, rule_id: str) -> bool:
+        """动态规则下线：registry 置 enabled=FALSE（SQL 文件由调用方删除）。
+
+        只统计仍处于启用态的行——重复下线视为未命中（幂等由调用方判 404）。"""
+        with self.engine.begin() as connection:
+            result = connection.execute(text("""
+                UPDATE data_os.quality_rule_registry
+                SET enabled = FALSE, updated_at = CURRENT_TIMESTAMP
+                WHERE rule_id = :rule_id AND enabled = TRUE
+            """), {"rule_id": rule_id})
+        return result.rowcount == 1
+
     def create_or_get_run(self, payload: dict[str, Any], rule: RuleDefinition) -> QualityRun:
         run_id = payload["execution_batch_id"]
         now = utcnow()

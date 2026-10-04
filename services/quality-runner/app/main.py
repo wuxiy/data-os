@@ -6,7 +6,7 @@ from fastapi import FastAPI, Response, status
 from fastapi.responses import PlainTextResponse
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
-from api import router
+from api import router, rules_router
 from artifacts import ArtifactStore
 from db import RunnerDatabase
 from engines import DbtEngine
@@ -54,6 +54,8 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(title="DataOS Quality Runner", version="0.1.0", lifespan=lifespan)
 app.include_router(router(manager))
+# G2G 批次 2：动态规则管理面（校验 → 生成 singular test → 落 registry）
+app.include_router(rules_router(database))
 # G23 映射聚合验证：同步只读契约（登记数据集白名单 + 聚合查询，无行数据）
 from mapping_validation import doris_query_factory, router as mapping_validation_router
 app.include_router(mapping_validation_router(doris_query_factory(settings)))

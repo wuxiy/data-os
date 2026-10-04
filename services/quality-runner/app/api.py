@@ -1,13 +1,18 @@
 from __future__ import annotations
 
 from dataclasses import asdict
+from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Response, status
 from pydantic import BaseModel, Field
 
+from db import RunnerDatabase
+from models import RuleDefinition
+from rulegen import DIMENSION_BY_TYPE, DynamicRuleSpec, selector_for
 from runner import QualityRunManager
 from security import Principal, check_scope, principal
+from settings import settings as runner_settings
 
 
 class RunRequest(BaseModel):
@@ -73,5 +78,67 @@ def router(manager: QualityRunManager) -> APIRouter:
         await manager.cancel(run_id)
         run = await manager.get(run_id)
         return {"runId": run.run_id, "status": run.status, "message": run.message}
+
+    return api
+
+
+class DynamicRuleRequest(BaseModel):
+    """动态规则定义（G2G 批次 2）：控制面台账推送的完整意图。"""
+    ruleId: str = Field(min_length=3, max_length=200)
+    ruleType: str = Field(min_length=2, max_length=32)
+    datasetId: str = Field(min_length=3, max_length=300)
+    column: str = Field(default="", max_length=128)
+    params: dict[str, Any] = Field(default_factory=dict)
+    evidenceColumns: list[dict[str, str]] = Field(default_factory=list)
+
+
+def rules_router(database: RunnerDatabase) -> APIRouter:
+    """动态规则管理面：校验 → 生成 singular test SQL → 落 registry。
+
+    registry 与 dbt 工程的属主都在 runner——与 rules.yml 静态规则共用同一张
+    注册表和同一执行链（selector 路由 + 失败表证据）。
+    """
+    api = APIRouter(prefix="/api/v1/quality/rules/dynamic", tags=["dynamic-rules"])
+
+    @api.put("/{rule_id}")
+    async def upsert(rule_id: str, body: DynamicRuleRequest,
+                     current: Principal = Depends(principal)) -> dict[str, Any]:
+        check_scope(current, "quality:admin")
+        if rule_id != body.ruleId:
+            raise HTTPException(status_code=400, detail="ruleId 与路径不一致")
+        spec = DynamicRuleSpec(
+            rule_id=body.ruleId, rule_type=body.ruleType, dataset_id=body.datasetId,
+            column=body.column, params=body.params, evidence_columns=body.evidenceColumns,
+        )
+        try:
+            spec.validate()
+            sql = spec.compile_sql()
+            evidence = spec.evidence_contract()
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        selector = selector_for(spec.rule_id)
+        dynamic_dir = Path(runner_settings.project_dir) / "tests" / "dynamic"
+        dynamic_dir.mkdir(parents=True, exist_ok=True)
+        (dynamic_dir / f"{selector}.sql").write_text(sql + "\n", encoding="utf-8")
+        database.upsert_rules([RuleDefinition(spec.rule_id, selector, spec.dataset_id, evidence)])
+        return {
+            "ruleId": spec.rule_id, "selector": selector, "datasetId": spec.dataset_id,
+            "ruleType": spec.rule_type, "dimension": DIMENSION_BY_TYPE.get(spec.rule_type, ""),
+            "evidence": evidence,
+        }
+
+    @api.delete("/{rule_id}")
+    async def disable(rule_id: str, current: Principal = Depends(principal)) -> dict[str, Any]:
+        check_scope(current, "quality:admin")
+        selector = selector_for(rule_id)
+        removed = False
+        target = Path(runner_settings.project_dir) / "tests" / "dynamic" / f"{selector}.sql"
+        if target.exists():
+            target.unlink()
+            removed = True
+        disabled = database.disable_rule(rule_id)
+        if not removed and not disabled:
+            raise HTTPException(status_code=404, detail="dynamic rule not found")
+        return {"ruleId": rule_id, "selector": selector, "enabled": False}
 
     return api

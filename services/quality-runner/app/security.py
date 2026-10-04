@@ -68,7 +68,9 @@ def principal(authorization: str | None = Header(default=None)) -> Principal:
         # Explicitly development-only: the API skips tenant comparison for
         # this wildcard principal so synthetic acceptance jobs can exercise
         # named tenants without weakening enforced OIDC deployments.
-        return Principal("development", "*", "*", frozenset({"quality:submit", "quality:read", "quality:cancel"}))
+        return Principal("development", "*", "*", frozenset({
+            "quality:submit", "quality:read", "quality:cancel", "quality:admin",
+        }))
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Bearer token required")
     return verifier.verify(authorization[7:].strip())
