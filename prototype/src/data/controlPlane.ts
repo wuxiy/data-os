@@ -580,6 +580,71 @@ export async function updateQualityScoreStandard(input: {
   return response.json() as Promise<QualityScoreStandard>
 }
 
+// —— 前置机节点（G2G 批次 4）——
+
+export interface EdgeNodeApiItem {
+  id: string
+  name: string
+  groupName: string
+  site: string
+  host: string
+  port: number
+  version: string
+  lastProbeAt: string | null
+  lastProbeOk: boolean | null
+  lastProbeMessage: string | null
+  config: Record<string, unknown>
+  createdAt: string
+  updatedAt: string
+  state: 'ONLINE' | 'OFFLINE' | 'UNKNOWN'
+}
+
+export interface SaveEdgeNodeInput {
+  name: string
+  groupName?: string
+  site?: string
+  host: string
+  port: number
+  version?: string
+  config?: Record<string, unknown>
+}
+
+export async function fetchEdgeNodes(signal?: AbortSignal): Promise<{ items: EdgeNodeApiItem[]; total: number }> {
+  return getJson('/v1/edge/nodes', signal)
+}
+
+export async function saveEdgeNode(input: SaveEdgeNodeInput, nodeId?: string, signal?: AbortSignal): Promise<EdgeNodeApiItem> {
+  const path = nodeId ? `/v1/edge/nodes/${encodeURIComponent(nodeId)}` : '/v1/edge/nodes'
+  const response = await portalFetch(path, {
+    method: 'PUT',
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+    signal,
+  })
+  if (!response.ok) await throwHttpError(response, '前置机节点保存失败')
+  return response.json() as Promise<EdgeNodeApiItem>
+}
+
+/** 中心侧 TCP 探测：结果回写为最近一次探测并返回衍生状态。 */
+export async function probeEdgeNode(nodeId: string, signal?: AbortSignal): Promise<EdgeNodeApiItem> {
+  const response = await portalFetch(`/v1/edge/nodes/${encodeURIComponent(nodeId)}/probe`, {
+    method: 'POST',
+    headers: { Accept: 'application/json' },
+    signal,
+  })
+  if (!response.ok) await throwHttpError(response, '前置机探测失败')
+  return response.json() as Promise<EdgeNodeApiItem>
+}
+
+export async function deleteEdgeNode(nodeId: string, signal?: AbortSignal): Promise<void> {
+  const response = await portalFetch(`/v1/edge/nodes/${encodeURIComponent(nodeId)}`, {
+    method: 'DELETE',
+    headers: { Accept: 'application/json' },
+    signal,
+  })
+  if (!response.ok && response.status !== 404) await throwHttpError(response, '前置机节点删除失败')
+}
+
 export async function createIngestionJob(input: CreateIngestionJobInput, signal?: AbortSignal): Promise<IngestionJobApiItem> {
   const response = await portalFetch('/v1/jobs', {
     method: 'POST',

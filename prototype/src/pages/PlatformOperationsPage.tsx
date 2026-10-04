@@ -16,6 +16,7 @@ import { usePolling } from '../hooks/usePolling'
 import { Button, StatusTag } from '../components/ui/Primitives'
 import { PageHeader } from '../components/ui/PageHeader'
 import { formatDateTime } from '../data/domain'
+import { EdgeNodesPanel } from './EdgeNodesPanel'
 import styles from './PlatformOperationsPage.module.css'
 
 const iconByService = {
@@ -108,6 +109,8 @@ export function PlatformOperationsPage({ canAccess }: { canAccess: boolean }) {
         <section className={styles.serviceGrid} aria-label="平台组件状态">
           {(payload?.services ?? placeholderServices).map(service => <ServiceCard key={service.key} service={service} pending={firstProbePending} />)}
         </section>
+
+        <EdgeNodesPanel />
 
         <section className={styles.bottomGrid}>
           <div className={styles.boundaryPanel}>
