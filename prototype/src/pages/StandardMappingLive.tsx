@@ -62,6 +62,7 @@ export function StandardMappingLive({ onNotice }: { onNotice: (message: string) 
   const [createForm, setCreateForm] = useState({ code: '', name: '', sourceAsset: 'doris-dataos.default.ods_ep.ep_mz_cfzb', dataset: 'ods_ep.ep_mz_cfzb', standardId: '' })
   const [busy, setBusy] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
+  const [showAllEvents, setShowAllEvents] = useState(false)
 
   const listState = useApiResource({
     timeoutMs: 15000,
@@ -102,6 +103,7 @@ export function StandardMappingLive({ onNotice }: { onNotice: (message: string) 
         setRollbackTo('')
         setImpact(null)
         setImportReport(null)
+        setShowAllEvents(false)
       }
     },
     onUnavailable: () => setDetail(null),
@@ -333,7 +335,7 @@ export function StandardMappingLive({ onNotice }: { onNotice: (message: string) 
             <section className={styles.panel}>
               <div className={styles.panelHeader}><h2>审计事件</h2><p>最近 20 条</p></div>
               <ul className={styles.timelineBody}>
-                {detail.events.map((event) => (
+                {(showAllEvents ? detail.events : detail.events.slice(0, 6)).map((event) => (
                   <li key={event.id}>
                     <div className={styles.timelineTitle}><strong>{standardEventLabel(event.eventType)}</strong><span>{actorLabel(event.actor)}</span></div>
                     <p>{event.detail}</p>
@@ -342,6 +344,13 @@ export function StandardMappingLive({ onNotice }: { onNotice: (message: string) 
                 ))}
                 {detail.events.length === 0 ? <li className={styles.emptyState}>暂无事件。</li> : null}
               </ul>
+              {detail.events.length > 6 ? (
+                <div className={styles.tableActions}>
+                  <button type="button" className={styles.textButton} onClick={() => setShowAllEvents((current) => !current)}>
+                    {showAllEvents ? '收起事件' : `展开全部 ${detail.events.length} 条`}
+                  </button>
+                </div>
+              ) : null}
               {detailState === 'loading' ? <p className={styles.emptyState}>正在加载详情…</p> : null}
             </section>
           </div>

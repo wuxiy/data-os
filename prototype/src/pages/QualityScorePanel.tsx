@@ -98,7 +98,7 @@ export function QualityScorePanel({ onNotice }: Props) {
                 return (
                   <div key={dimension} className={styles.scoreDimension}>
                     <span>{dimension}</span>
-                    <div className={styles.scoreBar}><i style={{ width: `${Math.max(0, Math.min(100, item?.score ?? 0))}%` }} /></div>
+                    <div className={styles.scoreBar}><i style={{ transform: `scaleX(${Math.max(0, Math.min(100, item?.score ?? 0)) / 100})` }} /></div>
                     <small>{item ? `${item.score.toFixed(1)}（${item.ruleCount} 规则）` : '无运行'}</small>
                   </div>
                 )

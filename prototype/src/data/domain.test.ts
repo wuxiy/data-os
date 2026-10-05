@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { executorOutputView, looksLikeExecutorOutput } from './domain'
+import { executorOutputView, looksLikeExecutorOutput, shortBatchId } from './domain'
 
 describe('执行器输出治理（critique P0-2）', () => {
   it('识别执行器输出指纹（dbt 全文与后端摘要形态）', () => {
@@ -17,5 +17,13 @@ describe('执行器输出治理（critique P0-2）', () => {
     const view = executorOutputView(log)
     expect(view.head).toBe('执行器输出（4 行，完整内容已折叠）')
     expect(view.folded).toBe(log)
+  })
+})
+
+describe('执行批次号紧凑展示（critique P3 溢出修复）', () => {
+  it('短批次号原样保留，长 UUID 截断为前缀加省略号', () => {
+    expect(shortBatchId('qr-36bdb756')).toBe('qr-36bdb756')
+    expect(shortBatchId('qr-36bdb756-49')).toBe('qr-36bdb756-49')
+    expect(shortBatchId('qr-36bdb756-4930-4e41-9977-965729f68cb6')).toBe('qr-36bdb756-4…')
   })
 })

@@ -131,6 +131,11 @@ export function executorOutputView(text: string): { head: string; folded: string
   return { head: `执行器输出（${lines.length} 行，完整内容已折叠）`, folded: text }
 }
 
+/** 运行历史里执行批次号的紧凑展示：超长截断加省略号，完整值放 title（悬停可读）。 */
+export function shortBatchId(id: string): string {
+  return id.length > 14 ? `${id.slice(0, 13)}…` : id
+}
+
 export function notificationStatusLabel(value: string): string {
   return ({ PENDING: '待投递', SENT: '已送达', SKIPPED: '已跳过', FAILED: '待重试' } as Record<string, string>)[value] ?? value
 }
