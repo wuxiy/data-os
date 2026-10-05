@@ -1,5 +1,5 @@
 import { Plus, Save, ShieldCheck, Trash2 } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { ConfirmDrawer } from '../components/ui/ConfirmDrawer'
 import { Drawer } from '../components/ui/Drawer'
@@ -18,6 +18,8 @@ import {
 import { formatDateTime } from '../data/domain'
 import { useAction } from '../hooks/useAction'
 import { useApiResource } from '../hooks/useApiResource'
+import { fetchLineageAsset, fetchLineageCatalog, fetchLineageSummary } from '../data/lineageApi'
+import { fetchStandardDetail, fetchStandards } from '../data/standardsApi'
 import styles from './Pages.module.css'
 
 interface Props {
@@ -147,6 +149,64 @@ export function QualityRulesAdmin({ onNotice }: Props) {
 
   const dimensionOf = (type: QualityRuleType) =>
     types.find((item) => item.type === type)?.dimension ?? ''
+
+  // 资产选择器（2026-10-05 复评）：目标/参照「库.表」从 OM 资产目录出选项，
+  // 命中资产时带出列建议；值域校验的标准数据元从已发布标准出选项。
+  // 目录/标准不可达时静默降级为手输——不阻断建规则。
+  interface DatasetOption { value: string; fqn: string; label: string }
+  const [datasetOptions, setDatasetOptions] = useState<DatasetOption[]>([])
+  const [elementOptions, setElementOptions] = useState<{ id: string; label: string }[]>([])
+  const [columnOptions, setColumnOptions] = useState<string[]>([])
+  const columnCacheRef = useRef(new Map<string, string[]>())
+
+  useEffect(() => {
+    if (!formOpen || datasetOptions.length > 0) return
+    const controller = new AbortController()
+    fetchLineageSummary(controller.signal).then(async (summary) => {
+      const catalogs = await Promise.allSettled(summary.schemas.slice(0, 6).map((schema) => fetchLineageCatalog(schema, controller.signal)))
+      const options: DatasetOption[] = []
+      for (const result of catalogs) {
+        if (result.status !== 'fulfilled') continue
+        for (const asset of result.value.assets) {
+          const value = `${result.value.schema}.${asset.name}`
+          if (!options.some((option) => option.value === value)) options.push({ value, fqn: asset.fullyQualifiedName, label: asset.displayName })
+        }
+      }
+      setDatasetOptions(options)
+    }).catch(() => { /* 目录不可达：保留手输 */ })
+    fetchStandards(controller.signal, '', 'PUBLISHED').then(async (standards) => {
+      const elements: { id: string; label: string }[] = []
+      for (const standard of standards.slice(0, 8)) {
+        try {
+          const detail = await fetchStandardDetail(controller.signal, standard.id)
+          for (const element of detail.version.elements) {
+            if (element.dataType === 'CODE') elements.push({ id: element.id, label: `${standard.code} · ${element.code} ${element.name}` })
+          }
+        } catch { /* 单个标准失败不阻断 */ }
+      }
+      setElementOptions(elements)
+    }).catch(() => { /* 标准不可达：保留手输 */ })
+    return () => controller.abort()
+  }, [formOpen, datasetOptions.length])
+
+  function updateDataset(value: string) {
+    update({ datasetId: value })
+    const option = datasetOptions.find((item) => item.value === value.trim())
+    if (!option) {
+      setColumnOptions([])
+      return
+    }
+    const cached = columnCacheRef.current.get(option.fqn)
+    if (cached) {
+      setColumnOptions(cached)
+      return
+    }
+    fetchLineageAsset(option.fqn).then((detail) => {
+      const names = detail.columns.map((column) => column.name)
+      columnCacheRef.current.set(option.fqn, names)
+      setColumnOptions(names)
+    }).catch(() => setColumnOptions([]))
+  }
 
   function openCreate() {
     setEditing(null)
@@ -319,9 +379,12 @@ export function QualityRulesAdmin({ onNotice }: Props) {
             <div className={styles.formField}><label htmlFor="rule-id">规则编号</label><input id="rule-id" value={form.ruleId} disabled={editing !== null} onChange={(event) => update({ ruleId: event.target.value })} placeholder="例如：quality.ep.order.paystatus-range" /></div>
             <div className={styles.formField}><label htmlFor="rule-type">规则类型</label><select id="rule-type" value={form.ruleType} onChange={(event) => update({ ruleType: event.target.value as QualityRuleType })}>{(types.length > 0 ? types : Object.entries(PARAM_LABELS).map(([type, label]) => ({ type, label, dimension: '' }))).map((item) => <option key={item.type} value={item.type}>{item.label}（{item.type}）</option>)}</select></div>
           </div>
+          <datalist id="rule-dataset-options">{datasetOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</datalist>
+          <datalist id="rule-column-options">{columnOptions.map((name) => <option key={name} value={name} />)}</datalist>
+          <datalist id="rule-standard-options">{elementOptions.map((element) => <option key={element.id} value={element.id}>{element.label}</option>)}</datalist>
           <div className={styles.drawerFormGrid}>
-            <div className={styles.formField}><label htmlFor="rule-dataset">目标「库.表」</label><input id="rule-dataset" value={form.datasetId} onChange={(event) => update({ datasetId: event.target.value })} placeholder="例如：ods_ep.ep_order" /></div>
-            <div className={styles.formField}><label htmlFor="rule-column">目标列{needsColumn ? (form.ruleType === 'UPDATE_TIME' ? '（业务时间列）' : '') : '（本类型无需）'}</label><input id="rule-column" value={form.targetColumn} disabled={!needsColumn} onChange={(event) => update({ targetColumn: event.target.value })} placeholder="例如：PAY_STATUS" /></div>
+            <div className={styles.formField}><label htmlFor="rule-dataset">目标「库.表」（可从资产目录选择）</label><input id="rule-dataset" list="rule-dataset-options" value={form.datasetId} onChange={(event) => updateDataset(event.target.value)} placeholder="例如：ods_ep.ep_order" /></div>
+            <div className={styles.formField}><label htmlFor="rule-column">目标列{needsColumn ? (form.ruleType === 'UPDATE_TIME' ? '（业务时间列）' : '') : '（本类型无需）'}</label><input id="rule-column" list={columnOptions.length > 0 ? 'rule-column-options' : undefined} value={form.targetColumn} disabled={!needsColumn} onChange={(event) => update({ targetColumn: event.target.value })} placeholder="例如：PAY_STATUS" /></div>
           </div>
           {form.ruleType === 'NOT_NULL' ? (
             <div className={styles.formField}><label className={styles.structuredColumnOption}><input type="checkbox" checked={form.checkBlank} onChange={(event) => update({ checkBlank: event.target.checked })} /><span>空字符串也算失败（checkBlank）</span></label></div>
@@ -329,7 +392,7 @@ export function QualityRulesAdmin({ onNotice }: Props) {
           {form.ruleType === 'VAL_SET' ? (
             <>
               <div className={styles.formField}><label htmlFor="rule-values">值域集合（逗号分隔，数字自动识别）</label><input id="rule-values" value={form.valuesText} onChange={(event) => update({ valuesText: event.target.value })} placeholder="例如：0,1,PAID" /></div>
-              <div className={styles.formField}><label htmlFor="rule-standard">或引用标准中心值域（数据元 id，保存时解析快照）</label><input id="rule-standard" value={form.standardElementId} onChange={(event) => update({ standardElementId: event.target.value })} placeholder="标准中心数据元 id；填写后忽略上方手写值集" /></div>
+              <div className={styles.formField}><label htmlFor="rule-standard">或引用标准中心值域（从已发布标准数据元中选择，保存时解析快照）</label><input id="rule-standard" list={elementOptions.length > 0 ? 'rule-standard-options' : undefined} value={form.standardElementId} onChange={(event) => update({ standardElementId: event.target.value })} placeholder="标准中心数据元 id；填写后忽略上方手写值集" /></div>
             </>
           ) : null}
           {form.ruleType === 'VAL_MINMAX' ? (
@@ -349,8 +412,8 @@ export function QualityRulesAdmin({ onNotice }: Props) {
           ) : null}
           {form.ruleType === 'FK_REF' ? (
             <div className={styles.drawerFormGrid}>
-              <div className={styles.formField}><label htmlFor="rule-ref-dataset">参照「库.表」</label><input id="rule-ref-dataset" value={form.refDataset} onChange={(event) => update({ refDataset: event.target.value })} placeholder="例如：ods_ep.ep_dict" /></div>
-              <div className={styles.formField}><label htmlFor="rule-ref-column">参照列</label><input id="rule-ref-column" value={form.refColumn} onChange={(event) => update({ refColumn: event.target.value })} placeholder="例如：CODE" /></div>
+              <div className={styles.formField}><label htmlFor="rule-ref-dataset">参照「库.表」</label><input id="rule-ref-dataset" list="rule-dataset-options" value={form.refDataset} onChange={(event) => update({ refDataset: event.target.value })} placeholder="例如：ods_ep.ep_dict" /></div>
+              <div className={styles.formField}><label htmlFor="rule-ref-column">参照列</label><input id="rule-ref-column" list="rule-column-options" value={form.refColumn} onChange={(event) => update({ refColumn: event.target.value })} placeholder="例如：CODE" /></div>
             </div>
           ) : null}
           {form.ruleType === 'SQL' ? (
