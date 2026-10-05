@@ -77,7 +77,7 @@
 }
 
 .danger {
-  color: var(--red);
+  color: var(--red-deep);
   background: var(--red-soft);
 }
 
