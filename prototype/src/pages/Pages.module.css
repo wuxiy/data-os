@@ -710,7 +710,8 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 0 17px;
+  /* 底部留 inset：窄视口下标题/副题折行时不贴 border-bottom（2026-10-05 复评）。 */
+  padding: 8px 17px;
   border-bottom: 1px solid var(--line);
 }
 
@@ -1411,12 +1412,6 @@
   user-select: none;
 }
 
-/* 折叠态的执行输出在 Chrome 会泄漏布局几何（未绘制但保留矩形），
-   显式隐藏以免冲破父容器边界判定。 */
-.executorLog:not([open]) > pre {
-  display: none;
-}
-
 .executorLog pre {
   max-height: 220px;
   margin: 6px 0 0;
@@ -1663,16 +1658,33 @@
   padding: 0 0 23px 16px;
 }
 
+/* 时间线圆点按事件语义着色（2026-10-05 复评 P2-4）：默认中性，失败红、
+   退回/提醒药珀、闭环玉绿——不再全部挂健康绿点。 */
 .timeline li::before {
   position: absolute;
   top: 4px;
   left: 0;
   width: 8px;
   height: 8px;
-  background: var(--jade);
-  border: 3px solid var(--jade-soft);
+  background: var(--muted);
+  border: 3px solid var(--surface-raised);
   border-radius: 50%;
   content: '';
+}
+
+.timeline li[data-tone='danger']::before {
+  background: var(--red-deep);
+  border-color: color-mix(in srgb, var(--red-deep) 22%, transparent);
+}
+
+.timeline li[data-tone='warning']::before {
+  background: var(--amber);
+  border-color: color-mix(in srgb, var(--amber) 22%, transparent);
+}
+
+.timeline li[data-tone='healthy']::before {
+  background: var(--jade);
+  border-color: var(--jade-soft);
 }
 
 .timeline li::after {
@@ -1703,6 +1715,8 @@
 
 .timeline p {
   margin: 0;
+  max-width: 40em;
+  overflow-wrap: anywhere;
   color: var(--muted);
   font-size: 12px;
   line-height: 1.6;
@@ -1992,9 +2006,23 @@
   gap: 8px;
 }
 
+/* ≤1440（覆盖 1366×768 笔记本）：检辅证据栏换行到全宽——340px 侧栏里
+   证据文本换行过深、两栏高度失衡（2026-10-05 复评），全宽可读性更好。 */
+@media (max-width: 1440px) {
+  .workspace {
+    grid-template-columns: 220px minmax(480px, 1fr);
+  }
+
+  .workspaceInspector {
+    grid-column: 1 / -1;
+    border-right: 0;
+    border-top: 1px solid var(--line);
+  }
+}
+
 @media (max-width: 1180px) {
   .workspace {
-    grid-template-columns: 190px minmax(430px, 1fr) 300px;
+    grid-template-columns: 190px minmax(430px, 1fr);
   }
 
   .twoColumns {

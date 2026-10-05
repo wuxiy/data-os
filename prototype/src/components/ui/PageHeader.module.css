@@ -50,15 +50,14 @@
 
 .scopeSummary span {
   display: inline-flex;
-  min-height: 28px;
   align-items: center;
-  padding: 0 8px;
   color: var(--muted);
-  background: var(--surface-sunken);
-  border-radius: 5px;
   font-size: 12px;
   white-space: nowrap;
 }
+
+/* 2026-10-05 复评 P2-5：范围值是静态展示文本（暂无真实筛选），
+   去掉胶囊底色避免「看起来能点」的假 affordance。 */
 
 .timestamp {
   margin: 0 7px;

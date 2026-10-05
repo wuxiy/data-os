@@ -20,9 +20,11 @@ import {
 } from '../data/controlPlane'
 import {
   eventTitle,
+  eventTone,
   executorLabel,
   executorOutputView,
   formatDateTime,
+  isRecheckRetryEvent,
   isTerminalRun,
   issueStatusLabel,
   issueStatusTone,
@@ -35,7 +37,7 @@ import {
   severityLabel,
   severityTone,
 } from '../data/domain'
-import type { GovernanceApiIssue, GovernanceIssueDetailApiResponse } from '../data/controlPlane'
+import type { GovernanceApiIssue, GovernanceIssueDetailApiResponse, GovernanceIssueEventApiItem } from '../data/controlPlane'
 import type { RouteKey } from '../types'
 import { QualityRulesAdmin } from './QualityRulesAdmin'
 import styles from './Pages.module.css'
@@ -212,9 +214,35 @@ export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props
               <div className={styles.detailActions}><Button variant="primary" onClick={startRetest} disabled={!canRecheck || actionState !== null}>{actionState === 'recheck' ? '提交中…' : selected.status === 'RECHECKING' ? '复检中' : '开始复检'}</Button>{detail.latestRun && !isTerminalRun(detail.latestRun.status) ? <Button onClick={syncRun} disabled={actionState !== null}><RefreshCw size={14} className={actionState === 'sync' ? styles.spin : undefined} />{actionState === 'sync' ? '同步中…' : '同步复检结果'}</Button> : null}<Button onClick={remindOwner} disabled={actionState !== null || selected.status === 'CLOSED'}>{actionState === 'notify' ? '提醒中…' : selected.status === 'CLOSED' ? '问题已关闭' : '提醒责任人'}</Button>{selected.status === 'CLOSED' ? <span className={styles.closedHint}>问题已关闭，主操作停用；如需重新处理请从队列选择未闭环问题</span> : null}</div>
             </div>
             <ol className={styles.timeline}>
-              {detail.events.map((event) => <li key={event.id}><time>{formatDateTime(event.createdAt)}</time><div><strong>{eventTitle(event.eventType)}</strong><p>{executorOutputView(event.note).folded ? <>{executorOutputView(event.note).head}…</> : event.note} · {event.actor}</p></div></li>)}
+              {groupedTimeline(detail.events).map((group) => group.kind === 'retries' ? (
+                /* 连续复检重试折叠（2026-10-05 复评 P2-4）：N 条等权事件收成一条可展开记录。 */
+                <li key={group.events[0].id} data-tone="neutral">
+                  <time>{formatDateTime(group.events[0].createdAt)}{group.events.length > 1 ? ` – ${formatDateTime(group.events[group.events.length - 1].createdAt)}` : ''}</time>
+                  <div>
+                    <strong>复检投递重试（共 {group.events.length} 条）</strong>
+                    <details className={styles.executorLog}>
+                      <summary>展开每次记录</summary>
+                      {group.events.map((event) => <p key={event.id}>{formatDateTime(event.createdAt)} · {eventTitle(event.eventType)}{event.note ? ` · ${event.note}` : ''}</p>)}
+                    </details>
+                  </div>
+                </li>
+              ) : (
+                <li key={group.event.id} data-tone={eventTone(group.event.eventType)}>
+                  <time>{formatDateTime(group.event.createdAt)}</time>
+                  <div><strong>{eventTitle(group.event.eventType)}</strong><p>{executorOutputView(group.event.note).folded ? <>{executorOutputView(group.event.note).head}…</> : group.event.note} · {group.event.actor}</p></div>
+                </li>
+              ))}
               {detail.events.length === 0 ? <li><time>{formatDateTime(selected.updatedAt)}</time><div><strong>问题已登记</strong><p>问题来自质量规则目录，等待责任人处理。</p></div></li> : null}
             </ol>
+            {/* 处理说明随主列（2026-10-05 复评）：与开始复检/提醒责任人同一操作域，
+                检辅栏只保留只读证据——两栏高度也随之平衡。 */}
+            <div className={styles.noteBox}>
+              <label htmlFor="processing-note">处理说明</label>
+              {looksLikeExecutorOutput(selected.processingNote) ? <details className={styles.executorLog}><summary>历史执行器输出（仅参考，不作为处理结论）</summary><pre>{selected.processingNote}</pre></details> : null}
+              <textarea id="processing-note" value={note} onChange={(event) => setNote(event.target.value)} disabled={!canEdit || actionState !== null} placeholder={canEdit ? '填写人工处理结论（处置动作、原因与复核口径）' : ''} />
+              {actionError ? <p className={styles.formError} role="alert">{actionError}</p> : null}
+              <div className={styles.noteActions}><Button variant="primary" onClick={saveNote} disabled={!canEdit || !note.trim() || actionState !== null}><Send size={14} />{actionState === 'note' ? '保存中…' : '提交说明'}</Button></div>
+            </div>
           </> : detailState === 'error' ? <div className={styles.connectionNotice} role="alert"><CircleAlert size={17} /><div><strong>治理问题详情不可用</strong><span>问题详情读取失败，请刷新后重试</span></div><button className={styles.secondaryButton} onClick={() => window.location.reload()}>重新读取</button></div> : <div className={styles.emptyState}>{apiState === 'loading' ? '正在读取问题详情…' : apiState === 'unavailable' ? '控制面恢复后可查看治理问题详情' : '请选择一个治理问题'}</div>}
         </section>
         <aside className={styles.workspaceInspector}>
@@ -237,13 +265,6 @@ export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props
             </div>
             <div className={styles.evidenceBox}><h3>责任人通知</h3>{detail.notifications.length > 0 ? detail.notifications.slice(0, 3).map((notification) => <p key={notification.id}><StatusTag tone={notificationStatusTone(notification.status)}>{notificationStatusLabel(notification.status)}</StatusTag> {notification.channel} · {notification.recipient}<br />{notification.subject}{notification.lastError ? <><br /><span className={styles.evidenceMessage}>{notification.lastError}</span></> : null}</p>) : <p>当前没有通知记录。</p>}</div>
             <div className={styles.evidenceBox}><h3>责任归属</h3><p>{selected.ownerDepartment} · {selected.ownerName}<br />来源：资产责任人与组织主数据</p></div>
-            <div className={styles.noteBox}>
-              <label htmlFor="processing-note">处理说明</label>
-              {looksLikeExecutorOutput(selected.processingNote) ? <details className={styles.executorLog}><summary>历史执行器输出（仅参考，不作为处理结论）</summary><pre>{selected.processingNote}</pre></details> : null}
-              <textarea id="processing-note" value={note} onChange={(event) => setNote(event.target.value)} disabled={!canEdit || actionState !== null} placeholder={canEdit ? '填写人工处理结论（处置动作、原因与复核口径）' : ''} />
-              {actionError ? <p className={styles.formError} role="alert">{actionError}</p> : null}
-              <div className={styles.noteActions}><Button variant="primary" onClick={saveNote} disabled={!canEdit || !note.trim() || actionState !== null}><Send size={14} />{actionState === 'note' ? '保存中…' : '提交说明'}</Button></div>
-            </div>
           </> : null}
         </aside>
       </div>
@@ -253,8 +274,31 @@ export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props
 }
 
 
-function isSafeArtifactLink(value: string) {
-  try {
+type TimelineEntry = { kind: 'single'; event: GovernanceIssueEventApiItem } | { kind: 'retries'; events: GovernanceIssueEventApiItem[] }
+
+/** 时间线分组（2026-10-05 复评 P2-4）：相邻的复检投递/执行中间事件收为一组可展开记录，
+ * 其余事件逐条呈现——重试墙不再以等权条目淹没关键节点。 */
+function groupedTimeline(events: GovernanceIssueEventApiItem[]): TimelineEntry[] {
+  const out: TimelineEntry[] = []
+  let buffer: GovernanceIssueEventApiItem[] = []
+  const flush = () => {
+    if (buffer.length === 0) return
+    if (buffer.length === 1) out.push({ kind: 'single', event: buffer[0] })
+    else out.push({ kind: 'retries', events: buffer })
+    buffer = []
+  }
+  for (const event of events) {
+    if (isRecheckRetryEvent(event.eventType)) buffer.push(event)
+    else {
+      flush()
+      out.push({ kind: 'single', event })
+    }
+  }
+  flush()
+  return out
+}
+
+function isSafeArtifactLink(value: string) {  try {
     const url = new URL(value)
     return url.protocol === 'https:' || url.protocol === 'http:'
   } catch {

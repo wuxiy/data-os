@@ -67,6 +67,32 @@
   color: var(--muted);
 }
 
+/* 稳态横幅收敛（2026-10-05 复评 P2-5）：scope 全文折叠，一行摘要即可扫读。 */
+.scopeFold {
+  display: inline-flex;
+  align-items: center;
+}
+
+.scopeFold summary {
+  color: var(--muted);
+  cursor: pointer;
+  list-style: none;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.scopeFold summary::-webkit-details-marker {
+  display: none;
+}
+
+.scopeFold summary::before {
+  content: '▸ ';
+}
+
+.scopeFold[open] summary::before {
+  content: '▾ ';
+}
+
 @media (max-width: 900px) {
   .warningText {
     display: none;

@@ -87,6 +87,19 @@ export function eventTitle(value: string): string {
   return ({ WORKFLOW_UPDATED: '责任人提交处理说明', RECHECK_REQUESTED: '已发起质量规则复检', AUTO_CLOSED: '复检通过，问题已自动关闭', AUTO_RETURNED: '复检未通过，问题已退回', RECHECK_FAILED: '复检执行失败', RECHECK_SUBMIT_FAILED: '复检投递失败', SLA_OVERDUE: 'SLA 已逾期', RESPONSIBLE_REMINDER_REQUESTED: '已提醒责任人' } as Record<string, string>)[value] ?? '治理问题状态更新'
 }
 
+/** 质量时间线事件的圆点语义（2026-10-05 复评 P2-4）：失败/逾期不再挂健康绿点。 */
+export function eventTone(value: string): 'danger' | 'warning' | 'healthy' | 'neutral' {
+  if (value === 'RECHECK_FAILED' || value === 'RECHECK_SUBMIT_FAILED' || value === 'SLA_OVERDUE') return 'danger'
+  if (value === 'AUTO_RETURNED' || value === 'RESPONSIBLE_REMINDER_REQUESTED') return 'warning'
+  if (value === 'AUTO_CLOSED') return 'healthy'
+  return 'neutral'
+}
+
+/** 是否复检链路的中间事件（用于连续重试折叠）。 */
+export function isRecheckRetryEvent(value: string): boolean {
+  return value === 'RECHECK_REQUESTED' || value === 'RECHECK_SUBMIT_FAILED' || value === 'RECHECK_FAILED'
+}
+
 // ---- 标准中心/标准映射的枚举中文口径（2026-10-05 critique P2）----
 
 /** 审计事件类型（后端 literal：VERSION_CREATED/SUBMITTED/PUBLISHED/…）。 */

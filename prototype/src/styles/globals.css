@@ -54,6 +54,14 @@ small {
   font-size: max(0.85em, 12px);
 }
 
+/* Chrome 对 closed <details> 的子元素保留布局矩形（未绘制但占几何），
+   会冲破父容器边界并参与行长/溢出计量。统一显式隐藏：
+   曾致执行输出冲出工作区（2026-10-05 P3 轮）与横幅 scope/重试记录
+   溢出（2026-10-05 复评轮）。页面内无任何依赖 closed 内容布局的用法。 */
+details:not([open]) > *:not(summary) {
+  display: none;
+}
+
 
 * {
   box-sizing: border-box;

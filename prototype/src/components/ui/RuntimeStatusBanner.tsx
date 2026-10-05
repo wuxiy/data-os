@@ -16,12 +16,12 @@ export function RuntimeStatusBanner() {
     onData: setStatus,
   })
 
-  if (state === 'loading') return <div className={`${styles.banner} ${styles.loading}`} role="status"><CloudCog size={14} /><span>正在读取运行模式…</span><span className={styles.scope}>{SCOPE_SUMMARY}</span></div>
+  if (state === 'loading') return <div className={`${styles.banner} ${styles.loading}`} role="status"><CloudCog size={14} /><span>正在读取运行模式…</span></div>
   if (state === 'unavailable') {
     if (frontendDemoMode) {
-      return <div className={`${styles.banner} ${styles.demo}`} role="status"><CloudCog size={14} /><strong>演示运行模式</strong><span>前端已显式启用脱敏演示数据</span><span className={styles.scope}>{SCOPE_SUMMARY}</span></div>
+      return <div className={`${styles.banner} ${styles.demo}`} role="status"><CloudCog size={14} /><strong>演示运行模式</strong><span>前端已显式启用脱敏演示数据</span><details className={styles.scopeFold}><summary>范围说明</summary><span className={styles.scope}>{SCOPE_SUMMARY}</span></details></div>
     }
-    return <div className={`${styles.banner} ${styles.warning}`} role="status"><CircleAlert size={14} /><span>控制面状态未知 · 页面仅展示已明确标注的本地演示内容</span><span className={styles.scope}>{SCOPE_SUMMARY}</span><button onClick={() => window.location.reload()} aria-label="重新读取运行状态"><RefreshCw size={13} /></button></div>
+    return <div className={`${styles.banner} ${styles.warning}`} role="status"><CircleAlert size={14} /><span>控制面状态未知 · 页面仅展示已明确标注的本地演示内容</span><details className={styles.scopeFold}><summary>范围说明</summary><span className={styles.scope}>{SCOPE_SUMMARY}</span></details><button onClick={() => window.location.reload()} aria-label="重新读取运行状态"><RefreshCw size={13} /></button></div>
   }
 
   const demo = isDemoRuntime(status?.mode)
@@ -34,15 +34,17 @@ export function RuntimeStatusBanner() {
   const operationalLabel = operationalState === 'READY'
     ? `核心链路就绪${coverage ? `（${coverage}）` : ''}`
     : operationalState === 'DEGRADED' ? `核心链路降级${coverage ? `（${coverage}）` : ''}` : '核心链路未知'
+  // 收敛为一行（2026-10-05 复评 P2-5）：scope 全文进 <details> 折叠，
+  // 且稳态横幅不再挂 role="status"——读屏用户不必每次导航听完整段未变的公告。
   return (
-    <div className={`${styles.banner} ${demo ? styles.demo : operationalState === 'READY' ? styles.live : styles.warning}`} role="status">
+    <div className={`${styles.banner} ${demo ? styles.demo : operationalState === 'READY' ? styles.live : styles.warning}`}>
       {demo ? <CloudCog size={14} /> : <span className={styles.liveDot} />}
       <strong>{demo ? '演示运行模式' : '真实运行模式'}</strong>
       <span>{frontendDemoMode ? '前端已显式启用脱敏演示数据' : `质量执行器 ${status?.qualityExecutor ?? '未知'}`}</span>
       {status?.qualityExecutorConfigured ? <StatusTag tone="healthy">执行器已配置</StatusTag> : <StatusTag tone="warning">执行器待配置</StatusTag>}
       <StatusTag tone={operationalState === 'READY' ? 'healthy' : 'warning'}>{operationalLabel}</StatusTag>
       {warning ? <span className={styles.warningText}>{warning}</span> : null}
-      <span className={styles.scope}>{SCOPE_SUMMARY}</span>
+      <details className={styles.scopeFold}><summary>范围说明</summary><span className={styles.scope}>{SCOPE_SUMMARY}</span></details>
     </div>
   )
 }

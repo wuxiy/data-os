@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { executorOutputView, looksLikeExecutorOutput, shortBatchId } from './domain'
+import { eventTone, executorOutputView, isRecheckRetryEvent, looksLikeExecutorOutput, shortBatchId } from './domain'
 
 describe('执行器输出治理（critique P0-2）', () => {
   it('识别执行器输出指纹（dbt 全文与后端摘要形态）', () => {
@@ -25,5 +25,26 @@ describe('执行批次号紧凑展示（critique P3 溢出修复）', () => {
     expect(shortBatchId('qr-36bdb756')).toBe('qr-36bdb756')
     expect(shortBatchId('qr-36bdb756-49')).toBe('qr-36bdb756-49')
     expect(shortBatchId('qr-36bdb756-4930-4e41-9977-965729f68cb6')).toBe('qr-36bdb756-4…')
+  })
+})
+
+describe('质量时间线事件语义色（2026-10-05 复评 P2-4）', () => {
+  it('失败/逾期为 danger，退回/提醒为 warning，闭环为 healthy，中间步骤中性', () => {
+    expect(eventTone('RECHECK_SUBMIT_FAILED')).toBe('danger')
+    expect(eventTone('RECHECK_FAILED')).toBe('danger')
+    expect(eventTone('SLA_OVERDUE')).toBe('danger')
+    expect(eventTone('AUTO_RETURNED')).toBe('warning')
+    expect(eventTone('RESPONSIBLE_REMINDER_REQUESTED')).toBe('warning')
+    expect(eventTone('AUTO_CLOSED')).toBe('healthy')
+    expect(eventTone('RECHECK_REQUESTED')).toBe('neutral')
+    expect(eventTone('WORKFLOW_UPDATED')).toBe('neutral')
+    expect(eventTone('UNKNOWN_TYPE')).toBe('neutral')
+  })
+  it('复检投递/执行中间事件参与连续重试折叠', () => {
+    expect(isRecheckRetryEvent('RECHECK_REQUESTED')).toBe(true)
+    expect(isRecheckRetryEvent('RECHECK_SUBMIT_FAILED')).toBe(true)
+    expect(isRecheckRetryEvent('RECHECK_FAILED')).toBe(true)
+    expect(isRecheckRetryEvent('AUTO_CLOSED')).toBe(false)
+    expect(isRecheckRetryEvent('SLA_OVERDUE')).toBe(false)
   })
 })
