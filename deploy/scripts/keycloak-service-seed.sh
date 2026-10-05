@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# Keycloak 服务间认证种子（G2G 批次 7）：realm client scopes（quality:*）+
-# 服务 client 五个的幂等补件。已存在的 client 只补缺失件（scopes/mappers/
-# service account），不重建、不换 secret——.env 是 secret 唯一属主。
-# 新建 client 的 secret 缺省时生成并仅在创建时回显一次（沿用 portal seed 惯例）。
+# Keycloak 服务间认证种子（G2G 批次 7；B 组收口增 MPI 投影链）：realm client
+# scopes（quality:*）+ 服务 client 六个的幂等补件。已存在的 client 只补缺失件
+# （scopes/mappers/service account/读侧角色），不重建、不换 secret——.env 是
+# secret 唯一属主。新建 client 的 secret 缺省时生成并仅在创建时回显一次
+# （沿用 portal seed 惯例）。
 #
 # 用法（在能访问 Keycloak Admin 的机器上）：
 #   KEYCLOAK_ADMIN_URL=http://keycloak:8080/auth \
@@ -10,6 +11,7 @@
 #   ./keycloak-service-seed.sh
 # 可选 env：QUALITY_CLIENT_ID/QUALITY_CLIENT_SECRET、AI_READY_CLIENT_ID、
 #   ASSISTANT_CLIENT_ID、DATA_API_CLIENT_ID、OM_INGEST_CLIENT_ID、
+#   MPI_CLIENT_ID/MPI_CLIENT_SECRET/MPI_READ_ROLE、
 #   SEED_TENANT_ID、SEED_INSTITUTION_ID。
 set -euo pipefail
 
@@ -41,6 +43,9 @@ AI_READY_CLIENT = os.environ.get("AI_READY_CLIENT_ID", "dataos-ai-ready")
 ASSISTANT_CLIENT = os.environ.get("ASSISTANT_CLIENT_ID", "dataos-assistant-bff")
 DATA_API_CLIENT = os.environ.get("DATA_API_CLIENT_ID", "dataos-data-api")
 OM_INGEST_CLIENT = os.environ.get("OM_INGEST_CLIENT_ID", "dataos-om-ingest")
+MPI_CLIENT = os.environ.get("MPI_CLIENT_ID", "dataos-control-plane-mpi")
+# MPI ENFORCED 读侧（GET /api/v1/mpi/**）最小角色；只读投影不给写侧。
+MPI_READ_ROLE = os.environ.get("MPI_READ_ROLE", "viewer")
 
 QUALITY_SCOPES = ["quality:submit", "quality:read", "quality:admin"]
 
@@ -163,6 +168,31 @@ def ensure_service_account(client_uuid):
         print("  service account 在位")
 
 
+def ensure_realm_role(name):
+    status, _ = call("POST", f"{API}/roles", {"name": name}, token)
+    if status == 201:
+        print(f"realm 角色已建: {name}")
+    elif status == 409:
+        print(f"realm 角色在位: {name}")
+    else:
+        print(f"realm 角色 {name} 失败: HTTP {status}", file=sys.stderr)
+        sys.exit(1)
+
+
+def ensure_service_account_role(client_uuid, role):
+    _, user = api("GET", f"/clients/{client_uuid}/service-account-user")
+    _, existing = api("GET", f"/users/{user['id']}/role-mappings/realm")
+    if any(item.get("name") == role for item in existing):
+        print(f"  服务账号角色在位: {role}")
+        return
+    _, roles = api("GET", "/roles")
+    role_id = next((item["id"] for item in roles if item.get("name") == role), None)
+    if role_id is None:
+        raise SystemExit(f"realm 角色未找到: {role}")
+    api("POST", f"/users/{user['id']}/role-mappings/realm", [{"id": role_id, "name": role}])
+    print(f"  服务账号角色已挂: {role}")
+
+
 def create_client(client_id, secret=None, public=False):
     payload = {
         "clientId": client_id,
@@ -179,11 +209,11 @@ def create_client(client_id, secret=None, public=False):
     print(f"服务 client 已建: {client_id}")
 
 
-print("== 1/3 realm client scopes ==")
+print("== 1/4 realm client scopes ==")
 for scope in QUALITY_SCOPES:
     ensure_client_scope(scope)
 
-print("== 2/3 控制面→质量执行器 client（quality 链，全新装配）==")
+print("== 2/4 控制面→质量执行器 client（quality 链，全新装配）==")
 quality_secret = os.environ.get("QUALITY_CLIENT_SECRET")
 existing = find_client(QUALITY_CLIENT)
 if existing is None:
@@ -202,7 +232,7 @@ ensure_audience_mapper(existing["id"], QUALITY_CLIENT, "dataos-quality-runner")
 ensure_claim_mapper(existing["id"], "tenant_id", TENANT)
 ensure_claim_mapper(existing["id"], "institution_id", INSTITUTION)
 
-print("== 3/3 其余服务 client（在位只补件，缺位按模板建）==")
+print("== 3/4 其余服务 client（在位只补件，缺位按模板建）==")
 # 调用方→被调方 audience（代码证据：ai-ready 校验 aud=dataos-ai-ready；
 # 问数 BFF 校验 aud=dataos-data-api）。
 for client_id, audience in (
@@ -230,6 +260,25 @@ for client_id in (DATA_API_CLIENT, OM_INGEST_CLIENT):
     else:
         print(f"client 在位（不换 secret）: {client_id}")
     ensure_service_account(client["id"])
+
+print("== 4/4 控制面→MPI 投影 client（aud=data-os-mpi + 读侧角色）==")
+# MPI ENFORCED 的 GET /api/v1/mpi/** 允许 viewer——只读指标投影的最小角色；
+# 角色幂等自建，未跑 portal seed 的 realm 也能装配。
+ensure_realm_role(MPI_READ_ROLE)
+mpi_secret = os.environ.get("MPI_CLIENT_SECRET")
+client = find_client(MPI_CLIENT)
+if client is None:
+    generated = mpi_secret or secrets.token_urlsafe(32)
+    create_client(MPI_CLIENT, secret=generated)
+    if not mpi_secret:
+        print("  ⚠ secret 已生成（仅此一次回显，请写入 .env 的 DATAOS_OPERATIONS_MPI_OIDC_CLIENT_SECRET）:")
+        print(f"  {generated}")
+    client = find_client(MPI_CLIENT)
+else:
+    print(f"client 在位（不换 secret）: {MPI_CLIENT}")
+ensure_service_account(client["id"])
+ensure_audience_mapper(client["id"], MPI_CLIENT, "data-os-mpi")
+ensure_service_account_role(client["id"], MPI_READ_ROLE)
 
 print("服务间种子完成。")
 PYEOF

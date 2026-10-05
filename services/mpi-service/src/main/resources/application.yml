@@ -32,6 +32,8 @@ data-os:
     # fail closed：生产为默认，仅本地/开发部署显式选择 DISABLED。
     mode: ${DATAOS_MPI_AUTH_MODE:ENFORCED}
     issuer-uri: ${DATAOS_MPI_OIDC_ISSUER_URI:}
+    # S7 同款（G2G B 组）：网关自签 HTTPS issuer 时 JWKS 内网直取，空值走 discovery
+    jwk-set-uri: ${DATAOS_MPI_OIDC_JWK_SET_URI:}
     audience: ${DATAOS_MPI_OIDC_AUDIENCE:data-os-mpi}
     clock-skew-seconds: ${DATAOS_MPI_OIDC_CLOCK_SKEW_SECONDS:60}
     default-tenant-id: ${DATAOS_MPI_DEFAULT_TENANT_ID:default}

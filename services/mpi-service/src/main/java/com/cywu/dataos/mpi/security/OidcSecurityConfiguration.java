@@ -62,9 +62,14 @@ public class OidcSecurityConfiguration {
         if (properties.getClockSkewSeconds() < 0 || properties.getClockSkewSeconds() > 300) {
             throw new IllegalStateException("DATAOS_MPI_OIDC_CLOCK_SKEW_SECONDS 必须在 0 到 300 秒之间");
         }
-        var decoder = JwtDecoders.fromIssuerLocation(properties.getIssuerUri().trim());
+        // jwk-set-uri 直连（S7 同款，G2G B 组收口）：issuer 为网关自签 HTTPS 时
+        // discovery 取 JWKS 会失败，配置了 jwk-set-uri 则从内网 Keycloak 直取，
+        // issuer 声明仍按 issuer-uri（网关值）校验。
+        var issuer = properties.getIssuerUri().trim();
+        JwtDecoder decoder = properties.getJwkSetUri().isBlank()
+                ? JwtDecoders.fromIssuerLocation(issuer)
+                : NimbusJwtDecoder.withJwkSetUri(properties.getJwkSetUri()).build();
         if (decoder instanceof NimbusJwtDecoder nimbus) {
-            var issuer = properties.getIssuerUri().trim();
             var timestamp = new JwtTimestampValidator(Duration.ofSeconds(properties.getClockSkewSeconds()));
             nimbus.setJwtValidator(new org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator<>(
                     new JwtIssuerValidator(issuer), timestamp,

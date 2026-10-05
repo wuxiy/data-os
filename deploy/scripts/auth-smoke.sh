@@ -77,7 +77,7 @@ def claims_of_header(token):
     return json.loads(base64.urlsafe_b64decode(payload))
 
 
-def check(label, token, *, audience=None, scopes=(), tenant=False):
+def check(label, token, *, audience=None, scopes=(), tenant=False, realm_role=None):
     if token is None:
         return
     try:
@@ -95,6 +95,12 @@ def check(label, token, *, audience=None, scopes=(), tenant=False):
             for claim in ("tenant_id", "institution_id"):
                 if not str(claims.get(claim, "")).strip():
                     raise AssertionError(f"{claim} claim 缺失（被调方 403：no tenant scope）")
+        if realm_role:
+            realm_access = claims.get("realm_access") or {}
+            granted_roles = set(realm_access.get("roles") or []) if isinstance(realm_access, dict) else set()
+            if realm_role not in granted_roles:
+                raise AssertionError(
+                    f"realm_access.roles={sorted(granted_roles)} 不含 {realm_role}（读侧 403）")
         verify_signature(token, KEYS)
         print(f"PASS {label}")
     except AssertionError as exc:
@@ -133,6 +139,17 @@ for name, audience in (
               token_of(client_id, client_secret, name.lower()), audience=audience)
     else:
         print(f"SKIP {name.lower()} 链（未提供凭据）")
+
+# MPI 投影链（G2G B 组）：aud=data-os-mpi + 读侧角色（复刻 mpi authorities()
+# 从 realm_access.roles 取角色的口径）。
+mpi_id = env("MPI_CLIENT_ID")
+mpi_secret = env("MPI_CLIENT_SECRET")
+if mpi_id and mpi_secret:
+    check("mpi 链（aud=data-os-mpi + viewer 读侧角色）",
+          token_of(mpi_id, mpi_secret, "mpi"),
+          audience="data-os-mpi", realm_role="viewer")
+else:
+    print("SKIP mpi 链（未提供 MPI_CLIENT_ID/SECRET）")
 
 for name in ("DATA_API", "OM_INGEST"):
     client_id = env(f"{name}_CLIENT_ID")

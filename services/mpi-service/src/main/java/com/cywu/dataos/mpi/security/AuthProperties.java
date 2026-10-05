@@ -14,6 +14,7 @@ public class AuthProperties {
 
     private String mode = "ENFORCED";
     private String issuerUri = "";
+    private String jwkSetUri = "";
     private String audience = "data-os-mpi";
     private long clockSkewSeconds = 60;
     private String defaultTenantId = "default";
@@ -34,6 +35,15 @@ public class AuthProperties {
 
     public void setIssuerUri(String issuerUri) {
         this.issuerUri = issuerUri;
+    }
+
+    /** S7 同款（G2G B 组收口）：issuer 为网关自签 HTTPS 时 JWKS 内网直取；空串走 issuer discovery。 */
+    public String getJwkSetUri() {
+        return jwkSetUri == null ? "" : jwkSetUri.trim();
+    }
+
+    public void setJwkSetUri(String jwkSetUri) {
+        this.jwkSetUri = jwkSetUri;
     }
 
     public String getAudience() {
