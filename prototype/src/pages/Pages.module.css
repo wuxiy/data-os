@@ -1637,8 +1637,16 @@
 
 .detailActions {
   display: flex;
+  align-items: center;
   gap: 8px;
   margin-top: 14px;
+}
+
+/* 已关闭问题的主操作说明（2026-10-05 复评 P1-3）：禁用按钮旁给原因与出路。 */
+.closedHint {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .timeline {

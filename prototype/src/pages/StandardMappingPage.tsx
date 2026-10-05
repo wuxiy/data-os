@@ -26,7 +26,7 @@ interface Props {
 export function StandardMappingPage({ onNavigate, onUnavailable, onNotice }: Props) {
   // 真实构建走 G23 标准映射真实链路；演示构建保留静态样例。
   if (!frontendDemoMode) {
-    return <StandardMappingLive onNotice={onNotice} />
+    return <StandardMappingLive onNotice={onNotice} onNavigate={onNavigate} onUnavailable={onUnavailable} />
   }
   const [selectedField, setSelectedField] = useState('diagnosis_code')
   const [onlyPending, setOnlyPending] = useState(false)

@@ -1,5 +1,6 @@
 import { ArrowRightLeft, ClipboardCheck, GitCompareArrows, History, Import, RefreshCw, Search, ShieldCheck, Trash2, UploadCloud } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { GovernanceTabs } from '../components/ui/GovernanceTabs'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Button, StatusTag } from '../components/ui/Primitives'
 import {
@@ -23,6 +24,7 @@ import {
   type MappingSetListItem,
 } from '../data/mappingApi'
 import { actorLabel, formatDateTime, standardEventLabel, transformLabel } from '../data/domain'
+import type { RouteKey } from '../types'
 import { fetchStandards, type StandardListItem } from '../data/standardsApi'
 import { useApiResource } from '../hooks/useApiResource'
 import { usePaged } from '../hooks/usePaged'
@@ -45,7 +47,7 @@ function statusTone(status: string) {
   return 'neutral' as const
 }
 
-export function StandardMappingLive({ onNotice }: { onNotice: (message: string) => void }) {
+export function StandardMappingLive({ onNotice, onNavigate, onUnavailable }: { onNotice: (message: string) => void; onNavigate: (route: RouteKey) => void; onUnavailable: (label: string) => void }) {
   const [query, setQuery] = useState('')
   const [sets, setSets] = useState<MappingSetListItem[]>([])
   const [selectedId, setSelectedId] = useState('')
@@ -136,6 +138,7 @@ export function StandardMappingLive({ onNotice }: { onNotice: (message: string) 
     return (
       <div className={styles.page}>
         <PageHeader title="标准映射" eyebrow="标准映射" subtitle="源资产字段到标准数据元的受控映射" />
+        <GovernanceTabs route="mapping" onNavigate={onNavigate} onUnavailable={onUnavailable} />
         <div className={styles.content}>
           <section className={styles.panel} role="status">
             <div className={styles.panelHeader}><h2>控制面暂不可用</h2></div>
@@ -154,6 +157,7 @@ export function StandardMappingLive({ onNotice }: { onNotice: (message: string) 
         subtitle="源资产字段 → 标准数据元（受控转换：COPY/TRIM/UPPER/DATE_FORMAT/VALUE_MAP）"
         asOf={detail ? formatDateTime(detail.set.updatedAt) : undefined}
       />
+      <GovernanceTabs route="mapping" onNavigate={onNavigate} onUnavailable={onUnavailable} />
       <div className={styles.content}>
         {coverageState === 'live' && coverage ? (
           <section className={styles.attention}>

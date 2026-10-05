@@ -1,5 +1,6 @@
 import { ArrowRightLeft, Braces, Download, FileSearch, GitCompareArrows, Import, RefreshCw, Search, Send, ShieldCheck, Trash2, UploadCloud } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { GovernanceTabs } from '../components/ui/GovernanceTabs'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Button, StatusTag } from '../components/ui/Primitives'
 import {
@@ -24,6 +25,7 @@ import {
 import { actorLabel, formatDateTime, sensitivityLabel, standardEventLabel } from '../data/domain'
 import { useApiResource } from '../hooks/useApiResource'
 import { usePaged } from '../hooks/usePaged'
+import type { RouteKey } from '../types'
 import styles from './Pages.module.css'
 
 /**
@@ -50,7 +52,7 @@ function severityTone(severity: string) {
   return 'neutral' as const
 }
 
-export function DataStandardsLive({ onNotice }: { onNotice: (message: string) => void }) {
+export function DataStandardsLive({ onNotice, onNavigate, onUnavailable }: { onNotice: (message: string) => void; onNavigate: (route: RouteKey) => void; onUnavailable: (label: string) => void }) {
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [items, setItems] = useState<StandardListItem[]>([])
@@ -136,6 +138,7 @@ export function DataStandardsLive({ onNotice }: { onNotice: (message: string) =>
     return (
       <div className={styles.page}>
         <PageHeader title="数据标准中心" eyebrow="数据标准" subtitle="标准集合、版本评审与发布" />
+        <GovernanceTabs route="standards" onNavigate={onNavigate} onUnavailable={onUnavailable} />
         <div className={styles.content}>
           <section className={styles.panel} role="status">
             <div className={styles.panelHeader}><h2>控制面暂不可用</h2></div>
@@ -150,6 +153,7 @@ export function DataStandardsLive({ onNotice }: { onNotice: (message: string) =>
   return (
     <div className={styles.page}>
       <PageHeader title="数据标准中心" eyebrow="数据标准" subtitle="标准集合、不可变版本、评审发布与影响范围" asOf={detail ? formatDateTime(detail.standard.updatedAt) : undefined} />
+      <GovernanceTabs route="standards" onNavigate={onNavigate} onUnavailable={onUnavailable} />
       <div className={styles.content}>
         <div className={styles.listTools}>
           <label className={styles.search}>

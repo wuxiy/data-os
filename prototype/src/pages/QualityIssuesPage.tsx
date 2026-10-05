@@ -67,7 +67,15 @@ export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props
     load: (signal) => fetchGovernanceIssues({ signal }),
     onData: (response) => {
       setIssues(response.items)
-      setSelectedId((current) => current && response.items.some((issue) => issue.id === current) ? current : response.items[0]?.id ?? null)
+      // 默认选中（2026-10-05 复评 P1-3）：优先第一条非 CLOSED（SLA 升序），
+      // 访客落地即见可行动的问题；全部已关闭才回落第一项。
+      setSelectedId((current) => {
+        if (current && response.items.some((issue) => issue.id === current)) return current
+        const open = response.items
+          .filter((issue) => issue.status !== 'CLOSED')
+          .sort((a, b) => (a.dueAt ?? '9999').localeCompare(b.dueAt ?? '9999'))
+        return open[0]?.id ?? response.items[0]?.id ?? null
+      })
     },
     onUnavailable: () => {
       setIssues([])
@@ -201,7 +209,7 @@ export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props
             <div className={styles.detailHero}>
               <StatusTag tone={issueStatusTone(selected.status)}>{issueStatusLabel(selected.status)}</StatusTag>
               <h2>{selected.title}</h2><p>{selected.id} · {selected.objectLabel || selected.datasetId}</p>
-              <div className={styles.detailActions}><Button variant="primary" onClick={startRetest} disabled={!canRecheck || actionState !== null}>{actionState === 'recheck' ? '提交中…' : selected.status === 'RECHECKING' ? '复检中' : '开始复检'}</Button>{detail.latestRun && !isTerminalRun(detail.latestRun.status) ? <Button onClick={syncRun} disabled={actionState !== null}><RefreshCw size={14} className={actionState === 'sync' ? styles.spin : undefined} />{actionState === 'sync' ? '同步中…' : '同步复检结果'}</Button> : null}<Button onClick={remindOwner} disabled={actionState !== null || selected.status === 'CLOSED'}>{actionState === 'notify' ? '提醒中…' : selected.status === 'CLOSED' ? '问题已关闭' : '提醒责任人'}</Button></div>
+              <div className={styles.detailActions}><Button variant="primary" onClick={startRetest} disabled={!canRecheck || actionState !== null}>{actionState === 'recheck' ? '提交中…' : selected.status === 'RECHECKING' ? '复检中' : '开始复检'}</Button>{detail.latestRun && !isTerminalRun(detail.latestRun.status) ? <Button onClick={syncRun} disabled={actionState !== null}><RefreshCw size={14} className={actionState === 'sync' ? styles.spin : undefined} />{actionState === 'sync' ? '同步中…' : '同步复检结果'}</Button> : null}<Button onClick={remindOwner} disabled={actionState !== null || selected.status === 'CLOSED'}>{actionState === 'notify' ? '提醒中…' : selected.status === 'CLOSED' ? '问题已关闭' : '提醒责任人'}</Button>{selected.status === 'CLOSED' ? <span className={styles.closedHint}>问题已关闭，主操作停用；如需重新处理请从队列选择未闭环问题</span> : null}</div>
             </div>
             <ol className={styles.timeline}>
               {detail.events.map((event) => <li key={event.id}><time>{formatDateTime(event.createdAt)}</time><div><strong>{eventTitle(event.eventType)}</strong><p>{executorOutputView(event.note).folded ? <>{executorOutputView(event.note).head}…</> : event.note} · {event.actor}</p></div></li>)}

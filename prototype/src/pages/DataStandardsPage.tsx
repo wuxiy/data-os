@@ -21,7 +21,7 @@ const categories = ['全部标准', '患者基本信息', '门急诊诊疗', '�
 export function DataStandardsPage({ onNavigate, onUnavailable, onNotice }: Props) {
   // 真实构建走 G22 标准中心真实链路；演示构建保留静态样例。
   if (!frontendDemoMode) {
-    return <DataStandardsLive onNotice={onNotice} />
+    return <DataStandardsLive onNotice={onNotice} onNavigate={onNavigate} onUnavailable={onUnavailable} />
   }
   const [category, setCategory] = useState('全部标准')
   const [selectedId, setSelectedId] = useState(standards[0].id)
