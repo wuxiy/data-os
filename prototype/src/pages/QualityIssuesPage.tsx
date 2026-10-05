@@ -274,7 +274,10 @@ export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props
               {groupedTimeline(detail.events).map((group) => group.kind === 'retries' ? (
                 /* 连续复检重试折叠（2026-10-05 复评 P2-4）：N 条等权事件收成一条可展开记录。 */
                 <li key={group.events[0].id} data-tone="neutral">
-                  <time>{formatDateTime(group.events[0].createdAt)}{group.events.length > 1 ? ` – ${formatDateTime(group.events[group.events.length - 1].createdAt)}` : ''}</time>
+                  <time>{(() => {
+                    const span = [group.events[0].createdAt, group.events[group.events.length - 1].createdAt].sort()
+                    return `${formatDateTime(span[0])}${span[0] !== span[1] ? ` – ${formatDateTime(span[1])}` : ''}`
+                  })()}</time>
                   <div>
                     <strong>复检投递重试（共 {group.events.length} 条）</strong>
                     <details className={styles.executorLog}>
@@ -310,7 +313,7 @@ export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props
             <div className={styles.evidenceBox}>
               <h3>复检执行批次</h3>
               {detail.latestRun ? <>
-                <p><StatusTag tone={runStatusTone(detail.latestRun.status)}>{runStatusLabel(detail.latestRun.status)}</StatusTag><br />执行器：{executorLabel(detail.latestRun.executor)}<br />批次：<code className={styles.inlineCode}>{detail.latestRun.executionBatchId}</code><br />提交：{formatDateTime(detail.latestRun.submittedAt)}{detail.latestRun.finishedAt ? <><br />完成：{formatDateTime(detail.latestRun.finishedAt)}</> : null}</p>
+                <p><StatusTag tone={runStatusTone(detail.latestRun.status)}>{runStatusLabel(detail.latestRun.status)}</StatusTag><br />执行器：{executorLabel(detail.latestRun.executor)}<br />批次：<code className={styles.inlineCode} title={detail.latestRun.executionBatchId}>{shortBatchId(detail.latestRun.executionBatchId)}</code><br />提交：{formatDateTime(detail.latestRun.submittedAt)}{detail.latestRun.finishedAt ? <><br />完成：{formatDateTime(detail.latestRun.finishedAt)}</> : null}</p>
                 <p className={styles.evidenceMessage}>尝试 {detail.latestRun.attemptCount} 次{detail.latestRun.nextPollAt ? <> · {formatDateTime(detail.latestRun.nextPollAt)} 自动同步轮询结果（也可手动同步）</> : null}</p>
                 {detail.latestRun.resultMessage ? (() => { const view = executorOutputView(detail.latestRun!.resultMessage!); return <p className={styles.evidenceMessage}>{view.head}{view.folded ? <>…<details className={styles.executorLog}><summary>查看完整执行输出</summary><pre>{view.folded}</pre></details></> : null}</p> })() : null}
                 {detail.latestRun.lastError ? <p className={styles.formError}>最近错误：{detail.latestRun.lastError}</p> : null}

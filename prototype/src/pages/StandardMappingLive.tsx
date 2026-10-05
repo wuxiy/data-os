@@ -259,11 +259,12 @@ export function StandardMappingLive({ onNotice, onNavigate, onUnavailable }: { o
 
               <div className={styles.versionChips}>
                 {detail.versions.map((item) => (
+                  /* checksum 收进 tooltip（2026-10-05 复评）：派生版本同 checksum，平铺前缀是噪音。 */
                   <button key={item.id} className={styles.versionChip}
-                    onClick={() => setDetailVersionId(item.id)} aria-pressed={item.id === version.id}>
+                    onClick={() => setDetailVersionId(item.id)} aria-pressed={item.id === version.id}
+                    title={`checksum ${item.checksum} · 生效需同值 PASS 验证`}>
                     <strong>v{item.versionNo}</strong>
                     <StatusTag tone={statusTone(item.status)}>{STATUS_LABEL[item.status] ?? item.status}</StatusTag>
-                    <span className={styles.inlineCode}>{item.checksum.slice(0, 10)}…</span>
                   </button>
                 ))}
               </div>

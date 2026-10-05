@@ -37,10 +37,10 @@ export function defaultTemplateKey(demoTemplateKey: string, liveTemplateKey: str
 export const demoSnapshotAsOf: string | null = frontendDemoMode ? '08-01 14:30（演示快照）' : null
 
 /** 管理驾驶舱流程面板的快照文案。 */
-export const demoFlowSnapshotLabel: string = frontendDemoMode ? '演示快照 · 08-01 14:30' : '等待首个控制面快照'
+export const demoFlowSnapshotLabel: string = frontendDemoMode ? '演示快照 · 08-01 14:30' : '等待控制面首次汇总'
 
 /** 页头时间戳：有值标「截至」，否则按运行模式给出占位文案。 */
 export function timestampPlaceholder(asOf: string | null): string {
   if (asOf) return `截至 ${asOf}`
-  return frontendDemoMode ? '演示数据快照' : '等待首个快照'
+  return frontendDemoMode ? '演示数据快照' : '等待首次数据汇总'
 }

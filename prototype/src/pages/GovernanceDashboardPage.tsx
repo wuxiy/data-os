@@ -33,6 +33,12 @@ export function GovernanceDashboardPage({ onOpenChain, onNavigate, onUnavailable
     window.history.pushState({}, '', `${routePaths.quality}?issue=${encodeURIComponent(issue.id)}`)
     window.dispatchEvent(new PopStateEvent('popstate'))
   }
+
+  // 指标卡深链（2026-10-05 复评）：真实模式下有详情的指标直接进入对应工作台。
+  const openMetricTarget = (metric: Metric) => {
+    const route = METRIC_ROUTES[metric.label]
+    if (route) onNavigate(route)
+  }
   const [metrics, setMetrics] = useState<Metric[]>([])
   const [issues, setIssues] = useState<GovernanceApiIssue[]>([])
   const [asOf, setAsOf] = useState<string | null>(null)
@@ -63,7 +69,7 @@ export function GovernanceDashboardPage({ onOpenChain, onNavigate, onUnavailable
         {apiState === 'loading' ? '正在连接治理控制面…' : apiState === 'live' ? '控制面已连接 · 指标与问题来自 PostgreSQL' : '控制面暂不可用 · 未加载真实治理指标或问题'}
       </div>
       {apiState === 'unavailable' ? <div className={styles.connectionNotice} role="alert"><div><strong>治理控制面不可用</strong><span>为避免误导，当前没有展示本地演示指标、问题或责任链样例。请恢复控制面后重新连接。</span></div><button className={styles.secondaryButton} onClick={() => window.location.reload()}>重新连接</button></div> : null}
-      <MetricStrip metrics={metrics} onSelect={showStaticSamples(apiState) ? onOpenChain : undefined} />
+      <MetricStrip metrics={metrics} onSelect={showStaticSamples(apiState) ? onOpenChain : apiState === 'live' ? openMetricTarget : undefined} />
       <div className={styles.content}>
         <section className={styles.tablePanel}>
           <div className={styles.panelHeader}><div><h2>治理待办</h2><p>未闭环问题按 SLA 截止时间排序</p></div><button className={styles.textButton} onClick={() => onNavigate('quality')}>进入质量闭环 <ChevronRight size={13} /></button></div>
@@ -126,6 +132,16 @@ export function GovernanceDashboardPage({ onOpenChain, onNavigate, onUnavailable
       </div>
     </div>
   )
+}
+
+/** 指标卡 → 工作台路由：标签来自治理摘要 API（2026-10-05 复评，以 dev 实际标签为准）。 */
+const METRIC_ROUTES: Record<string, RouteKey> = {
+  标准覆盖率: 'standards',
+  质量规则通过率: 'quality',
+  问题按时闭环率: 'quality',
+  血缘完整率: 'assetTechnical',
+  标准映射覆盖: 'mapping',
+  有效数据合同: 'dataServices',
 }
 
 function formatMetricValue(value: number) {

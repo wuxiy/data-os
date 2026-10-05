@@ -264,15 +264,11 @@
 
 .configPill {
   display: inline-flex;
-  max-width: 190px;
   margin-top: 4px;
-  overflow: hidden;
   padding: 2px 6px;
   border-radius: 4px;
   font-family: var(--font-number);
   font-size: 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .configPillReady {

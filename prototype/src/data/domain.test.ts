@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { eventTone, executorOutputView, isRecheckRetryEvent, looksLikeExecutorOutput, shortBatchId } from './domain'
+import { eventTone, executorOutputView, formatDateTime, isRecheckRetryEvent, looksLikeExecutorOutput, shortBatchId } from './domain'
 
 describe('执行器输出治理（critique P0-2）', () => {
   it('识别执行器输出指纹（dbt 全文与后端摘要形态）', () => {
@@ -46,5 +46,15 @@ describe('质量时间线事件语义色（2026-10-05 复评 P2-4）', () => {
     expect(isRecheckRetryEvent('RECHECK_FAILED')).toBe(true)
     expect(isRecheckRetryEvent('AUTO_CLOSED')).toBe(false)
     expect(isRecheckRetryEvent('SLA_OVERDUE')).toBe(false)
+  })
+})
+
+describe('时间格式化跨年补年份（2026-10-05 复评）', () => {
+  it('当年日期保持 MM-DD HH:mm，非当年补齐年份', () => {
+    const now = new Date()
+    const sameYear = new Date(now.getFullYear(), 5, 15, 8, 30)
+    expect(formatDateTime(sameYear.toISOString())).toMatch(/^\d{2}-\d{2} \d{2}:\d{2}$/)
+    expect(formatDateTime('2020-08-03T02:00:00Z')).toMatch(/^2020-\d{2}-\d{2} \d{2}:\d{2}$/)
+    expect(formatDateTime(null)).toBe('—')
   })
 })
