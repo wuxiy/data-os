@@ -42,6 +42,13 @@
   --font-number: "DIN Alternate", "Helvetica Neue", Arial, sans-serif;
 }
 
+/* 字号地板（2026-10-05 critique）：small 的 0.8em 在 12-13px 父级下会跌破 11px，
+   统一钳到不小于 12px。 */
+small {
+  font-size: max(0.85em, 12px);
+}
+
+
 * {
   box-sizing: border-box;
 }
