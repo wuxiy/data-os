@@ -75,4 +75,23 @@ assert.match(aiDetail, /aiFeedbackTypeLabel/, 'AI Data 反馈类型必须经中�
 assert.doesNotMatch(aiDetail, />\{version\.buildStatus\}|>\{readiness\.certification \?\? '\u2014'\}|>\{item\.feedbackType\}/, 'AI Data 不得把后端枚举原样渲染进表格')
 assert.doesNotMatch(read('src/pages/MpiReviewLive.tsx'), /<StatusTag tone="warning">\{candidate\.ruleId\}/, 'MPI 队列不得重复渲染原始规则枚举')
 
+// 版本切换控件红线（2026-10-05 critique P0-1）：不可变版本模型的命脉交互，
+// 不得复用 11px 装饰圆点类，控件可见尺寸必须由样式锁定。
+const standardsLive = read('src/pages/DataStandardsLive.tsx')
+const mappingLive = read('src/pages/StandardMappingLive.tsx')
+const pagesCss = read('src/pages/Pages.module.css')
+assert.doesNotMatch(standardsLive, /styles\.timelineDot/, '标准详情版本切换不得复用时间轴装饰圆点类（曾致控件塌陷）')
+assert.doesNotMatch(mappingLive, /styles\.timelineDot/, '映射详情版本切换不得复用时间轴装饰圆点类')
+assert.match(standardsLive, /styles\.versionChip/, '标准详情版本切换必须使用 versionChip')
+assert.match(mappingLive, /styles\.versionChip/, '映射详情版本切换必须使用 versionChip')
+assert.match(pagesCss, /\.versionChip \{[^}]*min-height: 32px/s, 'versionChip 必须锁定可见高度（≥32px）')
+
+// 执行器输出治理（2026-10-05 critique P0-2）：处理说明不得预填执行器全文，
+// dbt 品牌不得直出业务视图（指纹仅存活在治理助手中）。
+assert.match(quality, /looksLikeExecutorOutput/, '处理说明预填必须过滤执行器输出指纹')
+assert.match(quality, /executorOutputView/, '长执行器输出必须切分为首行 + 折叠全文')
+assert.match(quality, /查看完整执行输出/, '执行器全文必须收进折叠区而非平铺')
+assert.match(quality, /placeholder=\{canEdit/, '处理说明输入框必须有填写指引占位符')
+assert.doesNotMatch(read('src/pages/QualityIssuesPage.tsx'), />(\s*)\{detail\.latestRun\.resultMessage\}/, '批次结果消息不得整段平铺渲染')
+
 console.log(`portal interactions smoke passed${revision ? ` at ${revision}` : ''}`)

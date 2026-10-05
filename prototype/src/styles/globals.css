@@ -10,7 +10,7 @@
   --ink: #20312d;
   --sidebar: #eceee9;
   --selection-mark: #c0a56a;
-  --muted: #687c75;
+  --muted: #5a6b64; /* 苔灰加深一档：画布对比 4.06→5.15 过 AA（2026-10-05 critique） */
   --ink-muted: var(--muted);
   --jade: #2e7669;
   --jade-dark: #255f55;

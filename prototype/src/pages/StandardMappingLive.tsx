@@ -22,6 +22,7 @@ import {
   type MappingCoverage,
   type MappingSetListItem,
 } from '../data/mappingApi'
+import { actorLabel, formatDateTime, standardEventLabel, transformLabel } from '../data/domain'
 import { fetchStandards, type StandardListItem } from '../data/standardsApi'
 import { useApiResource } from '../hooks/useApiResource'
 import { usePaged } from '../hooks/usePaged'
@@ -149,7 +150,7 @@ export function StandardMappingLive({ onNotice }: { onNotice: (message: string) 
       <PageHeader
         title="标准映射" eyebrow="标准映射"
         subtitle="源资产字段 → 标准数据元（受控转换：COPY/TRIM/UPPER/DATE_FORMAT/VALUE_MAP）"
-        asOf={detail?.set.updatedAt}
+        asOf={detail ? formatDateTime(detail.set.updatedAt) : undefined}
       />
       <div className={styles.content}>
         {coverageState === 'live' && coverage ? (
@@ -250,9 +251,9 @@ export function StandardMappingLive({ onNotice }: { onNotice: (message: string) 
                 </div>
               </div>
 
-              <div className={styles.versionTrail}>
+              <div className={styles.versionChips}>
                 {detail.versions.map((item) => (
-                  <button key={item.id} className={`${styles.timelineDot} ${item.id === version.id ? styles.activeRow : ''}`}
+                  <button key={item.id} className={styles.versionChip}
                     onClick={() => setDetailVersionId(item.id)} aria-pressed={item.id === version.id}>
                     <strong>v{item.versionNo}</strong>
                     <StatusTag tone={statusTone(item.status)}>{STATUS_LABEL[item.status] ?? item.status}</StatusTag>
@@ -283,7 +284,7 @@ export function StandardMappingLive({ onNotice }: { onNotice: (message: string) 
                       <tr key={item.id}>
                         <td className={styles.inlineCode}>{item.sourceColumn}</td>
                         <td>{item.targetElementCode}</td>
-                        <td>{item.transform}</td>
+                        <td>{transformLabel(item.transform)}</td>
                         <td><small>{item.transformParam || '—'}</small></td>
                         <td><StatusTag tone={item.conclusion === 'CONFIRMED' ? 'healthy' : 'warning'}>{item.conclusion === 'CONFIRMED' ? '已确认' : '待复核'}</StatusTag></td>
                       </tr>
@@ -308,7 +309,7 @@ export function StandardMappingLive({ onNotice }: { onNotice: (message: string) 
                     <p key={validation.id}>
                       <StatusTag tone={validation.status === 'PASS' ? 'healthy' : validation.status === 'FAIL' ? 'danger' : 'warning'}>{validation.status}</StatusTag>
                       <span className={styles.inlineCode}>{validation.checksum.slice(0, 10)}…</span>
-                      <small> {validation.dataTime || validation.createdAt}</small>
+                      <small> {formatDateTime(validation.dataTime || validation.createdAt)}</small>
                     </p>
                   ))}
                 </div>
@@ -334,9 +335,9 @@ export function StandardMappingLive({ onNotice }: { onNotice: (message: string) 
               <ul className={styles.timelineBody}>
                 {detail.events.map((event) => (
                   <li key={event.id}>
-                    <div className={styles.timelineTitle}><strong>{event.eventType}</strong><span>{event.actor || 'system'}</span></div>
+                    <div className={styles.timelineTitle}><strong>{standardEventLabel(event.eventType)}</strong><span>{actorLabel(event.actor)}</span></div>
                     <p>{event.detail}</p>
-                    <small>{event.createdAt}</small>
+                    <small>{formatDateTime(event.createdAt)}</small>
                   </li>
                 ))}
                 {detail.events.length === 0 ? <li className={styles.emptyState}>暂无事件。</li> : null}

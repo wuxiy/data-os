@@ -16,7 +16,7 @@
   margin: 10px auto 0;
   padding: 0 24px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .apiDot {
@@ -59,7 +59,7 @@
 
 .connectionNotice span {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .emptyRow {
@@ -77,7 +77,7 @@
   color: var(--muted);
   background: var(--surface-sunken);
   border-radius: 5px;
-  font-size: 11px;
+  font-size: 12px;
   white-space: nowrap;
 }
 
@@ -100,7 +100,7 @@
 
 .formField label {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
 }
 
@@ -143,7 +143,7 @@
   border-radius: 5px;
   cursor: pointer;
   font: inherit;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   transition: background-color 120ms var(--ease-out), border-color 120ms var(--ease-out), opacity 120ms var(--ease-out);
 }
@@ -196,7 +196,7 @@
   outline: none;
   resize: vertical;
   font-family: var(--font-number);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.55;
   tab-size: 2;
 }
@@ -239,7 +239,7 @@
 
 .configDetails summary span {
   color: var(--jade-dark);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 500;
 }
 
@@ -247,7 +247,7 @@
   display: block;
   margin: 4px 0 6px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .configPill {
@@ -258,7 +258,7 @@
   padding: 2px 6px;
   border-radius: 4px;
   font-family: var(--font-number);
-  font-size: 10px;
+  font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -278,7 +278,7 @@
   margin: 4px 0 0 4px;
   padding: 2px 6px;
   border-radius: 4px;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .lifecycleHealthy {
@@ -349,7 +349,7 @@
 .drawerEyebrow {
   color: var(--jade);
   font-family: var(--font-number);
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.05em;
 }
 
@@ -389,7 +389,7 @@
   background: var(--jade-soft);
   border-left: 2px solid var(--jade);
   border-radius: 5px;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.55;
 }
 
@@ -424,7 +424,7 @@
 .drawerHint {
   margin: 8px 0;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .formError {
@@ -433,7 +433,7 @@
   color: var(--red);
   background: var(--red-soft);
   border-radius: 5px;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.5;
 }
 
@@ -460,7 +460,7 @@
 
 .checkResult small {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .drawerFooter {
@@ -481,7 +481,7 @@
   padding: 12px;
   background: var(--surface-raised);
   border-radius: 6px;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .runSummary span {
@@ -490,7 +490,7 @@
 
 .runSummary strong {
   font-family: var(--font-number);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .textHealthy {
@@ -567,13 +567,13 @@
 .timelineTitle time {
   color: var(--muted);
   font-family: var(--font-number);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .timelineBody > p {
   margin: 5px 0 8px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.5;
 }
 
@@ -607,14 +607,14 @@
 
 .timelineBody dt {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .timelineBody dd {
   margin: 2px 0 0;
   color: var(--ink);
   font-family: var(--font-number);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .attentionText {
@@ -682,7 +682,7 @@
 
 .summaryCard small {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .panel {
@@ -818,7 +818,7 @@
   padding: 0 16px;
   color: var(--muted);
   background: var(--surface-raised);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.06em;
   text-align: left;
@@ -908,7 +908,7 @@
   background: var(--surface-raised);
   border: 1px solid var(--line-strong);
   border-radius: 5px;
-  font-size: 11px;
+  font-size: 12px;
   white-space: nowrap;
   cursor: pointer;
   list-style: none;
@@ -955,7 +955,7 @@
   background: var(--surface-raised);
   border: 1px solid var(--line-strong);
   border-radius: 5px;
-  font-size: 11px;
+  font-size: 12px;
   white-space: nowrap;
 }
 
@@ -981,7 +981,7 @@
 
 .pagerInfo {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 /* 面板内列表（自带 17px 内容内边距）下方的分页器变体。 */
@@ -1009,7 +1009,7 @@
   border-radius: 5px;
   cursor: pointer;
   font: inherit;
-  font-size: 11px;
+  font-size: 12px;
   font-variant-numeric: tabular-nums;
   transition: background 120ms var(--ease-out), border-color 120ms var(--ease-out);
 }
@@ -1039,7 +1039,7 @@
 .pagerEllipsis {
   padding: 0 2px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 @media (max-width: 767px) {
@@ -1054,7 +1054,7 @@
   margin-top: 3px;
   overflow: hidden;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
   text-overflow: ellipsis;
 }
 
@@ -1332,6 +1332,85 @@
   margin-bottom: 2px;
   color: var(--ink);
   font-size: 12px;
+}
+
+/* 版本切换片（标准/映射详情）：不可变版本模型的命脉交互，必须可读可点。
+   曾误用 .timelineDot（11px 装饰圆点）致控件塌陷（2026-10-05 critique P0-1）。 */
+.versionChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 14px 0 0;
+}
+
+.versionChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 5px 12px;
+  color: var(--muted);
+  font-size: 12px;
+  background: var(--surface-raised);
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  cursor: pointer;
+  transition: background-color 150ms ease-out, border-color 150ms ease-out;
+}
+
+.versionChip:hover {
+  background: var(--surface-active);
+}
+
+.versionChip[aria-pressed='true'] {
+  color: var(--ink);
+  background: var(--jade-soft);
+  border-color: var(--jade);
+}
+
+.versionChip strong {
+  color: inherit;
+  font-size: 12px;
+}
+
+/* 执行器全文输出的折叠呈现（critique P0-2）：首行可见、全文收进 details。 */
+/* SLA 逾期行内标记（驾驶舱待办）：文字+颜色双通道，不依赖色彩单独表意。 */
+.overdueMark {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 7px;
+  color: var(--red);
+  font-size: 12px;
+  font-weight: 600;
+  background: rgba(180, 72, 62, 0.08);
+  border-radius: 999px;
+}
+
+.executorLog {
+  margin: 6px 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.executorLog summary {
+  color: var(--jade-dark);
+  cursor: pointer;
+  user-select: none;
+}
+
+.executorLog pre {
+  max-height: 220px;
+  margin: 6px 0 0;
+  padding: 8px 10px;
+  overflow: auto;
+  font-family: 'DIN Alternate', 'Roboto Mono', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-all;
+  background: var(--surface-sunken, #eceee9);
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
 }
 
 .fieldList {
@@ -1645,7 +1724,7 @@
   display: block;
   margin-bottom: 6px;
   color: var(--ink);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .sampleEvidence pre {
@@ -1658,7 +1737,7 @@
   border: 1px solid var(--line);
   border-radius: 5px;
   font-family: var(--font-number);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.45;
   white-space: pre-wrap;
   word-break: break-word;
@@ -1674,7 +1753,7 @@
   display: block;
   margin-bottom: 7px;
   color: var(--ink);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .runHistoryItem {
@@ -1685,7 +1764,7 @@
   padding: 6px 0;
   color: var(--muted);
   border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .runHistoryItem span {
@@ -1698,7 +1777,7 @@
 .runHistoryItem time,
 .runHistoryItem small {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
   white-space: nowrap;
 }
 
@@ -1923,7 +2002,7 @@
 
 .metricCard span {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .metricCardAlert strong {
@@ -2119,7 +2198,7 @@
   padding: 4px 9px;
   color: var(--muted);
   font-family: var(--font-number);
-  font-size: 11px;
+  font-size: 12px;
   background: var(--paper);
   border: 1px solid var(--line);
   border-radius: 999px;
@@ -2158,7 +2237,7 @@
 
 .explorerSectionTitle span {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 400;
 }
 
@@ -2185,7 +2264,7 @@
 .explorerResultNote {
   margin: 0;
   color: var(--amber-dark);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 /* —— 结构化任务表单（G2G 批次 1 第二刀，JobStructuredForm）—— */
@@ -2260,7 +2339,7 @@
   align-items: center;
   gap: 6px;
   padding: 3px 2px;
-  font-size: 11.5px;
+  font-size: 12px;
   cursor: pointer;
 }
 
@@ -2275,7 +2354,7 @@
   flex: 0 0 auto;
   color: var(--muted);
   font-family: var(--font-number);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .structuredSqlHeader {
@@ -2326,7 +2405,7 @@
 .scoreDimension {
   display: grid;
   gap: 4px;
-  font-size: 11.5px;
+  font-size: 12px;
 }
 
 .scoreDimension > span {
@@ -2452,7 +2531,7 @@
   background: var(--surface-sunken, #f6f8f7);
   border: 1px solid var(--line-strong);
   border-radius: 6px;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.55;
   white-space: pre-wrap;
   word-break: break-all;

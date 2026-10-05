@@ -9,6 +9,7 @@ import { MetricStrip, StatusTag } from '../components/ui/Primitives'
 import { fetchGovernanceSummary, type GovernanceApiIssue } from '../data/controlPlane'
 import { QualityScorePanel } from './QualityScorePanel'
 import { formatDateTime, issueStatusLabel, issueStatusTone } from '../data/domain'
+import { routePaths } from '../data/routes'
 import { frontendDemoMode, showStaticSamples } from '../data/runtimeMode'
 import type { Metric } from '../types'
 import type { RouteKey } from '../types'
@@ -22,6 +23,16 @@ interface Props {
 }
 
 export function GovernanceDashboardPage({ onOpenChain, onNavigate, onUnavailable, onNotice }: Props) {
+  // 待办行整行可点（critique P1-3）：真实模式深链到质量闭环并预选问题；
+  // 演示模式维持打开责任链样例。pushState + popstate 与 App 既有路由监听同源。
+  function openIssue(issue: GovernanceApiIssue) {
+    if (frontendDemoMode) {
+      onOpenChain()
+      return
+    }
+    window.history.pushState({}, '', `${routePaths.quality}?issue=${encodeURIComponent(issue.id)}`)
+    window.dispatchEvent(new PopStateEvent('popstate'))
+  }
   const [metrics, setMetrics] = useState<Metric[]>([])
   const [issues, setIssues] = useState<GovernanceApiIssue[]>([])
   const [asOf, setAsOf] = useState<string | null>(null)
@@ -66,25 +77,27 @@ export function GovernanceDashboardPage({ onOpenChain, onNavigate, onUnavailable
           </section>
         </div>
         <section className={styles.tablePanel}>
-          <div className={styles.panelHeader}><div><h2>今日治理待办</h2><p>按 SLA 与影响范围排序</p></div><button className={styles.textButton} onClick={() => onNavigate('quality')}>进入质量闭环 <ChevronRight size={13} /></button></div>
+          <div className={styles.panelHeader}><div><h2>治理待办</h2><p>未闭环问题按 SLA 截止时间排序</p></div><button className={styles.textButton} onClick={() => onNavigate('quality')}>进入质量闭环 <ChevronRight size={13} /></button></div>
           <div className={styles.tableScroll}>
             <table className={styles.table}>
               <thead><tr><th>问题</th><th>影响范围</th><th>责任部门</th><th>SLA</th><th>状态</th></tr></thead>
               <tbody>
-                {issues.slice(0, 5).map((issue, index) => (
+                {todaysIssues(issues).map((issue) => (
                   <tr
                     key={issue.id}
-                    className={index === 0 && frontendDemoMode ? styles.clickableRow : undefined}
-                    onClick={index === 0 && frontendDemoMode ? onOpenChain : undefined}
-                    {...(index === 0 && frontendDemoMode ? { tabIndex: 0, role: 'button', 'aria-label': `打开 ${issue.title} 的治理责任链` } : {})}
-                    onKeyDown={index === 0 && frontendDemoMode ? (event) => {
+                    className={styles.clickableRow}
+                    onClick={() => openIssue(issue)}
+                    tabIndex={0}
+                    role="button"
+                    aria-label={`打开问题：${issue.title}`}
+                    onKeyDown={(event) => {
                       if (event.key === 'Enter' || event.key === ' ') {
                         event.preventDefault()
-                        onOpenChain()
+                        openIssue(issue)
                       }
-                    } : undefined}
+                    }}
                   >
-                    <td>{issue.title}</td>
+                    <td>{issue.title}{isIssueOverdue(issue) ? <span className={styles.overdueMark}>SLA 逾期</span> : null}</td>
                     <td>{issue.impact}</td>
                     <td>{issue.ownerDepartment}</td>
                     <td>{formatDateTime(issue.dueAt)}</td>
@@ -105,13 +118,37 @@ function formatMetricValue(value: number) {
   return Number.isInteger(value) ? String(value) : value.toFixed(1)
 }
 
-/** 高风险系统排行：按数据集聚合真实问题计数（逾期优先），不展示无来源的占位值。 */
+/** SLA 逾期按截止时间判定（critique P1-3）：状态机里 slaOverdueAt 已逾期但
+ * 状态仍是 RETURNED/PENDING 的行，此前永远不被计入。 */
+function isIssueOverdue(issue: GovernanceApiIssue, now = Date.now()): boolean {
+  if (issue.status === 'CLOSED' || !issue.dueAt) return false
+  const due = new Date(issue.dueAt).getTime()
+  return !Number.isNaN(due) && due < now
+}
+
+/** 治理待办：过滤已闭环，按 SLA 截止时间升序（最紧急在前），最多 5 条。 */
+function todaysIssues(issues: GovernanceApiIssue[]) {
+  return issues
+    .filter((issue) => issue.status !== 'CLOSED')
+    .sort((a, b) => (a.dueAt ?? '9999').localeCompare(b.dueAt ?? '9999'))
+    .slice(0, 5)
+}
+
+/** 数据集业务口径：取影响范围的「主题」段（如「检验主题 / 38 张表」→ 检验主题），
+ * 没有主题信息时回落 datasetId——不再把工程标识当系统名直出（critique P1-3）。 */
+function datasetDisplay(issue: GovernanceApiIssue): string {
+  const topic = (issue.impact || '').split('/')[0]?.trim()
+  return topic || issue.datasetId || '未标注数据集'
+}
+
+/** 高风险系统排行：按数据集聚合未闭环问题计数（逾期优先），不展示无来源的占位值。 */
 function riskRankingFromIssues(issues: GovernanceApiIssue[]) {
   const bySystem = new Map<string, { system: string; owner: string; count: number; overdue: number }>()
   for (const issue of issues) {
-    const entry = bySystem.get(issue.datasetId) ?? { system: issue.datasetId, owner: issue.ownerDepartment, count: 0, overdue: 0 }
+    if (issue.status === 'CLOSED') continue
+    const entry = bySystem.get(issue.datasetId) ?? { system: datasetDisplay(issue), owner: issue.ownerDepartment, count: 0, overdue: 0 }
     entry.count += 1
-    if (issue.status === 'OVERDUE') entry.overdue += 1
+    if (isIssueOverdue(issue)) entry.overdue += 1
     bySystem.set(issue.datasetId, entry)
   }
   return Array.from(bySystem.values())

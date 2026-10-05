@@ -9,23 +9,24 @@ import { PageHeader } from '../components/ui/PageHeader'
 import { Button, StatusTag } from '../components/ui/Primitives'
 import { Pager } from '../components/ui/Pager'
 import {
+  confirmGovernanceIssueRunAbsent,
   fetchGovernanceIssue,
   fetchGovernanceIssues,
-  confirmGovernanceIssueRunAbsent,
-  remindGovernanceIssueOwner,
   reconcileGovernanceIssueRun,
+  remindGovernanceIssueOwner,
   requestGovernanceIssueRecheck,
   syncGovernanceIssueRun,
   updateGovernanceIssueWorkflow,
-  type GovernanceApiIssue,
-  type GovernanceIssueDetailApiResponse,
 } from '../data/controlPlane'
 import {
   eventTitle,
+  executorLabel,
+  executorOutputView,
   formatDateTime,
   isTerminalRun,
   issueStatusLabel,
   issueStatusTone,
+  looksLikeExecutorOutput,
   notificationStatusLabel,
   notificationStatusTone,
   runStatusLabel,
@@ -33,6 +34,7 @@ import {
   severityLabel,
   severityTone,
 } from '../data/domain'
+import type { GovernanceApiIssue, GovernanceIssueDetailApiResponse } from '../data/controlPlane'
 import type { RouteKey } from '../types'
 import { QualityRulesAdmin } from './QualityRulesAdmin'
 import styles from './Pages.module.css'
@@ -79,7 +81,8 @@ export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props
     load: (signal) => fetchGovernanceIssue(selectedId as string, signal),
     onData: (response) => {
       setDetail(response)
-      setNote(response.issue.processingNote ?? '')
+      // 历史数据里处理说明曾被执行器全文污染：指纹命中则不预填（P0-2），由折叠区呈现。
+      setNote(looksLikeExecutorOutput(response.issue.processingNote) ? '' : (response.issue.processingNote ?? ''))
     },
     onReset: () => {
       setDetail(null)
@@ -169,7 +172,7 @@ export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props
   function applyDetail(next: GovernanceIssueDetailApiResponse) {
     setDetail(next)
     setIssues((current) => current.map((issue) => issue.id === next.issue.id ? next.issue : issue))
-    setNote(next.issue.processingNote ?? '')
+    setNote(looksLikeExecutorOutput(next.issue.processingNote) ? '' : (next.issue.processingNote ?? ''))
   }
 
   return (
@@ -200,7 +203,7 @@ export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props
               <div className={styles.detailActions}><Button variant="primary" onClick={startRetest} disabled={!canRecheck || actionState !== null}>{actionState === 'recheck' ? '提交中…' : selected.status === 'RECHECKING' ? '复检中' : '开始复检'}</Button>{detail.latestRun && !isTerminalRun(detail.latestRun.status) ? <Button onClick={syncRun} disabled={actionState !== null}><RefreshCw size={14} className={actionState === 'sync' ? styles.spin : undefined} />{actionState === 'sync' ? '同步中…' : '同步复检结果'}</Button> : null}<Button onClick={remindOwner} disabled={actionState !== null || selected.status === 'CLOSED'}>{actionState === 'notify' ? '提醒中…' : selected.status === 'CLOSED' ? '问题已关闭' : '提醒责任人'}</Button></div>
             </div>
             <ol className={styles.timeline}>
-              {detail.events.map((event) => <li key={event.id}><time>{formatDateTime(event.createdAt)}</time><div><strong>{eventTitle(event.eventType)}</strong><p>{event.note} · {event.actor}</p></div></li>)}
+              {detail.events.map((event) => <li key={event.id}><time>{formatDateTime(event.createdAt)}</time><div><strong>{eventTitle(event.eventType)}</strong><p>{executorOutputView(event.note).folded ? <>{executorOutputView(event.note).head}…</> : event.note} · {event.actor}</p></div></li>)}
               {detail.events.length === 0 ? <li><time>{formatDateTime(selected.updatedAt)}</time><div><strong>问题已登记</strong><p>问题来自质量规则目录，等待责任人处理。</p></div></li> : null}
             </ol>
           </> : detailState === 'error' ? <div className={styles.connectionNotice} role="alert"><CircleAlert size={17} /><div><strong>治理问题详情不可用</strong><span>问题详情读取失败，请刷新后重试</span></div><button className={styles.secondaryButton} onClick={() => window.location.reload()}>重新读取</button></div> : <div className={styles.emptyState}>{apiState === 'loading' ? '正在读取问题详情…' : apiState === 'unavailable' ? '控制面恢复后可查看治理问题详情' : '请选择一个治理问题'}</div>}
@@ -213,9 +216,9 @@ export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props
             <div className={styles.evidenceBox}>
               <h3>复检执行批次</h3>
               {detail.latestRun ? <>
-                <p><StatusTag tone={runStatusTone(detail.latestRun.status)}>{runStatusLabel(detail.latestRun.status)}</StatusTag><br />执行器：{detail.latestRun.executor}<br />批次：<code className={styles.inlineCode}>{detail.latestRun.executionBatchId}</code><br />提交：{formatDateTime(detail.latestRun.submittedAt)}{detail.latestRun.finishedAt ? <><br />完成：{formatDateTime(detail.latestRun.finishedAt)}</> : null}</p>
+                <p><StatusTag tone={runStatusTone(detail.latestRun.status)}>{runStatusLabel(detail.latestRun.status)}</StatusTag><br />执行器：{executorLabel(detail.latestRun.executor)}<br />批次：<code className={styles.inlineCode}>{detail.latestRun.executionBatchId}</code><br />提交：{formatDateTime(detail.latestRun.submittedAt)}{detail.latestRun.finishedAt ? <><br />完成：{formatDateTime(detail.latestRun.finishedAt)}</> : null}</p>
                 <p className={styles.evidenceMessage}>尝试 {detail.latestRun.attemptCount} 次{detail.latestRun.nextPollAt ? <> · 下次重试/轮询：{formatDateTime(detail.latestRun.nextPollAt)}</> : null}</p>
-                {detail.latestRun.resultMessage ? <p className={styles.evidenceMessage}>{detail.latestRun.resultMessage}</p> : null}
+                {detail.latestRun.resultMessage ? (() => { const view = executorOutputView(detail.latestRun!.resultMessage!); return <p className={styles.evidenceMessage}>{view.head}{view.folded ? <>…<details className={styles.executorLog}><summary>查看完整执行输出</summary><pre>{view.folded}</pre></details></> : null}</p> })() : null}
                 {detail.latestRun.lastError ? <p className={styles.formError}>最近错误：{detail.latestRun.lastError}</p> : null}
                 {detail.latestRun.reconciliationStatus === 'MANUAL_REQUIRED' ? <div className={styles.connectionNotice} role="status"><CircleAlert size={17} /><div><strong>质量执行批次待人工对账</strong><span>{detail.latestRun.reconciliationMessage ?? '外部执行器未能可靠返回状态，请先重新查询；确认不存在后才允许结束本批次。'}</span></div><div className={styles.timelineActions}><button className={styles.secondaryButton} onClick={reconcileRun} disabled={actionState !== null}>{actionState === 'reconcile' ? '查询中…' : '重新查询'}</button><button className={styles.textButton} onClick={confirmRunAbsent} disabled={actionState !== null}>{actionState === 'confirm-absent' ? '确认中…' : '确认不存在'}</button></div></div> : null}
                 {detail.latestRun.artifactUri ? <p className={styles.evidenceMessage}>制品地址：{isSafeArtifactLink(detail.latestRun.artifactUri) ? <a href={detail.latestRun.artifactUri} target="_blank" rel="noreferrer">打开复检制品</a> : <code className={styles.inlineCode}>{detail.latestRun.artifactUri}</code>}</p> : null}
@@ -227,7 +230,8 @@ export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props
             <div className={styles.evidenceBox}><h3>责任归属</h3><p>{selected.ownerDepartment} · {selected.ownerName}<br />来源：资产责任人与组织主数据</p></div>
             <div className={styles.noteBox}>
               <label htmlFor="processing-note">处理说明</label>
-              <textarea id="processing-note" value={note} onChange={(event) => setNote(event.target.value)} disabled={!canEdit || actionState !== null} />
+              {looksLikeExecutorOutput(selected.processingNote) ? <details className={styles.executorLog}><summary>历史执行器输出（仅参考，不作为处理结论）</summary><pre>{selected.processingNote}</pre></details> : null}
+              <textarea id="processing-note" value={note} onChange={(event) => setNote(event.target.value)} disabled={!canEdit || actionState !== null} placeholder={canEdit ? '填写人工处理结论（处置动作、原因与复核口径）' : ''} />
               {actionError ? <p className={styles.formError} role="alert">{actionError}</p> : null}
               <div className={styles.noteActions}><Button variant="primary" onClick={saveNote} disabled={!canEdit || !note.trim() || actionState !== null}><Send size={14} />{actionState === 'note' ? '保存中…' : '提交说明'}</Button></div>
             </div>

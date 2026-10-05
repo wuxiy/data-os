@@ -43,7 +43,10 @@ assert.match(src('src/pages/StandardMappingLive.tsx'), /fetchMappingSets/, '标�
 assert.match(src('src/pages/StandardMappingLive.tsx'), /validateMappingVersion|activateMappingVersion/, '标准映射真实页必须提供验证与生效动作')
 const governanceTabs = src('src/components/ui/GovernanceTabs.tsx')
 assert.match(governanceTabs, /'血缘与影响', route: 'assetTechnical'/, '治理导航「血缘与影响」必须进入资产技术视图')
-assert.match(governanceTabs, /'问题闭环', route: 'quality'/, '治理导航「问题闭环」必须进入质量问题工作台')
+// P1-4 收敛（2026-10-05）：「数据质量」是质量工作台唯一入口（旧「问题闭环」
+// 同指 quality 路由致双 aria-current 高亮），并锁定子导航路由不重复。
+assert.match(governanceTabs, /'数据质量', route: 'quality'/, '治理导航「数据质量」必须进入质量问题工作台')
+assert.doesNotMatch(governanceTabs, /'问题闭环'/, '治理导航不得再有与「数据质量」同路由的重复入口（双高亮回归）')
 assert.match(governanceTabs, /'数据合同', route: 'dataServices'/, '治理导航「数据合同」必须进入数据服务合同视图')
 assert.doesNotMatch(governanceTabs, /规划中/, '治理导航不得再有无动作占位')
 

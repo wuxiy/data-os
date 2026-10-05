@@ -87,6 +87,51 @@ export function eventTitle(value: string): string {
   return ({ WORKFLOW_UPDATED: '责任人提交处理说明', RECHECK_REQUESTED: '已发起质量规则复检', AUTO_CLOSED: '复检通过，问题已自动关闭', AUTO_RETURNED: '复检未通过，问题已退回', RECHECK_FAILED: '复检执行失败', RECHECK_SUBMIT_FAILED: '复检投递失败', SLA_OVERDUE: 'SLA 已逾期', RESPONSIBLE_REMINDER_REQUESTED: '已提醒责任人' } as Record<string, string>)[value] ?? '治理问题状态更新'
 }
 
+// ---- 标准中心/标准映射的枚举中文口径（2026-10-05 critique P2）----
+
+/** 审计事件类型（后端 literal：VERSION_CREATED/SUBMITTED/PUBLISHED/…）。 */
+export function standardEventLabel(value: string): string {
+  return ({ VERSION_CREATED: '创建版本', SUBMITTED: '提交评审', PUBLISHED: '发布', DEPRECATED: '停用', IMPORTED: '导入', VALIDATED: '聚合验证', ACTIVATED: '生效', RETIRED: '停用映射', ROLLED_BACK: '回退', SYNC_PENDING: '术语投影待同步', SYNC_SUCCEEDED: '术语投影完成' } as Record<string, string>)[value] ?? value
+}
+
+/** 敏感级别（标准元素）。 */
+export function sensitivityLabel(value: string): string {
+  return ({ NORMAL: '常规', SENSITIVE: '敏感' } as Record<string, string>)[value] ?? value
+}
+
+/** 受控转换类型（映射项）。 */
+export function transformLabel(value: string): string {
+  return ({ COPY: '直接复制', TRIM: '去首尾空白', UPPER: '转大写', DATE_FORMAT: '日期格式化', VALUE_MAP: '值映射' } as Record<string, string>)[value] ?? value
+}
+
+/** 审计事件操作者。 */
+export function actorLabel(value: string | null | undefined): string {
+  if (!value) return '系统'
+  return value === 'system' ? '系统' : value
+}
+
+/** 质量执行器通道。 */
+export function executorLabel(value: string | null | undefined): string {
+  return ({ HTTP: '质量执行器（在线）', DEMO: '演示执行器' } as Record<string, string>)[value ?? ''] ?? (value || '—')
+}
+
+// ---- 执行器输出治理（2026-10-05 critique P0-2）----
+
+/** 执行器输出指纹：历史数据里 processingNote 曾被 dbt 全文污染，不得预填进人工输入框。 */
+export function looksLikeExecutorOutput(text: string | null | undefined): boolean {
+  if (!text) return false
+  const value = text.trim()
+  return /^执行器输出 \d+ 行/.test(value) || /dbt=|Registered adapter|Failure in test|Compilation Error/.test(value)
+}
+
+/** 长执行器输出的呈现切分：首行可见，全文折叠；短文本整体呈现。 */
+export function executorOutputView(text: string): { head: string; folded: string | null } {
+  const lines = text.split('\n')
+  if (lines.length <= 3 && text.length <= 200) return { head: text, folded: null }
+  const head = (lines[0] || '').slice(0, 160) || '执行器输出'
+  return { head, folded: text }
+}
+
 export function notificationStatusLabel(value: string): string {
   return ({ PENDING: '待投递', SENT: '已送达', SKIPPED: '已跳过', FAILED: '待重试' } as Record<string, string>)[value] ?? value
 }

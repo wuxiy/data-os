@@ -21,6 +21,7 @@ import {
   type VersionCompare,
   type VersionImpact,
 } from '../data/standardsApi'
+import { actorLabel, formatDateTime, sensitivityLabel, standardEventLabel } from '../data/domain'
 import { useApiResource } from '../hooks/useApiResource'
 import { usePaged } from '../hooks/usePaged'
 import styles from './Pages.module.css'
@@ -148,7 +149,7 @@ export function DataStandardsLive({ onNotice }: { onNotice: (message: string) =>
 
   return (
     <div className={styles.page}>
-      <PageHeader title="数据标准中心" eyebrow="数据标准" subtitle="标准集合、不可变版本、评审发布与影响范围" asOf={detail?.standard.updatedAt} />
+      <PageHeader title="数据标准中心" eyebrow="数据标准" subtitle="标准集合、不可变版本、评审发布与影响范围" asOf={detail ? formatDateTime(detail.standard.updatedAt) : undefined} />
       <div className={styles.content}>
         <div className={styles.listTools}>
           <label className={styles.search}>
@@ -157,7 +158,7 @@ export function DataStandardsLive({ onNotice }: { onNotice: (message: string) =>
           </label>
           <select value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); paged.setPage(0) }} aria-label="按最新版本状态筛选">
             {STATUS_OPTIONS.map((option) => (
-              <option key={option} value={option}>{option === '' ? '全部状态' : `${STATUS_LABEL[option]}（${option}）`}</option>
+              <option key={option} value={option}>{option === '' ? '全部状态' : STATUS_LABEL[option]}</option>
             ))}
           </select>
         </div>
@@ -208,11 +209,11 @@ export function DataStandardsLive({ onNotice }: { onNotice: (message: string) =>
                   <Button disabled={busy} onClick={() => run('创建新版本', async () => { await createStandardVersion(detail.standard.id) })}><GitCompareArrows size={14} />基于当前发布版新建草稿</Button>
                 </div>
               </div>
-              <div className={styles.versionTrail}>
+              <div className={styles.versionChips}>
                 {detail.versions.map((item) => (
                   <button
                     key={item.id}
-                    className={`${styles.timelineDot} ${item.id === version.id ? styles.activeRow : ''}`}
+                    className={styles.versionChip}
                     onClick={() => setDetailVersionId(item.id)}
                     aria-pressed={item.id === version.id}
                   >
@@ -276,7 +277,7 @@ export function DataStandardsLive({ onNotice }: { onNotice: (message: string) =>
                         <td><span className={styles.inlineCode}>{element.code}</span><br /><small>{element.name}</small></td>
                         <td>{element.dataType}</td>
                         <td>{element.required ? '必填' : '可选'}</td>
-                        <td><StatusTag tone={severityTone(element.sensitivity)}>{element.sensitivity}</StatusTag></td>
+                        <td><StatusTag tone={severityTone(element.sensitivity)}>{sensitivityLabel(element.sensitivity)}</StatusTag></td>
                         <td><small>{element.definition || '—'}</small></td>
                         <td>{element.dataType === 'CODE'
                           ? element.values.map((value) => <span key={value.code} className={styles.configPill}>{value.code} {value.displayName}</span>)
@@ -324,9 +325,9 @@ export function DataStandardsLive({ onNotice }: { onNotice: (message: string) =>
               <ul className={styles.timelineBody}>
                 {detail.events.map((event) => (
                   <li key={event.id}>
-                    <div className={styles.timelineTitle}><strong>{event.eventType}</strong><span>{event.actor || 'system'}</span></div>
+                    <div className={styles.timelineTitle}><strong>{standardEventLabel(event.eventType)}</strong><span>{actorLabel(event.actor)}</span></div>
                     <p>{event.detail}</p>
-                    <small>{event.createdAt}</small>
+                    <small>{formatDateTime(event.createdAt)}</small>
                   </li>
                 ))}
                 {detail.events.length === 0 ? <li className={styles.emptyState}>暂无事件。</li> : null}
