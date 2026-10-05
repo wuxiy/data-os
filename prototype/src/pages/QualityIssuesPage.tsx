@@ -1,5 +1,5 @@
 import { CircleAlert, LoaderCircle, RefreshCw, Search, Send } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAction } from '../hooks/useAction'
 import { useApiResource } from '../hooks/useApiResource'
 import { useKeyedResource } from '../hooks/useKeyedResource'
@@ -151,6 +151,30 @@ export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props
     })
   }
 
+  // 复检自动轮询（2026-10-05 复评）：执行器返回 nextPollAt 时到点自动同步，
+  // 不再让用户人肉盯「同步复检结果」。护栏：同一运行最多自动同步 12 次；
+  // 终态/切换问题/卸载由数据刷新与清理自然终止。
+  const autoPollRef = useRef({ lastKey: '', runId: '', count: 0 })
+  const autoPollRun = detail?.latestRun
+  useEffect(() => {
+    if (!autoPollRun || isTerminalRun(autoPollRun.status) || !autoPollRun.nextPollAt) return
+    const key = `${autoPollRun.id}|${autoPollRun.nextPollAt}`
+    const state = autoPollRef.current
+    if (state.lastKey === key) return
+    const due = new Date(autoPollRun.nextPollAt).getTime()
+    if (Number.isNaN(due)) return
+    if (state.runId !== autoPollRun.id) {
+      state.runId = autoPollRun.id
+      state.count = 0
+    }
+    if (state.count >= 12) return
+    state.lastKey = key
+    state.count += 1
+    const timer = window.setTimeout(() => { void syncRun() }, Math.min(60000, Math.max(2000, due - Date.now())))
+    return () => window.clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- syncRun 闭包读取当帧 selected/detail，语义即当次轮询
+  }, [autoPollRun?.id, autoPollRun?.status, autoPollRun?.nextPollAt])
+
   function reconcileRun() {
     if (!selected || !detail?.latestRun) return
     const latestRunId = detail.latestRun.id
@@ -254,7 +278,7 @@ export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props
               <h3>复检执行批次</h3>
               {detail.latestRun ? <>
                 <p><StatusTag tone={runStatusTone(detail.latestRun.status)}>{runStatusLabel(detail.latestRun.status)}</StatusTag><br />执行器：{executorLabel(detail.latestRun.executor)}<br />批次：<code className={styles.inlineCode}>{detail.latestRun.executionBatchId}</code><br />提交：{formatDateTime(detail.latestRun.submittedAt)}{detail.latestRun.finishedAt ? <><br />完成：{formatDateTime(detail.latestRun.finishedAt)}</> : null}</p>
-                <p className={styles.evidenceMessage}>尝试 {detail.latestRun.attemptCount} 次{detail.latestRun.nextPollAt ? <> · 下次重试/轮询：{formatDateTime(detail.latestRun.nextPollAt)}</> : null}</p>
+                <p className={styles.evidenceMessage}>尝试 {detail.latestRun.attemptCount} 次{detail.latestRun.nextPollAt ? <> · {formatDateTime(detail.latestRun.nextPollAt)} 自动同步轮询结果（也可手动同步）</> : null}</p>
                 {detail.latestRun.resultMessage ? (() => { const view = executorOutputView(detail.latestRun!.resultMessage!); return <p className={styles.evidenceMessage}>{view.head}{view.folded ? <>…<details className={styles.executorLog}><summary>查看完整执行输出</summary><pre>{view.folded}</pre></details></> : null}</p> })() : null}
                 {detail.latestRun.lastError ? <p className={styles.formError}>最近错误：{detail.latestRun.lastError}</p> : null}
                 {detail.latestRun.reconciliationStatus === 'MANUAL_REQUIRED' ? <div className={styles.connectionNotice} role="status"><CircleAlert size={17} /><div><strong>质量执行批次待人工对账</strong><span>{detail.latestRun.reconciliationMessage ?? '外部执行器未能可靠返回状态，请先重新查询；确认不存在后才允许结束本批次。'}</span></div><div className={styles.timelineActions}><button className={styles.secondaryButton} onClick={reconcileRun} disabled={actionState !== null}>{actionState === 'reconcile' ? '查询中…' : '重新查询'}</button><button className={styles.textButton} onClick={confirmRunAbsent} disabled={actionState !== null}>{actionState === 'confirm-absent' ? '确认中…' : '确认不存在'}</button></div></div> : null}
