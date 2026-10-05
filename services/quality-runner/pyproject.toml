@@ -18,6 +18,9 @@ dependencies = [
   "prometheus-client==0.21.1",
   "PyYAML==6.0.2",
   "boto3==1.36.20",
+  # G2G dev 部署实抓：parser 的 sdist 构建后端从 GitHub 拉 wheel，受限网络
+  # 不可达；钉版本让 pip 直接命中已装的 2.0.5（与运行容器一致）。
+  "dbt-core-experimental-parser==2.0.5",
   "dbt-core==1.12.5",
   "dbt-doris==1.0.0",
 ]

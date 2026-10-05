@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS data_os.quality_runner_runs (
     finished_at TIMESTAMP NULL,
     heartbeat_at TIMESTAMP NULL,
     execution_generation BIGINT NOT NULL DEFAULT 0,
-    score DOUBLE NULL,
+    score DOUBLE PRECISION NULL,
     total_rows BIGINT NULL,
     dirty_rows BIGINT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -53,7 +53,7 @@ CREATE INDEX IF NOT EXISTS idx_quality_runner_tenant
     ON data_os.quality_runner_runs(tenant_id, status, created_at);
 ALTER TABLE data_os.quality_runner_runs
     ADD COLUMN IF NOT EXISTS execution_generation BIGINT NOT NULL DEFAULT 0;
-ALTER TABLE data_os.quality_runner_runs ADD COLUMN IF NOT EXISTS score DOUBLE NULL;
+ALTER TABLE data_os.quality_runner_runs ADD COLUMN IF NOT EXISTS score DOUBLE PRECISION NULL;
 ALTER TABLE data_os.quality_runner_runs ADD COLUMN IF NOT EXISTS total_rows BIGINT NULL;
 ALTER TABLE data_os.quality_runner_runs ADD COLUMN IF NOT EXISTS dirty_rows BIGINT NULL;
 """
