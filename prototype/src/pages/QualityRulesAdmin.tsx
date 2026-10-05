@@ -1,6 +1,7 @@
 import { Plus, Save, ShieldCheck, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
+import { ConfirmDrawer } from '../components/ui/ConfirmDrawer'
 import { Drawer } from '../components/ui/Drawer'
 import { StatusTag } from '../components/ui/Primitives'
 import {
@@ -127,6 +128,9 @@ export function QualityRulesAdmin({ onNotice }: Props) {
   const [form, setForm] = useState<RuleFormState>(newForm())
   const [formOpen, setFormOpen] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
+  // 删除确认（2026-10-05 复评 P1）：删除不可逆且会同步摘除执行器里的规则，
+  // 必须显式确认；不再从表格行直接调 API。
+  const [pendingDelete, setPendingDelete] = useState<QualityRuleDefinitionApiItem | null>(null)
   const { pendingKey, run } = useAction(onNotice)
   const saving = pendingKey === 'save-rule'
 
@@ -260,6 +264,7 @@ export function QualityRulesAdmin({ onNotice }: Props) {
     void run(`delete-${rule.ruleId}`, '规则删除失败，请稍后重试', async () => {
       await deleteQualityRule(rule.ruleId)
       setRules((current) => current.filter((item) => item.ruleId !== rule.ruleId))
+      setPendingDelete(null)
       onNotice(`质量规则已删除：${rule.ruleId}`)
     })
   }
@@ -291,7 +296,7 @@ export function QualityRulesAdmin({ onNotice }: Props) {
               <td><div className={styles.tableActions}>
                 <button className={styles.tableButton} onClick={() => openEdit(rule)}>编辑</button>
                 <button className={styles.tableButton} disabled={pendingKey !== null} onClick={() => toggleEnabled(rule)}>{rule.enabled ? '停用' : '启用'}</button>
-                <button className={styles.tableButton} disabled={pendingKey !== null} onClick={() => removeRule(rule)}><Trash2 size={13} />删除</button>
+                <button className={styles.tableButton} disabled={pendingKey !== null} onClick={() => setPendingDelete(rule)}><Trash2 size={13} />删除</button>
               </div></td>
             </tr>
           ))}
@@ -429,6 +434,18 @@ export function QualityRulesAdmin({ onNotice }: Props) {
           {formError ? <p className={styles.formError} role="alert">{formError}</p> : null}
         </form>
       </Drawer> : null}
+
+      {pendingDelete ? <ConfirmDrawer
+        titleId="rule-delete-confirm-title"
+        eyebrow="质量规则 · 删除确认"
+        title={`删除 ${pendingDelete.ruleId}`}
+        danger
+        confirmLabel={pendingKey === `delete-${pendingDelete.ruleId}` ? '删除中…' : '确认删除'}
+        busy={pendingKey !== null}
+        onConfirm={() => removeRule(pendingDelete)}
+        onClose={() => setPendingDelete(null)}
+        body={<><p>规则 <strong>{pendingDelete.ruleId}</strong>（{PARAM_LABELS[pendingDelete.ruleType] ?? pendingDelete.ruleType} · {pendingDelete.datasetId}{pendingDelete.targetColumn ? ` · ${pendingDelete.targetColumn}` : ''}）将被删除，并从质量执行器同步摘除，已产生的治理问题与运行记录保留。</p><p>此操作不可撤销；如需暂停执行请使用「停用」。</p></>}
+      /> : null}
     </section>
   )
 }

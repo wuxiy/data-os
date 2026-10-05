@@ -399,10 +399,22 @@
   padding: 10px 11px;
   color: var(--jade-dark);
   background: var(--jade-soft);
-  border-left: 2px solid var(--jade);
+  border: 1px solid color-mix(in srgb, var(--jade) 40%, transparent);
   border-radius: 5px;
   font-size: 12px;
   line-height: 1.55;
+}
+
+/* 破坏性确认（ConfirmDrawer）：危险语气，与信息态共用版式。 */
+.drawerNoticeDanger {
+  color: var(--red-deep);
+  background: color-mix(in srgb, var(--red-deep) 7%, var(--paper));
+  border-color: color-mix(in srgb, var(--red-deep) 38%, transparent);
+}
+
+.dangerButton {
+  background: var(--red-deep);
+  border-color: var(--red-deep);
 }
 
 .drawerNotice svg {

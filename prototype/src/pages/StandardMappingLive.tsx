@@ -1,4 +1,4 @@
-import { ArrowRightLeft, ClipboardCheck, GitCompareArrows, History, Import, RefreshCw, Search, ShieldCheck, Trash2, UploadCloud } from 'lucide-react'
+import { ArrowRightLeft, ClipboardCheck, GitCompareArrows, History, Import, RefreshCw, Search, Archive, ShieldCheck, UploadCloud } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { GovernanceTabs } from '../components/ui/GovernanceTabs'
 import { PageHeader } from '../components/ui/PageHeader'
@@ -277,7 +277,7 @@ export function StandardMappingLive({ onNotice, onNavigate, onUnavailable }: { o
                   <Button disabled={busy} onClick={() => run('生效', () => activateMappingVersion(version.id))}><ShieldCheck size={14} />生效（管理员 · 需 PASS 证据）</Button>
                 ) : null}
                 {version.status === 'ACTIVE' ? (
-                  <Button variant="quiet" disabled={busy} onClick={() => run('停用', () => retireMappingVersion(version.id))}><Trash2 size={14} />停用</Button>
+                  <Button variant="quiet" disabled={busy} onClick={() => run('停用', () => retireMappingVersion(version.id))}><Archive size={14} />停用</Button>
                 ) : null}
                 <Button variant="quiet" disabled={busy} onClick={() => run('影响范围读取', async () => setImpact(await fetchMappingImpact(undefined, version.id)))}><ArrowRightLeft size={14} />影响范围</Button>
               </div>

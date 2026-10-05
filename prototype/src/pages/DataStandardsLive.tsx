@@ -1,4 +1,4 @@
-import { ArrowRightLeft, Braces, Download, FileSearch, GitCompareArrows, Import, RefreshCw, Search, Send, ShieldCheck, Trash2, UploadCloud } from 'lucide-react'
+import { ArrowRightLeft, Braces, Download, FileSearch, GitCompareArrows, Import, RefreshCw, Search, Send, Archive, ShieldCheck, UploadCloud } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { GovernanceTabs } from '../components/ui/GovernanceTabs'
 import { PageHeader } from '../components/ui/PageHeader'
@@ -239,7 +239,7 @@ export function DataStandardsLive({ onNotice, onNavigate, onUnavailable }: { onN
                 ) : null}
                 {version.status === 'PUBLISHED' ? (
                   <>
-                    <Button variant="quiet" disabled={busy} onClick={() => run('停用', () => deprecateStandardVersion(version.id))}><Trash2 size={14} />停用</Button>
+                    <Button variant="quiet" disabled={busy} onClick={() => run('停用', () => deprecateStandardVersion(version.id))}><Archive size={14} />停用</Button>
                     {version.syncStatus !== 'SYNCED' ? (
                       <Button variant="quiet" disabled={busy} onClick={() => run('术语投影重试', () => retryStandardSync(version.id))}><RefreshCw size={14} />重试术语投影</Button>
                     ) : null}
