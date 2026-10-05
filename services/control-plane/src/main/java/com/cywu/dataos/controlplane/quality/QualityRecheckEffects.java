@@ -40,9 +40,12 @@ public class QualityRecheckEffects implements RunTerminalEffects<QualityRuleRun,
         var action = returned
                 ? ("SUCCEEDED".equals(persisted.status()) ? "AUTO_RETURNED" : "RECHECK_FAILED")
                 : "AUTO_CLOSED";
-        var note = persisted.resultMessage() == null
-                ? (returned ? "复检未通过，已退回治理" : "复检通过，已自动关闭")
-                : persisted.resultMessage();
+        // 人工字段只落摘要：resultMessage 可能是执行器全文输出（critique P0-2），
+        // 全文留在质量运行记录里由前端折叠呈现。
+        var note = ExecutorMessages.summarizeForHumanField(persisted.resultMessage());
+        if (note == null) {
+            note = returned ? "复检未通过，已退回治理" : "复检通过，已自动关闭";
+        }
         var now = Instant.now();
         if (issues.updateIssueAfterQualityResult(issue.id(), issue.tenantId(), issue.institutionId(),
                 targetStatus, note, action, now) == 1) {
