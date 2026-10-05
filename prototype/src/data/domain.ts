@@ -124,12 +124,11 @@ export function looksLikeExecutorOutput(text: string | null | undefined): boolea
   return /^执行器输出 \d+ 行/.test(value) || /dbt=|Registered adapter|Failure in test|Compilation Error/.test(value)
 }
 
-/** 长执行器输出的呈现切分：首行可见，全文折叠；短文本整体呈现。 */
+/** 长执行器输出的呈现切分：可见头是通用标签（不透出引擎横幅行），全文折叠；短文本整体呈现。 */
 export function executorOutputView(text: string): { head: string; folded: string | null } {
   const lines = text.split('\n')
   if (lines.length <= 3 && text.length <= 200) return { head: text, folded: null }
-  const head = (lines[0] || '').slice(0, 160) || '执行器输出'
-  return { head, folded: text }
+  return { head: `执行器输出（${lines.length} 行，完整内容已折叠）`, folded: text }
 }
 
 export function notificationStatusLabel(value: string): string {

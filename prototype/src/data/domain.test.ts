@@ -15,7 +15,7 @@ describe('执行器输出治理（critique P0-2）', () => {
     expect(executorOutputView('质量规则未通过')).toEqual({ head: '质量规则未通过', folded: null })
     const log = ['Running with dbt=1.10.22', 'Registered adapter: doris=1.0.0', 'Found 35 data tests', '14:53:02 Failure in test x'].join('\n')
     const view = executorOutputView(log)
-    expect(view.head).toBe('Running with dbt=1.10.22')
+    expect(view.head).toBe('执行器输出（4 行，完整内容已折叠）')
     expect(view.folded).toBe(log)
   })
 })
