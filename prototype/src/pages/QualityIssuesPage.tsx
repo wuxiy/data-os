@@ -4,6 +4,7 @@ import { useAction } from '../hooks/useAction'
 import { useApiResource } from '../hooks/useApiResource'
 import { useKeyedResource } from '../hooks/useKeyedResource'
 import { usePaged } from '../hooks/usePaged'
+import { ConfirmDrawer } from '../components/ui/ConfirmDrawer'
 import { GovernanceTabs } from '../components/ui/GovernanceTabs'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Button, StatusTag } from '../components/ui/Primitives'
@@ -101,11 +102,17 @@ export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props
     },
   })
 
+  // 队列状态筛选（2026-10-05 复评）：默认待闭环——与落地选中口径一致；
+  // 批量提醒走确认抽屉，逐条投递、失败不阻断其余。
+  const [statusFilter, setStatusFilter] = useState<'open' | 'closed' | 'all'>('open')
+  const [batchRemindOpen, setBatchRemindOpen] = useState(false)
+  const openIssues = useMemo(() => issues.filter((issue) => issue.status !== 'CLOSED'), [issues])
   const visibleIssues = useMemo(() => {
     const keyword = query.trim().toLowerCase()
-    if (!keyword) return issues
-    return issues.filter((issue) => `${issue.id}${issue.title}${issue.ownerDepartment}${issue.ownerName}${issue.datasetId}`.toLowerCase().includes(keyword))
-  }, [issues, query])
+    const byStatus = issues.filter((issue) => statusFilter === 'all' || (statusFilter === 'open' ? issue.status !== 'CLOSED' : issue.status === 'CLOSED'))
+    if (!keyword) return byStatus
+    return byStatus.filter((issue) => `${issue.id}${issue.title}${issue.ownerDepartment}${issue.ownerName}${issue.datasetId}`.toLowerCase().includes(keyword))
+  }, [issues, query, statusFilter])
 
   // 治理问题是长队列：侧栏分页，搜索重置回第一页。
   const QUEUE_PAGE_SIZE = 8
@@ -204,6 +211,26 @@ export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props
     })
   }
 
+  function runBatchRemind() {
+    if (openIssues.length === 0) return
+    void runAction('batch-notify', '批量提醒未能完成，请稍后重试', async () => {
+      const failed: string[] = []
+      let ok = 0
+      for (const issue of openIssues) {
+        try {
+          await remindGovernanceIssueOwner(issue.id)
+          ok += 1
+        } catch {
+          failed.push(issue.id)
+        }
+      }
+      setBatchRemindOpen(false)
+      onNotice(failed.length === 0
+        ? `已向 ${ok} 个待闭环问题的责任人加入提醒队列`
+        : `已提醒 ${ok} 个责任人，${failed.length} 个失败：${failed.slice(0, 3).join('、')}${failed.length > 3 ? '…' : ''}`)
+    })
+  }
+
   function applyDetail(next: GovernanceIssueDetailApiResponse) {
     setDetail(next)
     setIssues((current) => current.map((issue) => issue.id === next.issue.id ? next.issue : issue))
@@ -221,8 +248,14 @@ export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props
       {apiState === 'unavailable' ? <div className={styles.connectionNotice} role="alert"><CircleAlert size={17} /><div><strong>治理问题控制面不可用</strong><span>当前页面没有展示演示问题；请恢复控制面后重新加载。</span></div><button className={styles.secondaryButton} onClick={() => window.location.reload()}>重新连接</button></div> : null}
       <div className={styles.workspace}>
         <aside className={styles.workspaceRail}>
-          <div className={styles.sectionTitle}><h2>问题队列</h2><span>{issues.filter((issue) => issue.status !== 'CLOSED').length} 待闭环</span></div>
+          <div className={styles.sectionTitle}><h2>问题队列</h2><span>{openIssues.length} 待闭环</span></div>
           <div className={styles.search}><Search size={15} /><input value={query} onChange={(event) => { setQuery(event.target.value); setQueuePage(0) }} placeholder="搜索问题或责任部门" aria-label="搜索质量问题" /></div>
+          <div className={styles.queueFilters} role="group" aria-label="队列状态筛选">
+            {([['open', `待闭环 ${openIssues.length}`], ['closed', `已关闭 ${issues.length - openIssues.length}`], ['all', `全部 ${issues.length}`]] as const).map(([value, label]) => (
+              <button key={value} className={styles.queueFilter} aria-pressed={statusFilter === value} onClick={() => { setStatusFilter(value); setQueuePage(0) }}>{label}</button>
+            ))}
+            {openIssues.length > 0 && apiState === 'live' ? <button className={styles.queueFilter} onClick={() => setBatchRemindOpen(true)}>批量提醒</button> : null}
+          </div>
           <ul className={styles.queue}>
             {pagedIssues.map((issue) => <li key={issue.id}><button className={selected?.id === issue.id ? styles.selected : ''} aria-pressed={selected?.id === issue.id} onClick={() => { setSelectedId(issue.id); setActionError(null) }}><span className={styles.queueTop}><span className={styles.queueId}>{issue.id}</span><StatusTag tone={severityTone(issue.severity)}>{severityLabel(issue.severity)}风险</StatusTag></span><span className={styles.queueTitle}>{issue.title}</span><span className={styles.queueMeta}>{issue.ownerDepartment} · {issue.ownerName} · {issueStatusLabel(issue.status)}</span></button></li>)}
             {apiState === 'loading' ? <li className={styles.emptyState}><LoaderCircle size={18} className={styles.spin} />正在加载治理问题…</li> : null}
@@ -293,6 +326,16 @@ export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props
         </aside>
       </div>
       <QualityRulesAdmin onNotice={onNotice} />
+      {batchRemindOpen ? <ConfirmDrawer
+        titleId="batch-remind-confirm-title"
+        eyebrow="问题队列 · 批量提醒"
+        title={`提醒 ${openIssues.length} 个待闭环问题的责任人`}
+        confirmLabel={actionState === 'batch-notify' ? '提醒中…' : `确认提醒 ${openIssues.length} 位责任人`}
+        busy={actionState !== null}
+        onConfirm={runBatchRemind}
+        onClose={() => setBatchRemindOpen(false)}
+        body={<p>将按队列当前未闭环清单（{openIssues.length} 条）逐一向责任人投递提醒通知；单条失败不影响其余，已关闭问题不会被打扰。</p>}
+      /> : null}
     </div>
   )
 }

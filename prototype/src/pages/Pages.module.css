@@ -1569,6 +1569,34 @@
   padding: 6px 16px 14px;
 }
 
+/* 队列状态筛选（2026-10-05 复评）：待闭环/已关闭/全部 + 批量提醒入口。 */
+.queueFilters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 15px 0;
+}
+
+.queueFilter {
+  display: inline-flex;
+  min-height: 26px;
+  align-items: center;
+  padding: 0 9px;
+  color: var(--muted);
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.queueFilter[aria-pressed='true'] {
+  color: var(--jade-dark);
+  background: var(--jade-soft);
+  border-color: color-mix(in srgb, var(--jade) 45%, transparent);
+  font-weight: 600;
+}
+
 .queue {
   padding: 8px;
 }
