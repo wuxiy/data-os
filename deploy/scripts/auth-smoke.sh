@@ -155,9 +155,15 @@ for name in ("DATA_API", "OM_INGEST"):
     client_id = env(f"{name}_CLIENT_ID")
     client_secret = env(f"{name}_CLIENT_SECRET")
     if client_id and client_secret:
-        # 出站 client：目标 aud 由被调方决定，冒烟只证明能取 token 且 iss 正确。
-        check(f"{name.lower()} 出站（可取 token/iss）",
-              token_of(client_id, client_secret, name.lower()))
+        if name == "DATA_API":
+            # data-api 兼有控制面 registry 回链（/internal，aud=data-os）——
+            # B3 彩排后此 aud 由种子强制装配，冒烟同步断言。
+            check("data_api 出站（可取 token/iss + registry 回链 aud=data-os）",
+                  token_of(client_id, client_secret, name.lower()), audience="data-os")
+        else:
+            # 纯出站 client：目标 aud 由被调方决定，只证明能取 token 且 iss 正确。
+            check(f"{name.lower()} 出站（可取 token/iss）",
+                  token_of(client_id, client_secret, name.lower()))
     else:
         print(f"SKIP {name.lower()} 出站（未提供凭据）")
 

@@ -78,6 +78,43 @@ bash deploy/production/scripts/keycloak-portal-seed.sh --with-demo-user
 issuer 地址写入两处：`prototype/.env.production`（前端 discovery）与 `.env` 的
 `DATAOS_OIDC_ISSUER_URI`（控制面校验），必须完全一致。
 
+### 服务间链（生产上线必跑的第二颗种子）
+
+门户种子只覆盖**用户链**。六个服务 client（质量执行器推送 / AI Ready 构建 /
+问数 BFF / Data API 出站 / OM 摄取 / MPI 投影）由
+`deploy/scripts/keycloak-service-seed.sh` 建立——链路对照表与 env 键见
+[../deploy-auth-matrix.md](../deploy-auth-matrix.md) §二/§四：
+
+```bash
+KEYCLOAK_ADMIN_URL=http://localhost:8080 \
+KEYCLOAK_ADMIN_USER=admin KEYCLOAK_ADMIN_PASSWORD=... \
+SEED_REALM=data-platform \
+QUALITY_CLIENT_SECRET=<预生成并已写入 .env 的值> \
+MPI_CLIENT_SECRET=<预生成并已写入 .env 的值> \
+bash deploy/scripts/keycloak-service-seed.sh
+```
+
+要点：
+
+- **secret 属主是 `.env`**：两个关键 client（quality/MPI）用预生成 secret 建，
+  其余四个缺 secret 时由脚本生成并**仅创建时回显一次**，操作员当期同步写入
+  `.env`；脚本对在位 client 永不重建、永不换 secret；
+- **后续手工设 secret 必须走管理台或读-改-写全量 PUT**——KC26 对
+  `PUT /clients/{id}` 发 partial body（只带 `secret`）会孤儿化 service account
+  用户并丢失其角色映射（B3 彩排实抓；脚本自身的 PUT 均为全量读改写，不受影响）；
+- quality client 自动装配 scope（`quality:*`）+ 硬编码租户 claims
+  （runner 的 TenantScope 缺 claim 403）；MPI client 自动装配
+  `aud=data-os-mpi` + 读侧角色 `viewer` + 租户 claims；
+- 种子后跑 `deploy/scripts/auth-smoke.sh` 冒烟（复刻各被调方验签与 claims
+  断言，不需要被调服务在线）；issuer 为网关值时显式 `EXPECTED_ISSUER`；
+- **MPI 若部署为 ENFORCED**：门户用户 token 须同时带 `aud=data-os` 与
+  `aud=data-os-mpi`（门户直连链语义，portal seed 默认已配双 mapper，
+  `PORTAL_MPI_AUDIENCE=` 空值可禁用）。
+
+生产 realm 的完整上线顺序：门户种子 → 服务间种子 → 冒烟 → 服务
+`ENFORCED` 拉起。该顺序已在全新 Keycloak 26 实例空跑验证
+（见 `docs/validation/gate-g2g-b-group-auth-20261005.md` §B3）。
+
 
 ## 导入 SeaTunnel 离线执行器
 

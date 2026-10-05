@@ -250,7 +250,7 @@ for client_id, audience in (
     ensure_audience_mapper(client["id"], client_id, audience)
 
 # 出站调用 client（data-api 指标投影、ai-ready OM 摄取）：只确保存在与
-# service account，audience 由被调方（OM/Superset）侧配置决定，不臆造。
+# service account，OM/Superset 侧 audience 由被调方配置决定，不臆造。
 for client_id in (DATA_API_CLIENT, OM_INGEST_CLIENT):
     client = find_client(client_id)
     if client is None:
@@ -260,6 +260,12 @@ for client_id in (DATA_API_CLIENT, OM_INGEST_CLIENT):
     else:
         print(f"client 在位（不换 secret）: {client_id}")
     ensure_service_account(client["id"])
+
+# B3 彩排实抓：data-api 的 registry 回链（控制面 /internal/data-api/**，
+# audience=data-os 全局校验）——全新 realm 无 H2 时代手工遗产，必须由种子
+# 装配 aud mapper，否则生产上线 registry 401 → data-api 503。
+data_api = find_client(DATA_API_CLIENT)
+ensure_audience_mapper(data_api["id"], DATA_API_CLIENT, "data-os")
 
 print("== 4/4 控制面→MPI 投影 client（aud=data-os-mpi + 读侧角色 + 租户 claims）==")
 # MPI ENFORCED 的 GET /api/v1/mpi/** 允许 viewer——只读指标投影的最小角色；

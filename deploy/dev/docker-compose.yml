@@ -79,8 +79,10 @@ services:
       DATAOS_QUALITY_EXECUTOR: ${DATAOS_QUALITY_EXECUTOR:-HTTP}
       DATAOS_QUALITY_EXECUTOR_BASE_URL: ${DATAOS_QUALITY_EXECUTOR_BASE_URL:-http://quality-runner:8080}
       DATAOS_QUALITY_DEMO_ENABLED: ${DATAOS_QUALITY_DEMO_ENABLED:-false}
-      DATAOS_QUALITY_OIDC_TOKEN_URI: ${DATAOS_QUALITY_OIDC_TOKEN_URI:-}
-      DATAOS_QUALITY_OIDC_CLIENT_ID: ${DATAOS_QUALITY_OIDC_CLIENT_ID:-}
+      # G2G B1 实测：runner ENFORCED 后推送必须带服务 token；token-uri/client-id
+      # 给内网默认值（与 assistant/ai-ready 同风格），secret 仍由 .env 独占
+      DATAOS_QUALITY_OIDC_TOKEN_URI: ${DATAOS_QUALITY_OIDC_TOKEN_URI:-http://keycloak:8080/auth/realms/data-platform/protocol/openid-connect/token}
+      DATAOS_QUALITY_OIDC_CLIENT_ID: ${DATAOS_QUALITY_OIDC_CLIENT_ID:-dataos-control-plane-quality}
       DATAOS_QUALITY_OIDC_CLIENT_SECRET: ${DATAOS_QUALITY_OIDC_CLIENT_SECRET:-}
       DATAOS_QUALITY_OIDC_AUDIENCE: ${DATAOS_QUALITY_OIDC_AUDIENCE:-dataos-quality-runner}
       DATAOS_QUALITY_OIDC_SCOPES: ${DATAOS_QUALITY_OIDC_SCOPES:-quality:submit quality:read}

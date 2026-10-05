@@ -177,6 +177,10 @@ if not redirect_uris:
 web_origins = sorted({urllib.parse.urlsplit(uri).scheme + "://" + urllib.parse.urlsplit(uri).netloc
                       for uri in redirect_uris})
 audience = os.environ["DATAOS_AUDIENCE"]
+# G2G B1 实测：mpi-service ENFORCED 下门户直连链（nginx /api/v1/mpi/ → mpi）
+# 要求用户 token 也带 aud=data-os-mpi；门户 token 由此成为多 aud（与控制面
+# 服务 client 同型）。留空可禁用（MPI 未部署或仍 DISABLED 的环境）。
+mpi_audience = os.environ.get("PORTAL_MPI_AUDIENCE", "data-os-mpi")
 client_id = os.environ["PORTAL_CLIENT_ID"]
 
 managed = {
@@ -212,7 +216,7 @@ else:
     print(f"客户端在位（已按属主清单重写）: {client_id}")
 client_uuid = existing["id"]
 
-# ---- 4/5 客户端 mapper（audience + 租户双 claim）----
+# ---- 4/5 客户端 mapper（audience + 租户双 claim；MPI 直连链另加一只 aud）----
 mappers = [
     {
         "name": f"audience-{audience}",
@@ -221,6 +225,16 @@ mappers = [
         "config": {"included.client.audience": audience,
                    "access.token.claim": "true", "id.token.claim": "false"},
     },
+]
+if mpi_audience:
+    mappers.append({
+        "name": f"audience-{mpi_audience}",
+        "protocol": "openid-connect",
+        "protocolMapper": "oidc-audience-mapper",
+        "config": {"included.client.audience": mpi_audience,
+                   "access.token.claim": "true", "id.token.claim": "false"},
+    })
+mappers.extend([
     {
         "name": "tenant-id",
         "protocol": "openid-connect",
@@ -239,7 +253,7 @@ mappers = [
                    "access.token.claim": "true", "id.token.claim": "true",
                    "userinfo.token.claim": "true"},
     },
-]
+])
 _, body = api("GET", f"/clients/{client_uuid}/protocol-mappers/models")
 known = {item["name"]: item["id"] for item in (body or [])}
 for mapper in mappers:
