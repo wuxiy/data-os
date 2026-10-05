@@ -36,6 +36,7 @@ export function GovernanceDashboardPage({ onOpenChain, onNavigate, onUnavailable
   const [metrics, setMetrics] = useState<Metric[]>([])
   const [issues, setIssues] = useState<GovernanceApiIssue[]>([])
   const [asOf, setAsOf] = useState<string | null>(null)
+  const chainTodo = todaysIssues(issues)[0] ?? null
   const apiState = useApiResource({
     timeoutMs: 2500,
     load: (signal) => fetchGovernanceSummary(signal),
@@ -63,19 +64,7 @@ export function GovernanceDashboardPage({ onOpenChain, onNavigate, onUnavailable
       </div>
       {apiState === 'unavailable' ? <div className={styles.connectionNotice} role="alert"><div><strong>治理控制面不可用</strong><span>为避免误导，当前没有展示本地演示指标、问题或责任链样例。请恢复控制面后重新连接。</span></div><button className={styles.secondaryButton} onClick={() => window.location.reload()}>重新连接</button></div> : null}
       <MetricStrip metrics={metrics} onSelect={showStaticSamples(apiState) ? onOpenChain : undefined} />
-      <QualityScorePanel onNotice={onNotice} />
       <div className={styles.content}>
-        {showStaticSamples(apiState) ? <ResponsibilityChain onOpen={onOpenChain} /> : apiState === 'unavailable' ? null : <div className={styles.connectionNotice} role="status"><div><strong>责任链详情待接入真实溯源服务</strong><span>当前仅展示控制面真实指标和问题队列；静态责任链样例已关闭。</span></div></div>}
-        <div className={styles.twoColumns}>
-          {showStaticSamples(apiState) ? <TrendChart /> : <section className={styles.panel}><div className={styles.panelHeader}><div><h2>治理趋势</h2><p>等待指标时序 API 接入</p></div></div><div className={styles.emptyRow}>{apiState === 'unavailable' ? '控制面不可用，未加载趋势数据' : '当前版本不展示静态趋势样例'}</div></section>}
-          <section className={styles.panel}>
-            <div className={styles.panelHeader}><div><h2>高风险系统排行</h2><p>按逾期与高危问题综合排序</p></div><button className={styles.textButton} onClick={() => onNavigate('quality')}>查看全部 <ChevronRight size={13} /></button></div>
-            <ol className={styles.ranking}>
-              {riskRankingFromIssues(issues).map(({ system, owner, value }, index) => <li key={system}><span className={styles.rank}>{String(index + 1).padStart(2, '0')}</span><div className={styles.rankBody}><strong>{system}</strong><span>{owner}</span></div><span className={styles.rankValue}>{value}</span></li>)}
-              {apiState === 'live' && issues.length === 0 ? <li className={styles.emptyRow}>当前机构暂无高风险问题</li> : null}
-            </ol>
-          </section>
-        </div>
         <section className={styles.tablePanel}>
           <div className={styles.panelHeader}><div><h2>治理待办</h2><p>未闭环问题按 SLA 截止时间排序</p></div><button className={styles.textButton} onClick={() => onNavigate('quality')}>进入质量闭环 <ChevronRight size={13} /></button></div>
           <div className={styles.tableScroll}>
@@ -109,6 +98,31 @@ export function GovernanceDashboardPage({ onOpenChain, onNavigate, onUnavailable
             </table>
           </div>
         </section>
+        <div className={styles.twoColumns}>
+          <section className={styles.panel}>
+            <div className={styles.panelHeader}><div><h2>高风险系统排行</h2><p>按逾期与高危问题综合排序</p></div><button className={styles.textButton} onClick={() => onNavigate('quality')}>查看全部 <ChevronRight size={13} /></button></div>
+            <ol className={styles.ranking}>
+              {riskRankingFromIssues(issues).map(({ system, owner, value }, index) => <li key={system}><span className={styles.rank}>{String(index + 1).padStart(2, '0')}</span><div className={styles.rankBody}><strong>{system}</strong><span>{owner}</span></div><span className={styles.rankValue}>{value}</span></li>)}
+              {apiState === 'live' && issues.length === 0 ? <li className={styles.emptyRow}>当前机构暂无高风险问题</li> : null}
+            </ol>
+          </section>
+          {showStaticSamples(apiState) ? <ResponsibilityChain onOpen={onOpenChain} /> : (
+            /* 责任链 v1（2026-10-05 复评裁决）：质量工作台的证据栏就是责任链实体——
+               影响范围→规则证据→复检批次→责任人通知→责任归属；不再渲染「待接入」告示，
+               直接给待办深链入口。 */
+            <section className={styles.panel}>
+              <div className={styles.panelHeader}><div><h2>治理责任链 · v1</h2><p>影响范围 → 规则证据 → 复检批次 → 责任人通知 → 责任归属</p></div></div>
+              <p className={styles.chainIntro}>责任链已随质量问题工作台就绪：打开任一待办问题，即可沿影响范围、规则证据、复检执行批次、责任人通知与责任归属逐环溯源。</p>
+              <div className={styles.chainActions}>
+                {chainTodo
+                  ? <button className={styles.textButton} onClick={() => openIssue(chainTodo)}>打开 {chainTodo.id} 的责任链 <ChevronRight size={13} /></button>
+                  : <button className={styles.textButton} onClick={() => onNavigate('quality')}>前往质量问题工作台 <ChevronRight size={13} /></button>}
+              </div>
+            </section>
+          )}
+        </div>
+        <QualityScorePanel onNotice={onNotice} />
+        {showStaticSamples(apiState) ? <TrendChart /> : <section className={styles.panel}><div className={styles.panelHeader}><div><h2>治理趋势</h2><p>等待指标时序 API 接入</p></div></div><div className={styles.emptyRow}>{apiState === 'unavailable' ? '控制面不可用，未加载趋势数据' : '当前版本不展示静态趋势样例'}</div></section>}
       </div>
     </div>
   )

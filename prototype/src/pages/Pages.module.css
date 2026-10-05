@@ -69,6 +69,19 @@
   font-size: 12px;
 }
 
+/* 责任链 v1 说明行（驾驶舱，2026-10-05 复评）：左对齐正文而非居中空态。 */
+.chainIntro {
+  margin: 0 17px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.chainActions {
+  display: inline-flex;
+  margin: 10px 17px 17px;
+}
+
 .dashboardScope {
   display: inline-flex;
   min-height: 30px;

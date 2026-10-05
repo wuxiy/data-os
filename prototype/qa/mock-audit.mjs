@@ -85,4 +85,12 @@ assert.match(src('src/components/ui/RuntimeStatusBanner.tsx'), /真实运行模�
 assert.match(src('src/components/ui/DemoDataBoundary.tsx'), /不写入控制面/, '演示模式必须明确动作不会产生真实业务副作用')
 assert.match(src('src/data/controlPlane.ts'), /confirmIngestionRunAbsent/, '采集 UNKNOWN 必须有人工确认不存在接口')
 
+// 2026-10-05 复评收口锁（P1-1 + 责任链 v1）：驾驶舱首屏叙事——待办先行、
+// 责任链认领质量工作台证据链、评分无数据收一行、死告示不得回归
+const dashboardPage = src('src/pages/GovernanceDashboardPage.tsx')
+assert.match(dashboardPage, /治理责任链 · v1/, '驾驶舱必须渲染责任链 v1 入口（认领质量工作台证据链）')
+assert.doesNotMatch(dashboardPage, /责任链详情待接入真实溯源服务/, '驾驶舱不得再渲染「责任链待接入」死告示')
+assert.ok(dashboardPage.indexOf('治理待办') < dashboardPage.indexOf('<QualityScorePanel'), '驾驶舱待办表必须先于质量评分渲染（首屏叙事）')
+assert.match(src('src/pages/QualityScorePanel.tsx'), /rules\.every\(\(rule\) => rule\.score == null\)/, '质量评分无带评分规则时必须收成一行空态')
+
 console.log(`mock audit passed: ${staticPages.length} static pages gated, governance fallback removed, runtime mode visible`)

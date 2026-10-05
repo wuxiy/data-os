@@ -84,6 +84,10 @@ export function QualityScorePanel({ onNotice }: Props) {
       </div>
       {apiState === 'unavailable' ? (
         <div className={styles.emptyRow}>质量评分控制面暂不可用</div>
+      ) : summary && summary.rules.every((rule) => rule.score == null) ? (
+        /* 首屏空态收一行（2026-10-05 复评 P1-1）：无带评分规则时不再渲染
+           巨号占位 + 六根空条的死面板，一行说明 + 保留头部「评分标准」入口。 */
+        <div className={styles.emptyRow}>六个维度暂无带评分的规则运行 · 完成首轮质量复检后，此处将显示加权总分、维度分与等级</div>
       ) : summary ? (
         <>
           <div className={styles.scoreHero}>
