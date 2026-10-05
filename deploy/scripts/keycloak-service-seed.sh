@@ -261,9 +261,10 @@ for client_id in (DATA_API_CLIENT, OM_INGEST_CLIENT):
         print(f"client 在位（不换 secret）: {client_id}")
     ensure_service_account(client["id"])
 
-print("== 4/4 控制面→MPI 投影 client（aud=data-os-mpi + 读侧角色）==")
+print("== 4/4 控制面→MPI 投影 client（aud=data-os-mpi + 读侧角色 + 租户 claims）==")
 # MPI ENFORCED 的 GET /api/v1/mpi/** 允许 viewer——只读指标投影的最小角色；
-# 角色幂等自建，未跑 portal seed 的 realm 也能装配。
+# 角色幂等自建，未跑 portal seed 的 realm 也能装配。TenantScope 要求 token
+# 带 tenant_id/institution_id（缺任一 403），与 quality client 同款硬编码。
 ensure_realm_role(MPI_READ_ROLE)
 mpi_secret = os.environ.get("MPI_CLIENT_SECRET")
 client = find_client(MPI_CLIENT)
@@ -278,6 +279,8 @@ else:
     print(f"client 在位（不换 secret）: {MPI_CLIENT}")
 ensure_service_account(client["id"])
 ensure_audience_mapper(client["id"], MPI_CLIENT, "data-os-mpi")
+ensure_claim_mapper(client["id"], "tenant_id", TENANT)
+ensure_claim_mapper(client["id"], "institution_id", INSTITUTION)
 ensure_service_account_role(client["id"], MPI_READ_ROLE)
 
 print("服务间种子完成。")

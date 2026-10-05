@@ -141,13 +141,13 @@ for name, audience in (
         print(f"SKIP {name.lower()} 链（未提供凭据）")
 
 # MPI 投影链（G2G B 组）：aud=data-os-mpi + 读侧角色（复刻 mpi authorities()
-# 从 realm_access.roles 取角色的口径）。
+# 从 realm_access.roles 取角色的口径）+ 租户 claims（mpi TenantScope 缺任一 403）。
 mpi_id = env("MPI_CLIENT_ID")
 mpi_secret = env("MPI_CLIENT_SECRET")
 if mpi_id and mpi_secret:
-    check("mpi 链（aud=data-os-mpi + viewer 读侧角色）",
+    check("mpi 链（aud=data-os-mpi + viewer 读侧角色 + 租户 claims）",
           token_of(mpi_id, mpi_secret, "mpi"),
-          audience="data-os-mpi", realm_role="viewer")
+          audience="data-os-mpi", realm_role="viewer", tenant=True)
 else:
     print("SKIP mpi 链（未提供 MPI_CLIENT_ID/SECRET）")
 
