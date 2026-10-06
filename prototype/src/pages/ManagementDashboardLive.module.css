@@ -1,0 +1,12 @@
+/* 管理驾驶舱 Live 页面级样式（2026-10-06 对齐收敛第二波）。 */
+
+/* 事件面板脚注：替代借用的 emptyState 居中灰字，左对齐说明行。 */
+.panelFootnote {
+  display: flex;
+  margin: 0;
+  padding: 8px 16px 16px;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}

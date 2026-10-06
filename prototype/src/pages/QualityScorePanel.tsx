@@ -13,6 +13,7 @@ import { formatDateTime } from '../data/domain'
 import { useAction } from '../hooks/useAction'
 import { useApiResource } from '../hooks/useApiResource'
 import styles from './Pages.module.css'
+import local from './QualityScorePanel.module.css'
 
 interface Props {
   onNotice: (message: string) => void
@@ -90,11 +91,12 @@ export function QualityScorePanel({ onNotice }: Props) {
         <div className={styles.emptyRow}>六个维度暂无带评分的规则运行 · 完成首轮质量复检后，此处将显示加权总分、维度分与等级</div>
       ) : summary ? (
         <>
-          <div className={styles.scoreHero}>
+          <div className={`${styles.scoreHero} ${local.scoreHeroFlat}`}>
             <div className={styles.scoreTotal}>
               <Gauge size={22} />
               <strong>{summary.totalScore == null ? '—' : summary.totalScore.toFixed(1)}</strong>
-              {summary.grade ? <StatusTag tone={summary.totalScore != null && summary.totalScore >= summary.standard.passScore ? 'healthy' : 'warning'}>{summary.grade}</StatusTag> : null}
+              {summary.grade ? <StatusTag tone="neutral">等级 {summary.grade}</StatusTag> : null}
+              {summary.totalScore != null ? <StatusTag tone={summary.totalScore >= summary.standard.passScore ? 'healthy' : 'warning'}>{summary.totalScore >= summary.standard.passScore ? '达标' : '未达标'}</StatusTag> : null}
             </div>
             <div className={styles.scoreDimensions}>
               {DIMENSIONS.map((dimension) => {
@@ -110,13 +112,13 @@ export function QualityScorePanel({ onNotice }: Props) {
             </div>
           </div>
           <div className={styles.tableScroll}><table className={styles.table}>
-            <thead><tr><th>规则</th><th>数据集</th><th>得分</th><th>通过线</th></tr></thead>
+            <thead><tr><th>规则</th><th>数据集</th><th className={styles.num}>得分</th><th>结果</th></tr></thead>
             <tbody>
               {summary.rules.map((rule) => (
                 <tr key={rule.ruleId}>
                   <td><code className={styles.inlineCode}>{rule.ruleId}</code></td>
                   <td>{rule.datasetId}</td>
-                  <td><strong>{rule.score == null ? '—' : rule.score.toFixed(1)}</strong></td>
+                  <td className={styles.num}><strong>{rule.score == null ? '—' : rule.score.toFixed(1)}</strong></td>
                   <td>{rule.passed == null ? '—' : <StatusTag tone={rule.passed ? 'healthy' : 'danger'}>{rule.passed ? '通过' : '未通过'}</StatusTag>}</td>
                 </tr>
               ))}
@@ -143,12 +145,12 @@ export function QualityScorePanel({ onNotice }: Props) {
             <label>维度权重（0-100）</label>
             <div className={styles.drawerFormGrid}>
               {DIMENSIONS.map((dimension) => (
-                <label key={dimension} className={styles.structuredColumnOption}>
-                  <span>{dimension}</span>
-                  <input type="number" min={0} max={100} value={weights[dimension] ?? '1'}
+                <div key={dimension} className={styles.formField}>
+                  <label htmlFor={`weight-${dimension}`}>{dimension}</label>
+                  <input id={`weight-${dimension}`} type="number" min={0} max={100} value={weights[dimension] ?? '1'}
                     aria-label={`${dimension}权重`}
                     onChange={(event) => setWeights((current) => ({ ...current, [dimension]: event.target.value }))} />
-                </label>
+                </div>
               ))}
             </div>
           </div>

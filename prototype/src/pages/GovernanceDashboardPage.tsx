@@ -14,6 +14,7 @@ import { frontendDemoMode, showStaticSamples } from '../data/runtimeMode'
 import type { Metric } from '../types'
 import type { RouteKey } from '../types'
 import styles from './Pages.module.css'
+import pageStyles from './GovernanceDashboardPage.module.css'
 
 interface Props {
   onOpenChain: () => void
@@ -66,11 +67,13 @@ export function GovernanceDashboardPage({ onOpenChain, onNavigate, onUnavailable
       <GovernanceTabs route="governance" onNavigate={onNavigate} onUnavailable={onUnavailable} />
       <div className={styles.apiStatus} role="status" aria-live="polite">
         <span className={`${styles.apiDot} ${apiState === 'live' ? styles.apiDotLive : ''}`} />
-        {apiState === 'loading' ? '正在连接治理控制面…' : apiState === 'live' ? '控制面已连接 · 指标与问题来自 PostgreSQL' : '控制面暂不可用 · 未加载真实治理指标或问题'}
+        {apiState === 'loading' ? '正在连接治理控制面…' : apiState === 'live' ? '控制面已连接 · 数据来自治理控制面' : '控制面暂不可用 · 未加载真实治理指标或问题'}
       </div>
       {apiState === 'unavailable' ? <div className={styles.connectionNotice} role="alert"><div><strong>治理控制面不可用</strong><span>为避免误导，当前没有展示本地演示指标、问题或责任链样例。请恢复控制面后重新连接。</span></div><button className={styles.secondaryButton} onClick={() => window.location.reload()}>重新连接</button></div> : null}
-      <MetricStrip metrics={metrics} onSelect={showStaticSamples(apiState) ? onOpenChain : apiState === 'live' ? openMetricTarget : undefined} />
       <div className={styles.content}>
+        {/* 指标带收进 .content（2026-10-06 对齐收敛）：原挂在 content 外导致满宽出血、
+            左缘与下方 24px 内边距内容不齐。 */}
+        <MetricStrip metrics={metrics} onSelect={showStaticSamples(apiState) ? onOpenChain : apiState === 'live' ? openMetricTarget : undefined} />
         <section className={styles.tablePanel}>
           <div className={styles.panelHeader}><div><h2>治理待办</h2><p>未闭环问题按 SLA 截止时间排序</p></div><button className={styles.textButton} onClick={() => onNavigate('quality')}>进入质量闭环 <ChevronRight size={13} /></button></div>
           <div className={styles.tableScroll}>
@@ -104,31 +107,32 @@ export function GovernanceDashboardPage({ onOpenChain, onNavigate, onUnavailable
             </table>
           </div>
         </section>
+        {/* 责任链全宽置于待办之下（2026-10-06 对齐收敛）：责任链是视觉记忆点，
+            不再压进 0.85fr 窄列；真实模式认领质量工作台证据链，副题不重复正文，
+            深链收进 panelHeader 右侧。 */}
+        {showStaticSamples(apiState) ? <ResponsibilityChain onOpen={onOpenChain} /> : (
+          <section className={styles.panel}>
+            <div className={styles.panelHeader}>
+              <div><h2>治理责任链 · v1</h2><p>影响范围 → 规则证据 → 复检批次 → 责任人通知 → 责任归属</p></div>
+              {chainTodo
+                ? <button className={styles.textButton} onClick={() => openIssue(chainTodo)}>打开 {chainTodo.id} 的责任链 <ChevronRight size={13} /></button>
+                : <button className={styles.textButton} onClick={() => onNavigate('quality')}>前往质量问题工作台 <ChevronRight size={13} /></button>}
+            </div>
+          </section>
+        )}
         <div className={styles.twoColumns}>
           <section className={styles.panel}>
             <div className={styles.panelHeader}><div><h2>高风险系统排行</h2><p>按逾期与高危问题综合排序</p></div><button className={styles.textButton} onClick={() => onNavigate('quality')}>查看全部 <ChevronRight size={13} /></button></div>
             <ol className={styles.ranking}>
-              {riskRankingFromIssues(issues).map(({ system, owner, value }, index) => <li key={system}><span className={styles.rank}>{String(index + 1).padStart(2, '0')}</span><div className={styles.rankBody}><strong>{system}</strong><span>{owner}</span></div><span className={styles.rankValue}>{value}</span></li>)}
+              {riskRankingFromIssues(issues).map(({ system, owner, value, overdue }, index) => <li key={system}><span className={styles.rank}>{String(index + 1).padStart(2, '0')}</span><div className={styles.rankBody}><strong>{system}</strong><span>{owner}</span></div><span className={`${styles.rankValue} ${overdue > 0 ? pageStyles.overdueValue : ''}`}>{value}</span></li>)}
               {apiState === 'live' && issues.length === 0 ? <li className={styles.emptyRow}>当前机构暂无高风险问题</li> : null}
             </ol>
           </section>
-          {showStaticSamples(apiState) ? <ResponsibilityChain onOpen={onOpenChain} /> : (
-            /* 责任链 v1（2026-10-05 复评裁决）：质量工作台的证据栏就是责任链实体——
-               影响范围→规则证据→复检批次→责任人通知→责任归属；不再渲染「待接入」告示，
-               直接给待办深链入口。 */
-            <section className={styles.panel}>
-              <div className={styles.panelHeader}><div><h2>治理责任链 · v1</h2><p>影响范围 → 规则证据 → 复检批次 → 责任人通知 → 责任归属</p></div></div>
-              <p className={styles.chainIntro}>责任链已随质量问题工作台就绪：打开任一待办问题，即可沿影响范围、规则证据、复检执行批次、责任人通知与责任归属逐环溯源。</p>
-              <div className={styles.chainActions}>
-                {chainTodo
-                  ? <button className={styles.textButton} onClick={() => openIssue(chainTodo)}>打开 {chainTodo.id} 的责任链 <ChevronRight size={13} /></button>
-                  : <button className={styles.textButton} onClick={() => onNavigate('quality')}>前往质量问题工作台 <ChevronRight size={13} /></button>}
-              </div>
-            </section>
-          )}
+          {/* 真实模式趋势是死面板（只渲染一句「不展示静态样例」），未接入时整块不渲染；
+              双栏在真实模式退化为排行 + 质量评分，演示模式为排行 + 趋势图。 */}
+          {showStaticSamples(apiState) ? <TrendChart /> : <QualityScorePanel onNotice={onNotice} />}
         </div>
-        <QualityScorePanel onNotice={onNotice} />
-        {showStaticSamples(apiState) ? <TrendChart /> : <section className={styles.panel}><div className={styles.panelHeader}><div><h2>治理趋势</h2><p>等待指标时序 API 接入</p></div></div><div className={styles.emptyRow}>{apiState === 'unavailable' ? '控制面不可用，未加载趋势数据' : '当前版本不展示静态趋势样例'}</div></section>}
+        {showStaticSamples(apiState) ? <QualityScorePanel onNotice={onNotice} /> : null}
       </div>
     </div>
   )
@@ -187,6 +191,7 @@ function riskRankingFromIssues(issues: GovernanceApiIssue[]) {
     .map(({ system, owner, count, overdue }) => ({
       system,
       owner,
+      overdue,
       value: overdue > 0 ? `${count} 项 · ${overdue} 逾期` : `${count} 项`,
     }))
 }

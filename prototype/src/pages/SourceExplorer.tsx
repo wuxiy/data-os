@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, Database, KeyRound, Play, Table2 } from 'lucide-react'
+import { ChevronDown, ChevronRight, Database, Play, Table2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import {
@@ -13,6 +13,7 @@ import {
   type SourceTableApiItem,
 } from '../data/controlPlane'
 import { useAction } from '../hooks/useAction'
+import local from './SourceExplorer.module.css'
 import styles from './Pages.module.css'
 
 interface Props {
@@ -61,13 +62,13 @@ function SourceConnectionForm({ source, onNotice, onSourceUpdated }: Props) {
   }
 
   return (
-    <form className={styles.drawerForm} onSubmit={(event) => void submit(event)}>
+    <form id="source-connection-form" className={styles.drawerForm} onSubmit={(event) => void submit(event)}>
       <div className={styles.drawerNotice}><Database size={16} /><span>浏览前先登记连接参数。仅保存库地址与账号引用；密码、Secret 请经凭据服务以 credentialRef 引用，本表单不落库明文凭据。</span></div>
       <div className={styles.formField}><label htmlFor="explorer-jdbc-url">连接地址（JDBC URL）</label><input id="explorer-jdbc-url" required value={form.jdbcUrl} onChange={(event) => setForm((current) => ({ ...current, jdbcUrl: event.target.value }))} placeholder="jdbc:postgresql://主机:5432/数据库" /></div>
       <div className={styles.formField}><label htmlFor="explorer-username">用户名（只读账号）</label><input id="explorer-username" value={form.username} onChange={(event) => setForm((current) => ({ ...current, username: event.target.value }))} placeholder="例如：dataos_ro" /></div>
       <div className={styles.formField}><label htmlFor="explorer-credential-ref">凭据引用</label><input id="explorer-credential-ref" value={form.credentialRef} onChange={(event) => setForm((current) => ({ ...current, credentialRef: event.target.value }))} placeholder="已登记凭据的引用名（密码经凭据服务托管）" /></div>
       {error ? <p className={styles.formError} role="alert">{error}</p> : null}
-      <button className={styles.primaryButton} type="submit" disabled={saving}><KeyRound size={14} />{saving ? '登记中…' : '保存连接配置'}</button>
+      {saving ? <p className={styles.drawerHint} role="status">登记中…</p> : null}
     </form>
   )
 }
@@ -195,7 +196,7 @@ function SourceExplorerWorkspace({ source, onNotice }: Omit<Props, 'onSourceUpda
       ) : null}
 
       <div className={styles.explorerQueryBlock}>
-        <div className={styles.explorerSectionTitle}><Play size={14} /><strong>SQL 工作台</strong><span>只读 · 单条查询 · 行数上限 200</span></div>
+        <div className={styles.explorerSectionTitle}><Play size={14} /><strong>SQL 工作台</strong><span>只读 · 单条查询 · 行数上限 200</span>{selectedTable ? <span className={local.sectionMeta}>当前库：{selectedTable.catalog}</span> : null}</div>
         <textarea id="explorer-sql" className={`${styles.codeInput} ${styles.codeInputLarge}`} value={sql}
           onChange={(event) => setSql(event.target.value)} spellCheck={false}
           placeholder="例如：SELECT * FROM 表名 LIMIT 100" aria-label="SQL 查询语句" />
@@ -203,7 +204,6 @@ function SourceExplorerWorkspace({ source, onNotice }: Omit<Props, 'onSourceUpda
           <button type="button" className={styles.primaryButton} disabled={querying || !sql.trim()} onClick={() => void executeQuery()}>
             <Play size={13} />{querying ? '查询中…' : '执行查询'}
           </button>
-          {selectedTable ? <span className={styles.drawerHint}>当前库：{selectedTable.catalog}</span> : null}
         </div>
         {queryError ? <p className={styles.formError} role="alert">{queryError}</p> : null}
         {result ? (

@@ -1,0 +1,5 @@
+/* QualityScorePanel 页面级组合类：.scoreHero 去 1px 边框——
+   全站面板靠明度差分层（DESIGN §6），surface-raised 底色已足够。 */
+.scoreHeroFlat {
+  border: 0;
+}

@@ -7,12 +7,12 @@
   min-height: 32px;
   align-items: center;
   gap: 8px;
-  margin: -10px 0 14px;
-  padding: 7px 10px;
+  margin: 0 0 16px;
+  padding: 8px 12px;
   color: var(--ink-muted);
   background: var(--amber-soft);
   border: 1px solid color-mix(in srgb, var(--amber) 18%, var(--line));
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   font-size: 12px;
 }
 
@@ -22,7 +22,7 @@
   align-items: flex-start;
   gap: 16px;
   margin: 48px auto;
-  padding: 28px 30px;
+  padding: 24px 32px;
   background: var(--surface);
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-panel);
@@ -31,12 +31,12 @@
 
 .boundaryIcon {
   display: grid;
-  width: 42px;
-  height: 42px;
+  width: 40px;
+  height: 40px;
   flex: 0 0 auto;
   color: var(--jade);
   background: var(--jade-soft);
-  border-radius: 10px;
+  border-radius: var(--radius-icon);
   place-items: center;
 }
 
@@ -45,10 +45,10 @@
 }
 
 .boundaryCopy h2 {
-  margin: 10px 0 8px;
+  margin: 8px 0;
   color: var(--ink);
   font-family: var(--font-title);
-  font-size: 21px;
+  font-size: 20px;
   font-weight: 600;
 }
 
@@ -63,12 +63,12 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 20px;
+  margin-top: 24px;
 }
 
 @media (max-width: 640px) {
   .liveBoundary {
-    margin: 28px 0;
-    padding: 22px;
+    margin: 24px 0;
+    padding: 24px;
   }
 }

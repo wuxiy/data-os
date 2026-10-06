@@ -1,0 +1,14 @@
+/* QualityIssuesPage 页面级组合类：右栏次要证据盒弱化（去 surface-raised 灰底，
+   只留 1px 分隔线分区），主证据盒「复检执行批次」保留 .evidenceBox 灰底突出。 */
+.flatEvidence {
+  margin: 0;
+  padding: 14px 16px;
+  background: transparent;
+  border-radius: 0;
+  border-top: 1px solid var(--line);
+}
+
+/* 首个次要盒紧跟 .sectionTitle（自带底部分隔线），不再叠线。 */
+.flatEvidenceFirst {
+  border-top: 0;
+}

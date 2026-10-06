@@ -9,7 +9,7 @@ import { frontendDemoMode } from '../data/runtimeMode'
 import { ManagementDashboardLive } from './ManagementDashboardLive'
 import styles from './Pages.module.css'
 
-export function ManagementDashboardPage({ onOpenChain, onNotice, onNavigate }: { onOpenChain: () => void; onNotice: (message: string) => void; onNavigate: (route: 'ingestion' | 'governance' | 'quality' | 'mpi' | 'aiData' | 'dataServices') => void }) {
+export function ManagementDashboardPage({ onOpenChain, onNotice, onNavigate }: { onOpenChain: () => void; onNotice: (message: string) => void; onNavigate: (route: 'ingestion' | 'governance' | 'quality' | 'mpi' | 'aiData' | 'dataServices' | 'operationsCenter') => void }) {
   // 真实构建走 G24 运营投影；演示构建保留静态样例。
   if (!frontendDemoMode) {
     return <ManagementDashboardLive onNotice={onNotice} onNavigate={onNavigate} />
@@ -20,10 +20,12 @@ export function ManagementDashboardPage({ onOpenChain, onNotice, onNavigate }: {
       <div className={styles.content}>
         <DemoDataBoundary moduleName="医院数据运营总览" onNavigate={onNavigate}>
         <MetricStrip metrics={managementMetrics} onSelect={onOpenChain} />
+        {/* 只留需要动作的结论与入口（2026-10-06 对齐收敛）：异常计数在指标带已有，
+            此处不复述数字。 */}
         <section className={styles.attention}>
           <div className={styles.attentionText}>
             <AlertTriangle size={21} />
-            <div><h2>今日 3 类事项需要关注</h2><p>核心数据可用率低于目标，4 项治理问题已逾期，36 条主索引候选待人工审核。</p></div>
+            <div><h2>今日 3 类事项需要关注</h2><p>核心数据可用率未达标、治理问题逾期、主索引候选积压，均需今日认领处理——沿责任链定位责任部门。</p></div>
           </div>
           <Button variant="secondary" onClick={onOpenChain}>查看治理责任链 <ChevronRight size={15} /></Button>
         </section>
@@ -35,7 +37,9 @@ export function ManagementDashboardPage({ onOpenChain, onNotice, onNavigate }: {
           <div className={styles.flowHeader}><h2>从接入到使用</h2><span>{demoFlowSnapshotLabel}</span></div>
           <div className={styles.flow}>
             {[
-              ['接入', '18 个系统 · 17 正常'], ['标准化', '1,286 项映射 · 38 待确认'], ['质量治理', '98.6% 通过 · 23 待闭环'], ['主索引', '99.2% 准确 · 36 待审核'], ['数据服务', '46 项服务 · 12.8 万次调用'],
+              /* 只留阶段吞吐（2026-10-06 对齐收敛）：待确认/待闭环/待审核等异常计数
+                 由指标带与关注带表达，此处不复述。 */
+              ['接入', '18 个系统 · 17 正常'], ['标准化', '1,286 项映射'], ['质量治理', '98.6% 规则通过'], ['主索引', '99.2% 准确'], ['数据服务', '46 项服务 · 12.8 万次调用'],
             ].map(([name, value]) => <div className={styles.flowStep} key={name}><strong>{name}</strong><span>{value}</span></div>)}
           </div>
         </section>
@@ -61,7 +65,7 @@ export function ManagementDashboardPage({ onOpenChain, onNotice, onNavigate }: {
 function RiskRanking({ onSelect }: { onSelect: () => void }) {
   return (
     <section className={styles.panel}>
-      <div className={styles.panelHeader}><div><h2>高风险系统排行</h2><p>按逾期问题数排序</p></div><button className={styles.textButton} onClick={onSelect}>查看责任 <ChevronRight size={13} /></button></div>
+      <div className={styles.panelHeader}><div><h2>高风险系统排行</h2><p>按逾期与高危问题综合排序</p></div><button className={styles.textButton} onClick={onSelect}>查看全部 <ChevronRight size={13} /></button></div>
       <ol className={styles.ranking}>
         {riskRanking.map(({ system, owner, value }, index) => <li key={system}><span className={styles.rank}>{String(index + 1).padStart(2, '0')}</span><div className={styles.rankBody}><strong>{system}</strong><span>{owner}</span></div><span className={styles.rankValue}>{value}</span></li>)}
       </ol>

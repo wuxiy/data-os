@@ -6,7 +6,7 @@ import { DataStandardsLive } from './DataStandardsLive'
 import { GovernanceTabs } from '../components/ui/GovernanceTabs'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Button, StatusTag } from '../components/ui/Primitives'
-import { standards } from '../data/mock'
+import { standards, standardVersions } from '../data/mock'
 import type { RouteKey, StandardItem } from '../types'
 import styles from './Pages.module.css'
 
@@ -35,12 +35,17 @@ export function DataStandardsPage({ onNavigate, onUnavailable, onNotice }: Props
 
   return (
     <div className={styles.page}>
-      <PageHeader title="数据标准" compact />
+      <PageHeader
+        title="数据标准"
+        eyebrow="数据治理 · 标准中心"
+        subtitle="院级数据标准的业务定义、值域与版本轨迹，供资产绑定和标准映射引用"
+        compact
+      />
       <GovernanceTabs route="standards" onNavigate={onNavigate} onUnavailable={onUnavailable} />
       <DemoDataBoundary moduleName="数据标准" onNavigate={onNavigate}>
         <div className={styles.workspace}>
         <aside className={styles.workspaceRail}>
-          <div className={styles.sectionTitle}><h2>标准分类</h2><span>5 个主题</span></div>
+          <div className={styles.sectionTitle}><h2>标准分类</h2><span>{categories.length - 1} 个主题</span></div>
           <div className={styles.search}><Search size={15} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索标准名称或编码" aria-label="搜索数据标准" /></div>
           <ul className={styles.tree}>
             {categories.map((item) => <li key={item}><button className={category === item ? styles.selected : ''} onClick={() => setCategory(item)}><span>{item}</span><ChevronRight size={14} /></button></li>)}
@@ -56,7 +61,7 @@ export function DataStandardsPage({ onNavigate, onUnavailable, onNotice }: Props
               <thead><tr><th>标准编码 / 名称</th><th>主题域</th><th>责任部门</th><th>状态</th><th>更新时间</th></tr></thead>
               <tbody>
                 {visible.map((item) => <StandardRow key={item.id} item={item} active={selected.id === item.id} onSelect={() => setSelectedId(item.id)} />)}
-                {visible.length === 0 ? <tr><td colSpan={5}>未找到匹配的数据标准，请调整搜索条件。</td></tr> : null}
+                {visible.length === 0 ? <tr><td colSpan={5} className={styles.emptyState}>未找到匹配的数据标准，请调整搜索条件。</td></tr> : null}
               </tbody>
             </table>
           </div>
@@ -73,9 +78,9 @@ export function DataStandardsPage({ onNavigate, onUnavailable, onNotice }: Props
               <div><dt>责任部门</dt><dd>{selected.owner}</dd></div>
             </dl>
             <ol className={styles.versionTrail}>
-              <li><strong>v2.1 · 当前版本</strong>2026-07-29 由标准委员会发布</li>
-              <li><strong>v2.0 · 修订定义</strong>2026-05-18 补充区域平台映射要求</li>
-              <li><strong>v1.0 · 初始发布</strong>2026-02-06</li>
+              {(standardVersions[selected.id] ?? []).map((entry) => (
+                <li key={entry.version}><strong>{entry.version} · {entry.label}</strong>{entry.detail}</li>
+              ))}
             </ol>
           </div>
         </aside>

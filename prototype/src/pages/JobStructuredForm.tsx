@@ -1,5 +1,6 @@
 import { CircleAlert, FlaskConical, Play, Table2 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import type { FormEvent } from 'react'
 import {
   fetchSourceCatalogs,
   fetchSourceColumns,
@@ -10,6 +11,7 @@ import {
   type StructuredTaskSpec,
 } from '../data/controlPlane'
 import { formatDateTime } from '../data/domain'
+import { Button } from '../components/ui/Primitives'
 import styles from './Pages.module.css'
 
 interface Props {
@@ -19,6 +21,10 @@ interface Props {
   lastSuccessWatermark: string | null
   saving: boolean
   error: string | null
+  /** 表单 id：提交按钮由宿主抽屉 footer 以 form 属性挂接（与 JSON / 平台调度模式位置统一）。 */
+  formId: string
+  /** 提交按钮文案与可用性上报，宿主 footer 据此渲染（值变化时才回调）。 */
+  onSubmitState: (meta: { label: string; disabled: boolean }) => void
   onSubmit: (spec: StructuredTaskSpec) => void
 }
 
@@ -27,7 +33,7 @@ interface Props {
  * 门户只收集意图，编译与目录实校验在控制面完成（保存报错如实呈现）。
  * 表形态支持多选表批量建任务（onSubmit 的 spec.tables 由页面拆成多个作业）。
  */
-export function JobStructuredForm({ source, initial, lastSuccessWatermark, saving, error, onSubmit }: Props) {
+export function JobStructuredForm({ source, initial, lastSuccessWatermark, saving, error, formId, onSubmitState, onSubmit }: Props) {
   const [form, setForm] = useState<'TABLE' | 'SQL'>(initial?.form ?? 'TABLE')
   const [catalogs, setCatalogs] = useState<string[] | null>(null)
   const [catalog, setCatalog] = useState(initial?.catalog ?? '')
@@ -173,8 +179,26 @@ export function JobStructuredForm({ source, initial, lastSuccessWatermark, savin
       ? Boolean(customSql.trim()) && Boolean(targetTable.trim())
       : selectedTables.length > 0 && (mode === 'FULL' || Boolean(orderKey)))
 
+  // 提交按钮挂在宿主抽屉 footer：文案（批量建任务计数）与可用性由此上报。
+  const submitLabel = form === 'TABLE' && !editLocked && selectedTables.length > 1
+    ? `创建 ${selectedTables.length} 个任务`
+    : '保存任务配置'
+  const lastMetaKey = useRef('')
+  useEffect(() => {
+    const key = `${submitLabel}@${canSubmit}`
+    if (lastMetaKey.current === key) return
+    lastMetaKey.current = key
+    onSubmitState({ label: submitLabel, disabled: !canSubmit })
+  })
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!canSubmit) return
+    submit()
+  }
+
   return (
-    <div className={styles.structuredForm}>
+    <form id={formId} className={styles.structuredForm} onSubmit={handleSubmit}>
       {lastSuccessWatermark ? (
         <div className={styles.drawerNotice}><CircleAlert size={16} /><span>上次成功水位：{formatDateTime(lastSuccessWatermark)}。增量任务从该时间点继续回放；重新保存配置不会重置进度。</span></div>
       ) : null}
@@ -258,9 +282,9 @@ export function JobStructuredForm({ source, initial, lastSuccessWatermark, savin
           <div className={styles.formField}>
             <div className={styles.structuredSqlHeader}>
               <label htmlFor="structured-sql">查询语句（只读 · 单条 SELECT/WITH）</label>
-              <button type="button" className={styles.tableButton} disabled={!customSql.trim() || sqlTest.state === 'running'} onClick={() => void testSql()}>
+              <Button size="sm" type="button" disabled={!customSql.trim() || sqlTest.state === 'running'} onClick={() => void testSql()}>
                 <FlaskConical size={13} />{sqlTest.state === 'running' ? '测试中…' : '测试 SQL'}
-              </button>
+              </Button>
             </div>
             <textarea id="structured-sql" className={`${styles.codeInput} ${styles.codeInputLarge}`}
               value={customSql} onChange={(event) => setCustomSql(event.target.value)} spellCheck={false}
@@ -299,9 +323,6 @@ export function JobStructuredForm({ source, initial, lastSuccessWatermark, savin
         </div>
       </div>
       {error ? <p className={styles.formError} role="alert">{error}</p> : null}
-      <button type="button" className={styles.primaryButton} disabled={!canSubmit} onClick={submit}>
-        <Play size={14} />{saving ? '保存中…' : form === 'TABLE' && !editLocked && selectedTables.length > 1 ? `创建 ${selectedTables.length} 个任务` : '保存任务配置'}
-      </button>
-    </div>
+    </form>
   )
 }

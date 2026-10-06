@@ -1,0 +1,10 @@
+/* MpiReviewLive 页面级组合类：黄金人抽屉内的分区去卡片阴影（抽屉内只用两级
+   背景，DESIGN §4/§6），相邻分区改用 1px 分隔线。 */
+.drawerPanel {
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.drawerPanel + .drawerPanel {
+  border-top: 1px solid var(--line);
+}

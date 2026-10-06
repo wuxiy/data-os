@@ -18,6 +18,7 @@ import { PageHeader } from '../components/ui/PageHeader'
 import { formatDateTime } from '../data/domain'
 import { EdgeNodesPanel } from './EdgeNodesPanel'
 import styles from './PlatformOperationsPage.module.css'
+import flowStyles from './PlatformOperationsFlow.module.css'
 
 const iconByService = {
   seatunnel: Activity,
@@ -73,9 +74,8 @@ export function PlatformOperationsPage({ canAccess }: { canAccess: boolean }) {
         eyebrow="技术域 · 平台组件"
         subtitle="把底层组件留在技术域，把业务结果留在业务域。这里集中查看执行器运行态，并进入受控的组件管理界面。"
         compact
-        asOf={payload?.checkedAt ?? null}
       />
-      <div className={styles.pageBody}>
+      <div className={`${styles.pageBody} ${flowStyles.pageFlow}`}>
         <section className={styles.probeBar} aria-label="平台探针摘要">
           <div className={styles.probeStatus}>
             <span className={styles.probeDot} data-ready={payload?.operational.state === 'READY'} />
@@ -90,7 +90,6 @@ export function PlatformOperationsPage({ canAccess }: { canAccess: boolean }) {
             <div><dt>最后检查</dt><dd>{checkedAt}</dd></div>
           </dl>
           <div className={styles.probeActions}>
-            <span className={styles.probeBoundary} title="平台运维入口仅向技术角色开放"><ShieldCheck size={13} aria-hidden="true" />仅技术角色可见</span>
             <Button variant="secondary" onClick={() => void load()}><RefreshCw size={13} />刷新</Button>
           </div>
         </section>
@@ -125,7 +124,7 @@ export function PlatformOperationsPage({ canAccess }: { canAccess: boolean }) {
             <ul>
               <li>SeaTunnel 只在这里呈现执行器状态；采集任务仍从“数据接入”发起。</li>
               <li>DolphinScheduler 与 RustFS 在新标签页打开，沿用院内技术域网络策略。</li>
-              <li>门户不保存、不回显 Token、Secret、患者数据或内部连接串。</li>
+              <li>此页只做只读汇总：配置变更与故障处置在各组件的技术入口内完成。</li>
             </ul>
           </div>
         </section>
@@ -139,12 +138,14 @@ function ServiceCard({ service, pending = false }: { service: PlatformServiceApi
   const isUp = service.status === 'UP'
   const isConfigured = service.status !== 'NOT_CONFIGURED'
   const tone = isUp ? 'healthy' : isConfigured ? 'warning' : 'neutral'
+  // 状态由图标色调承载：健康=玉绿（基类默认）、异常（已配置但未通过）=琥珀、未配置=中性。
+  const iconTone = isUp ? '' : isConfigured ? styles.serviceIconWarn : styles.serviceIconOff
   // 探针未返回前是「检查中」，不得把加载态说成「未配置」。
   const statusLabel = pending ? '检查中' : isUp ? '运行正常' : isConfigured ? '检查失败' : '未配置'
   return (
     <article className={styles.serviceCard}>
       <div className={styles.serviceTopline}>
-        <div className={styles.serviceIdentity}><span className={styles.serviceIcon}><Icon size={19} /></span><div><h3>{service.name}</h3><span>{service.role}</span></div></div>
+        <div className={styles.serviceIdentity}><span className={`${styles.serviceIcon} ${iconTone}`}><Icon size={19} /></span><div><h3>{service.name}</h3><span>{service.role}</span></div></div>
         <StatusTag tone={tone}>{statusLabel}</StatusTag>
       </div>
       <p className={styles.serviceDescription}>{service.description}</p>

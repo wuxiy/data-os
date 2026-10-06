@@ -48,6 +48,25 @@ function severityTone(severity: string) {
   return 'neutral' as const
 }
 
+/** 严重度中文口径：CRITICAL 即「阻断」（SLA 逾期/不可交付语义）。 */
+const SEVERITY_LABEL: Record<string, string> = {
+  CRITICAL: '阻断',
+  HIGH: '高',
+  MEDIUM: '中',
+  LOW: '低',
+}
+
+/** 来源域中文名（对齐控制面 OperationsProjection 的 sourceType）；uuid 片段不展示。 */
+const SOURCE_TYPE_LABEL: Record<string, string> = {
+  run: '数据接入',
+  issue: '治理问题',
+  notification: '通知投递',
+  delivery: '合同投递',
+  dataService: '数据服务',
+  aiBuildJob: 'AI 构建',
+  mpiMetrics: '患者主索引',
+}
+
 export function OperationsCenterPage(
   { onNotice, onNavigate }: { onNotice: (message: string) => void; onNavigate: (route: 'ingestion' | 'governance' | 'mpi' | 'aiData' | 'dataServices') => void },
 ) {
@@ -156,9 +175,9 @@ function OperationsCenterLive(
                   {paged.paged.map((item) => (
                     <tr key={`${item.sourceType}-${item.sourceId}`}>
                       <td>{TYPE_LABEL[item.type] ?? item.type}</td>
-                      <td><StatusTag tone={severityTone(item.severity)}>{item.severity}</StatusTag></td>
+                      <td><StatusTag tone={severityTone(item.severity)}>{SEVERITY_LABEL[item.severity] ?? item.severity}</StatusTag></td>
                       <td>{item.title}</td>
-                      <td className={styles.inlineCode}>{item.sourceType}:{item.sourceId.slice(0, 12)}</td>
+                      <td>{SOURCE_TYPE_LABEL[item.sourceType] ?? item.sourceType}</td>
                       <td><small>{item.asOf}</small></td>
                       <td>
                         <Button variant="quiet" onClick={() => {

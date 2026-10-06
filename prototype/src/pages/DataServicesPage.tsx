@@ -81,7 +81,7 @@ export function DataServicesPage({ onNotice }: { onNotice: (message: string) => 
   }
   return (
     <div className={styles.integrationPage}>
-      <PageHeader title="数据服务" eyebrow="Data Services" subtitle="ToB 数据 API 的定义、Key 与调用审计工作台" compact />
+      <PageHeader title="数据服务" eyebrow="数据服务 · 接口与 Key 治理" subtitle="ToB 数据 API 的定义、Key 与调用审计工作台" compact />
       <section className={styles.technicalNotice} role="status">
         <StatusTag tone="neutral">演示边界</StatusTag>
         <span>数据服务工作台仅接入真实控制面 API（G13 起交付）；演示构建未收录静态样例。请以真实模式访问。</span>
@@ -189,7 +189,7 @@ function DataServicesLive({ onNotice }: { onNotice: (message: string) => void })
   if (listState !== 'live') {
     return (
       <div className={styles.integrationPage}>
-        <PageHeader title="数据服务" eyebrow="Data Services" subtitle="ToB 数据 API 的定义、Key 与调用审计工作台" compact />
+        <PageHeader title="数据服务" eyebrow="数据服务 · 接口与 Key 治理" subtitle="ToB 数据 API 的定义、Key 与调用审计工作台" compact />
         <section className={styles.technicalNotice} role="status">
           <StatusTag tone="warning">{listState === 'loading' ? '读取中' : '待接入'}</StatusTag>
           <span>{listState === 'loading' ? '正在从控制面读取数据服务…' : '控制面暂不可用：数据服务域需要控制面已配置并可访问。'}</span>
@@ -203,7 +203,7 @@ function DataServicesLive({ onNotice }: { onNotice: (message: string) => void })
 
   return (
     <div className={styles.integrationPage}>
-      <PageHeader title="数据服务" eyebrow="Data Services" subtitle="ToB 数据 API 的定义、Key 与调用审计工作台" compact />
+      <PageHeader title="数据服务" eyebrow="数据服务 · 接口与 Key 治理" subtitle="ToB 数据 API 的定义、Key 与调用审计工作台" compact />
       {overview ? (
         <div className={styles.lineageImpact} role="status" aria-label="数据服务概览">
           <div className={styles.impactItem}><span>数据服务</span><strong>{overview.total}</strong></div>
@@ -400,11 +400,8 @@ function DataServiceDetailPanel({ service, onNotice, onChanged, onPublish, onDep
       </div>
 
       <div className={styles.assetBody}>
+        {/* 事实卡只保留 assetIdentity 未覆盖的执行面字段（代码/版本/状态/负责人见标题区） */}
         <div className={styles.serviceFacts}>
-          <div><span>代码</span><code>{service.code}</code></div>
-          <div><span>版本</span><code>{service.versionSn}</code></div>
-          <div><span>状态</span><code>{dataServiceStatusLabel[service.status]}</code></div>
-          <div><span>负责人</span><code>{service.owner}</code></div>
           <div><span>行数上限</span><code>{service.maxRows}</code></div>
           <div><span>超时</span><code>{service.timeoutSeconds}s</code></div>
         </div>
@@ -447,10 +444,14 @@ function DataServiceDetailPanel({ service, onNotice, onChanged, onPublish, onDep
         {service.status === 'PUBLISHED' ? (
           <>
             <h4 className={styles.railLabel}>调用示例（ToB 执行面）</h4>
-            <pre className={styles.sqlInner}>{`curl -X POST ${location.origin}/dataapi/v1/services/${service.code}/query \\
+            <div className={`${styles.sqlPanel} ${styles.sqlPanelVisible}`}>
+              <div className={styles.sqlInner}>
+                <pre>{`curl -X POST ${location.origin}/dataapi/v1/services/${service.code}/query \\
   -H "X-API-Key: <调用方 Key>" \\
   -H "Content-Type: application/json" \\
   -d '{"parameters": {${parameters.slice(0, 2).map((p) => `"${p.name}": "<${p.type}>"`).join(', ')}}}'`}</pre>
+              </div>
+            </div>
           </>
         ) : null}
 
@@ -483,7 +484,7 @@ function DataServiceDetailPanel({ service, onNotice, onChanged, onPublish, onDep
                   <td><code>{key.allowedHospitals}</code></td>
                   <td>{key.status === 'ACTIVE' ? '有效' : '已吊销'}</td>
                   <td>{key.lastUsedAt || '—'}</td>
-                  <td>{key.status === 'ACTIVE' ? <button className={styles.schemaTab} disabled={pendingKey === `revoke-${key.id}`} onClick={() => revoke(key.id)}>吊销</button> : null}</td>
+                  <td>{key.status === 'ACTIVE' ? <span className={formStyles.tableActions}><button className={formStyles.tableButton} disabled={pendingKey === `revoke-${key.id}`} onClick={() => revoke(key.id)}>吊销</button></span> : null}</td>
                 </tr>
               ))}
               {(detail?.keys ?? []).length === 0 ? <tr><td colSpan={7}>尚未发放 Key</td></tr> : null}

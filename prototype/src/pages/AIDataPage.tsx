@@ -45,7 +45,7 @@ export function AIDataPage({ onNotice }: { onNotice: (message: string) => void }
   }
   return (
     <div className={styles.integrationPage}>
-      <PageHeader title="AI Data" eyebrow="AI Ready Data" subtitle="AI 数据产品的清单、版本与生命周期工作台" compact />
+      <PageHeader title="AI Data" eyebrow="AI 数据产品" subtitle="AI 数据产品的清单、版本与生命周期工作台" compact />
       <section className={styles.technicalNotice} role="status">
         <StatusTag tone="neutral">演示边界</StatusTag>
         <span>AI Data 工作台仅接入真实控制面 API（G8 起交付）；演示构建未收录静态样例。请以真实模式访问。</span>
@@ -207,7 +207,7 @@ function AIDataLive({ onNotice }: { onNotice: (message: string) => void }) {
   if (listState !== 'live') {
     return (
       <div className={styles.integrationPage}>
-        <PageHeader title="AI Data" eyebrow="AI Ready Data" subtitle="AI 数据产品的清单、版本与生命周期工作台" compact />
+        <PageHeader title="AI Data" eyebrow="AI 数据产品" subtitle="AI 数据产品的清单、版本与生命周期工作台" compact />
         <section className={styles.technicalNotice} role="status">
           <StatusTag tone="warning">{listState === 'loading' ? '读取中' : '待接入'}</StatusTag>
           <span>{listState === 'loading' ? '正在从控制面读取 AI Data 产品…' : '控制面暂不可用：AI Data 域需要控制面已配置并可访问。'}</span>
@@ -220,7 +220,7 @@ function AIDataLive({ onNotice }: { onNotice: (message: string) => void }) {
 
   return (
     <div className={styles.integrationPage}>
-      <PageHeader title="AI Data" eyebrow="AI Ready Data" subtitle="AI 数据产品的清单、版本与生命周期工作台" compact />
+      <PageHeader title="AI Data" eyebrow="AI 数据产品" subtitle="AI 数据产品的清单、版本与生命周期工作台" compact />
       {overview ? (
         <div className={styles.lineageImpact} role="status" aria-label="AI Ready 概览">
           <div className={styles.impactItem}><span>AI Data 产品</span><strong>{overview.products}</strong></div>
@@ -233,7 +233,7 @@ function AIDataLive({ onNotice }: { onNotice: (message: string) => void }) {
       <div className={`${styles.integrationWorkspace} ${styles.integrationWorkspaceDuo}`}>
         <aside className={styles.catalogRail} aria-label="AI Data 产品目录">
           <div className={styles.railHeader}>
-            <h2>AI Data Products</h2>
+            <h2>AI 数据产品</h2>
             <span className={styles.railCount}>{products.length} 项</span>
           </div>
           <div className={styles.railAction}>
@@ -289,7 +289,7 @@ function AIDataLive({ onNotice }: { onNotice: (message: string) => void }) {
 
       {createOpen ? <Drawer
         titleId="ai-product-create-title"
-        eyebrow="AI Data Product 登记"
+        eyebrow="AI 数据产品登记"
         title="新建 AI Data Product"
         closeLabel="关闭新建 AI Data Product"
         onClose={() => setCreateOpen(false)}

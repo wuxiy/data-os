@@ -3,18 +3,39 @@
 }
 
 .content {
+  display: grid;
   max-width: 1480px;
   margin: 0 auto;
-  padding: 20px 24px 32px;
+  padding: 24px 24px 32px;
+  gap: 24px;
+  align-content: start;
+}
+
+/* 页宽约束带：1480px 居中（DESIGN §5）。apiStatus / connectionNotice / metricStrip
+   与新增 .pageBand 共用同一组容器规则，后续页面波次可直接套用 .pageBand。
+   metricStrip 不加 24px 内边距：1px 发丝网格底色会露成边框，保持满 bleed 与下方
+   workspace 对齐。 */
+.pageBand,
+.apiStatus,
+.connectionNotice,
+.metricStrip {
+  max-width: 1480px;
+  margin-right: auto;
+  margin-left: auto;
+}
+
+.pageBand,
+.apiStatus,
+.connectionNotice {
+  padding-right: 24px;
+  padding-left: 24px;
 }
 
 .apiStatus {
   display: flex;
   align-items: center;
-  gap: 7px;
-  max-width: 1480px;
-  margin: 10px auto 0;
-  padding: 0 24px;
+  gap: 8px;
+  margin-top: 12px;
   color: var(--muted);
   font-size: 12px;
 }
@@ -34,15 +55,13 @@
 
 .connectionNotice {
   display: flex;
-  max-width: 1480px;
-  margin: 14px auto 0;
-  padding: 12px 18px;
+  margin-top: 16px;
+  padding: 12px 16px;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   color: var(--red);
   background: var(--red-soft);
   border: 1px solid color-mix(in srgb, var(--red) 26%, var(--line));
-  border-left: 3px solid var(--red);
   border-radius: var(--radius-panel);
 }
 
@@ -63,7 +82,7 @@
 }
 
 .emptyRow {
-  padding: 18px 12px !important;
+  padding: 16px 12px !important;
   color: var(--muted);
   text-align: center;
   font-size: 12px;
@@ -71,7 +90,7 @@
 
 /* 责任链 v1 说明行（驾驶舱，2026-10-05 复评）：左对齐正文而非居中空态。 */
 .chainIntro {
-  margin: 0 17px;
+  margin: 0 16px;
   color: var(--muted);
   font-size: 12px;
   line-height: 1.7;
@@ -79,14 +98,14 @@
 
 .chainActions {
   display: inline-flex;
-  margin: 10px 17px 17px;
+  margin: 12px 16px 16px;
 }
 
 .dashboardScope {
   display: inline-flex;
-  min-height: 30px;
+  min-height: 32px;
   align-items: center;
-  padding: 0 9px;
+  padding: 0 12px;
   color: var(--muted);
   background: var(--surface-sunken);
   border-radius: 5px;
@@ -98,8 +117,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
-  padding: 15px 18px;
+  gap: 24px;
+  padding: 16px;
   background: var(--amber-soft);
   border: 1px solid color-mix(in srgb, var(--amber) 45%, transparent);
   border-radius: var(--radius-panel);
@@ -119,12 +138,12 @@
 .formField input,
 .formField select,
 .formField textarea {
-  min-height: 34px;
-  padding: 0 9px;
+  min-height: 40px;
+  padding: 0 12px;
   color: var(--ink);
   background: var(--surface-raised);
   border: 1px solid var(--line-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   font: inherit;
   font-size: 12px;
 }
@@ -141,21 +160,21 @@
 .panelHeaderActions {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 8px;
 }
 
 .primaryButton,
 .secondaryButton {
   display: inline-flex;
-  min-height: 31px;
+  min-height: 40px;
   align-items: center;
   justify-content: center;
-  gap: 5px;
-  padding: 0 11px;
-  border-radius: 5px;
+  gap: 4px;
+  padding: 0 16px;
+  border-radius: var(--radius-control);
   cursor: pointer;
   font: inherit;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   transition: background-color 120ms var(--ease-out), border-color 120ms var(--ease-out), opacity 120ms var(--ease-out);
 }
@@ -200,11 +219,11 @@
   width: 100%;
   min-height: 168px;
   box-sizing: border-box;
-  padding: 10px 11px;
+  padding: 8px 12px;
   color: var(--ink);
   background: var(--surface-raised);
   border: 1px solid var(--line-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   outline: none;
   resize: vertical;
   font-family: var(--font-number);
@@ -227,7 +246,7 @@
 /* 抽屉内大配置框：按内容自适应增高（field-sizing），超限后在框内滚动，
    不支持 field-sizing 的浏览器退回固定最小高，无需手动拉开。 */
 .codeInputLarge {
-  min-height: 390px;
+  min-height: 384px;
   max-height: 56vh;
   field-sizing: content;
 }
@@ -277,7 +296,7 @@
 }
 
 .configPillMissing {
-  color: var(--amber-dark, #a15c16);
+  color: var(--amber-dark);
   background: var(--amber-soft);
 }
 
@@ -295,7 +314,7 @@
 }
 
 .lifecycleWarning {
-  color: var(--amber-dark, #a15c16);
+  color: var(--amber-dark);
   background: var(--amber-soft);
 }
 
@@ -341,15 +360,16 @@
   min-height: 76px;
   align-items: center;
   justify-content: space-between;
-  gap: 14px;
-  padding: 0 20px;
+  gap: 16px;
+  padding: 0 24px;
   border-bottom: 1px solid var(--line);
 }
 
 .drawerHeader h2 {
-  margin: 5px 0 0;
+  margin: 4px 0 0;
   overflow: hidden;
-  font-size: 17px;
+  font-size: 16px;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -383,20 +403,20 @@
 .drawerBody {
   flex: 1;
   min-height: 0;
-  padding: 18px 20px;
+  padding: 16px 24px;
   overflow-y: auto;
 }
 
 .drawerNotice {
   display: flex;
   align-items: flex-start;
-  gap: 9px;
-  margin-bottom: 18px;
-  padding: 10px 11px;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 8px 12px;
   color: var(--jade-dark);
   background: var(--jade-soft);
   border: 1px solid color-mix(in srgb, var(--jade) 40%, transparent);
-  border-radius: 5px;
+  border-radius: var(--radius-control);
   font-size: 12px;
   line-height: 1.55;
 }
@@ -431,14 +451,18 @@
   gap: 12px;
 }
 
-.drawerForm .drawerNotice {
-  margin-bottom: 2px;
-}
-
 .drawerFormGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
+}
+
+/* 工具条行：替代 drawerFields 被当工具条的误用（后续页面波次迁移至此）。 */
+.toolbarRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .drawerHint {
@@ -448,8 +472,8 @@
 }
 
 .formError {
-  margin: 10px 0 0;
-  padding: 9px 10px;
+  margin: 12px 0 0;
+  padding: 8px 12px;
   color: var(--red);
   background: var(--red-soft);
   border-radius: 5px;
@@ -466,15 +490,15 @@
 }
 
 .checkResult {
-  margin-top: 18px;
+  margin-top: 16px;
   padding: 12px;
   background: var(--surface-raised);
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--radius-control);
 }
 
 .checkResult p {
-  margin: 9px 0 4px;
+  margin: 8px 0 4px;
   font-size: 12px;
 }
 
@@ -489,7 +513,7 @@
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
-  padding: 0 20px;
+  padding: 0 24px;
   border-top: 1px solid var(--line);
 }
 
@@ -497,10 +521,10 @@
   display: grid;
   grid-template-columns: 90px 1fr;
   gap: 8px 12px;
-  margin-bottom: 19px;
+  margin-bottom: 16px;
   padding: 12px;
   background: var(--surface-raised);
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   font-size: 12px;
 }
 
@@ -518,7 +542,7 @@
 }
 
 .textWarning {
-  color: var(--amber-dark, #a15c16);
+  color: var(--amber-dark);
 }
 
 .runTimeline {
@@ -530,14 +554,14 @@
 .runTimeline > li {
   position: relative;
   display: grid;
-  grid-template-columns: 15px 1fr;
-  gap: 11px;
-  padding-bottom: 20px;
+  grid-template-columns: 16px 1fr;
+  gap: 12px;
+  padding-bottom: 24px;
 }
 
 .runTimeline > li:not(:last-child)::after {
   position: absolute;
-  top: 15px;
+  top: 16px;
   bottom: 3px;
   left: 6px;
   width: 1px;
@@ -573,25 +597,41 @@
   min-width: 0;
 }
 
+/* 列表态变体（交付中心/标准/运维等页的 ul 时间线）：去默认缩进，条目间 1px 分隔。
+   div 用法（runTimeline 网格单元格）不受影响。 */
+ul.timelineBody {
+  margin: 0;
+  padding: 8px 16px;
+  list-style: none;
+}
+
+ul.timelineBody > li + li {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
 .timelineTitle {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 10px;
+  gap: 12px;
 }
 
 .timelineTitle strong {
   font-size: 12px;
 }
 
-.timelineTitle time {
+/* span 与 time 同式（苔灰等宽）：交付中心事件留痕等列表用 span 记时间。 */
+.timelineTitle time,
+.timelineTitle span {
   color: var(--muted);
   font-family: var(--font-number);
   font-size: 12px;
 }
 
 .timelineBody > p {
-  margin: 5px 0 8px;
+  margin: 4px 0 8px;
   color: var(--muted);
   font-size: 12px;
   line-height: 1.5;
@@ -602,7 +642,7 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
   margin: 0;
-  padding: 8px 9px;
+  padding: 8px;
   background: var(--surface-raised);
   border-radius: 5px;
 }
@@ -649,7 +689,7 @@
 }
 
 .attention h2 {
-  margin: 0 0 3px;
+  margin: 0 0 4px;
   font-size: 14px;
 }
 
@@ -659,15 +699,24 @@
   font-size: 12px;
 }
 
+/* 中性提示带（与 .attention 组合使用）：琥珀只留风险语义，纯信息用 paper 底。 */
+.attentionNeutral {
+  background: var(--paper);
+  border-color: var(--line);
+}
+
+.attentionNeutral .attentionText > svg {
+  color: var(--muted);
+}
+
 .spaced {
-  margin-top: 18px;
+  margin-top: 16px;
 }
 
 .twoColumns {
   display: grid;
   grid-template-columns: minmax(0, 1.5fr) minmax(300px, 0.85fr);
   gap: 16px;
-  margin-top: 16px;
 }
 
 .summaryGrid {
@@ -681,11 +730,11 @@
 .summaryCard {
   display: grid;
   min-height: 88px;
-  grid-template-columns: 25px 1fr;
+  grid-template-columns: 24px 1fr;
   grid-template-rows: auto auto;
   align-content: center;
   gap: 2px 8px;
-  padding: 11px;
+  padding: 12px;
   background: var(--paper);
 }
 
@@ -707,6 +756,7 @@
 
 .panel {
   min-width: 0;
+  overflow: hidden;
   background: var(--paper);
   border-radius: var(--radius-panel);
   box-shadow: var(--shadow-card);
@@ -719,7 +769,7 @@
   justify-content: space-between;
   gap: 16px;
   /* 底部留 inset：窄视口下标题/副题折行时不贴 border-bottom（2026-10-05 复评）。 */
-  padding: 8px 17px;
+  padding: 8px 16px;
   border-bottom: 1px solid var(--line);
 }
 
@@ -739,7 +789,7 @@
 .textButton {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
   padding: 6px;
   color: var(--jade);
   background: transparent;
@@ -751,16 +801,16 @@
 
 .ranking {
   margin: 0;
-  padding: 4px 17px 9px;
+  padding: 4px 16px 8px;
   list-style: none;
 }
 
 .ranking li {
   display: grid;
   min-height: 48px;
-  grid-template-columns: 26px 1fr auto;
+  grid-template-columns: 24px 1fr auto;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   border-bottom: 1px solid var(--line);
 }
 
@@ -809,13 +859,12 @@
 }
 
 .rankValue {
-  color: var(--red);
+  color: var(--ink);
   font-family: var(--font-number);
   font-size: 13px;
 }
 
 .tablePanel {
-  margin-top: 16px;
   overflow: hidden;
   background: var(--paper);
   border-radius: var(--radius-panel);
@@ -832,11 +881,11 @@
 .table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .table th {
-  height: 38px;
+  height: 40px;
   padding: 0 16px;
   color: var(--muted);
   background: var(--surface-raised);
@@ -848,10 +897,24 @@
 }
 
 .table td {
-  height: 45px;
+  height: 48px;
   padding: 0 16px;
   border-top: 1px solid var(--line);
   white-space: nowrap;
+}
+
+/* 数字列工具类（DESIGN §9）：右对齐 + 等宽数字。 */
+.table td.num,
+.table th.num {
+  font-family: var(--font-number);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* 表格选中行（交付中心等此前缺选中样式）。 */
+.table tr.selected,
+.table tr.selected td {
+  background: var(--surface-active);
 }
 
 .table tbody tr {
@@ -881,8 +944,8 @@
 
 .tableButton {
   width: 100%;
-  min-height: 45px;
-  padding: 7px 10px;
+  min-height: 48px;
+  padding: 8px 12px;
   background: transparent;
   border: 0;
   border-radius: 4px;
@@ -922,10 +985,10 @@
 
 .rowMore summary {
   display: inline-flex;
-  min-height: 28px;
+  min-height: 32px;
   align-items: center;
   gap: 4px;
-  padding: 3px 7px;
+  padding: 4px 8px;
   color: var(--ink);
   background: var(--surface-raised);
   border: 1px solid var(--line-strong);
@@ -962,6 +1025,7 @@
 
 .rowMoreMenu .tableButton {
   width: 100%;
+  min-height: 32px;
   justify-content: flex-start;
 }
 
@@ -969,10 +1033,10 @@
 .sourceRowActions .tableButton {
   display: inline-flex;
   width: auto;
-  min-height: 28px;
+  min-height: 32px;
   align-items: center;
   gap: 4px;
-  padding: 3px 7px;
+  padding: 4px 8px;
   color: var(--jade-dark);
   background: var(--surface-raised);
   border: 1px solid var(--line-strong);
@@ -1006,9 +1070,9 @@
   font-size: 12px;
 }
 
-/* 面板内列表（自带 17px 内容内边距）下方的分页器变体。 */
+/* 面板内列表（自带 16px 内容内边距）下方的分页器变体。 */
 .pagerInset {
-  padding: 0 17px 10px;
+  padding: 0 16px 8px;
 }
 
 .pagerControls {
@@ -1023,7 +1087,7 @@
   min-height: 26px;
   align-items: center;
   justify-content: center;
-  gap: 3px;
+  gap: 4px;
   padding: 0 8px;
   color: var(--ink);
   background: var(--surface-raised);
@@ -1081,8 +1145,7 @@
 }
 
 .flowPanel {
-  margin-top: 16px;
-  padding: 18px;
+  padding: 16px;
   background: var(--paper);
   border-radius: var(--radius-panel);
   box-shadow: var(--shadow-card);
@@ -1092,7 +1155,7 @@
   display: flex;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 18px;
+  margin-bottom: 16px;
 }
 
 .flowHeader h2 {
@@ -1108,7 +1171,7 @@
 .flow {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 28px;
+  gap: 24px;
 }
 
 .flowStep {
@@ -1121,8 +1184,8 @@
 .flowStep:not(:last-child)::after {
   position: absolute;
   top: 50%;
-  left: calc(100% + 7px);
-  width: 15px;
+  left: calc(100% + 8px);
+  width: 8px;
   height: 1px;
   background: var(--line-strong);
   content: '';
@@ -1143,7 +1206,7 @@
 .workspace {
   display: grid;
   min-height: calc(100vh - 134px);
-  grid-template-columns: 220px minmax(480px, 1fr) 340px;
+  grid-template-columns: 232px minmax(480px, 1fr) 340px;
   background: var(--paper);
 }
 
@@ -1158,12 +1221,17 @@
   border-right: 1px solid var(--line);
 }
 
+/* 侧栏底部动作区（MpiReviewLive 已引用，此前缺定义）。 */
+.railActions {
+  padding: 0 12px 12px;
+}
+
 .workspaceMain {
   border-right: 1px solid var(--line);
 }
 
 .workspaceInspector {
-  background: #fff;
+  background: var(--paper);
 }
 
 .sectionTitle {
@@ -1172,7 +1240,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 0 15px;
+  padding: 0 16px;
   border-bottom: 1px solid var(--line);
 }
 
@@ -1193,9 +1261,9 @@
   margin: 12px;
   align-items: center;
   gap: 8px;
-  padding: 0 10px;
+  padding: 0 12px;
   color: var(--muted);
-  background: #fff;
+  background: var(--paper);
   border-radius: var(--radius-control);
 }
 
@@ -1205,7 +1273,7 @@
 
 .search input {
   width: 100%;
-  height: 36px;
+  height: 40px;
   color: var(--ink);
   background: transparent;
   border: 0;
@@ -1222,7 +1290,7 @@
 .queue,
 .fieldList {
   margin: 0;
-  padding: 0 8px 18px;
+  padding: 0 8px 16px;
   list-style: none;
 }
 
@@ -1240,7 +1308,7 @@
   min-height: 40px;
   align-items: center;
   justify-content: space-between;
-  padding: 0 10px;
+  padding: 0 8px;
   color: var(--muted);
   background: transparent;
   border-radius: 4px;
@@ -1258,9 +1326,31 @@
   min-height: 54px;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  padding: 0 15px;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  padding: 0 16px;
   border-bottom: 1px solid var(--line);
+}
+
+/* 动作行溢出时换行；行内搜索框去掉 .search 给侧栏用的 12px 外边距。 */
+.listTools .search {
+  margin: 0;
+}
+
+.listTools select {
+  min-height: 40px;
+  padding: 0 12px;
+  background: var(--paper);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+}
+
+.listTools label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .listTools strong {
@@ -1273,19 +1363,19 @@
 }
 
 .inspectorBody {
-  padding: 17px;
+  padding: 16px;
 }
 
 .inspectorCode {
   display: block;
-  margin-bottom: 7px;
+  margin-bottom: 8px;
   color: var(--jade);
   font-family: var(--font-number);
   font-size: 12px;
 }
 
 .inspectorBody h2 {
-  margin: 0 0 14px;
+  margin: 0 0 16px;
   font-family: var(--font-title);
   font-size: 22px;
 }
@@ -1295,12 +1385,12 @@
 }
 
 .definitionList > div {
-  padding: 11px 0;
+  padding: 12px 0;
   border-bottom: 1px solid var(--line);
 }
 
 .definitionList dt {
-  margin-bottom: 5px;
+  margin-bottom: 4px;
   color: var(--muted);
   font-size: 12px;
 }
@@ -1312,14 +1402,14 @@
 }
 
 .versionTrail {
-  margin: 15px 0 0;
+  margin: 16px 0 0;
   padding: 0;
   list-style: none;
 }
 
 .versionTrail li {
   position: relative;
-  padding: 0 0 16px 18px;
+  padding: 0 0 16px 16px;
   color: var(--muted);
   font-size: 12px;
 }
@@ -1337,7 +1427,7 @@
 
 .versionTrail li::after {
   position: absolute;
-  top: 13px;
+  top: 12px;
   bottom: 1px;
   left: 4px;
   width: 1px;
@@ -1362,7 +1452,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin: 14px 0 0;
+  margin: 16px 0 0;
 }
 
 .versionChip {
@@ -1370,7 +1460,7 @@
   align-items: center;
   gap: 8px;
   min-height: 32px;
-  padding: 5px 12px;
+  padding: 4px 12px;
   color: var(--muted);
   font-size: 12px;
   background: var(--surface-raised);
@@ -1400,7 +1490,7 @@
 .overdueMark {
   display: inline-block;
   margin-left: 8px;
-  padding: 1px 7px;
+  padding: 1px 8px;
   color: var(--red);
   font-size: 12px;
   font-weight: 600;
@@ -1421,11 +1511,11 @@
 }
 
 .executorLog pre {
-  max-height: 220px;
+  max-height: 240px;
   margin: 6px 0 0;
-  padding: 8px 10px;
+  padding: 8px 12px;
   overflow: auto;
-  font-family: 'DIN Alternate', 'Roboto Mono', monospace;
+  font-family: var(--font-number);
   font-size: 12px;
   line-height: 1.5;
   white-space: pre-wrap;
@@ -1441,7 +1531,7 @@
 
 .fieldList button {
   display: block;
-  padding: 10px;
+  padding: 12px 8px;
   color: var(--ink);
   background: transparent;
   border-bottom: 1px solid var(--line);
@@ -1469,13 +1559,13 @@
 }
 
 .mappingRows {
-  padding: 5px 15px 20px;
+  padding: 4px 16px 24px;
 }
 
 .mappingRow {
   display: grid;
   width: 100%;
-  min-height: 58px;
+  min-height: 56px;
   grid-template-columns: minmax(100px, 1fr) 28px minmax(140px, 1.35fr) 72px;
   align-items: center;
   gap: 8px;
@@ -1514,7 +1604,7 @@
 }
 
 .mappingTarget {
-  padding: 7px 9px;
+  padding: 8px;
   background: var(--surface-sunken);
   border-radius: var(--radius-control);
 }
@@ -1523,13 +1613,13 @@
   display: flex;
   align-items: baseline;
   gap: 6px;
-  margin: 4px 0 14px;
+  margin: 4px 0 16px;
 }
 
 .validationScore strong {
   color: var(--jade);
   font-family: var(--font-number);
-  font-size: 34px;
+  font-size: 30px;
 }
 
 .validationScore span {
@@ -1538,7 +1628,7 @@
 }
 
 .checkList {
-  margin: 0 0 15px;
+  margin: 0 0 16px;
   padding: 0;
   list-style: none;
 }
@@ -1547,7 +1637,7 @@
   display: flex;
   min-height: 40px;
   align-items: center;
-  gap: 9px;
+  gap: 8px;
   border-bottom: 1px solid var(--line);
   font-size: 12px;
 }
@@ -1558,11 +1648,11 @@
 
 .compactCheckList {
   margin: 0;
-  padding: 8px 16px 14px;
+  padding: 8px 16px 16px;
 }
 
 .paddedDefinitionList {
-  padding: 6px 16px 14px;
+  padding: 8px 16px 16px;
 }
 
 /* 队列状态筛选（2026-10-05 复评）：待闭环/已关闭/全部 + 批量提醒入口。 */
@@ -1570,14 +1660,14 @@
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin: 10px 15px 0;
+  margin: 12px 16px 0;
 }
 
 .queueFilter {
   display: inline-flex;
   min-height: 26px;
   align-items: center;
-  padding: 0 9px;
+  padding: 0 8px;
   color: var(--muted);
   background: var(--surface-raised);
   border: 1px solid var(--line);
@@ -1598,11 +1688,11 @@
 }
 
 .queue li + li {
-  margin-top: 5px;
+  margin-top: 4px;
 }
 
 .queue button {
-  padding: 12px 10px;
+  padding: 12px 8px;
   color: var(--ink);
   background: transparent;
   border-radius: var(--radius-control);
@@ -1610,7 +1700,7 @@
 
 .queue button:hover,
 .queue .selected {
-  background: #fff;
+  background: var(--paper);
   box-shadow: var(--shadow-card);
 }
 
@@ -1629,7 +1719,7 @@
 
 .queueTitle {
   display: block;
-  margin-top: 7px;
+  margin-top: 8px;
   font-size: 12px;
   font-weight: 600;
   line-height: 1.45;
@@ -1637,7 +1727,7 @@
 
 .queueMeta {
   display: block;
-  margin-top: 5px;
+  margin-top: 4px;
   color: var(--muted);
   font-size: 12px;
 }
@@ -1649,13 +1739,20 @@
   text-align: center;
 }
 
+/* 空态文案落在 ranking 里时，li 自身的三列网格会把文本挤进 24px 序号列竖排——改回块级 */
+.ranking li.emptyState {
+  display: block;
+  min-height: 0;
+  border-bottom: 0;
+}
+
 .detailHero {
-  padding: 18px 20px 14px;
+  padding: 16px 24px;
   border-bottom: 1px solid var(--line);
 }
 
 .detailHero h2 {
-  margin: 7px 0 5px;
+  margin: 8px 0 4px;
   font-family: var(--font-title);
   font-size: 22px;
 }
@@ -1670,7 +1767,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 14px;
+  margin-top: 16px;
 }
 
 /* 已关闭问题的主操作说明（2026-10-05 复评 P1-3）：禁用按钮旁给原因与出路。 */
@@ -1682,7 +1779,7 @@
 
 .timeline {
   margin: 0;
-  padding: 20px 22px;
+  padding: 16px 24px;
   list-style: none;
 }
 
@@ -1690,8 +1787,8 @@
   position: relative;
   display: grid;
   grid-template-columns: 96px 1fr;
-  gap: 18px;
-  padding: 0 0 23px 16px;
+  gap: 16px;
+  padding: 0 0 24px 16px;
 }
 
 /* 时间线圆点按事件语义着色（2026-10-05 复评 P2-4）：默认中性，失败红、
@@ -1725,7 +1822,7 @@
 
 .timeline li::after {
   position: absolute;
-  top: 17px;
+  top: 16px;
   bottom: 3px;
   left: 6px;
   width: 1px;
@@ -1759,8 +1856,8 @@
 }
 
 .evidenceBox {
-  margin: 0 17px 14px;
-  padding: 13px;
+  margin: 0 16px 16px;
+  padding: 16px;
   background: var(--surface-raised);
   border-radius: 8px;
 }
@@ -1793,8 +1890,8 @@
 }
 
 .sampleEvidence {
-  margin-top: 9px;
-  padding-top: 9px;
+  margin-top: 8px;
+  padding-top: 8px;
   border-top: 1px solid var(--line);
 }
 
@@ -1807,11 +1904,11 @@
 
 .sampleEvidence pre {
   max-height: 128px;
-  margin: 5px 0 0;
-  padding: 7px 8px;
+  margin: 4px 0 0;
+  padding: 8px;
   overflow: auto;
   color: var(--ink);
-  background: #fff;
+  background: var(--paper);
   border: 1px solid var(--line);
   border-radius: 5px;
   font-family: var(--font-number);
@@ -1822,14 +1919,14 @@
 }
 
 .runHistory {
-  margin-top: 11px;
-  padding-top: 10px;
+  margin-top: 12px;
+  padding-top: 12px;
   border-top: 1px solid var(--line);
 }
 
 .runHistory > strong {
   display: block;
-  margin-bottom: 7px;
+  margin-bottom: 8px;
   color: var(--ink);
   font-size: 12px;
 }
@@ -1860,12 +1957,12 @@
 }
 
 .noteBox {
-  margin: 0 17px 17px;
+  margin: 0 16px 16px;
 }
 
 .noteBox label {
   display: block;
-  margin-bottom: 7px;
+  margin-bottom: 8px;
   font-size: 12px;
   font-weight: 600;
 }
@@ -1873,10 +1970,10 @@
 .noteBox textarea {
   width: 100%;
   min-height: 90px;
-  padding: 10px;
+  padding: 12px;
   color: var(--ink);
   resize: vertical;
-  background: #fff;
+  background: var(--paper);
   border: 0;
   border-radius: var(--radius-control);
   outline: 0;
@@ -1900,8 +1997,8 @@
 .mpiWorkspace {
   display: grid;
   min-height: calc(100vh - 134px);
-  grid-template-columns: 250px minmax(650px, 1fr);
-  background: #fff;
+  grid-template-columns: 232px minmax(650px, 1fr);
+  background: var(--paper);
 }
 
 .mpiMain {
@@ -1913,8 +2010,8 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 20px;
-  padding: 17px 20px;
+  gap: 16px;
+  padding: 16px 24px;
   border-bottom: 1px solid var(--line);
 }
 
@@ -1938,7 +2035,7 @@
 .score strong {
   color: var(--jade);
   font-family: var(--font-number);
-  font-size: 32px;
+  font-size: 30px;
 }
 
 .score span {
@@ -1948,7 +2045,7 @@
 }
 
 .compareWrap {
-  padding: 16px 20px;
+  padding: 16px 24px;
 }
 
 .compareTable {
@@ -1959,7 +2056,8 @@
 
 .compareTable th,
 .compareTable td {
-  padding: 10px 12px;
+  height: 48px;
+  padding: 0 12px;
   text-align: left;
 }
 
@@ -1984,11 +2082,11 @@
 
 .recommendedValue select {
   width: 100%;
-  min-height: 34px;
-  padding: 0 26px 0 10px;
+  min-height: 32px;
+  padding: 0 26px 0 12px;
   color: var(--ink);
   appearance: none;
-  background: #fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23687c75' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 8px center;
+  background: var(--paper) url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23687c75' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 8px center;
   border: 0;
   border-radius: var(--radius-control);
   box-shadow: 0 0 0 1px var(--ring);
@@ -2005,8 +2103,8 @@
 .mpiLower {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 14px;
-  padding: 0 20px 16px;
+  gap: 16px;
+  padding: 0 24px 16px;
 }
 
 .mpiActions {
@@ -2016,7 +2114,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 14px 20px;
+  padding: 16px 24px;
   background: rgba(255, 255, 255, 0.96);
   border-top: 1px solid var(--line);
 }
@@ -2024,7 +2122,7 @@
 .confirmCheck {
   display: flex;
   align-items: flex-start;
-  gap: 9px;
+  gap: 8px;
   max-width: 560px;
   font-size: 12px;
   line-height: 1.55;
@@ -2046,7 +2144,7 @@
    证据文本换行过深、两栏高度失衡（2026-10-05 复评），全宽可读性更好。 */
 @media (max-width: 1440px) {
   .workspace {
-    grid-template-columns: 220px minmax(480px, 1fr);
+    grid-template-columns: 232px minmax(480px, 1fr);
   }
 
   .workspaceInspector {
@@ -2058,7 +2156,11 @@
 
 @media (max-width: 1180px) {
   .workspace {
-    grid-template-columns: 190px minmax(430px, 1fr);
+    grid-template-columns: 200px minmax(430px, 1fr);
+  }
+
+  .mpiWorkspace {
+    grid-template-columns: 200px minmax(430px, 1fr);
   }
 
   .twoColumns {
@@ -2069,6 +2171,7 @@
 /* MPI 真实模式指标带（MpiReviewLive）：auto-fit + 1px gap hairline，任意宽度换行无需补丁 */
 .metricStrip {
   display: grid;
+  margin-top: 12px;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 1px;
   overflow: hidden;
@@ -2081,15 +2184,15 @@
   display: grid;
   min-height: 84px;
   align-content: center;
-  gap: 5px;
-  padding: 14px 18px;
+  gap: 4px;
+  padding: 16px;
   background: var(--paper);
 }
 
 .metricCard strong {
   color: var(--jade-dark);
   font-family: var(--font-number);
-  font-size: 21px;
+  font-size: 24px;
 }
 
 .metricCard span {
@@ -2098,7 +2201,7 @@
 }
 
 .metricCardAlert strong {
-  color: var(--amber-dark, #a15c16);
+  color: var(--amber-dark);
 }
 
 
@@ -2159,7 +2262,7 @@
 
 @media (max-width: 767px) {
   .content {
-    padding: 14px 12px 24px;
+    padding: 12px 12px 24px;
   }
 
   .attention {
@@ -2189,7 +2292,7 @@
 
   .flow {
     grid-template-columns: 1fr;
-    gap: 7px;
+    gap: 8px;
   }
 
   .flowStep:not(:last-child)::after {
@@ -2238,14 +2341,14 @@
 
 .explorerTree {
   display: grid;
-  max-height: 220px;
+  max-height: 160px;
   gap: 2px;
   align-content: start;
   overflow-y: auto;
   padding: 4px;
   background: var(--surface-raised);
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--radius-control);
 }
 
 .explorerCatalog {
@@ -2256,7 +2359,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 7px 8px;
+  padding: 8px;
   color: var(--ink);
   font: inherit;
   font-size: 12px;
@@ -2280,14 +2383,14 @@
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  padding: 4px 8px 10px 28px;
+  padding: 4px 8px 8px 24px;
 }
 
 .explorerChip {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 4px 9px;
+  gap: 4px;
+  padding: 4px 8px;
   color: var(--muted);
   font-family: var(--font-number);
   font-size: 12px;
@@ -2334,10 +2437,10 @@
 }
 
 .explorerColumnsScroll {
-  max-height: 200px;
+  max-height: 160px;
   overflow: auto;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--radius-control);
 }
 
 .explorerQueryActions {
@@ -2347,10 +2450,10 @@
 }
 
 .explorerResultScroll {
-  max-height: 260px;
+  max-height: 240px;
   overflow: auto;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--radius-control);
 }
 
 .explorerResultNote {
@@ -2363,13 +2466,13 @@
 
 .structuredForm {
   display: grid;
-  gap: 14px;
+  gap: 16px;
 }
 
 .structuredModeSwitch {
   display: inline-flex;
   gap: 6px;
-  padding: 3px;
+  padding: 4px;
   background: var(--surface-raised);
   border: 1px solid var(--line);
   border-radius: 7px;
@@ -2379,7 +2482,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 14px;
+  padding: 4px 12px;
   color: var(--muted);
   font: inherit;
   font-size: 12px;
@@ -2402,7 +2505,7 @@
 
 .structuredTablePicker {
   display: flex;
-  max-height: 150px;
+  max-height: 160px;
   flex-wrap: wrap;
   align-content: flex-start;
   gap: 6px;
@@ -2410,27 +2513,27 @@
   padding: 6px;
   background: var(--surface-raised);
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--radius-control);
 }
 
 .structuredColumnPicker {
   display: grid;
-  max-height: 180px;
+  max-height: 160px;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 2px 10px;
+  gap: 2px 12px;
   align-content: start;
   overflow-y: auto;
   padding: 8px;
   background: var(--surface-raised);
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--radius-control);
 }
 
 .structuredColumnOption {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 3px 2px;
+  padding: 4px 2px;
   font-size: 12px;
   cursor: pointer;
 }
@@ -2453,7 +2556,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 12px;
   margin-bottom: 6px;
 }
 
@@ -2462,10 +2565,10 @@
 .scoreHero {
   display: grid;
   grid-template-columns: 160px 1fr;
-  gap: 18px;
+  gap: 16px;
   align-items: center;
-  padding: 14px 16px;
-  margin-bottom: 14px;
+  padding: 16px;
+  margin-bottom: 16px;
   background: var(--surface-raised);
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -2484,14 +2587,14 @@
 
 .scoreTotal strong {
   font-family: var(--font-number);
-  font-size: 34px;
+  font-size: 30px;
   line-height: 1;
 }
 
 .scoreDimensions {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-  gap: 10px 18px;
+  gap: 8px 16px;
 }
 
 .scoreDimension {
@@ -2532,13 +2635,13 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 12px;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
 
 .watermarkCard {
   display: grid;
   gap: 6px;
-  padding: 12px 14px;
+  padding: 12px 16px;
   background: var(--surface-raised);
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -2547,9 +2650,9 @@
 .watermarkHead {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   color: var(--jade-dark);
-  font-size: 12.5px;
+  font-size: 12px;
 }
 
 .watermarkCard > p {
@@ -2560,13 +2663,13 @@
 
 .watermarkCard small {
   color: var(--muted);
-  font-size: 10.5px;
+  font-size: 12px;
 }
 
 .watermarkBars {
   display: flex;
   align-items: flex-end;
-  gap: 5px;
+  gap: 4px;
   height: 42px;
 }
 
@@ -2590,7 +2693,7 @@
 .instanceBlock {
   border: 1px solid var(--line-strong);
   border-radius: 8px;
-  padding: 10px 12px;
+  padding: 12px;
   display: grid;
   gap: 8px;
 }
@@ -2621,14 +2724,15 @@
 
 .logTail {
   margin: 0;
-  padding: 8px 10px;
+  padding: 8px 12px;
   background: var(--surface-sunken, #f6f8f7);
   border: 1px solid var(--line-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-control);
+  font-family: var(--font-number);
   font-size: 12px;
   line-height: 1.55;
   white-space: pre-wrap;
   word-break: break-all;
-  max-height: 220px;
+  max-height: 240px;
   overflow: auto;
 }

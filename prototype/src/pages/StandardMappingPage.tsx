@@ -8,6 +8,7 @@ import { PageHeader } from '../components/ui/PageHeader'
 import { Button, StatusTag } from '../components/ui/Primitives'
 import type { RouteKey } from '../types'
 import styles from './Pages.module.css'
+import local from './StandardMappingPage.module.css'
 
 const fields = [
   ['patient_name', '患者姓名 · varchar(50)'], ['sex_code', '性别代码 · varchar(1)'], ['birth_date', '出生日期 · date'], ['diagnosis_code', '疾病诊断编码 · varchar(20)'], ['visit_time', '就诊日期时间 · datetime'], ['dept_code', '科室代码 · varchar(16)'],
@@ -57,10 +58,10 @@ export function StandardMappingPage({ onNavigate, onUnavailable, onNotice }: Pro
           </ul>
         </aside>
         <section className={styles.workspaceMain}>
-          <div className={styles.listTools}><strong>映射矩阵 · 门诊诊断主题</strong><div className={styles.listToolsActions}><Button variant={onlyPending ? 'primary' : 'secondary'} onClick={togglePending}><Filter size={14} />仅看待确认</Button><Button variant="primary" onClick={() => onNotice(`已保存 ${current[0]} 的映射，并创建版本 v1.8`)}><Link2 size={14} />保存此映射</Button></div></div>
+          <div className={styles.listTools}><strong>映射矩阵 · {visibleMappings.length} 项</strong><div className={styles.listToolsActions}><Button variant="secondary" aria-pressed={onlyPending} className={onlyPending ? local.filterActive : ''} onClick={togglePending}><Filter size={14} />仅看待确认</Button><Button variant="primary" onClick={() => onNotice(`已保存 ${current[0]} 的映射，并创建版本 v1.8`)}><Link2 size={14} />保存此映射</Button></div></div>
           <div className={styles.mappingRows}>
             {visibleMappings.map(([source, name, code, status]) => (
-              <button className={`${styles.mappingRow} ${selectedField === source ? styles.mappingRowSelected : ''}`} key={source} onClick={() => setSelectedField(source)}>
+              <button className={`${styles.mappingRow} ${local.rowPad} ${selectedField === source ? styles.mappingRowSelected : ''}`} key={source} onClick={() => setSelectedField(source)}>
                 <div><strong>{source}</strong><span>HIS 门诊库</span></div><ArrowRight className={styles.mappingArrow} size={16} />
                 <div className={styles.mappingTarget}><strong>{name}</strong><span>{code}</span></div>
                 <StatusTag tone={status === '已校验' ? 'healthy' : 'warning'}>{status}</StatusTag>
@@ -73,7 +74,7 @@ export function StandardMappingPage({ onNavigate, onUnavailable, onNotice }: Pro
           <div className={styles.inspectorBody}>
             <span className={styles.inspectorCode}>{current[0]} → {current[2]}</span>
             <h2>{current[1]}</h2>
-            <div className={styles.validationScore}><strong>{current[3] === '已校验' ? '100' : '86'}</strong><span>校验得分 / 100</span></div>
+            <div className={`${styles.validationScore} ${current[3] === '已校验' ? '' : local.scorePending}`}><strong>{current[3] === '已校验' ? '100' : '86'}</strong><span>校验得分 / 100</span></div>
             <ul className={styles.checkList}>
               <li><CheckCircle2 size={16} />数据类型兼容</li>
               <li><CheckCircle2 size={16} />标准定义相似度 94%</li>

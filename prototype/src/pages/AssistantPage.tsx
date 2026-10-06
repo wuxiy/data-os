@@ -10,6 +10,13 @@ import { routePaths } from '../data/routes'
 import { AssistantLive } from './AssistantLive'
 import styles from './IntegrationPages.module.css'
 
+/** 建议提问的策划问句（演示页）：每条引导到一个演示场景。 */
+const suggestedPrompts = [
+  { scenarioId: 'assistant-outpatient', text: '门诊量下降是停诊导致的，还是真实需求下降？' },
+  { scenarioId: 'assistant-record', text: '病案首页哪些字段拖累了完整率？' },
+  { scenarioId: 'assistant-lab', text: '哪些成员医院的检验数据最晚送达？' },
+]
+
 export function AssistantPage({ onNotice, onNavigate, professional = false, governance = false }: { onNotice: (message: string) => void; onNavigate: (route: 'ingestion' | 'governance' | 'quality') => void; professional?: boolean; governance?: boolean }) {
   // 真实构建走 G26 受控问数链路（已验证问题 + 受控执行 + 审计/反馈）；
   // 专业工作区在治理角色内呈现问题治理区块（G27）；
@@ -72,7 +79,8 @@ function DemoAssistantPage({ onNotice, onNavigate, professional = false }: { onN
           <section className={styles.promptGroup}>
             <h3>建议提问</h3>
             <ul className={styles.promptList}>
-              {assistantScenarios.map((scenario) => <li key={scenario.id}><button className={styles.promptButton} onClick={() => selectScenario(scenario.id)}>{scenario.question}</button></li>)}
+              {/* 策划问句（演示）：换一种问法引导到对应场景，不与会话列表逐行重复 */}
+              {suggestedPrompts.map((prompt) => <li key={prompt.scenarioId}><button className={styles.promptButton} onClick={() => selectScenario(prompt.scenarioId)}>{prompt.text}</button></li>)}
             </ul>
           </section>
         </aside>

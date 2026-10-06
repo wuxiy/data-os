@@ -1,4 +1,4 @@
-import { CheckCircle2, CircleAlert, GitMerge, GitPullRequestArrow, LoaderCircle, RefreshCw, ShieldCheck, Split, XCircle } from 'lucide-react'
+import { CheckCircle2, CircleAlert, GitMerge, GitPullRequestArrow, LoaderCircle, RefreshCw, Search, ShieldCheck, Split, XCircle } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Button, StatusTag } from '../components/ui/Primitives'
 import { Drawer } from '../components/ui/Drawer'
@@ -20,6 +20,7 @@ import { useAction } from '../hooks/useAction'
 import { usePaged } from '../hooks/usePaged'
 import { Pager } from '../components/ui/Pager'
 import styles from './Pages.module.css'
+import local from './MpiReviewLive.module.css'
 
 /**
  * 主索引复核工作台（真实数据）：候选队列 → 双侧身份对比 → 匹配证据 →
@@ -151,7 +152,7 @@ export function MpiReviewLive({ onNotice }: { onNotice: (message: string) => voi
         <div className={styles.mpiWorkspace}>
           <aside className={styles.workspaceRail}>
             <div className={styles.sectionTitle}><h2>候选队列</h2><span>{metrics?.reviewPending ?? candidates.length} 待复核</span></div>
-            <div className={styles.search}><input value={query} onChange={(event) => { setQuery(event.target.value); setQueuePage(0) }} placeholder="姓名 / 卡号 / 规则" aria-label="搜索复核候选" /></div>
+            <div className={styles.search}><Search size={15} /><input value={query} onChange={(event) => { setQuery(event.target.value); setQueuePage(0) }} placeholder="姓名 / 卡号 / 规则" aria-label="搜索复核候选" /></div>
             <ul className={styles.queue}>
               {pagedCandidates.map((candidate) => (
                 <li key={candidate.taskId}>
@@ -270,7 +271,7 @@ function MpiPersonDrawer({ personId, onClose, onNotice, onSplit }: { personId: s
       {error ? <div className={styles.connectionNotice} role="alert"><CircleAlert size={17} /><div><strong>操作失败</strong><span>{error}</span></div></div> : null}
       {apiState !== 'live' || !person ? <div className={styles.emptyState}>{apiState === 'loading' ? '正在读取黄金人…' : '黄金人详情不可用'}</div> : (
         <>
-          <div className={styles.panel}>
+          <div className={`${styles.panel} ${local.drawerPanel}`}>
             <div className={styles.panelHeader}><div><h3>身份链接</h3><p>当前有效成员 · 决策源与状态</p></div><Split size={18} /></div>
             <table className={styles.compareTable}>
               <thead><tr><th>源身份</th><th>决策源</th><th>操作</th></tr></thead>
@@ -285,7 +286,7 @@ function MpiPersonDrawer({ personId, onClose, onNotice, onSplit }: { personId: s
               </tbody>
             </table>
           </div>
-          <div className={styles.panel}>
+          <div className={`${styles.panel} ${local.drawerPanel}`}>
             <div className={styles.panelHeader}><div><h3>操作历史</h3><p>审计事件 · 最近 20 条</p></div><ShieldCheck size={18} /></div>
             <ul className={styles.checkList}>
               {person.history.map((event, index) => (

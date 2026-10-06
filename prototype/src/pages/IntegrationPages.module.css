@@ -39,11 +39,11 @@
 .railHeader,
 .evidenceHeader {
   display: flex;
-  min-height: 54px;
+  min-height: 48px;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 0 15px;
+  padding: 0 16px;
   border-bottom: 1px solid var(--line);
 }
 
@@ -61,13 +61,13 @@
 
 .railSearch {
   display: flex;
-  height: 38px;
+  height: 40px;
   align-items: center;
   gap: 8px;
   margin: 12px;
-  padding: 0 10px;
+  padding: 0 12px;
   color: var(--muted);
-  background: rgba(255, 255, 255, 0.82);
+  background: var(--paper);
   border-radius: var(--radius-control);
 }
 
@@ -99,7 +99,7 @@
 }
 
 .schemaTab {
-  padding: 4px 9px;
+  padding: 4px 8px;
   color: var(--muted);
   background: rgba(255, 255, 255, 0.72);
   border: 1px solid var(--line);
@@ -140,7 +140,7 @@
 
 .columnMappingsMeta {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .columnMappingList {
@@ -155,7 +155,7 @@
   display: flex;
   align-items: baseline;
   gap: 6px;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .columnMappingList em {
@@ -169,7 +169,7 @@
 
 .columnMappingList code {
   font-family: var(--font-number);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 /* AI Data 创建表单（G8）：目录侧栏内的紧凑录入区 */
@@ -216,10 +216,15 @@
   margin: 0 2px 10px;
 }
 
+/* 行内 input 与 40px 主按钮对齐（DESIGN 主按钮高度） */
+.assetBody .createForm input {
+  min-height: 40px;
+}
+
 .railLabel {
-  margin: 16px 16px 7px;
+  margin: 16px 16px 8px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.06em;
 }
@@ -236,12 +241,12 @@
 }
 
 .catalogList {
-  padding: 0 8px 20px;
+  padding: 0 8px 24px;
 }
 
 .catalogList li + li,
 .conversationList li + li {
-  margin-top: 5px;
+  margin-top: 4px;
 }
 
 .catalogItem,
@@ -258,7 +263,7 @@
 }
 
 .catalogItem {
-  padding: 11px 10px;
+  padding: 12px 8px;
 }
 
 .catalogItem:hover,
@@ -291,7 +296,7 @@
 .catalogItem span {
   margin-top: 4px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.45;
 }
 
@@ -306,7 +311,7 @@
 .catalogMeta em {
   color: var(--muted);
   font-family: var(--font-number);
-  font-size: 11px;
+  font-size: 12px;
   font-style: normal;
 }
 
@@ -314,9 +319,9 @@
 .warningMark {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   color: var(--jade-dark);
-  font-size: 11px;
+  font-size: 12px;
   font-style: normal;
 }
 
@@ -340,12 +345,12 @@
 /* 分析看板待接入态：给空页一个视觉锚点，避免大片空白被读作故障 */
 .analyticsEmpty {
   display: grid;
-  gap: 9px;
+  gap: 8px;
   min-height: 320px;
   align-content: center;
   justify-items: center;
-  margin: 18px 20px;
-  padding: 40px 20px;
+  margin: 16px 24px;
+  padding: 40px 24px;
   color: var(--muted);
   text-align: center;
   background: var(--paper);
@@ -414,22 +419,22 @@
   margin-top: 3px;
   color: var(--muted);
   font-family: var(--font-number);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .evidenceDefinition {
-  margin: 14px 0 0;
+  margin: 16px 0 0;
 }
 
 .evidenceDefinition > div {
-  padding: 11px 0;
+  padding: 12px 0;
   border-bottom: 1px solid var(--line);
 }
 
 .evidenceDefinition dt {
-  margin-bottom: 5px;
+  margin-bottom: 4px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .evidenceDefinition dd {
@@ -440,7 +445,7 @@
 }
 
 .evidenceSection {
-  margin-top: 17px;
+  margin-top: 16px;
 }
 
 .evidenceSection h3 {
@@ -451,7 +456,7 @@
 .relatedList li,
 .usageList li {
   display: flex;
-  min-height: 37px;
+  min-height: 40px;
   align-items: center;
   gap: 8px;
   border-bottom: 1px solid var(--line);
@@ -466,16 +471,16 @@
 
 .evidenceAction {
   width: 100%;
-  margin-top: 15px;
+  margin-top: 16px;
 }
 
 .externalLinkButton {
   display: inline-flex;
-  min-height: 34px;
+  min-height: 32px;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 0 11px;
+  padding: 0 12px;
   color: var(--ink);
   background: var(--paper);
   border: 1px solid var(--line);
@@ -534,7 +539,7 @@
 .assetToolbar,
 .chatHeader {
   display: flex;
-  min-height: 54px;
+  min-height: 48px;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
@@ -548,12 +553,12 @@
 .answerIdentity {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 8px;
 }
 
 .embedIdentity {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.04em;
 }
 
@@ -562,19 +567,19 @@
 }
 
 .toolbarActions {
-  gap: 7px;
+  gap: 8px;
 }
 
 .toolbarButton {
   display: inline-flex;
-  min-height: 34px;
+  min-height: 32px;
   align-items: center;
   gap: 6px;
-  padding: 0 10px;
+  padding: 0 8px;
   color: var(--muted);
   background: transparent;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   cursor: pointer;
   font-size: 12px;
   transition: transform 150ms var(--ease-out), background-color 150ms var(--ease-out), color 150ms var(--ease-out);
@@ -593,15 +598,15 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 20px;
-  padding: 19px 20px 15px;
+  gap: 16px;
+  padding: 16px 24px;
 }
 
 .dashboardTitleBlock h2,
 .assetIdentity h2 {
   margin: 0;
   font-family: var(--font-title);
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 600;
   letter-spacing: -0.012em;
 }
@@ -620,24 +625,24 @@
   min-height: 30px;
   align-items: center;
   gap: 6px;
-  padding: 0 9px;
+  padding: 0 8px;
   color: var(--muted);
   background: var(--surface-sunken);
   border-radius: 5px;
-  font-size: 11px;
+  font-size: 12px;
   white-space: nowrap;
 }
 
 .metricBand {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
 }
 
 .dashboardMetric {
   min-width: 0;
-  padding: 15px 17px;
+  padding: 16px;
 }
 
 .dashboardMetric:not(:last-child) {
@@ -652,14 +657,14 @@
 
 .dashboardMetric span {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .dashboardMetric strong {
   margin-top: 6px;
   color: var(--jade-dark);
   font-family: var(--font-number);
-  font-size: 25px;
+  font-size: 24px;
   font-weight: 600;
   letter-spacing: -0.02em;
 }
@@ -668,7 +673,7 @@
   overflow: hidden;
   margin-top: 3px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -710,7 +715,7 @@
 .analysisPanelHeader span {
   color: var(--muted);
   font-family: var(--font-number);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .trendWrap {
@@ -719,7 +724,7 @@
 
 .barList {
   margin: 0;
-  padding: 0 16px 14px;
+  padding: 0 16px 16px;
   list-style: none;
 }
 
@@ -733,7 +738,7 @@
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 6px;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .barRowTop span:last-child {
@@ -764,7 +769,7 @@
   padding: 0 16px;
   color: var(--muted);
   background: var(--surface-raised);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .dashboardFoot span:last-child {
@@ -788,20 +793,20 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 7px;
+  margin-bottom: 8px;
 }
 
 .assetCode {
   color: var(--jade);
   font-family: var(--font-number);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .assetTabs {
   display: flex;
   min-height: 44px;
   align-items: flex-end;
-  gap: 3px;
+  gap: 4px;
   padding: 0 16px;
   background: var(--paper);
   border-bottom: 1px solid var(--line);
@@ -839,12 +844,12 @@
 }
 
 .assetBody {
-  padding: 15px;
+  padding: 16px;
 }
 
 /* 详情主体内的分区标题：与主体内容左缘对齐（左缘统一） */
 .assetBody .railLabel {
-  margin: 20px 1px 7px;
+  margin: 24px 1px 8px;
 }
 
 /* 数据服务事实卡：三列等宽 hairline 网格，替代无样式的技术字段堆叠 */
@@ -870,13 +875,13 @@
 
 .serviceFacts span {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .serviceFacts code {
   overflow: hidden;
   font-family: var(--font-number);
-  font-size: 11px;
+  font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -891,7 +896,7 @@
 }
 
 .assetScore {
-  padding: 14px 16px;
+  padding: 16px;
 }
 
 .assetScore:not(:last-child) {
@@ -905,20 +910,20 @@
 
 .assetScore span {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .assetScore strong {
-  margin-top: 5px;
+  margin-top: 4px;
   font-family: var(--font-number);
-  font-size: 20px;
+  font-size: 24px;
 }
 
 .overviewGrid {
   display: grid;
   grid-template-columns: minmax(0, 1.5fr) minmax(210px, 0.72fr);
-  gap: 14px;
-  margin-top: 14px;
+  gap: 16px;
+  margin-top: 16px;
 }
 
 .contentPanel {
@@ -935,7 +940,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 0 15px;
+  padding: 0 16px;
   border-bottom: 1px solid var(--line);
 }
 
@@ -947,7 +952,7 @@
 .contentPanelHeader span {
   color: var(--muted);
   font-family: var(--font-number);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .descriptionBlock {
@@ -962,11 +967,18 @@
   line-height: 1.75;
 }
 
-.fieldTable,
+/* 字段表按 DESIGN §9 数据表规格：48px 行高、正文 14px、表头 40px */
+.fieldTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+/* 问答结果表面板内嵌，保持紧凑密度 */
 .resultTable {
   width: 100%;
   border-collapse: collapse;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .horizontalScroll {
@@ -975,19 +987,33 @@
 }
 
 .fieldTable th,
-.fieldTable td,
-.resultTable th,
-.resultTable td {
-  height: 40px;
-  padding: 0 13px;
+.fieldTable td {
+  height: 48px;
+  padding: 0 16px;
   border-top: 1px solid var(--line);
   text-align: left;
   white-space: nowrap;
 }
 
-.fieldTable th,
+.resultTable th,
+.resultTable td {
+  height: 40px;
+  padding: 0 12px;
+  border-top: 1px solid var(--line);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.fieldTable th {
+  height: 40px;
+  color: var(--muted);
+  background: var(--surface-raised);
+  border-top: 0;
+  font-weight: 600;
+}
+
 .resultTable th {
-  height: 34px;
+  height: 32px;
   color: var(--muted);
   background: var(--surface-raised);
   border-top: 0;
@@ -1000,12 +1026,12 @@
 }
 
 .usageList {
-  padding: 7px 15px 13px;
+  padding: 8px 16px 12px;
 }
 
 .lineageCanvas {
   min-height: 430px;
-  padding: 24px 18px;
+  padding: 24px 16px;
   background-color: var(--paper);
   border-radius: var(--radius-panel);
   box-shadow: var(--shadow-card);
@@ -1016,31 +1042,32 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 0 4px 25px;
+  padding: 0 4px 24px;
 }
 
+/* 节标题而非对象名：无衬线正文档，宋体只留给 24–32px 对象名 */
 .lineageSummary h3 {
   margin: 0;
-  font-family: var(--font-title);
-  font-size: 18px;
+  font-size: 14px;
+  font-weight: 600;
 }
 
 .lineageSummary span {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .lineageRow {
   display: grid;
   grid-template-columns: repeat(4, minmax(120px, 1fr));
-  gap: 27px;
+  gap: 24px;
   align-items: stretch;
 }
 
 .lineageNode {
   position: relative;
   min-width: 0;
-  padding: 14px;
+  padding: 16px;
   background: rgba(255, 255, 255, 0.94);
   border-radius: 8px;
   box-shadow: 0 0 0 1px var(--line), var(--shadow-card);
@@ -1075,9 +1102,9 @@
 
 .lineageNodeIcon {
   display: grid;
-  width: 31px;
-  height: 31px;
-  margin-bottom: 11px;
+  width: 32px;
+  height: 32px;
+  margin-bottom: 12px;
   place-items: center;
   color: var(--jade);
   background: var(--jade-soft);
@@ -1092,22 +1119,22 @@
 
 .lineageNode span {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.06em;
 }
 
 .lineageNode strong {
   overflow: hidden;
-  margin-top: 5px;
+  margin-top: 4px;
   font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .lineageNode small {
-  margin-top: 5px;
+  margin-top: 4px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.5;
 }
 
@@ -1115,12 +1142,12 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 12px;
-  margin-top: 28px;
+  margin-top: 32px;
 }
 
 .impactItem {
   padding: 12px;
-  background: rgba(247, 248, 245, 0.94);
+  background: var(--surface-raised);
   border-radius: 7px;
 }
 
@@ -1131,12 +1158,13 @@
 
 .impactItem span {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .impactItem strong {
-  margin-top: 5px;
-  font-size: 12px;
+  margin-top: 4px;
+  font-family: var(--font-number);
+  font-size: 16px;
 }
 
 .qualityList {
@@ -1148,10 +1176,10 @@
 
 .qualityList li {
   display: grid;
-  min-height: 62px;
+  min-height: 64px;
   grid-template-columns: minmax(180px, 1.4fr) 90px 110px 68px;
   align-items: center;
-  gap: 15px;
+  gap: 16px;
   padding: 0 16px;
   border-bottom: 1px solid var(--line);
 }
@@ -1173,7 +1201,7 @@
 .qualityList time {
   margin-top: 4px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .qualityResult {
@@ -1192,11 +1220,10 @@
 
 .technicalHeader {
   display: flex;
-  min-height: 78px;
   align-items: center;
   justify-content: space-between;
-  gap: 18px;
-  padding: 0 18px;
+  gap: 16px;
+  padding: 16px 24px;
   background: var(--paper);
   border-radius: var(--radius-panel);
   box-shadow: var(--shadow-card);
@@ -1227,7 +1254,7 @@
   place-items: center;
   color: var(--jade);
   background: var(--jade-soft);
-  border-radius: 9px;
+  border-radius: 8px;
 }
 
 .technicalIdentity span,
@@ -1235,7 +1262,7 @@
 .technicalPanelHeader span,
 .technicalFooter span {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .technicalIdentity span {
@@ -1249,7 +1276,7 @@
 .technicalIdentity h2 {
   margin: 3px 0 0;
   font-family: var(--font-title);
-  font-size: 18px;
+  font-size: 24px;
 }
 
 .technicalIdentity p {
@@ -1263,7 +1290,7 @@
 .technicalSummary {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  margin-top: 14px;
+  margin-top: 16px;
   overflow: hidden;
   background: var(--paper);
   border-radius: var(--radius-panel);
@@ -1272,7 +1299,7 @@
 
 .technicalSummary > div {
   min-width: 0;
-  padding: 14px 16px;
+  padding: 16px;
 }
 
 .technicalSummary > div + div {
@@ -1288,11 +1315,11 @@
 .technicalSummary span,
 .technicalSummary small {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .technicalSummary strong {
-  margin: 5px 0 3px;
+  margin: 4px 0 3px;
   color: var(--jade-dark);
   font-family: var(--font-number);
   font-size: 16px;
@@ -1301,8 +1328,8 @@
 .technicalGrid {
   display: grid;
   grid-template-columns: minmax(0, 1.55fr) minmax(280px, 0.75fr);
-  gap: 14px;
-  margin-top: 14px;
+  gap: 16px;
+  margin-top: 16px;
 }
 
 .technicalPanel,
@@ -1315,7 +1342,7 @@
 }
 
 .technicalPanelHeader {
-  min-height: 54px;
+  min-height: 48px;
   justify-content: space-between;
   padding: 0 16px;
   border-bottom: 1px solid var(--line);
@@ -1363,9 +1390,9 @@
   display: flex;
   min-width: 0;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   margin: 0;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .technicalDefinition dt {
@@ -1392,10 +1419,15 @@
   padding: 10px;
   color: var(--jade-dark);
   background: var(--jade-soft);
-  border-left: 2px solid var(--jade);
+  border: 1px solid color-mix(in srgb, var(--jade) 26%, var(--line));
   border-radius: 5px;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.5;
+}
+
+/* 提示条移植进详情主体后按主体内边距对齐（原 margin 面向侧栏容器） */
+.assetBody .technicalNotice {
+  margin: 16px 0 0;
 }
 
 .technicalNotice svg {
@@ -1404,7 +1436,7 @@
 }
 
 .technicalLineage {
-  margin-top: 14px;
+  margin-top: 16px;
 }
 
 .technicalLineageRow {
@@ -1417,7 +1449,7 @@
 .technicalLineageNode {
   position: relative;
   min-width: 0;
-  padding: 13px;
+  padding: 12px;
   background: var(--surface-raised);
   border: 1px solid var(--line);
   border-radius: 7px;
@@ -1443,28 +1475,28 @@
 
 .technicalLineageNode span {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .technicalLineageNode strong {
   overflow: hidden;
-  margin-top: 5px;
+  margin-top: 4px;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 12px;
 }
 
 .technicalLineageNode small {
-  margin-top: 5px;
+  margin-top: 4px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.45;
 }
 
 .technicalFooter {
   min-height: 48px;
   justify-content: space-between;
-  gap: 14px;
+  gap: 16px;
   padding: 0 16px;
   border-top: 1px solid var(--line);
 }
@@ -1472,14 +1504,14 @@
 .technicalFooter .button {
   min-height: 30px;
   padding: 0 8px;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 /* Assistant */
 .assistantWorkspace {
   display: grid;
   min-height: calc(100vh - 75px);
-  grid-template-columns: 214px minmax(520px, 1fr) 300px;
+  grid-template-columns: 202px minmax(520px, 1fr) 300px;
   background: var(--paper);
   border-top: 1px solid var(--line);
 }
@@ -1495,7 +1527,7 @@
 }
 
 .conversationItem {
-  padding: 11px 10px;
+  padding: 12px 8px;
 }
 
 .conversationItem strong {
@@ -1507,21 +1539,21 @@
 }
 
 .conversationItem span {
-  margin-top: 5px;
+  margin-top: 4px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .promptGroup {
   margin: 16px 8px 0;
-  padding-top: 15px;
+  padding-top: 16px;
   border-top: 1px solid var(--line);
 }
 
 .promptGroup h3 {
   margin: 0 8px 8px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.05em;
 }
 
@@ -1530,9 +1562,9 @@
 }
 
 .promptButton {
-  padding: 9px 10px;
+  padding: 8px 10px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.5;
 }
 
@@ -1575,7 +1607,7 @@
 .answerIdentity span {
   margin-top: 2px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .chatScroll {
@@ -1590,7 +1622,7 @@
 
 .userBubble {
   max-width: 72%;
-  padding: 11px 14px;
+  padding: 12px 16px;
   color: #fff;
   background: var(--jade-dark);
   border-radius: 10px 10px 4px 10px;
@@ -1599,7 +1631,7 @@
 }
 
 .assistantAnswer {
-  margin-top: 18px;
+  margin-top: 16px;
   overflow: hidden;
   background: var(--paper);
   border-radius: var(--radius-panel);
@@ -1618,7 +1650,7 @@
 
 .answerActions {
   display: flex;
-  gap: 3px;
+  gap: 4px;
 }
 
 .iconButton {
@@ -1630,7 +1662,7 @@
   color: var(--muted);
   background: transparent;
   border: 0;
-  border-radius: 6px;
+  border-radius: 7px;
   cursor: pointer;
   transition: transform 150ms var(--ease-out), color 150ms var(--ease-out), background-color 150ms var(--ease-out);
 }
@@ -1645,7 +1677,7 @@
 }
 
 .answerCopy {
-  padding: 17px 18px 14px;
+  padding: 16px;
 }
 
 .answerCopy p {
@@ -1659,12 +1691,12 @@
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  margin-top: 13px;
-  padding: 11px 12px;
+  margin-top: 12px;
+  padding: 12px;
   color: var(--amber-dark);
   background: var(--amber-soft);
   border-radius: 7px;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.65;
 }
 
@@ -1681,6 +1713,11 @@
   border-top: 1px solid var(--line);
 }
 
+/* 单面板回答（真实问数页）占满整行，不被挤进左列 */
+.answerGrid > :only-child {
+  grid-column: 1 / -1;
+}
+
 .answerPanel {
   min-width: 0;
   background: var(--paper);
@@ -1689,12 +1726,12 @@
 .answerPanel h3 {
   min-height: 42px;
   margin: 0;
-  padding: 14px 14px 0;
-  font-size: 11px;
+  padding: 16px 16px 0;
+  font-size: 12px;
 }
 
 .answerPanel .barList {
-  padding-inline: 14px;
+  padding-inline: 16px;
 }
 
 .resultTable th:last-child,
@@ -1723,9 +1760,9 @@
 .sqlInner pre {
   overflow-x: auto;
   margin: 0;
-  padding: 15px 17px;
+  padding: 16px;
   font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.65;
   white-space: pre;
 }
@@ -1734,7 +1771,7 @@
   position: sticky;
   bottom: 0;
   flex: 0 0 auto;
-  padding: 12px 18px 16px;
+  padding: 12px 16px 16px;
   background: var(--canvas);
 }
 
@@ -1743,7 +1780,7 @@
   grid-template-columns: minmax(0, 1fr) 42px;
   align-items: end;
   gap: 8px;
-  padding: 8px 8px 8px 13px;
+  padding: 8px 8px 8px 12px;
   background: var(--paper);
   border-radius: 10px;
   box-shadow: var(--shadow-raise), 0 0 0 1px var(--line);
@@ -1794,9 +1831,9 @@
 }
 
 .composerNote {
-  margin: 7px 2px 0;
+  margin: 8px 2px 0;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
   text-align: center;
 }
 
@@ -1807,7 +1844,7 @@
 }
 
 .sourceList li {
-  padding: 9px 0;
+  padding: 8px 0;
   border-bottom: 1px solid var(--line);
 }
 
@@ -1823,19 +1860,19 @@
 .sourceList span {
   margin-top: 4px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .safeBoundary {
   display: flex;
   align-items: flex-start;
-  gap: 9px;
-  margin-top: 15px;
-  padding: 11px;
+  gap: 8px;
+  margin-top: 16px;
+  padding: 12px;
   color: var(--jade-dark);
   background: var(--jade-soft);
   border-radius: 7px;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.6;
 }
 
@@ -1854,7 +1891,7 @@
   }
 
   .assistantWorkspace {
-    grid-template-columns: 192px minmax(500px, 1fr) 270px;
+    grid-template-columns: 184px minmax(500px, 1fr) 270px;
   }
 
   .dashboardGrid,
@@ -1992,9 +2029,9 @@
   min-height: 640px;
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--line-soft, rgba(15, 23, 42, 0.08));
+  border: 1px solid var(--line);
   border-radius: 10px;
-  background: var(--panel-bg, #fff);
+  background: var(--paper);
   overflow: hidden;
 }
 
@@ -2009,11 +2046,11 @@
 .assistantParamBar {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
   align-items: flex-end;
-  padding: 10px 14px;
-  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
-  background: rgba(248, 250, 252, 0.9);
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-raised);
 }
 
 .assistantParamField {
@@ -2025,16 +2062,16 @@
 }
 
 .assistantParamField span {
-  color: rgba(51, 65, 85, 0.85);
+  color: var(--muted);
 }
 
 .assistantParamField input,
 .assistantParamField select {
-  padding: 5px 8px;
-  border: 1px solid rgba(15, 23, 42, 0.16);
-  border-radius: 6px;
+  padding: 4px 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
   font-size: 13px;
-  background: #fff;
+  background: var(--paper);
 }
 
 /* 问数治理面（G27）：行内动作组与验证徽标 */
@@ -2049,7 +2086,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  color: var(--tone-healthy, #1b7f4d);
+  color: var(--jade-dark);
   font-weight: 600;
 }
 

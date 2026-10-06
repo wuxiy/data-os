@@ -1,6 +1,6 @@
 .panel {
   min-width: 0;
-  padding: 18px 18px 14px;
+  padding: 16px 16px 12px;
   background: var(--paper);
   border-radius: var(--radius-panel);
   box-shadow: var(--shadow-card);
@@ -11,18 +11,18 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .header h2 {
   margin: 0;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
 }
 
 .legend {
   display: flex;
-  gap: 14px;
+  gap: 16px;
   color: var(--muted);
   font-size: 12px;
 }
@@ -82,7 +82,7 @@
 .xLabels {
   display: flex;
   justify-content: space-between;
-  margin-top: -6px;
+  margin-top: 0;
   padding-left: calc(40 / 640 * 100%);
   color: var(--muted);
   font-family: var(--font-number);
@@ -92,7 +92,7 @@
 .yTick {
   fill: var(--muted);
   font-family: var(--font-number);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .yUnit {
@@ -114,7 +114,7 @@
 
 .flat .header {
   justify-content: flex-end;
-  margin-bottom: 2px;
+  margin-bottom: 4px;
 }
 
 @media (max-width: 600px) {

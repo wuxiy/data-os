@@ -38,6 +38,17 @@
   --shadow-raise: 0 2px 4px rgba(20, 28, 25, 0.05), 0 12px 32px -12px rgba(20, 28, 25, 0.12);
   --radius-panel: 10px;
   --radius-control: 7px;
+  --radius-icon: 8px;
+  --radius-drawer: 12px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --control-h: 32px;
+  --control-h-lg: 40px;
   --font-title: "Noto Serif SC", "Songti SC", serif;
   --font-number: "DIN Alternate", "Helvetica Neue", Arial, sans-serif;
 }

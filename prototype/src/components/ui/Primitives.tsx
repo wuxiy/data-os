@@ -9,11 +9,12 @@ export function StatusTag({ children, tone = 'neutral' }: { children: ReactNode;
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'quiet' | 'danger'
+  size?: 'md' | 'sm'
 }
 
-export function Button({ variant = 'secondary', className = '', children, ...props }: ButtonProps) {
+export function Button({ variant = 'secondary', size = 'md', className = '', children, ...props }: ButtonProps) {
   return (
-    <button className={`${styles.button} ${styles[variant]} ${className}`} {...props}>
+    <button className={`${styles.button} ${styles[variant]} ${size === 'sm' ? styles.sm : ''} ${className}`} {...props}>
       {children}
     </button>
   )

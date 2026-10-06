@@ -18,7 +18,6 @@ import {
 import { formatDateTime } from '../data/domain'
 import { useAction } from '../hooks/useAction'
 import { useApiResource } from '../hooks/useApiResource'
-import pageStyles from './PlatformOperationsPage.module.css'
 import { rowMoreToggle } from './rowMoreToggle'
 import styles from './Pages.module.css'
 
@@ -156,8 +155,9 @@ export function EdgeNodesPanel() {
   return (
     <section className={styles.tablePanel}>
       <div className={styles.panelHeader}>
-        <div><h2>前置机节点</h2><p>医院边缘侧 MiNiFi 节点台账；状态由中心 TCP 探活衍生（{onlineCount}/{nodes.length} 在线）</p></div>
+        <div><h2>前置机节点</h2><p>医院边缘侧 MiNiFi 节点台账；状态由中心 TCP 探活衍生</p></div>
         <div className={styles.panelHeaderActions}>
+          <span className={styles.dashboardScope}>{onlineCount}/{nodes.length} 在线</span>
           {apiState === 'live' ? <button className={styles.primaryButton} onClick={openCreate}><Plus size={14} />登记节点</button> : null}
         </div>
       </div>
@@ -171,7 +171,7 @@ export function EdgeNodesPanel() {
                   <Boxes size={14} />
                   <strong>{table.dataset}</strong>
                 </div>
-                <p>累计 {table.totalRows.toLocaleString()} 行 · 最近写入 {table.latestWriteAt ?? '—'}</p>
+                <p>累计 {table.totalRows.toLocaleString()} 行 · 最近写入 {formatDateTime(table.latestWriteAt)}</p>
                 <div className={styles.watermarkBars}>
                   {table.dailyCounts.map((item) => (
                     <span key={item.date} title={`${item.date}：${item.count} 行`}>
@@ -204,7 +204,7 @@ export function EdgeNodesPanel() {
                 <button className={styles.tableButton} disabled={pendingKey !== null} onClick={() => probe(node)}><Radar size={13} className={pendingKey === `probe-${node.id}` ? styles.spin : undefined} />{pendingKey === `probe-${node.id}` ? '探测中…' : '探测'}</button>
                 <button className={styles.tableButton} onClick={() => void openDeployments(node)}><History size={13} />发布</button>
                 <details className={styles.rowMore} onToggle={rowMoreToggle}>
-                  <summary aria-label="更多操作"><MoreHorizontal size={13} aria-hidden="true" /></summary>
+                  <summary><MoreHorizontal size={13} aria-hidden="true" />更多</summary>
                   <div className={styles.rowMoreMenu}>
                     <button className={styles.tableButton} onClick={(event) => { event.currentTarget.closest('details')?.removeAttribute('open'); openEdit(node) }}><Pencil size={13} />编辑</button>
                     <button className={styles.tableButton} disabled={pendingKey !== null} onClick={(event) => { event.currentTarget.closest('details')?.removeAttribute('open'); remove(node) }}><Trash2 size={13} />删除</button>
@@ -238,7 +238,7 @@ export function EdgeNodesPanel() {
         <ol className={styles.runTimeline}>
           {deployments.map((deployment) => (
             <li key={deployment.id}>
-              <div className={styles.timelineDot} data-tone="healthy" />
+              <div className={styles.timelineDot} />
               <div className={styles.timelineBody}>
                 <div className={styles.timelineTitle}><strong>{deployment.version}</strong><time>{formatDateTime(deployment.deployedAt)}</time></div>
                 {deployment.note ? <p>{deployment.note}</p> : null}

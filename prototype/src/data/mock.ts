@@ -81,6 +81,32 @@ export const standards: StandardItem[] = [
   },
 ]
 
+// 标准版本轨迹（演示数据）：按标准 id 区分，状态与 standards 表保持一致
+// （已发布=顶部为当前版本；修订中/草稿=顶部为在编版本）。
+export const standardVersions: Record<string, Array<{ version: string; label: string; detail: string }>> = {
+  'STD-001': [
+    { version: 'v2.1', label: '当前版本', detail: '2026-07-29 由标准委员会发布' },
+    { version: 'v2.0', label: '修订定义', detail: '2026-05-18 补充英文姓名登记口径' },
+    { version: 'v1.0', label: '初始发布', detail: '2026-02-06' },
+  ],
+  'STD-002': [
+    { version: 'v1.4', label: '当前版本', detail: '2026-07-26 对齐 WS 445.1 日期时间格式' },
+    { version: 'v1.0', label: '初始发布', detail: '2026-03-12' },
+  ],
+  'STD-003': [
+    { version: 'v3.0', label: '修订中', detail: '2026-07-25 升级 ICD-10 国家临床版 2.0 值域' },
+    { version: 'v2.0', label: '当前生效', detail: '2026-04-09 补充中医诊断编码映射' },
+    { version: 'v1.0', label: '初始发布', detail: '2026-01-20' },
+  ],
+  'STD-004': [
+    { version: 'v1.6', label: '当前版本', detail: '2026-07-21 明确定量结果与单位联合解释口径' },
+    { version: 'v1.0', label: '初始发布', detail: '2026-03-02' },
+  ],
+  'STD-005': [
+    { version: 'v0.9', label: '草稿', detail: '2026-07-18 待标准委员会评审' },
+  ],
+}
+
 export const qualityIssues: QualityIssue[] = [
   {
     id: 'DQ-20260801-023',

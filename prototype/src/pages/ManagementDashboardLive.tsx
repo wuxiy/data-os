@@ -13,6 +13,7 @@ import {
 } from '../data/operationsApi'
 import { useApiResource } from '../hooks/useApiResource'
 import styles from './Pages.module.css'
+import pageStyles from './ManagementDashboardLive.module.css'
 
 /**
  * 管理驾驶舱（G24 真实链路）：指标全部来自运营只读投影（/api/v1/operations），
@@ -21,6 +22,9 @@ import styles from './Pages.module.css'
  */
 
 const SEVERITY_ORDER: Record<string, number> = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 }
+
+/* 严重度中文化（2026-10-06 对齐收敛）：英文枚举只留在数据层，界面直出中文。 */
+const SEVERITY_LABEL: Record<string, string> = { CRITICAL: '阻断', HIGH: '高', MEDIUM: '中', LOW: '低' }
 
 const DEEP_LINK_ROUTES: Record<string, 'ingestion' | 'governance' | 'mpi' | 'aiData' | 'dataServices'> = {
   '/ingestion': 'ingestion',
@@ -43,7 +47,7 @@ function countTone(value: number, warnAt: number, dangerAt = Number.POSITIVE_INF
 }
 
 export function ManagementDashboardLive(
-  { onNotice, onNavigate }: { onNotice: (message: string) => void; onNavigate: (route: 'ingestion' | 'governance' | 'mpi' | 'aiData' | 'dataServices') => void },
+  { onNotice, onNavigate }: { onNotice: (message: string) => void; onNavigate: (route: 'ingestion' | 'governance' | 'mpi' | 'aiData' | 'dataServices' | 'operationsCenter') => void },
 ) {
   const [summary, setSummary] = useState<OperationsSummary | null>(null)
   const [workItems, setWorkItems] = useState<OperationsWorkItem[]>([])
@@ -119,7 +123,8 @@ export function ManagementDashboardLive(
       <div className={styles.content}>
         {metrics.length > 0 ? <MetricStrip metrics={metrics} /> : <p className={styles.emptyState}>正在加载运营指标…</p>}
 
-        <section className={styles.attention}>
+        {/* 就绪态用中性带（attentionNeutral），降级/未知才挂琥珀（2026-10-06 对齐收敛）。 */}
+        <section className={`${styles.attention} ${components?.state === 'READY' ? styles.attentionNeutral : ''}`}>
           <div className={styles.attentionText}>
             <Activity size={21} />
             <div>
@@ -139,6 +144,7 @@ export function ManagementDashboardLive(
           <section className={styles.tablePanel}>
             <div className={styles.panelHeader}>
               <div><h2>优先处理</h2><p>共 {workItems.length} 项跨域待办 · 按严重度排序 · 完整清单在运营中心</p></div>
+              <button className={styles.textButton} onClick={() => onNavigate('operationsCenter')}>查看全部 <ChevronRight size={13} /></button>
             </div>
             <div className={styles.tableScroll}>
               <table className={styles.table}>
@@ -148,9 +154,11 @@ export function ManagementDashboardLive(
                   {workItemsState === 'live' && topItems.length === 0 ? <tr className={styles.emptyRow}><td colSpan={5}>当前没有待处理的跨域事项。</td></tr> : null}
                   {topItems.map((item) => (
                     <tr key={`${item.sourceType}-${item.sourceId}`}>
-                      <td><StatusTag tone={severityTone(item.severity)}>{item.severity}</StatusTag></td>
+                      <td><StatusTag tone={severityTone(item.severity)}>{SEVERITY_LABEL[item.severity] ?? item.severity}</StatusTag></td>
                       <td>{item.title}</td>
-                      <td className={styles.inlineCode}>{item.sourceType}:{item.sourceId.slice(0, 12)}</td>
+                      {/* inlineCode 是 inline-block，直接挂 td 会被踢出表格布局（整列错位），
+                          必须包在 code 里（2026-10-06 对齐收敛）。 */}
+                      <td><code className={styles.inlineCode}>{item.sourceType}:{item.sourceId.slice(0, 12)}</code></td>
                       <td><small>{item.asOf}</small></td>
                       <td>
                         <Button variant="quiet" onClick={() => {
@@ -170,7 +178,7 @@ export function ManagementDashboardLive(
           </section>
 
           <section className={styles.panel}>
-            <div className={styles.panelHeader}><h2>最近事件</h2><p>跨域操作留痕</p></div>
+            <div className={styles.panelHeader}><div><h2>最近事件</h2><p>跨域操作留痕</p></div></div>
             <ul className={styles.timelineBody}>
               {eventsState === 'loading' ? <li className={styles.emptyState}>正在加载事件…</li> : null}
               {events.slice(0, 10).map((event, index) => (
@@ -181,7 +189,8 @@ export function ManagementDashboardLive(
               ))}
               {eventsState === 'live' && events.length === 0 ? <li className={styles.emptyState}>近 48 小时无跨域事件。</li> : null}
             </ul>
-            <p className={styles.emptyState}><CloudCog size={13} /> 事件与待办同源于运营投影，两处口径一致。</p>
+            {/* 脚注左对齐（2026-10-06 对齐收敛）：原借用 emptyState 居中灰字，语义不符。 */}
+            <p className={pageStyles.panelFootnote}><CloudCog size={13} /> 事件与待办同源于运营投影，两处口径一致。</p>
           </section>
         </div>
       </div>

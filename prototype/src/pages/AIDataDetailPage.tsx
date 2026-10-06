@@ -33,6 +33,7 @@ import { Pager } from '../components/ui/Pager'
 import styles from './IntegrationPages.module.css'
 // 抽屉表单体系与数据接入/数据服务页同源，保持一处维护。
 import formStyles from './Pages.module.css'
+import localStyles from './AIDataDetailPage.module.css'
 
 interface Props {
   productId: string
@@ -157,33 +158,37 @@ export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, 
             </StatusTag>
           </div>
           <h2>{product.name}</h2>
-          <p>{product.id} · 当前版本 {product.currentVersion} · 负责人 {product.owner} · 工作流 {product.workflowType}</p>
+          <p>当前版本 {product.currentVersion} · 负责人 {product.owner} · 工作流 {product.workflowType}</p>
         </div>
-        <div className={styles.toolbarActions}>
-          {nextTarget ? (
-            <Button onClick={onAdvance}>推进到「{lifecycleLabel[nextTarget]}」</Button>
-          ) : null}
-          {product.lifecycle === 'ASSESSED' ? (
-            <Button onClick={() => void handleSubmitCertification()}>提交认证审批</Button>
-          ) : null}
-          {product.lifecycle === 'SERVING' ? (
-            confirmDemote ? (
-              <>
-                <Button variant="danger" onClick={() => { setConfirmDemote(false); onDemote() }}>确认撤下</Button>
-                <Button onClick={() => setConfirmDemote(false)}>取消</Button>
-              </>
-            ) : <Button onClick={() => setConfirmDemote(true)}>撤下重评估</Button>
-          ) : null}
+        <div className={`${styles.toolbarActions} ${localStyles.actionBar}`}>
+          <div className={localStyles.actionGroup}>
+            {nextTarget ? (
+              <Button onClick={onAdvance}>推进到「{lifecycleLabel[nextTarget]}」</Button>
+            ) : null}
+            {product.lifecycle === 'ASSESSED' ? (
+              <Button onClick={() => void handleSubmitCertification()}>提交认证审批</Button>
+            ) : null}
+            <Button onClick={onBuild}>构建 / 评估</Button>
+            <Button onClick={() => setFeedbackOpen(true)}>反馈失败样本</Button>
+          </div>
           {product.lifecycle !== 'DEPRECATED' ? (
-            confirmDeprecate ? (
-              <>
-                <Button variant="danger" onClick={() => { setConfirmDeprecate(false); onDeprecate() }}>确认弃用</Button>
-                <Button onClick={() => setConfirmDeprecate(false)}>取消</Button>
-              </>
-            ) : <Button onClick={() => setConfirmDeprecate(true)}>弃用</Button>
+            <div className={`${localStyles.actionGroup} ${localStyles.dangerGroup}`}>
+              {product.lifecycle === 'SERVING' ? (
+                confirmDemote ? (
+                  <>
+                    <Button variant="danger" onClick={() => { setConfirmDemote(false); onDemote() }}>确认撤下</Button>
+                    <Button onClick={() => setConfirmDemote(false)}>取消</Button>
+                  </>
+                ) : <Button onClick={() => setConfirmDemote(true)}>撤下重评估</Button>
+              ) : null}
+              {confirmDeprecate ? (
+                <>
+                  <Button variant="danger" onClick={() => { setConfirmDeprecate(false); onDeprecate() }}>确认弃用</Button>
+                  <Button onClick={() => setConfirmDeprecate(false)}>取消</Button>
+                </>
+              ) : <Button onClick={() => setConfirmDeprecate(true)}>弃用</Button>}
+            </div>
           ) : null}
-          <Button onClick={onBuild}>构建 / 评估</Button>
-          <Button onClick={() => setFeedbackOpen(true)}>反馈失败样本</Button>
         </div>
       </div>
 
@@ -205,7 +210,7 @@ export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, 
           </div>
           <div className={styles.horizontalScroll}>
             <table className={styles.fieldTable}>
-              <thead><tr><th>版本</th><th>构建状态</th><th>就绪度</th><th>Recipe</th><th>Git Commit</th><th>创建时间</th></tr></thead>
+              <thead><tr><th>版本</th><th>构建状态</th><th className={localStyles.num}>就绪度</th><th>认证</th><th>Recipe</th><th>Git Commit</th><th>创建时间</th></tr></thead>
               <tbody>
                 {pagedVersions.map((version) => {
                   const readiness = version.readiness
@@ -213,10 +218,11 @@ export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, 
                     <tr key={version.id}>
                       <td>{version.versionSn}</td>
                       <td><StatusTag tone={version.buildStatus === 'REGISTERED' ? 'neutral' : version.buildStatus === 'FAILED' ? 'danger' : version.buildStatus === 'RUNNING' ? 'warning' : 'healthy'}>{aiBuildStatusLabel[version.buildStatus] ?? version.buildStatus}</StatusTag></td>
+                      <td className={localStyles.num}>{readiness?.overall != null ? readiness.overall.toFixed(2) : '—'}</td>
                       <td>
-                        {readiness?.overall != null
+                        {readiness?.certification
                           ? <StatusTag tone={readiness.certification === 'BLOCKED' ? 'danger' : readiness.certification === 'CANDIDATE' ? 'healthy' : 'warning'}>
-                              {readiness.overall.toFixed(2)} · {readiness.certification ? (aiCertificationLabel[readiness.certification] ?? readiness.certification) : '—'}
+                              {aiCertificationLabel[readiness.certification] ?? readiness.certification}
                             </StatusTag>
                           : <span>—</span>}
                       </td>
@@ -274,14 +280,14 @@ export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, 
               </div>
               <div className={styles.horizontalScroll}>
                 <table className={styles.fieldTable}>
-                  <thead><tr><th>版本</th><th>Overall</th><th>MRR</th><th>忠实度</th></tr></thead>
+                  <thead><tr><th>版本</th><th className={localStyles.num}>Overall</th><th className={localStyles.num}>MRR</th><th className={localStyles.num}>忠实度</th></tr></thead>
                   <tbody>
                     {rows.map((row) => (
                       <tr key={row.versionSn}>
                         <td>{row.versionSn}</td>
-                        <td>{row.overall?.toFixed(4) ?? '—'}</td>
-                        <td>{row.mrr?.toFixed(2) ?? '—'}</td>
-                        <td>{row.faith?.toFixed(2) ?? '—'}</td>
+                        <td className={localStyles.num}>{row.overall?.toFixed(2) ?? '—'}</td>
+                        <td className={localStyles.num}>{row.mrr?.toFixed(2) ?? '—'}</td>
+                        <td className={localStyles.num}>{row.faith?.toFixed(2) ?? '—'}</td>
                       </tr>
                     ))}
                   </tbody>

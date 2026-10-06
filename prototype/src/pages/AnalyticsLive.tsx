@@ -119,11 +119,7 @@ export function AnalyticsLive({ onNotice }: { onNotice: (message: string) => voi
                   aria-pressed={dashboard.id === selected?.id}
                 >
                   <strong>{dashboard.title}</strong>
-                  <span>只读视图</span>
-                  <div className={styles.catalogMeta}>
-                    <em>看板 {dashboard.id}</em>
-                    <i className={styles.healthMark}>已授权嵌入</i>
-                  </div>
+                  <span>只读视图 · 看板 {dashboard.id}</span>
                 </button>
               </li>
             ))}
@@ -178,12 +174,6 @@ export function AnalyticsLive({ onNotice }: { onNotice: (message: string) => voi
               <div><dt>令牌时效</dt><dd>短时效（默认 300 秒，自动续签）</dd></div>
               <div><dt>嵌入白名单</dt><dd>仪表盘级 allowed_domains 校验门户来源</dd></div>
             </dl>
-            <section className={styles.evidenceSection}>
-              <h3>数据来源</h3>
-              <ul className={styles.relatedList}>
-                <li><ChartNoAxesCombined size={14} />ods_ep.ep_mz_cfzb（Doris 只读数据集）</li>
-              </ul>
-            </section>
           </div>
         </aside>
       </div>

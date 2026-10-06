@@ -21,6 +21,7 @@ import {
 import { Drawer } from '../components/ui/Drawer'
 import { StatusTag } from '../components/ui/Primitives'
 import { formatDateTime } from '../data/domain'
+import local from './JobScheduleDrawer.module.css'
 import styles from './Pages.module.css'
 
 /**
@@ -146,7 +147,7 @@ export function JobScheduleDrawer({ job, onClose, onNotice }: {
     try {
       if (action === 'stop') await stopScheduleInstance(job.id, instance.id)
       else await retryScheduleInstance(job.id, instance.id)
-      onNotice(action === 'stop' ? '已发出终止指令，实例状态以 DS 为准' : '已发出重跑指令，实例状态以 DS 为准')
+      onNotice(action === 'stop' ? '已发出终止指令，实例状态以平台调度为准' : '已发出重跑指令，实例状态以平台调度为准')
       await loadInstances()
     } catch (cause) {
       onNotice(cause instanceof Error ? cause.message : (action === 'stop' ? '实例终止失败' : '实例重跑失败'))
@@ -163,7 +164,7 @@ export function JobScheduleDrawer({ job, onClose, onNotice }: {
     setBackfilling(true)
     try {
       await backfillScheduleInstances(job.id, { startDate: backfillStart, endDate: backfillEnd })
-      onNotice('补数已提交（DS 将按日期逐日触发）')
+      onNotice('补数已提交（平台调度将按日期逐日触发）')
       await loadInstances(0)
     } catch (cause) {
       onNotice(cause instanceof Error ? cause.message : '补数提交失败')
@@ -247,7 +248,7 @@ export function JobScheduleDrawer({ job, onClose, onNotice }: {
       const next = await changeJobScheduleState(job.id, online)
       setSchedule(next)
       refill(next)
-      onNotice(online ? '调度已上线，DS 将按 CRON 触发工作流' : '调度已下线，不再周期触发')
+      onNotice(online ? '调度已上线，平台调度将按 CRON 触发工作流' : '调度已下线，不再周期触发')
     } catch (cause) {
       onNotice(cause instanceof Error ? cause.message : (online ? '调度上线失败' : '调度下线失败'))
     } finally {
@@ -291,11 +292,11 @@ export function JobScheduleDrawer({ job, onClose, onNotice }: {
         <button className={styles.primaryButton} type="button" disabled={saving || previewLoading} onClick={() => void save()}><Save size={14} />{saving ? '处理中…' : '保存调度'}</button>
       </>}
     >
-      <div className={styles.drawerNotice}><CalendarClock size={16} /><span>调度由 DolphinScheduler 引擎执行，DS 是唯一事实源；本页每次打开实时读取。保存不改变上下线状态，新建调度需显式上线。DS 定时触发的运行在「调度实例」中查看（门户发起的运行才进任务运行记录）。</span></div>
+      <div className={styles.drawerNotice}><CalendarClock size={16} /><span>调度由平台调度引擎执行，调度平台是唯一事实源；本页每次打开实时读取。保存不改变上下线状态，新建调度需显式上线。平台定时触发的运行在「调度实例」中查看（门户发起的运行才进任务运行记录）。</span></div>
 
-      <div className={styles.drawerFields} role="tablist" aria-label="调度管理">
-        <button type="button" role="tab" aria-selected={tab === 'config'} className={tab === 'config' ? styles.primaryButton : styles.secondaryButton} onClick={() => switchTab('config')}><CalendarClock size={14} />调度配置</button>
-        <button type="button" role="tab" aria-selected={tab === 'instances'} className={tab === 'instances' ? styles.primaryButton : styles.secondaryButton} onClick={() => switchTab('instances')}><ListTree size={14} />调度实例</button>
+      <div className={`${styles.toolbarRow} ${local.toolbarBlock}`} role="tablist" aria-label="调度管理">
+        <button type="button" role="tab" aria-selected={tab === 'config'} className={tab === 'config' ? styles.primaryButton : styles.textButton} onClick={() => switchTab('config')}><CalendarClock size={14} />调度配置</button>
+        <button type="button" role="tab" aria-selected={tab === 'instances'} className={tab === 'instances' ? styles.primaryButton : styles.textButton} onClick={() => switchTab('instances')}><ListTree size={14} />调度实例</button>
       </div>
 
       {state === 'loading' ? <p className={styles.drawerHint}>正在读取当前调度状态…</p> : null}
@@ -320,7 +321,7 @@ export function JobScheduleDrawer({ job, onClose, onNotice }: {
               <option value="once">延迟一次 · 指定时刻触发</option>
               {advanced ? <option value="advanced">高级模式 · 直编 CRON</option> : null}
             </select>
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, alignSelf: 'end', whiteSpace: 'nowrap' }}>
+            <label className={local.advancedToggle}>
               <input type="checkbox" checked={advanced} onChange={(event) => setAdvanced(event.target.checked)} />
               高级模式（直接编辑 CRON）
             </label>
@@ -329,7 +330,7 @@ export function JobScheduleDrawer({ job, onClose, onNotice }: {
 
         {advanced ? (
           <div className={styles.formField}>
-            <label htmlFor="schedule-cron">CRON 表达式（秒 分 时 日 月 周，DS quartz 方言）</label>
+            <label htmlFor="schedule-cron">CRON 表达式（秒 分 时 日 月 周，六位）</label>
             <input id="schedule-cron" className={styles.codeInput} value={crontab} onChange={(event) => setCrontab(event.target.value)} spellCheck={false} placeholder="0 30 2 * * ?" />
           </div>
         ) : preset === 'daily' ? (
@@ -363,7 +364,7 @@ export function JobScheduleDrawer({ job, onClose, onNotice }: {
 
         {preview ? (
           <div className={styles.checkResult}>
-            <StatusTag tone={preview.source === 'DS' ? 'healthy' : 'warning'}>{preview.source === 'DS' ? 'DS 引擎计算' : 'DS 不可达 · 本地计算'}</StatusTag>
+            <StatusTag tone={preview.source === 'DS' ? 'healthy' : 'warning'}>{preview.source === 'DS' ? '平台调度引擎计算' : '引擎不可达 · 本地估算'}</StatusTag>
             <ul>
               {preview.fireTimes.map((time) => <li key={time}>{formatDateTime(time)}</li>)}
               {preview.fireTimes.length === 0 ? <li>生效窗口内无触发时刻</li> : null}
@@ -371,7 +372,7 @@ export function JobScheduleDrawer({ job, onClose, onNotice }: {
           </div>
         ) : null}
 
-        <div className={styles.drawerFields}>
+        <div className={`${styles.toolbarRow} ${local.toolbarBlock}`}>
           <button className={styles.secondaryButton} type="button" disabled={saving || !schedule.scheduled || schedule.online} onClick={() => void toggleOnline(true)}><Power size={14} />上线</button>
           <button className={styles.secondaryButton} type="button" disabled={saving || !schedule.scheduled || !schedule.online} onClick={() => void toggleOnline(false)}><Power size={14} />下线</button>
           <button className={styles.secondaryButton} type="button" disabled={saving || !schedule.scheduled} onClick={requestDelete}>
@@ -379,7 +380,7 @@ export function JobScheduleDrawer({ job, onClose, onNotice }: {
           </button>
         </div>
         {schedule.scheduled ? null : (
-          <p className={styles.drawerHint}><CircleAlert size={13} /> 手动调度=任务不在 DS 周期触发；仍可在任务列表手动启动。</p>
+          <p className={styles.drawerHint}><CircleAlert size={13} /> 手动调度=任务不在平台调度周期触发；仍可在任务列表手动启动。</p>
         )}
       </> : null}
 
@@ -389,9 +390,9 @@ export function JobScheduleDrawer({ job, onClose, onNotice }: {
           <div className={styles.formField}><label htmlFor="backfill-end">补数结束日期</label><input id="backfill-end" type="date" value={backfillEnd} onChange={(event) => setBackfillEnd(event.target.value)} /></div>
           <div className={styles.formField}><label>区间补数</label><button type="button" className={styles.secondaryButton} disabled={backfilling} onClick={() => void submitBackfill()}><RefreshCw size={14} />{backfilling ? '提交中…' : '按日补跑'}</button></div>
         </div>
-        <p className={styles.drawerHint}>补数按日期区间让 DS 逐日重跑工作流（COMPLEMENT_DATA）；实例状态由 DS 实时读取，门户发起的运行仍在任务运行记录中。</p>
+        <p className={styles.drawerHint}>补数按日期区间让平台调度逐日重跑工作流；实例状态由调度平台实时读取，门户发起的运行仍在任务运行记录中。</p>
 
-        <div className={styles.drawerFields}>
+        <div className={`${styles.toolbarRow} ${local.toolbarBlock}`}>
           <strong>调度实例（{instTotal}）</strong>
           <button type="button" className={styles.secondaryButton} disabled={instLoading} onClick={() => void loadInstances()}><RefreshCw size={13} />刷新</button>
           <button type="button" className={styles.secondaryButton} disabled={instLoading || instPage === 0} onClick={() => void loadInstances(instPage - 1)}>上一页</button>

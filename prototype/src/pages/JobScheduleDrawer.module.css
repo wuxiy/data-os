@@ -1,0 +1,16 @@
+/* 调度配置抽屉页面级样式。 */
+
+/* 高级模式开关：与左侧策略下拉底对齐的紧凑勾选行。 */
+.advancedToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: end;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* 工具条与下方内容的分隔（沿用 drawerFields 原来的 16px 底部间距）。 */
+.toolbarBlock {
+  margin-bottom: 16px;
+}

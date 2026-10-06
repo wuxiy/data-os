@@ -42,6 +42,7 @@ import type { GovernanceApiIssue, GovernanceIssueDetailApiResponse, GovernanceIs
 import type { RouteKey } from '../types'
 import { QualityRulesAdmin } from './QualityRulesAdmin'
 import styles from './Pages.module.css'
+import local from './QualityIssuesPage.module.css'
 
 interface Props {
   onNavigate: (route: RouteKey) => void
@@ -243,7 +244,7 @@ export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props
       <GovernanceTabs route="quality" onNavigate={onNavigate} onUnavailable={onUnavailable} />
       <div className={styles.apiStatus} role="status" aria-live="polite">
         <span className={`${styles.apiDot} ${apiState === 'live' ? styles.apiDotLive : ''}`} />
-        {apiState === 'loading' ? '正在连接治理控制面…' : apiState === 'live' ? '控制面已连接 · 问题与处理记录来自 PostgreSQL' : '控制面暂不可用 · 未加载治理问题'}
+        {apiState === 'loading' ? '正在连接治理控制面…' : apiState === 'live' ? '控制面已连接 · 问题与处理记录来自治理控制面' : '控制面暂不可用 · 未加载治理问题'}
       </div>
       {apiState === 'unavailable' ? <div className={styles.connectionNotice} role="alert"><CircleAlert size={17} /><div><strong>治理问题控制面不可用</strong><span>当前页面没有展示演示问题；请恢复控制面后重新加载。</span></div><button className={styles.secondaryButton} onClick={() => window.location.reload()}>重新连接</button></div> : null}
       <div className={styles.workspace}>
@@ -274,17 +275,20 @@ export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props
               {groupedTimeline(detail.events).map((group) => group.kind === 'retries' ? (
                 /* 连续复检重试折叠（2026-10-05 复评 P2-4）：N 条等权事件收成一条可展开记录。 */
                 <li key={group.events[0].id} data-tone="neutral">
-                  <time>{(() => {
+                  {(() => {
+                    /* 时间列只放起时点（96px 列宽放不下「起 – 止」），区间并入标题行。 */
                     const span = [group.events[0].createdAt, group.events[group.events.length - 1].createdAt].sort()
-                    return `${formatDateTime(span[0])}${span[0] !== span[1] ? ` – ${formatDateTime(span[1])}` : ''}`
-                  })()}</time>
-                  <div>
-                    <strong>复检投递重试（共 {group.events.length} 条）</strong>
-                    <details className={styles.executorLog}>
-                      <summary>展开每次记录</summary>
-                      {group.events.map((event) => <p key={event.id}>{formatDateTime(event.createdAt)} · {eventTitle(event.eventType)}{event.note ? ` · ${event.note}` : ''}</p>)}
-                    </details>
-                  </div>
+                    return <>
+                      <time>{formatDateTime(span[0])}</time>
+                      <div>
+                        <strong>复检投递重试（共 {group.events.length} 条{span[0] !== span[1] ? ` · ${formatDateTime(span[0])} – ${formatDateTime(span[1])}` : ''}）</strong>
+                        <details className={styles.executorLog}>
+                          <summary>展开每次记录</summary>
+                          {group.events.map((event) => <p key={event.id}>{formatDateTime(event.createdAt)} · {eventTitle(event.eventType)}{event.note ? ` · ${event.note}` : ''}</p>)}
+                        </details>
+                      </div>
+                    </>
+                  })()}
                 </li>
               ) : (
                 <li key={group.event.id} data-tone={eventTone(group.event.eventType)}>
@@ -308,8 +312,8 @@ export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props
         <aside className={styles.workspaceInspector}>
           {selected && detail ? <>
             <div className={styles.sectionTitle}><h3>影响与证据</h3><StatusTag tone={severityTone(selected.severity)}>{severityLabel(selected.severity)}风险</StatusTag></div>
-            <div className={styles.evidenceBox}><h3>影响范围</h3><p>{selected.impact}</p></div>
-            <div className={styles.evidenceBox}><h3>规则证据</h3><p>{selected.ruleId}<br />最近更新：{formatDateTime(selected.updatedAt)}<br />规则结果来源：治理规则运行记录</p></div>
+            <div className={`${styles.evidenceBox} ${local.flatEvidence} ${local.flatEvidenceFirst}`}><h3>影响范围</h3><p>{selected.impact}</p></div>
+            <div className={`${styles.evidenceBox} ${local.flatEvidence}`}><h3>规则证据</h3><p>{selected.ruleId}<br />规则结果来源：治理规则运行记录</p></div>
             <div className={styles.evidenceBox}>
               <h3>复检执行批次</h3>
               {detail.latestRun ? <>
@@ -323,12 +327,14 @@ export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props
                 {detail.runs.length > 1 ? <div className={styles.runHistory}><strong>历史执行批次（{detail.runs.length}）</strong>{detail.runs.slice(1).map((run) => <div className={styles.runHistoryItem} key={run.id}><StatusTag tone={runStatusTone(run.status)}>{runStatusLabel(run.status)}</StatusTag><span title={run.executionBatchId}>{shortBatchId(run.executionBatchId)}</span><time>{formatDateTime(run.submittedAt)}</time><small>{run.sampleEvidence.length} 条证据</small></div>)}</div> : null}
               </> : <p>尚未提交质量规则复检。</p>}
             </div>
-            <div className={styles.evidenceBox}><h3>责任人通知</h3>{detail.notifications.length > 0 ? detail.notifications.slice(0, 3).map((notification) => <p key={notification.id}><StatusTag tone={notificationStatusTone(notification.status)}>{notificationStatusLabel(notification.status)}</StatusTag> {notification.channel} · {notification.recipient}<br />{notification.subject}{notification.lastError ? <><br /><span className={styles.evidenceMessage}>{notification.lastError}</span></> : null}</p>) : <p>当前没有通知记录。</p>}</div>
-            <div className={styles.evidenceBox}><h3>责任归属</h3><p>{selected.ownerDepartment} · {selected.ownerName}<br />来源：资产责任人与组织主数据</p></div>
+            <div className={`${styles.evidenceBox} ${local.flatEvidence}`}><h3>责任人通知</h3>{detail.notifications.length > 0 ? detail.notifications.slice(0, 3).map((notification) => <p key={notification.id}><StatusTag tone={notificationStatusTone(notification.status)}>{notificationStatusLabel(notification.status)}</StatusTag> {notification.channel} · {notification.recipient}<br />{notification.subject}{notification.lastError ? <><br /><span className={styles.evidenceMessage}>{notification.lastError}</span></> : null}</p>) : <p>当前没有通知记录。</p>}</div>
+            <div className={`${styles.evidenceBox} ${local.flatEvidence}`}><h3>责任归属</h3><p>{selected.ownerDepartment} · {selected.ownerName}<br />来源：资产责任人与组织主数据</p></div>
           </> : null}
         </aside>
       </div>
-      <QualityRulesAdmin onNotice={onNotice} />
+      <div className={styles.content}>
+        <QualityRulesAdmin onNotice={onNotice} />
+      </div>
       {batchRemindOpen ? <ConfirmDrawer
         titleId="batch-remind-confirm-title"
         eyebrow="问题队列 · 批量提醒"

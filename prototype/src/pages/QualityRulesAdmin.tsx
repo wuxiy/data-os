@@ -21,6 +21,7 @@ import { useApiResource } from '../hooks/useApiResource'
 import { fetchLineageAsset, fetchLineageCatalog, fetchLineageSummary } from '../data/lineageApi'
 import { fetchStandardDetail, fetchStandards } from '../data/standardsApi'
 import styles from './Pages.module.css'
+import local from './QualityRulesAdmin.module.css'
 
 interface Props {
   onNotice: (message: string) => void
@@ -336,14 +337,14 @@ export function QualityRulesAdmin({ onNotice }: Props) {
   return (
     <section className={styles.tablePanel}>
       <div className={styles.panelHeader}>
-        <div><h2>质量规则（动态）</h2><p>面向 Doris 业务库表配置规则；保存即由质量执行器编译生效，复检链自动可用</p></div>
+        <div><h2>质量规则（动态）</h2><p>面向业务库表配置规则；保存即由质量执行器编译生效，复检链自动可用</p></div>
         <div className={styles.panelHeaderActions}>
           <span className={styles.dashboardScope}>{rules.length} 条规则</span>
           {apiState === 'live' ? <button className={styles.primaryButton} onClick={openCreate}><Plus size={14} />新建规则</button> : null}
         </div>
       </div>
       <div className={styles.tableScroll}><table className={styles.table}>
-        <thead><tr><th>规则编号</th><th>类型</th><th>维度</th><th>目标</th><th>状态</th><th>更新时间</th><th>操作</th></tr></thead>
+        <thead><tr><th>规则编号</th><th>类型</th><th>维度</th><th>目标</th><th>状态</th><th className={styles.num}>更新时间</th><th>操作</th></tr></thead>
         <tbody>
           {rules.map((rule) => (
             <tr key={rule.ruleId}>
@@ -352,11 +353,11 @@ export function QualityRulesAdmin({ onNotice }: Props) {
               <td>{dimensionOf(rule.ruleType)}</td>
               <td><code className={styles.inlineCode}>{rule.datasetId}</code>{rule.targetColumn ? ` · ${rule.targetColumn}` : ''}</td>
               <td><StatusTag tone={rule.enabled ? 'healthy' : 'neutral'}>{rule.enabled ? '启用中' : '已停用'}</StatusTag></td>
-              <td>{formatDateTime(rule.updatedAt)}</td>
+              <td className={styles.num}>{formatDateTime(rule.updatedAt)}</td>
               <td><div className={styles.tableActions}>
                 <button className={styles.tableButton} onClick={() => openEdit(rule)}>编辑</button>
                 <button className={styles.tableButton} disabled={pendingKey !== null} onClick={() => toggleEnabled(rule)}>{rule.enabled ? '停用' : '启用'}</button>
-                <button className={styles.tableButton} disabled={pendingKey !== null} onClick={() => setPendingDelete(rule)}><Trash2 size={13} />删除</button>
+                <button className={`${styles.tableButton} ${local.dangerAction}`} disabled={pendingKey !== null} onClick={() => setPendingDelete(rule)}><Trash2 size={13} />删除</button>
               </div></td>
             </tr>
           ))}
@@ -374,7 +375,7 @@ export function QualityRulesAdmin({ onNotice }: Props) {
         footer={<><button className={styles.secondaryButton} type="button" onClick={() => setFormOpen(false)}>取消</button><button className={styles.primaryButton} type="submit" form="quality-rule-form" disabled={saving}><Save size={14} />{saving ? '保存中…' : '保存并推送'}</button></>}
       >
         <form id="quality-rule-form" className={styles.drawerForm} onSubmit={(event) => submit(event)}>
-          <div className={styles.drawerNotice}><ShieldCheck size={16} /><span>规则语义由质量执行器编译（dbt 测试）：标识符与 SQL 只读约束在保存时实校验，失败原因会如实返回。证据列是失败样本的展示白名单与脱敏策略。</span></div>
+          <div className={styles.drawerNotice}><ShieldCheck size={16} /><span>规则语义由质量规则执行器编译校验：标识符与 SQL 只读约束在保存时实校验，失败原因会如实返回。证据列是失败样本的展示白名单与脱敏策略。</span></div>
           <div className={styles.drawerFormGrid}>
             <div className={styles.formField}><label htmlFor="rule-id">规则编号</label><input id="rule-id" value={form.ruleId} disabled={editing !== null} onChange={(event) => update({ ruleId: event.target.value })} placeholder="例如：quality.ep.order.paystatus-range" /></div>
             <div className={styles.formField}><label htmlFor="rule-type">规则类型</label><select id="rule-type" value={form.ruleType} onChange={(event) => update({ ruleType: event.target.value as QualityRuleType })}>{(types.length > 0 ? types : Object.entries(PARAM_LABELS).map(([type, label]) => ({ type, label, dimension: '' }))).map((item) => <option key={item.type} value={item.type}>{item.label}（{item.type}）</option>)}</select></div>

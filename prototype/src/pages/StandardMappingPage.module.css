@@ -1,0 +1,18 @@
+/* 标准映射页局部样式（共享类在 Pages.module.css，双类名仅用于提升优先级、不依赖加载顺序）。 */
+
+/* 筛选激活态：在次按钮上叠灰玉淡底，不与主动作「保存此映射」竞争。 */
+.filterActive.filterActive {
+  color: var(--jade-dark);
+  background: rgba(46, 118, 105, 0.12);
+  border-color: var(--jade);
+}
+
+/* 未校验映射的得分不用健康绿，改药珀色，与「待确认 / 规则建议」状态语义一致。 */
+.scorePending.scorePending strong {
+  color: var(--amber);
+}
+
+/* 共享 .mappingRow 的 padding 为 0，hover/选中底色贴文字左缘；补 8px 横向内边距。 */
+.rowPad.rowPad {
+  padding: 0 8px;
+}

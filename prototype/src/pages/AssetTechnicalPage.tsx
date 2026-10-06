@@ -38,7 +38,7 @@ function DemoAssetTechnicalPage({ onNotice }: { onNotice: (message: string) => v
     <div className={styles.integrationPage}>
       <PageHeader
         title="技术视图"
-        eyebrow={`数据资产 · ${asset.entityId}`}
+        eyebrow="数据资产 · 结构与技术证据"
         subtitle="面向数据开发与运维人员的结构、血缘和同步证据；业务定义仍以资产详情为准。"
         compact
       />
@@ -47,7 +47,7 @@ function DemoAssetTechnicalPage({ onNotice }: { onNotice: (message: string) => v
         <header className={styles.technicalHeader}>
           <div className={styles.technicalIdentity}>
             <div className={styles.technicalIcon}><TableProperties size={19} /></div>
-            <div><span>{asset.fqn}</span><h2>{asset.name}</h2><p>技术元数据快照 · 最近同步 {asset.freshness}</p></div>
+            <div><h2>{asset.name}</h2><p>技术元数据快照 · 最近同步 {asset.freshness}</p></div>
           </div>
           <div className={styles.technicalHeaderActions}>
             <StatusTag tone={asset.status === '可信' ? 'healthy' : 'warning'}>{asset.status}</StatusTag>
@@ -56,8 +56,8 @@ function DemoAssetTechnicalPage({ onNotice }: { onNotice: (message: string) => v
         </header>
 
         <div className={styles.technicalSummary}>
-          <div><span>实体类型</span><strong>{asset.type}</strong><small>平台登记资产</small></div>
-          <div><span>所属主题</span><strong>{asset.domain}</strong><small>业务域与技术域已绑定</small></div>
+          <div><span>实体类型</span><strong>{asset.type}</strong></div>
+          <div><span>所属主题</span><strong>{asset.domain}</strong></div>
           <div><span>字段数量</span><strong>{asset.fields.length}</strong><small>关键字段已完成标准映射</small></div>
           <div><span>同步状态</span><strong>已同步</strong><small>快照更新时间 {asset.freshness}</small></div>
         </div>

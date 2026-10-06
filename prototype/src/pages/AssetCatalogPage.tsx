@@ -1,4 +1,4 @@
-import { ChartNoAxesCombined, Database, ExternalLink, FileCheck2, FileText, Search, Table2, Waypoints, Workflow } from 'lucide-react'
+import { ChartNoAxesCombined, Database, ExternalLink, FileText, Search, Table2, Waypoints, Workflow } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { DemoDataBoundary } from '../components/ui/DemoDataBoundary'
 import { PageHeader } from '../components/ui/PageHeader'
@@ -8,6 +8,7 @@ import { routePaths } from '../data/routes'
 import { frontendDemoMode } from '../data/runtimeMode'
 import { AssetCatalogLive } from './AssetCatalogLive'
 import styles from './IntegrationPages.module.css'
+import local from './AssetCatalogPage.module.css'
 
 type AssetTab = 'overview' | 'lineage' | 'quality'
 
@@ -74,7 +75,6 @@ function DemoAssetCatalogPage({ onNotice, onNavigate }: { onNotice: (message: st
                   <strong>{asset.name}</strong>
                   <span>{asset.type} · {asset.domain}</span>
                   <div className={styles.catalogMeta}>
-                    <em>质量 {asset.quality}</em>
                     <i className={asset.status === '可信' ? styles.healthMark : styles.warningMark}>{asset.status}</i>
                   </div>
                 </button>
@@ -116,10 +116,9 @@ function DemoAssetCatalogPage({ onNotice, onNavigate }: { onNotice: (message: st
             ))}
           </nav>
           <div className={styles.assetBody}>
-            <div className={styles.assetSummary}>
+            <div className={`${styles.assetSummary} ${local.summaryTwo}`}>
               <div className={styles.assetScore}><span>数据质量</span><strong>{selected.quality}</strong></div>
               <div className={styles.assetScore}><span>数据新鲜度</span><strong>{selected.freshness}</strong></div>
-              <div className={styles.assetScore}><span>已登记消费</span><strong>{selected.uses.length} 项</strong></div>
             </div>
             {activeTab === 'overview' ? <AssetOverview asset={selected} /> : null}
             {activeTab === 'lineage' ? <AssetLineage asset={selected} /> : null}
@@ -169,8 +168,8 @@ function AssetOverview({ asset }: { asset: AssetItem }) {
         </div>
       </section>
       <section className={styles.contentPanel}>
-        <div className={styles.contentPanelHeader}><h3>使用情况</h3><span>{asset.uses.length} 项</span></div>
-        <ul className={styles.usageList}>{asset.uses.map((usage) => <li key={usage}><FileCheck2 size={14} />{usage}</li>)}</ul>
+        <div className={styles.contentPanelHeader}><h3>消费结构</h3><span>{asset.uses.length} 项已登记</span></div>
+        <div className={styles.descriptionBlock}><p>消费覆盖分析专题、数据服务与监管上报三类用途；消费明细与登记来源统一在右侧资产证据轨维护，变更影响以证据轨为准。</p></div>
       </section>
     </div>
   )
@@ -193,7 +192,7 @@ function AssetLineage({ asset }: { asset: AssetItem }) {
       </div>
       <div className={styles.lineageImpact}>
         <div className={styles.impactItem}><span>上游依赖</span><strong>2 个源对象 · 1 个采集任务</strong></div>
-        <div className={styles.impactItem}><span>下游影响</span><strong>{asset.uses.length} 项已登记消费</strong></div>
+        <div className={styles.impactItem}><span>下游影响</span><strong>{asset.uses.length} 项</strong></div>
         <div className={styles.impactItem}><span>最近结构变化</span><strong>07-29 新增 2 个标准字段</strong></div>
       </div>
     </section>

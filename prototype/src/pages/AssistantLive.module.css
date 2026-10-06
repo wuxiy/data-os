@@ -1,0 +1,19 @@
+/* 智能问数真实页局部样式（收敛第二波）：侧栏说明文字左对齐。
+   composerNote 是输入框下方的居中注释，复用到左对齐会话轨内违和。 */
+
+/* 直接挂在会话轨的说明段落（加载中/空清单提示）。 */
+.railNote {
+  margin: 8px 16px 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+  text-align: left;
+}
+
+/* promptList 内的口径说明条目。 */
+.promptNote {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+  text-align: left;
+}

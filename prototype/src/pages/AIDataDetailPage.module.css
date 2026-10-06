@@ -1,0 +1,28 @@
+/* AI Data 详情页局部样式（收敛第二波）：动作条分组换行与就绪度数字列。 */
+
+/* 动作条最多 6–7 个按钮：换行 + 右对齐；与共享 .toolbarActions 组合使用。 */
+.actionBar {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.actionGroup {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* 危险动作（撤下/弃用）与普通动作分簇，细线分隔降低误触。 */
+.dangerGroup {
+  padding-left: 8px;
+  border-left: 1px solid var(--line);
+}
+
+/* 就绪度数字列（fieldTable 不在 Pages .table 体系内，页面级补等宽右对齐） */
+th.num,
+td.num {
+  font-family: var(--font-number);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}

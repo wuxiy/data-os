@@ -14,6 +14,7 @@ import {
 import { useApiResource } from '../hooks/useApiResource'
 import { AssistantGovernance } from './AssistantGovernance'
 import styles from './IntegrationPages.module.css'
+import localStyles from './AssistantLive.module.css'
 
 /**
  * 智能问数真实页（G26）：只回答已验证问题（确定性匹配），执行经 Data API
@@ -142,7 +143,7 @@ export function AssistantLive({ onNotice, professional = false, governance = fal
       <div className={styles.assistantWorkspace}>
         <aside className={styles.conversationRail} aria-label="支持的问题">
           <div className={styles.railHeader}><h2>已验证问题</h2><span className={styles.railCount}>{questions.length}</span></div>
-          {questionsState === 'loading' && questions.length === 0 ? <p className={styles.composerNote}>正在加载问题清单…</p> : null}
+          {questionsState === 'loading' && questions.length === 0 ? <p className={localStyles.railNote}>正在加载问题清单…</p> : null}
           <ul className={styles.conversationList}>
             {questions.map((question) => (
               <li key={question.code}>
@@ -157,11 +158,11 @@ export function AssistantLive({ onNotice, professional = false, governance = fal
             ))}
           </ul>
           {questions.length === 0 && questionsState !== 'loading'
-            ? <p className={styles.composerNote}>当前租户暂无已发布的已验证问题。</p> : null}
+            ? <p className={localStyles.railNote}>当前租户暂无已发布的已验证问题。</p> : null}
           <section className={styles.promptGroup}>
             <h3>口径说明</h3>
             <ul className={styles.promptList}>
-              <li className={styles.composerNote}>同义表达命中同一问题代码；未知问题明确拒答，不生成任意 SQL。</li>
+              <li className={localStyles.promptNote}>同义表达命中同一问题代码；未知问题明确拒答，不生成任意 SQL。</li>
             </ul>
           </section>
         </aside>

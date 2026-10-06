@@ -1,0 +1,9 @@
+/* QualityRulesAdmin 页面级组合类：行内「删除」为破坏性操作，
+   以危险色调与编辑/停用区分（文字红用 --red-deep，白底 AA 达标）。 */
+.dangerAction {
+  color: var(--red-deep);
+}
+
+.dangerAction:hover:not(:disabled) {
+  background: var(--red-soft);
+}

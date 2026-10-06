@@ -18,7 +18,7 @@ import {
   Save,
   Server,
   Settings2,
-  Waypoints,
+  KeyRound,
   MoreHorizontal,
   CalendarClock,
 } from 'lucide-react'
@@ -63,6 +63,7 @@ import { usePolling } from '../hooks/usePolling'
 import { allowsTemplate, defaultTemplateKey, offersDemoTemplate } from '../data/runtimeMode'
 import type { RouteKey } from '../types'
 import { rowMoreToggle } from './rowMoreToggle'
+import local from './DataIngestionPage.module.css'
 import styles from './Pages.module.css'
 
 interface Props {
@@ -181,6 +182,9 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
   const [sourceCheckText, setSourceCheckText] = useState('')
   const [sourceCheckError, setSourceCheckError] = useState<string | null>(null)
   const [exploringSource, setExploringSource] = useState<SourceApiItem | null>(null)
+  // 结构化表单的提交按钮挂在宿主抽屉 footer（form 属性关联），文案/可用性由表单上报。
+  const [structuredCreateMeta, setStructuredCreateMeta] = useState<{ label: string; disabled: boolean } | null>(null)
+  const [structuredConfigMeta, setStructuredConfigMeta] = useState<{ label: string; disabled: boolean } | null>(null)
   // 主载入有意手写（不用 useApiResource）：列表先落位进入 live、各作业最新
   // 运行随后补齐的两段渐进 UX 需要在 onData 之后继续持有同一中止信号。
   useEffect(() => {
@@ -263,6 +267,11 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
   const jobFormStructuredReady = Boolean(jobFormSource
     && jobFormSource.protocol.toUpperCase() === 'JDBC' && jobFormSource.connection)
   const configuringSource = configuringJob ? sourceById.get(configuringJob.sourceId) : undefined
+  // 与下方抽屉主体的渲染条件保持一致：footer 按钮按同一口径显隐。
+  const structuredCreateActive = jobForm.executor !== 'DOLPHINSCHEDULER' && jobForm.configMode !== 'json'
+    && jobFormStructuredReady && Boolean(jobFormSource)
+  const structuredConfigActive = Boolean(configStructured && configuringSource
+    && configuringSource.protocol.toUpperCase() === 'JDBC' && configuringSource.connection)
   // 页码随列表收缩自动钳制到最后一页；新建数据源/任务后显式回到第一页。
   const sourcesPageCount = Math.max(1, Math.ceil(visibleSources.length / SOURCES_PAGE_SIZE))
   const sourcesCurrentPage = Math.min(sourcesPage, sourcesPageCount - 1)
@@ -489,8 +498,8 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
       return
     }
     if (jobForm.executor !== 'DOLPHINSCHEDULER' && jobForm.configMode !== 'json') {
-      // 结构化模式经表单内保存按钮提交；回车误触表单提交时给出指向。
-      onNotice('请在下方表单完成配置后点击「保存任务配置」')
+      // 结构化模式经抽屉 footer 的提交按钮（form 关联结构化表单）提交；回车误触时给出指向。
+      onNotice('请在下方完成采集配置后，点击抽屉底部的提交按钮')
       return
     }
     if (!jobForm.sourceId || !jobForm.name.trim()) {
@@ -604,7 +613,7 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
       return
     }
     setConfigError(null)
-    void runJobAction('save-config', '工作流绑定保存失败。请确认编号为 DS 中真实存在的项目与工作流定义。', async () => {
+    void runJobAction('save-config', '工作流绑定保存失败。请确认编号为平台调度中真实存在的项目与工作流定义。', async () => {
       const saved = await saveJobConfig(configuringJob.id, {
         templateKey: 'CUSTOM',
         templateVersion: 1,
@@ -662,25 +671,24 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
       <PageHeader title="数据接入" />
       <div className={styles.apiStatus} role="status" aria-live="polite">
         <span className={`${styles.apiDot} ${state === 'live' ? styles.apiDotLive : ''}`} />
-        {state === 'loading' ? '正在连接采集控制面…' : state === 'live' ? '控制面已连接 · 数据源与任务来自 PostgreSQL' : '控制面暂不可用 · 未加载业务数据'}
+        {state === 'loading' ? '正在连接采集控制面…' : state === 'live' ? '控制面已连接 · 数据来自治理控制面' : '控制面暂不可用 · 未加载业务数据'}
       </div>
       {state === 'unavailable' ? <div className={styles.connectionNotice} role="alert"><CircleAlert size={17} /><div><strong>采集控制面不可用</strong><span>当前页面没有展示演示状态；请恢复控制面后重新加载。</span></div><button className={styles.secondaryButton} onClick={() => window.location.reload()}><RefreshCw size={13} />重新连接</button></div> : null}
       <div className={styles.content}>
-        <section className={styles.attention}>
+        <section className={`${styles.attention} ${styles.attentionNeutral}`}>
           <div className={styles.attentionText}>
             <Cable size={21} />
             <div><h2>把院内系统接入到可治理的数据链路</h2><p>先登记来源，再配置任务；运行、异常和重试都回到同一条责任链。</p></div>
           </div>
-          <button className={styles.primaryButton} onClick={() => {
-            if (state !== 'live') { onUnavailable('接入向导'); return }
-            setJobFormOpen(false)
-            setSourceFormOpen(true)
-          }}><Plus size={14} />新增数据源</button>
         </section>
 
         <div className={styles.twoColumns}>
           <section className={styles.panel}>
-            <div className={styles.panelHeader}><div><h2>已登记数据源</h2><p>前置机、院内系统与区域交换入口</p></div><button className={styles.textButton} onClick={() => window.location.reload()}><RefreshCw size={13} />刷新</button></div>
+            <div className={styles.panelHeader}><div><h2>已登记数据源</h2><p>前置机、院内系统与区域交换入口</p></div><div className={styles.panelHeaderActions}><button className={styles.textButton} onClick={() => window.location.reload()}><RefreshCw size={13} />刷新</button><button className={styles.primaryButton} onClick={() => {
+              if (state !== 'live') { onUnavailable('接入向导'); return }
+              setJobFormOpen(false)
+              setSourceFormOpen(true)
+            }}><Plus size={14} />新增数据源</button></div></div>
             <ul className={styles.ranking}>
               {pagedSources.map((source) => { const health = sourceStatusLabel(source.status); return <li key={source.id}><span className={styles.rank}><Server size={16} /></span><div className={styles.rankBody}><strong>{source.name}</strong><span>{source.systemType} · {source.protocol} · {source.institutionId}</span>{source.lastCheckMessage ? <small className={styles.statusDetail}>{source.lastCheckMessage} · {formatDateTime(source.lastCheckedAt)}</small> : null}</div><div className={styles.sourceRowActions}><StatusTag tone={health.tone}>{health.label}</StatusTag>{state === 'live' ? <button className={styles.tableButton} onClick={() => openSourceCheck(source)}><CheckCircle2 size={13} />检查</button> : null}{state === 'live' && source.protocol.toUpperCase() === 'JDBC' ? <button className={styles.tableButton} onClick={() => openSourceExplorer(source)}><Database size={13} />浏览</button> : null}</div></li> })}
               {visibleSources.length === 0 ? <li className={styles.emptyState}>暂无已登记数据源</li> : null}
@@ -691,15 +699,15 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
           <section className={styles.panel}>
             <div className={styles.panelHeader}><div><h2>采集链路摘要</h2><p>以运行记录作为统一事实</p></div><Activity size={18} color="var(--jade)" /></div>
             <div className={styles.summaryGrid}>
-              <Summary label="来源数" value={String(visibleSources.length)} icon={<Server size={15} />} />
-              <Summary label="任务数" value={String(visibleJobs.length)} icon={<Waypoints size={15} />} />
-              <Summary label="已配置任务" value={String(visibleJobs.filter((job) => job.configured).length)} icon={<FileCog size={15} />} />
+              <Summary label="已配置率" value={visibleJobs.length === 0 ? '—' : `${Math.round((visibleJobs.filter((job) => job.configured).length / visibleJobs.length) * 100)}%`} icon={<FileCog size={15} />} />
               <Summary label="待执行" value={String(visibleJobs.filter((job) => {
                 const runStatus = latestRuns[job.id]?.status ?? job.latestRunStatus
                 return runStatus ? !ACTIVE_RUN_STATUSES.includes(runStatus) : job.status !== 'RUNNING'
               }).length)} icon={<CircleAlert size={15} />} />
             </div>
-            <button className={styles.textButton} onClick={() => onNavigate('governance')}>查看治理结果 <ArrowUpRight size={13} /></button>
+            <div className={local.summaryFoot}>
+              <button className={styles.textButton} onClick={() => onNavigate('governance')}>查看治理结果 <ArrowUpRight size={13} /></button>
+            </div>
           </section>
         </div>
 
@@ -718,9 +726,8 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
             const activeRun = Boolean(latestStatus && ACTIVE_RUN_STATUSES.includes(latestStatus))
             const canSync = Boolean(run && activeRun)
             const canRetry = Boolean(run && retryableRunStatus(run.status))
-            const lifecycle = jobLifecycleStatusLabel(job.status)
             const canStart = job.status !== 'PAUSED' && job.status !== 'ARCHIVED'
-            return <tr key={job.id}><td><strong>{job.name}</strong><small>{job.id.slice(0, 8)}</small><span className={`${styles.configPill} ${job.configured ? styles.configPillReady : styles.configPillMissing}`}>{job.configured ? `${job.templateKey ?? '自定义'} v${job.templateVersion ?? 1}` : '未配置'}</span><span className={`${styles.lifecyclePill} ${lifecycleClass(lifecycle.tone)}`}>{lifecycle.label}</span></td><td>{sourceById.get(job.sourceId)?.name ?? '来源未登记'}</td><td>{job.mode === 'CDC' ? '增量变更' : '批量同步'}</td><td>{executorLabel(job.executor)}</td><td><StatusTag tone={status.tone}>{status.label}</StatusTag>{run ? <small className={styles.statusDetail}>{businessMessage(run.message)}</small> : null}</td><td><div className={styles.tableActions}><button className={styles.tableButton} disabled={runningJob === job.id || activeRun || !canStart} onClick={() => job.configured ? void runJob(job) : void openJobConfig(job)}><Play size={13} />{runningJob === job.id ? '处理中…' : activeRun ? '已有运行' : !canStart ? '已暂停' : job.configured ? '启动' : '配置后运行'}</button>{canRetry ? <button className={styles.tableButton} disabled={runningJob === job.id || !canStart || activeRun} onClick={() => void retryRun(job, run)}><RotateCcw size={13} />重试</button> : null}<button className={styles.tableButton} onClick={() => void openJobConfig(job)}><Settings2 size={13} />配置</button><button className={styles.tableButton} onClick={() => openRunDetails(job)}><Clock3 size={13} />详情</button>{job.status !== 'ARCHIVED' ? <details className={styles.rowMore} onToggle={rowMoreToggle}><summary><MoreHorizontal size={13} aria-hidden="true" />更多</summary><div className={styles.rowMoreMenu}>{job.executor.toUpperCase().includes('DOLPHIN') ? <button className={styles.tableButton} onClick={(event) => { event.currentTarget.closest('details')?.removeAttribute('open'); setSchedulingJob(job) }}><CalendarClock size={13} />调度</button> : null}{job.status === 'ACTIVE' ? <button className={styles.tableButton} disabled={runningJob === job.id} onClick={(event) => { event.currentTarget.closest('details')?.removeAttribute('open'); void changeJobStatus(job, 'PAUSED') }}><Pause size={13} />暂停</button> : job.status === 'PAUSED' || job.status === 'DRAFT' ? <button className={styles.tableButton} disabled={runningJob === job.id} onClick={(event) => { event.currentTarget.closest('details')?.removeAttribute('open'); void changeJobStatus(job, 'ACTIVE') }}><Play size={13} />启用</button> : null}{job.status !== 'ARCHIVED' ? <button className={styles.tableButton} disabled={runningJob === job.id || activeRun} onClick={(event) => { event.currentTarget.closest('details')?.removeAttribute('open'); void changeJobStatus(job, 'ARCHIVED') }}><Archive size={13} />归档</button> : null}<button className={styles.tableButton} disabled={runningJob === job.id} onClick={(event) => { event.currentTarget.closest('details')?.removeAttribute('open'); openJobCopy(job) }}><Copy size={13} />复制</button>{canSync ? <button className={styles.tableButton} disabled={runningJob === job.id} onClick={(event) => { event.currentTarget.closest('details')?.removeAttribute('open'); void syncRun(job, run) }}><RefreshCw size={13} />同步</button> : null}</div></details> : null}</div></td></tr>
+            return <tr key={job.id}><td><strong>{job.name}</strong><span className={`${styles.configPill} ${job.configured ? styles.configPillReady : styles.configPillMissing}`}>{job.configured ? `${job.templateKey ?? '自定义'} v${job.templateVersion ?? 1}` : '未配置'}</span></td><td>{sourceById.get(job.sourceId)?.name ?? '来源未登记'}</td><td>{job.mode === 'CDC' ? '增量变更' : '批量同步'}</td><td>{executorLabel(job.executor)}</td><td><StatusTag tone={status.tone}>{status.label}</StatusTag>{run ? <small className={styles.statusDetail}>{businessMessage(run.message)}</small> : null}</td><td><div className={styles.tableActions}><button className={styles.tableButton} disabled={runningJob === job.id || activeRun || !canStart} onClick={() => job.configured ? void runJob(job) : void openJobConfig(job)}><Play size={13} />{runningJob === job.id ? '处理中…' : activeRun ? '已有运行' : !canStart ? '已暂停' : job.configured ? '启动' : '配置后运行'}</button>{canRetry ? <button className={styles.tableButton} disabled={runningJob === job.id || !canStart || activeRun} onClick={() => void retryRun(job, run)}><RotateCcw size={13} />重试</button> : null}<button className={styles.tableButton} onClick={() => void openJobConfig(job)}><Settings2 size={13} />配置</button><button className={styles.tableButton} onClick={() => openRunDetails(job)}><Clock3 size={13} />详情</button>{job.status !== 'ARCHIVED' ? <details className={styles.rowMore} onToggle={rowMoreToggle}><summary><MoreHorizontal size={13} aria-hidden="true" />更多</summary><div className={styles.rowMoreMenu}>{job.executor.toUpperCase().includes('DOLPHIN') ? <button className={styles.tableButton} onClick={(event) => { event.currentTarget.closest('details')?.removeAttribute('open'); setSchedulingJob(job) }}><CalendarClock size={13} />调度</button> : null}{job.status === 'ACTIVE' ? <button className={styles.tableButton} disabled={runningJob === job.id} onClick={(event) => { event.currentTarget.closest('details')?.removeAttribute('open'); void changeJobStatus(job, 'PAUSED') }}><Pause size={13} />暂停</button> : job.status === 'PAUSED' || job.status === 'DRAFT' ? <button className={styles.tableButton} disabled={runningJob === job.id} onClick={(event) => { event.currentTarget.closest('details')?.removeAttribute('open'); void changeJobStatus(job, 'ACTIVE') }}><Play size={13} />启用</button> : null}{job.status !== 'ARCHIVED' ? <button className={styles.tableButton} disabled={runningJob === job.id || activeRun} onClick={(event) => { event.currentTarget.closest('details')?.removeAttribute('open'); void changeJobStatus(job, 'ARCHIVED') }}><Archive size={13} />归档</button> : null}<button className={styles.tableButton} disabled={runningJob === job.id} onClick={(event) => { event.currentTarget.closest('details')?.removeAttribute('open'); openJobCopy(job) }}><Copy size={13} />复制</button>{canSync ? <button className={styles.tableButton} disabled={runningJob === job.id} onClick={(event) => { event.currentTarget.closest('details')?.removeAttribute('open'); void syncRun(job, run) }}><RefreshCw size={13} />同步</button> : null}</div></details> : null}</div></td></tr>
           })}{visibleJobs.length === 0 ? <tr><td colSpan={6} className={styles.emptyState}>暂无采集任务，先登记数据源再新建任务。</td></tr> : null}</tbody></table></div>
           <Pager label="采集任务分页" page={jobsCurrentPage} pageCount={jobsPageCount} pageSize={JOBS_PAGE_SIZE} onPageChange={setJobsPage} />
         </section>
@@ -754,8 +761,9 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
         title="新建采集任务"
         closeLabel="关闭采集任务创建"
         onClose={() => setJobFormOpen(false)}
-        footer={<><button className={styles.secondaryButton} type="button" onClick={() => setJobFormOpen(false)}>取消</button>{jobForm.configMode === 'json' || jobForm.executor === 'DOLPHINSCHEDULER' ? <button className={styles.primaryButton} type="submit" form="job-form" disabled={creatingJob}><Plus size={14} />{creatingJob ? '创建中…' : '创建并保存配置'}</button> : null}</>}
+        footer={<><button className={styles.secondaryButton} type="button" onClick={() => setJobFormOpen(false)}>取消</button>{jobForm.configMode === 'json' || jobForm.executor === 'DOLPHINSCHEDULER' ? <button className={styles.primaryButton} type="submit" form="job-form" disabled={creatingJob}><Plus size={14} />{creatingJob ? '创建中…' : '创建并保存配置'}</button> : structuredCreateActive ? <button className={styles.primaryButton} type="submit" form="job-structured-form" disabled={creatingJob || (structuredCreateMeta?.disabled ?? true)}><Plus size={14} />{creatingJob ? '创建中…' : structuredCreateMeta?.label ?? '保存任务配置'}</button> : null}</>}
       >
+        <div className={styles.drawerForm}>
         <form id="job-form" className={styles.drawerForm} onSubmit={(event) => void submitJob(event)}>
           <div className={styles.drawerNotice}><FileCog size={16} /><span>{jobForm.configMode === 'json'
             ? (offersDemoTemplate() ? '仅保存结构配置；密码、密钥请使用后续凭据引用，不写入任务 JSON。' : workflowTemplates.length > 0 ? '临床模板来自控制面目录；请替换端点和 credentialRef 后再保存，密码、密钥不会写入任务 JSON。' : '真实模式请填写院内连接器 JSON；密码、密钥请使用凭据引用，不写入任务 JSON。')
@@ -764,14 +772,15 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
             <div className={styles.formField}><label htmlFor="job-source">数据源</label><select id="job-source" required value={jobForm.sourceId} onChange={(event) => setJobForm((current) => ({ ...current, sourceId: event.target.value }))}>{sources.map((source) => <option value={source.id} key={source.id}>{source.name} · {source.systemType}{source.connection ? '' : ' · 未登记连接'}</option>)}</select></div>
             <div className={styles.formField}><label htmlFor="job-name">任务名称</label><input id="job-name" required value={jobForm.name} onChange={(event) => setJobForm((current) => ({ ...current, name: event.target.value }))} placeholder="例如：LIS 检验结果批量同步" /></div>
             <div className={styles.formField}><label htmlFor="job-mode">运行模式</label><select id="job-mode" value={jobForm.mode} onChange={(event) => setJobForm((current) => ({ ...current, mode: event.target.value, configText: JSON.stringify(configForTemplate(current.templateKey, event.target.value, workflowTemplates), null, 2) }))}><option value="BATCH">批量同步</option><option value="CDC">增量变更</option></select></div>
-            <div className={styles.formField}><label htmlFor="job-executor">执行通道</label><select id="job-executor" value={jobForm.executor} onChange={(event) => setJobForm((current) => ({ ...current, executor: event.target.value as JobFormState['executor'] }))}><option value="SEATUNNEL">中心采集执行器（SeaTunnel）</option><option value="DOLPHINSCHEDULER">平台调度（DolphinScheduler）</option></select></div>
+            <div className={styles.formField}><label htmlFor="job-executor">执行通道</label><select id="job-executor" value={jobForm.executor} onChange={(event) => setJobForm((current) => ({ ...current, executor: event.target.value as JobFormState['executor'] }))}><option value="SEATUNNEL">中心采集执行器</option><option value="DOLPHINSCHEDULER">平台调度</option></select></div>
             {jobForm.executor === 'DOLPHINSCHEDULER' ? null : <div className={styles.formField}><label htmlFor="job-config-mode">配置方式</label><select id="job-config-mode" value={jobForm.configMode === 'json' ? 'json' : 'structured'} onChange={(event) => setJobForm((current) => ({ ...current, configMode: event.target.value === 'json' ? 'json' : 'table' }))}><option value="structured" disabled={!jobFormStructuredReady}>结构化表单{jobFormStructuredReady ? '' : '（需先登记连接）'}</option><option value="json">模板 JSON</option></select></div>}
           </div>
+        </form>
           {jobForm.executor === 'DOLPHINSCHEDULER' ? <>
-            <div className={styles.drawerNotice}><CalendarClock size={16} /><span>平台调度通道：任务绑定 DolphinScheduler 中已发布的工作流（在 DS 完成开发与上线），data-os 负责调度与运行面的中文化管理。创建后可在任务行「更多 · 调度」里配置周期。</span></div>
+            <div className={styles.drawerNotice}><CalendarClock size={16} /><span>平台调度通道：任务绑定平台调度中已发布的工作流（在调度平台完成开发与上线），门户负责调度与运行面的统一管理。创建后可在任务行「更多 · 调度」里配置周期。</span></div>
             <div className={styles.drawerFormGrid}>
-              <div className={styles.formField}><label htmlFor="job-ds-project">DS 项目编号</label><input id="job-ds-project" type="number" min={1} value={jobForm.dsProjectCode} onChange={(event) => setJobForm((current) => ({ ...current, dsProjectCode: event.target.value }))} placeholder="例如：15187263948032" /></div>
-              <div className={styles.formField}><label htmlFor="job-ds-workflow">工作流定义编号</label><input id="job-ds-workflow" type="number" min={1} value={jobForm.dsWorkflowCode} onChange={(event) => setJobForm((current) => ({ ...current, dsWorkflowCode: event.target.value }))} placeholder="DS 工作流定义的 code" /></div>
+              <div className={styles.formField}><label htmlFor="job-ds-project">平台调度项目编号</label><input id="job-ds-project" type="number" min={1} value={jobForm.dsProjectCode} onChange={(event) => setJobForm((current) => ({ ...current, dsProjectCode: event.target.value }))} placeholder="例如：15187263948032" /></div>
+              <div className={styles.formField}><label htmlFor="job-ds-workflow">平台调度工作流编号</label><input id="job-ds-workflow" type="number" min={1} value={jobForm.dsWorkflowCode} onChange={(event) => setJobForm((current) => ({ ...current, dsWorkflowCode: event.target.value }))} placeholder="平台调度工作流定义的编号" /></div>
             </div>
           </> : jobForm.configMode === 'json' ? <>
           <div className={styles.formField}><label htmlFor="job-template">配置模板</label><select id="job-template" value={jobForm.templateKey} onChange={(event) => selectJobTemplate(event.target.value)}>{offersDemoTemplate() ? <option value={DEFAULT_TEMPLATE_KEY}>FakeSource → Console（演示）</option> : null}{workflowTemplates.map((template) => <option value={template.key} key={template.key}>{template.displayName} · {template.systemType}</option>)}<option value={LIVE_TEMPLATE_KEY}>自定义 JSON</option></select></div>
@@ -783,12 +792,14 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
               lastSuccessWatermark={null}
               saving={creatingJob}
               error={null}
+              formId="job-structured-form"
+              onSubmitState={setStructuredCreateMeta}
               onSubmit={(spec) => void submitStructuredJob(spec)}
             />
           ) : (
             <p className={styles.drawerHint}>结构化配置要求所选数据源已登记连接配置——在数据源列表点「浏览」完成连接登记后即可使用表单。</p>
           )}
-        </form>
+        </div>
       </Drawer> : null}
 
             {checkingSource ? <Drawer
@@ -811,6 +822,7 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
         title={exploringSource.name}
         closeLabel="关闭数据源浏览"
         onClose={() => setExploringSource(null)}
+        footer={exploringSource.connection ? undefined : <><button className={styles.secondaryButton} type="button" onClick={() => setExploringSource(null)}>取消</button><button className={styles.primaryButton} type="submit" form="source-connection-form"><KeyRound size={14} />保存连接配置</button></>}
       >
             <SourceExplorer source={exploringSource} onNotice={onNotice} onSourceUpdated={applySourceUpdate} />
       </Drawer> : null}
@@ -821,14 +833,14 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
         title={configuringJob.name}
         closeLabel="关闭任务配置"
         onClose={() => setConfiguringJob(null)}
-        footer={<><button className={styles.secondaryButton} onClick={() => setConfiguringJob(null)}>{configStructured || isDolphinJob(configuringJob) ? '关闭' : '取消'}</button>{configStructured ? null : isDolphinJob(configuringJob) ? <button className={styles.primaryButton} disabled={configLoading || configSaving} onClick={saveDsBinding}><Save size={14} />{configSaving ? '保存中…' : '保存绑定'}</button> : <button className={styles.primaryButton} disabled={configLoading || configSaving} onClick={() => void saveConfiguration()}><Save size={14} />{configSaving ? '保存中…' : '保存配置'}</button>}</>}
+        footer={<><button className={styles.secondaryButton} onClick={() => setConfiguringJob(null)}>{configStructured || isDolphinJob(configuringJob) ? '关闭' : '取消'}</button>{structuredConfigActive ? <button className={styles.primaryButton} type="submit" form="config-structured-form" disabled={configLoading || configSaving || (structuredConfigMeta?.disabled ?? true)}><Save size={14} />{configSaving ? '保存中…' : structuredConfigMeta?.label ?? '保存任务配置'}</button> : configStructured ? null : isDolphinJob(configuringJob) ? <button className={styles.primaryButton} disabled={configLoading || configSaving} onClick={saveDsBinding}><Save size={14} />{configSaving ? '保存中…' : '保存绑定'}</button> : <button className={styles.primaryButton} disabled={configLoading || configSaving} onClick={() => void saveConfiguration()}><Save size={14} />{configSaving ? '保存中…' : '保存配置'}</button>}</>}
       >
             {isDolphinJob(configuringJob) ? (
               <>
-                <div className={styles.drawerNotice}><CalendarClock size={16} /><span>平台调度任务的配置即工作流绑定：指向 DolphinScheduler 中已发布的工作流。修改绑定不影响已配置的周期调度（调度随工作流生效）。</span></div>
+                <div className={styles.drawerNotice}><CalendarClock size={16} /><span>平台调度任务的配置即工作流绑定：指向平台调度中已发布的工作流。修改绑定不影响已配置的周期调度（调度随工作流生效）。</span></div>
                 <div className={styles.drawerFormGrid}>
-                  <div className={styles.formField}><label htmlFor="config-ds-project">DS 项目编号</label><input id="config-ds-project" type="number" min={1} value={dsBinding.projectCode} disabled={configLoading} onChange={(event) => setDsBinding((current) => ({ ...current, projectCode: event.target.value }))} /></div>
-                  <div className={styles.formField}><label htmlFor="config-ds-workflow">工作流定义编号</label><input id="config-ds-workflow" type="number" min={1} value={dsBinding.workflowDefinitionCode} disabled={configLoading} onChange={(event) => setDsBinding((current) => ({ ...current, workflowDefinitionCode: event.target.value }))} /></div>
+                  <div className={styles.formField}><label htmlFor="config-ds-project">平台调度项目编号</label><input id="config-ds-project" type="number" min={1} value={dsBinding.projectCode} disabled={configLoading} onChange={(event) => setDsBinding((current) => ({ ...current, projectCode: event.target.value }))} /></div>
+                  <div className={styles.formField}><label htmlFor="config-ds-workflow">平台调度工作流编号</label><input id="config-ds-workflow" type="number" min={1} value={dsBinding.workflowDefinitionCode} disabled={configLoading} onChange={(event) => setDsBinding((current) => ({ ...current, workflowDefinitionCode: event.target.value }))} /></div>
                 </div>
                 {configLoading ? <p className={styles.drawerHint}>正在读取已保存绑定…</p> : null}
                 {configError ? <p className={styles.formError} role="alert">{configError}</p> : null}
@@ -842,6 +854,8 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
                   lastSuccessWatermark={configWatermark}
                   saving={configSaving}
                   error={configError}
+                  formId="config-structured-form"
+                  onSubmitState={setStructuredConfigMeta}
                   onSubmit={(spec) => void saveStructuredConfiguration(spec)}
                 />
               </>
@@ -929,15 +943,6 @@ function jobLifecycleStatusLabel(status: string): { label: string; tone: 'health
 
 function jobLifecycleLabel(status: string) {
   return jobLifecycleStatusLabel(status).label
-}
-
-function lifecycleClass(tone: 'healthy' | 'warning' | 'danger' | 'neutral') {
-  switch (tone) {
-    case 'healthy': return styles.lifecycleHealthy
-    case 'warning': return styles.lifecycleWarning
-    case 'danger': return styles.lifecycleDanger
-    default: return styles.lifecycleNeutral
-  }
 }
 
 function businessMessage(message: string) {
