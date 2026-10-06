@@ -876,6 +876,14 @@ ul.timelineBody > li + li {
   max-width: 100%;
   overflow-x: auto;
   overscroll-behavior-x: contain;
+  /* 剪裁缘与表卡之间留 8px 呼吸位（2026-10-06 部署验收 edge-flush-cards）；
+     首列内边距补差 8px，首列文字仍与面板标题 16px 对齐。 */
+  padding: 0 8px;
+}
+
+.table th:first-child,
+.table td:first-child {
+  padding-left: 8px;
 }
 
 .table {
