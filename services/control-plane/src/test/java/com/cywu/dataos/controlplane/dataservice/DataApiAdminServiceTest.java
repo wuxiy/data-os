@@ -159,6 +159,18 @@ class DataApiAdminServiceTest {
     }
 
     @Test
+    void listWithoutTenantFallsBackToDefaultTenant() {
+        // 与 create/publish/overview 同一回落语义：无 tenantId 时解析默认租户，
+        // 不得以 null 租户直接查库返回空列表
+        var code = "lst-" + UUID.randomUUID().toString().substring(0, 8);
+        var definition = service.create(null, request(code, cleanTemplate(), dateParams()));
+
+        var items = service.list(null);
+        assertThat(items).anyMatch(item -> item.id().equals(definition.id())
+                && item.tenantId().equals(definition.tenantId()));
+    }
+
+    @Test
     void unknownCodeCallReportIsRejected() {
         assertThat(service.recordCall("no-such-code", "hash", null, 0, false, 1, 200, "idem"))
                 .isFalse();

@@ -17,6 +17,7 @@ import {
   type LineageAssetLineage,
   type LineageSummaryView,
 } from '../data/lineageApi'
+import { formatDateTime } from '../data/domain'
 import { useApiResource } from '../hooks/useApiResource'
 import { useKeyedResource } from '../hooks/useKeyedResource'
 import { usePaged } from '../hooks/usePaged'
@@ -203,7 +204,7 @@ export function AssetCatalogLive({ onNotice }: { onNotice: (message: string) => 
               <section className={styles.contentPanel}>
                 <div className={styles.contentPanelHeader}>
                   <h3>字段结构</h3>
-                  <span>{detail.columns.length} 列 · 最近更新 {detail.updatedAt ? new Date(detail.updatedAt).toLocaleString('zh-CN') : '—'}</span>
+                  <span>{detail.columns.length} 列 · 最近更新 {formatDateTime(detail.updatedAt)}</span>
                 </div>
                 <div className={styles.descriptionBlock}><p>{detail.description || '暂无业务描述：结构元数据由元数据中心摄取，业务定义在资产治理流程中补充。'}</p></div>
                 <div className={styles.horizontalScroll}>
@@ -238,7 +239,7 @@ export function AssetCatalogLive({ onNotice }: { onNotice: (message: string) => 
                               {test.lastRun ? (test.lastRun.passed ? '通过' : '未通过') : '未运行'}
                             </StatusTag>
                           </td>
-                          <td>{test.lastRun?.finishedAt ? new Date(test.lastRun.finishedAt).toLocaleString('zh-CN') : '—'}</td>
+                          <td>{formatDateTime(test.lastRun?.finishedAt)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -305,7 +306,7 @@ export function AssetCatalogLive({ onNotice }: { onNotice: (message: string) => 
               <div><dt>元数据服务</dt><dd>{catalog.service}</dd></div>
               <div><dt>摄取范围</dt><dd>{schemas.map(lineageSchemaLabel).join('、')}（只读结构元数据，无数据采样）</dd></div>
               <div><dt>资产数量</dt><dd>{summary?.tableCount ?? assets.length} 表 · {summary?.columnCount ?? 0} 列</dd></div>
-              <div><dt>读取时间</dt><dd>{catalog.fetchedAt ? new Date(catalog.fetchedAt).toLocaleString('zh-CN') : '—'}</dd></div>
+              <div><dt>读取时间</dt><dd>{formatDateTime(catalog.fetchedAt)}</dd></div>
             </dl>
             {summary && summary.dashboards.length > 0 ? (
               <section className={styles.evidenceSection}>

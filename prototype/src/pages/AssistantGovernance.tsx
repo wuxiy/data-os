@@ -21,6 +21,7 @@ import {
   type AssistantQuestionDraft,
   type AssistantQuestionEventView,
 } from '../data/assistantApi'
+import { formatDateTime } from '../data/domain'
 import { useApiResource } from '../hooks/useApiResource'
 import { usePaged } from '../hooks/usePaged'
 import pageStyles from './Pages.module.css'
@@ -531,7 +532,7 @@ export function AssistantGovernance({ onNotice, onQuestionsChanged }: {
             {pagedEvents.map((event, index) => (
               <li key={index}>
                 <strong>{QUESTION_STATUS_LABEL[event.action] ?? event.action}</strong>
-                <span>{event.actor || 'system'} · {new Date(event.createdAt).toLocaleString('zh-CN')}</span>
+                <span>{event.actor || 'system'} · {formatDateTime(event.createdAt)}</span>
               </li>
             ))}
           </ul>
@@ -579,7 +580,7 @@ export function AssistantGovernance({ onNotice, onQuestionsChanged }: {
             {audits.map((audit) => (
               <li key={audit.id}>
                 <strong className={styles.assistantAuditHead}>
-                  {new Date(audit.createdAt).toLocaleString('zh-CN')}
+                  {formatDateTime(audit.createdAt)}
                   {audit.outcome === 'ANSWERED'
                     ? <StatusTag tone="healthy">已回答</StatusTag>
                     : <StatusTag tone="warning">{audit.outcome.replace('REFUSED_', '拒答·')}</StatusTag>}

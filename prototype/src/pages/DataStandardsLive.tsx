@@ -52,6 +52,11 @@ function severityTone(severity: string) {
   return 'neutral' as const
 }
 
+/** 事件 detail 为后端原文透传；OM（OpenMetadata 缩写）属引擎名禁令，渲染时最小改写（同 businessMessage 消毒器先例），后端原文不动。 */
+function standardEventDetail(detail: string) {
+  return detail.replace(/OM 术语投影/g, '术语投影')
+}
+
 export function DataStandardsLive({ onNotice, onNavigate, onUnavailable }: { onNotice: (message: string) => void; onNavigate: (route: RouteKey) => void; onUnavailable: (label: string) => void }) {
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
@@ -355,7 +360,7 @@ export function DataStandardsLive({ onNotice, onNavigate, onUnavailable }: { onN
                 {detail.events.map((event) => (
                   <li key={event.id}>
                     <div className={styles.timelineTitle}><strong>{standardEventLabel(event.eventType)}</strong><span>{actorLabel(event.actor)}</span></div>
-                    <p>{event.detail}</p>
+                    <p>{standardEventDetail(event.detail)}</p>
                     <small>{formatDateTime(event.createdAt)}</small>
                   </li>
                 ))}

@@ -26,6 +26,7 @@ import {
   type AIDataProductDetail,
   type AIEvaluationFeedbackItem,
 } from '../data/aiDataApi'
+import { formatDateTime } from '../data/domain'
 import { useAction } from '../hooks/useAction'
 import { useKeyedResource } from '../hooks/useKeyedResource'
 import { usePaged } from '../hooks/usePaged'
@@ -228,7 +229,7 @@ export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, 
                       </td>
                       <td>{version.recipeRef ?? '—'}</td>
                       <td>{version.gitCommit ?? '—'}</td>
-                      <td>{new Date(version.createdAt).toLocaleString('zh-CN')}</td>
+                      <td>{formatDateTime(version.createdAt)}</td>
                     </tr>
                   )
                 })}
@@ -404,7 +405,7 @@ export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, 
                               : '—'}
                         </td>
                         <td>{job.createdBy ?? '—'}</td>
-                        <td>{(job.startedAt ? new Date(job.startedAt).toLocaleString('zh-CN') : '—') + ' / ' + (job.finishedAt ? new Date(job.finishedAt).toLocaleString('zh-CN') : '—')}</td>
+                        <td>{formatDateTime(job.startedAt) + ' / ' + formatDateTime(job.finishedAt)}</td>
                       </tr>
                     )
                   })}

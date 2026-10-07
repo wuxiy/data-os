@@ -146,6 +146,7 @@ public class DataApiAdminService {
     }
 
     public List<DataServiceDefinition> list(String tenantId) {
+        tenantId = tenantScope.resolve(tenantId, null).tenantId();
         return repository.findAll(tenantId);
     }
 

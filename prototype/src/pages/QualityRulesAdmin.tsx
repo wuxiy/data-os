@@ -10,6 +10,7 @@ import {
   fetchQualityRules,
   saveQualityRule,
   setQualityRuleEnabled,
+  QUALITY_RULE_TYPE_LABELS,
   type QualityEvidenceColumn,
   type QualityRuleDefinitionApiItem,
   type QualityRuleType,
@@ -27,14 +28,7 @@ interface Props {
   onNotice: (message: string) => void
 }
 
-const PARAM_LABELS: Record<QualityRuleType, string> = {
-  NOT_NULL: '非空校验', UNIQUE: '唯一性校验', FK_REF: '外键参照校验',
-  VAL_SET: '值域校验', VAL_MINMAX: '数值范围校验', VAL_LEN: '长度范围校验',
-  STR_REGEX: '正则校验', SQL: '自定义 SQL 校验',
-  CROSS_VAL_COMPARE: '跨表数据值比较', STAT_VAL_COMPARE: '统计数据值比较',
-  SQL_STAT_VAL: 'SQL 统计值比较', DETAIL_STAT: '明细汇总校验',
-  FIELD_LOGIC: '字段间关系', UPDATE_TIME: '更新时效校验', TIME_CONTINUITY: '时间连续性校验',
-}
+const PARAM_LABELS: Record<string, string> = QUALITY_RULE_TYPE_LABELS
 
 /** 失败列由执行器编译派生的类型：表单隐藏证据白名单编辑。 */
 const COMPUTED_EVIDENCE_TYPES: Set<QualityRuleType> = new Set([

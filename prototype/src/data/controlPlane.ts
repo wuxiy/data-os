@@ -607,9 +607,23 @@ export interface QualityDimensionScore {
 
 export interface QualityRuleScoreItem {
   ruleId: string
+  /** 动态规则台账投影的规则类型枚举；静态注册表规则为 null（如实回落 ruleId 展示）。 */
+  ruleType?: string | null
+  /** 动态规则台账投影的目标列；无则 null。 */
+  targetColumn?: string | null
   datasetId: string
   score: number | null
   passed: boolean | null
+}
+
+/** 规则类型中文标签（规则台账与评分面板共用，单一来源）。 */
+export const QUALITY_RULE_TYPE_LABELS: Record<string, string> = {
+  NOT_NULL: '非空校验', UNIQUE: '唯一性校验', FK_REF: '外键参照校验',
+  VAL_SET: '值域校验', VAL_MINMAX: '数值范围校验', VAL_LEN: '长度范围校验',
+  STR_REGEX: '正则校验', SQL: '自定义 SQL 校验',
+  CROSS_VAL_COMPARE: '跨表数据值比较', STAT_VAL_COMPARE: '统计数据值比较',
+  SQL_STAT_VAL: 'SQL 统计值比较', DETAIL_STAT: '明细汇总校验',
+  FIELD_LOGIC: '字段间关系', UPDATE_TIME: '更新时效校验', TIME_CONTINUITY: '时间连续性校验',
 }
 
 export interface QualityScoreSummary {

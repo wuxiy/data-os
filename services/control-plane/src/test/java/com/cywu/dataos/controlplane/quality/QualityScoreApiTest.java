@@ -149,6 +149,38 @@ class QualityScoreApiTest {
     }
 
     @Test
+    void ruleScoreProjectionCarriesTypeAndTargetColumn() throws Exception {
+        var suffix = UUID.randomUUID().toString().substring(0, 8);
+        var dynamicRule = "quality.score.meta-dyn-" + suffix;
+        var staticRule = "quality.score.meta-static-" + suffix;
+        seedRun(dynamicRule, "ods_ep.ep_order", "NOT_NULL", 90.0, Instant.now());
+        jdbc.update("""
+                UPDATE data_os.quality_rule_definitions
+                SET target_column = ? WHERE rule_id = ?
+                """, "order_no", dynamicRule);
+        // 无动态台账记录的规则（静态 registry 形态）：ruleType/targetColumn 为 null
+        seedRun(staticRule, "ods_ep.ep_order", null, 80.0, Instant.now());
+
+        MvcResult result = mockMvc.perform(get("/api/v1/quality/score"))
+                .andExpect(status().isOk())
+                .andReturn();
+        JsonNode rules = mapper.readTree(result.getResponse().getContentAsString()).path("rules");
+        JsonNode dynamic = null;
+        JsonNode statik = null;
+        for (JsonNode rule : rules) {
+            var ruleId = rule.path("ruleId").asText();
+            if (ruleId.equals(dynamicRule)) dynamic = rule;
+            if (ruleId.equals(staticRule)) statik = rule;
+        }
+        assertThat(dynamic).isNotNull();
+        assertThat(dynamic.path("ruleType").asText()).isEqualTo("NOT_NULL");
+        assertThat(dynamic.path("targetColumn").asText()).isEqualTo("order_no");
+        assertThat(statik).isNotNull();
+        assertThat(statik.hasNonNull("ruleType")).isFalse();
+        assertThat(statik.hasNonNull("targetColumn")).isFalse();
+    }
+
+    @Test
     void rulePassFlagFollowsPassScore() throws Exception {
         var suffix = UUID.randomUUID().toString().substring(0, 8);
         seedRun("quality.score.pass-flag-" + suffix, "ods_ep.ep_order", "VAL_SET", 70.0, Instant.now());

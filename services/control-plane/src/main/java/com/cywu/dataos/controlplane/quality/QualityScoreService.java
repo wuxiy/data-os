@@ -85,14 +85,19 @@ public class QualityScoreService {
                 ) ranked WHERE rn = 1
                 """, (rs, i) -> Map.entry(rs.getString("rule_id"),
                 new RuleScore(rs.getString("rule_id"), rs.getString("dataset_id"),
-                        (Double) rs.getObject("score"), null)));
+                        (Double) rs.getObject("score"), null, null, null)));
 
         // 规则 → 维度：动态台账优先，静态按 selector 缺省推断
         var ruleDimensions = new LinkedHashMap<String, String>();
         var typeByRule = new LinkedHashMap<String, String>();
-        jdbc.query("SELECT rule_id, rule_type FROM data_os.quality_rule_definitions",
-                        (rs, rowNumber) -> Map.entry(rs.getString("rule_id"), rs.getString("rule_type")))
-                .forEach(entry -> typeByRule.put(entry.getKey(), entry.getValue()));
+        var columnByRule = new LinkedHashMap<String, String>();
+        jdbc.query("SELECT rule_id, rule_type, target_column FROM data_os.quality_rule_definitions",
+                        (rs, rowNumber) -> Map.entry(rs.getString("rule_id"),
+                                new String[]{rs.getString("rule_type"), rs.getString("target_column")}))
+                .forEach(entry -> {
+                    typeByRule.put(entry.getKey(), entry.getValue()[0]);
+                    columnByRule.put(entry.getKey(), entry.getValue()[1]);
+                });
         var staticKindByRule = new LinkedHashMap<String, String>();
         try {
             // registry 表由 quality-runner 引导创建（生产共享库）；控制面独立
@@ -114,8 +119,13 @@ public class QualityScoreService {
             if (value.score() == null) continue; // 无分不计入（nema 口径）
             var dimension = ruleDimensions.getOrDefault(value.ruleId(), "完整性");
             byDimension.computeIfAbsent(dimension, ignored -> new ArrayList<>()).add(value.score());
+            // 台账无 name 字段：附带 ruleType / targetColumn 供前端人性化展示；
+            // 静态 registry 规则不在动态台账中，两字段均为 null
+            var targetColumn = columnByRule.get(value.ruleId());
             rules.add(new RuleScore(value.ruleId(), value.datasetId(), value.score(),
-                    value.score() >= standard.passScore()));
+                    value.score() >= standard.passScore(),
+                    typeByRule.get(value.ruleId()),
+                    targetColumn == null || targetColumn.isBlank() ? null : targetColumn));
         }
         rules.sort(Comparator.comparing(RuleScore::ruleId));
 
@@ -244,7 +254,9 @@ public class QualityScoreService {
                                     List<GradeView> grades, java.time.Instant updatedAt) {
     }
 
-    public record RuleScore(String ruleId, String datasetId, Double score, Boolean passed) {
+    /** ruleType / targetColumn 来自动态台账（V24）；静态 registry 规则无台账记录时为 null。 */
+    public record RuleScore(String ruleId, String datasetId, Double score, Boolean passed,
+                            String ruleType, String targetColumn) {
     }
 
     public record DimensionScore(String dimension, double score, int ruleCount) {

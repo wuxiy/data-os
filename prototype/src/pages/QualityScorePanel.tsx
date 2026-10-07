@@ -6,6 +6,7 @@ import { StatusTag } from '../components/ui/Primitives'
 import {
   fetchQualityScore,
   updateQualityScoreStandard,
+  QUALITY_RULE_TYPE_LABELS,
   type QualityGradeView,
   type QualityScoreSummary,
 } from '../data/controlPlane'
@@ -114,16 +115,19 @@ export function QualityScorePanel({ onNotice }: Props) {
           <div className={styles.tableScroll}><table className={styles.table}>
             <thead><tr><th>规则</th><th>数据集</th><th className={styles.num}>得分</th><th>结果</th></tr></thead>
             <tbody>
-              {summary.rules.map((rule) => (
+              {summary.rules.map((rule) => {
+                const typeLabel = rule.ruleType ? (QUALITY_RULE_TYPE_LABELS[rule.ruleType] ?? rule.ruleType) : null
+                return (
                 <tr key={rule.ruleId}>
-                  {/* 评分投影无中文名字段（后端 RuleScore 仅 ruleId/datasetId/score/passed），
-                      slug 全文收进 title 悬停可读。 */}
-                  <td><code className={styles.inlineCode} title={rule.ruleId}>{rule.ruleId}</code></td>
+                  {/* 动态规则展示「类型 · 目标列」（台账投影的真实字段），slug 收进 title 悬停；
+                      静态注册表规则无投影字段，如实回落 ruleId。 */}
+                  <td title={rule.ruleId}>{typeLabel ? <>{typeLabel}{rule.targetColumn ? ` · ${rule.targetColumn}` : ''}</> : <code className={styles.inlineCode}>{rule.ruleId}</code>}</td>
                   <td>{rule.datasetId}</td>
                   <td className={styles.num}><strong>{rule.score == null ? '—' : rule.score.toFixed(1)}</strong></td>
                   <td>{rule.passed == null ? '—' : <StatusTag tone={rule.passed ? 'healthy' : 'danger'}>{rule.passed ? '通过' : '未通过'}</StatusTag>}</td>
                 </tr>
-              ))}
+                )
+              })}
               {summary.rules.length === 0 ? <tr><td colSpan={4} className={styles.emptyState}>尚无带评分的规则运行</td></tr> : null}
             </tbody>
           </table></div>

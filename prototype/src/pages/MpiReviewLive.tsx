@@ -17,6 +17,7 @@ import {
   type MpiPersonDetail,
 } from '../data/mpiApi'
 import { useAction } from '../hooks/useAction'
+import { formatDateTime } from '../data/domain'
 import { usePaged } from '../hooks/usePaged'
 import { Pager } from '../components/ui/Pager'
 import styles from './Pages.module.css'
@@ -290,7 +291,7 @@ function MpiPersonDrawer({ personId, onClose, onNotice, onSplit }: { personId: s
             <div className={styles.panelHeader}><div><h3>操作历史</h3><p>审计事件 · 最近 20 条</p></div><ShieldCheck size={18} /></div>
             <ul className={styles.checkList}>
               {person.history.map((event, index) => (
-                <li key={`${event.action}-${event.createdAt}-${index}`}>{event.action} · {event.actor} · {event.createdAt}</li>
+                <li key={`${event.action}-${event.createdAt}-${index}`}>{event.action} · {event.actor} · {formatDateTime(event.createdAt)}</li>
               ))}
               {person.history.length === 0 ? <li>暂无历史事件</li> : null}
             </ul>
