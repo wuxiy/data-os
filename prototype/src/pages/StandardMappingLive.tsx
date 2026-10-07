@@ -1,4 +1,4 @@
-import { ArrowRightLeft, ClipboardCheck, GitCompareArrows, History, Import, RefreshCw, Search, Archive, ShieldCheck, UploadCloud } from 'lucide-react'
+import { ArrowRightLeft, ClipboardCheck, GitCompareArrows, History, RefreshCw, Search, Archive, ShieldCheck, UploadCloud } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { GovernanceTabs } from '../components/ui/GovernanceTabs'
 import { PageHeader } from '../components/ui/PageHeader'
@@ -188,21 +188,34 @@ export function StandardMappingLive({ onNotice, onNavigate, onUnavailable }: { o
             <div className={styles.panelHeader}><div><h2>新建映射集</h2><p>目标标准须为已发布；映射项可用 CSV/JSON 导入补齐</p></div></div>
             <div className={styles.drawerForm}>
               <div className={styles.drawerFormGrid}>
-                <label>映射集代码<input value={createForm.code} onChange={(event) => setCreateForm({ ...createForm, code: event.target.value })} placeholder="MAP-EP-CFZB" /></label>
-                <label>名称<input value={createForm.name} onChange={(event) => setCreateForm({ ...createForm, name: event.target.value })} placeholder="门诊处方表映射" /></label>
+                <div className={styles.formField}>
+                  <label htmlFor="mapping-create-code">映射集代码</label>
+                  <input id="mapping-create-code" value={createForm.code} onChange={(event) => setCreateForm({ ...createForm, code: event.target.value })} placeholder="MAP-EP-CFZB" />
+                </div>
+                <div className={styles.formField}>
+                  <label htmlFor="mapping-create-name">名称</label>
+                  <input id="mapping-create-name" value={createForm.name} onChange={(event) => setCreateForm({ ...createForm, name: event.target.value })} placeholder="门诊处方表映射" />
+                </div>
               </div>
               <div className={styles.drawerFormGrid}>
-                <label>源资产（fqn）<input value={createForm.sourceAsset} onChange={(event) => setCreateForm({ ...createForm, sourceAsset: event.target.value })} /></label>
-                <label>验证数据集（须已登记）<input value={createForm.dataset} onChange={(event) => setCreateForm({ ...createForm, dataset: event.target.value })} /></label>
+                <div className={styles.formField}>
+                  <label htmlFor="mapping-create-source">源资产（fqn）</label>
+                  <input id="mapping-create-source" value={createForm.sourceAsset} onChange={(event) => setCreateForm({ ...createForm, sourceAsset: event.target.value })} />
+                </div>
+                <div className={styles.formField}>
+                  <label htmlFor="mapping-create-dataset">验证数据集（须已登记）</label>
+                  <input id="mapping-create-dataset" value={createForm.dataset} onChange={(event) => setCreateForm({ ...createForm, dataset: event.target.value })} />
+                </div>
               </div>
-              <label>目标标准
-                <select value={createForm.standardId} onChange={(event) => setCreateForm({ ...createForm, standardId: event.target.value })} aria-label="选择目标标准">
+              <div className={styles.formField}>
+                <label htmlFor="mapping-create-standard">目标标准</label>
+                <select id="mapping-create-standard" value={createForm.standardId} onChange={(event) => setCreateForm({ ...createForm, standardId: event.target.value })}>
                   <option value="">选择已发布标准…</option>
                   {standardOptions.map((standard) => (
                     <option key={standard.id} value={standard.id}>{standard.code} · {standard.name}</option>
                   ))}
                 </select>
-              </label>
+              </div>
               <Button
                 disabled={busy || !createForm.code.trim() || !createForm.standardId}
                 onClick={() => run('映射集创建', async () => {
@@ -225,9 +238,20 @@ export function StandardMappingLive({ onNotice, onNavigate, onUnavailable }: { o
                 {listState === 'loading' ? <tr className={styles.emptyRow}><td colSpan={5}>正在加载映射集…</td></tr> : null}
                 {listState === 'live' && paged.paged.length === 0 ? <tr className={styles.emptyRow}><td colSpan={5}>暂无映射集。新建后经「导入 → 聚合验证 → 评审 → 生效」闭环。</td></tr> : null}
                 {paged.paged.map((set) => (
-                  <tr key={set.id} className={`${styles.clickableRow} ${set.id === selectedId ? styles.activeRow : ''}`} onClick={() => { setSelectedId(set.id); setDetailVersionId('') }}>
+                  /* 键盘可达（2026-10-07 复评 P2）：行可聚焦，Enter/Space 选中。 */
+                  <tr key={set.id} className={`${styles.clickableRow} ${set.id === selectedId ? styles.activeRow : ''}`}
+                    tabIndex={0}
+                    aria-label={`选择映射集 ${set.code}`}
+                    onClick={() => { setSelectedId(set.id); setDetailVersionId('') }}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault()
+                        setSelectedId(set.id)
+                        setDetailVersionId('')
+                      }
+                    }}>
                     <td className={styles.inlineCode}>{set.code}</td>
-                    <td><small>{set.sourceAsset}</small></td>
+                    <td title={set.sourceAsset}><small>{set.sourceAsset}</small></td>
                     <td>{set.standard.code}</td>
                     <td>{'versionNo' in set.activeVersion && set.activeVersion.versionNo
                       ? <StatusTag tone="healthy">v{set.activeVersion.versionNo} 生效中</StatusTag>
@@ -292,7 +316,7 @@ export function StandardMappingLive({ onNotice, onNavigate, onUnavailable }: { o
                         <td className={styles.inlineCode}>{item.sourceColumn}</td>
                         <td>{item.targetElementCode}</td>
                         <td>{transformLabel(item.transform)}</td>
-                        <td><small>{item.transformParam || '—'}</small></td>
+                        <td title={item.transformParam || undefined}><small>{item.transformParam || '—'}</small></td>
                         <td><StatusTag tone={item.conclusion === 'CONFIRMED' ? 'healthy' : 'warning'}>{item.conclusion === 'CONFIRMED' ? '已确认' : '待复核'}</StatusTag></td>
                       </tr>
                     ))}
@@ -367,10 +391,12 @@ export function StandardMappingLive({ onNotice, onNavigate, onUnavailable }: { o
               <div><h2>草稿维护（仅 DRAFT）</h2><p>导入映射项（CSV/JSON，先预检）或整体替换（JSON）</p></div>
             </div>
             <div className={styles.drawerForm}>
-              <label>导入内容（CSV 列：source_column,target_element_code,transform,transform_param,conclusion；或 JSON {'{items:[…]}'}）<Import size={13} />
-                <textarea className={styles.codeInputLarge} rows={5} value={importBody} onChange={(event) => { setImportBody(event.target.value); setImportReport(null) }}
+              <div className={styles.formField}>
+                <label htmlFor="mapping-import-body">导入内容</label>
+                <textarea id="mapping-import-body" className={styles.codeInputLarge} rows={5} value={importBody} onChange={(event) => { setImportBody(event.target.value); setImportReport(null) }}
                   placeholder={'source_column,target_element_code,transform,transform_param,conclusion\nchannel_code,channel,VALUE_MAP,"{""OPD"":""OPD""}",CONFIRMED'} />
-              </label>
+                <p className={styles.drawerHint}>支持 CSV（列：source_column, target_element_code, transform, transform_param, conclusion；占位即样例）或 JSON（{'{'}"items":[…]{'}'}）。</p>
+              </div>
               <div className={styles.tableActions}>
                 <Button variant="quiet" disabled={!importBody.trim() || busy} onClick={() => run('导入预检', async () => setImportReport(await importMappingItems(version.id, importBody, true)))}><UploadCloud size={14} />预检（dry-run）</Button>
                 <Button disabled={!importReport || importReport.problems.length > 0 || busy}
@@ -385,10 +411,12 @@ export function StandardMappingLive({ onNotice, onNavigate, onUnavailable }: { o
                     : <p className={styles.textHealthy}>校验通过。</p>}
                 </div>
               ) : null}
-              <label>元素整体替换（JSON 数组；留空不修改）<Braces />
-                <textarea className={styles.codeInputLarge} rows={4} value={itemsDraft} onChange={(event) => setItemsDraft(event.target.value)}
+              <div className={styles.formField}>
+                <label htmlFor="mapping-items-replace">元素整体替换</label>
+                <textarea id="mapping-items-replace" className={styles.codeInputLarge} rows={4} value={itemsDraft} onChange={(event) => setItemsDraft(event.target.value)}
                   placeholder='[{"sourceColumn":"channel_code","targetElementCode":"channel","transform":"VALUE_MAP","transformParam":"{\"OPD\":\"OPD\"}","conclusion":"CONFIRMED"}]' />
-              </label>
+                <p className={styles.drawerHint}>JSON 数组，整体替换该草稿的映射项并重算 checksum；留空不修改。</p>
+              </div>
               <Button disabled={!itemsDraft.trim() || busy} onClick={() => run('草稿替换', async () => {
                 await updateMappingVersion(version.id, { items: JSON.parse(itemsDraft) })
               })}>整体替换并重算 checksum</Button>
@@ -399,8 +427,4 @@ export function StandardMappingLive({ onNotice, onNavigate, onUnavailable }: { o
     </div>
   )
 
-}
-
-function Braces() {
-  return <span aria-hidden="true">{'{}'}</span>
 }

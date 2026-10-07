@@ -1,6 +1,7 @@
 import { Boxes, KeyRound, Plus, RefreshCw } from 'lucide-react'
 import { useState } from 'react'
 import { useAction } from '../hooks/useAction'
+import { GovernanceTabs } from '../components/ui/GovernanceTabs'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Button, StatusTag } from '../components/ui/Primitives'
 import { Drawer } from '../components/ui/Drawer'
@@ -27,10 +28,12 @@ import {
   type DataServiceOverview,
   type DataServiceSubscriptionItem,
 } from '../data/dataServicesApi'
+import { formatDateTime } from '../data/domain'
 import { frontendDemoMode } from '../data/runtimeMode'
 import { useApiResource } from '../hooks/useApiResource'
 import { usePaged } from '../hooks/usePaged'
 import { Pager } from '../components/ui/Pager'
+import type { RouteKey } from '../types'
 import styles from './IntegrationPages.module.css'
 // 抽屉表单体系（字段/网格/代码域）与数据接入页同源，保持一处维护。
 import formStyles from './Pages.module.css'
@@ -74,14 +77,16 @@ function summarizeDiff(diff: string): string {
 /**
  * 数据服务工作台（G13）：ToB 数据 API 的定义、发布、Key 与调用审计管理面。
  * 演示构建不收录静态样例（与 AI Data 口径一致），仅真实模式接控制面。
+ * 治理子导航（数据合同）在演示/不可用/在线三分支一致呈现，不再跳出 tab 栏。
  */
-export function DataServicesPage({ onNotice }: { onNotice: (message: string) => void }) {
+export function DataServicesPage({ onNotice, onNavigate, onUnavailable }: { onNotice: (message: string) => void; onNavigate: (route: RouteKey) => void; onUnavailable: (label: string) => void }) {
   if (!frontendDemoMode) {
-    return <DataServicesLive onNotice={onNotice} />
+    return <DataServicesLive onNotice={onNotice} onNavigate={onNavigate} onUnavailable={onUnavailable} />
   }
   return (
     <div className={styles.integrationPage}>
       <PageHeader title="数据服务" eyebrow="数据服务 · 接口与 Key 治理" subtitle="ToB 数据 API 的定义、Key 与调用审计工作台" compact />
+      <GovernanceTabs route="dataServices" onNavigate={onNavigate} onUnavailable={onUnavailable} />
       <section className={styles.technicalNotice} role="status">
         <StatusTag tone="neutral">演示边界</StatusTag>
         <span>数据服务工作台仅接入真实控制面 API（G13 起交付）；演示构建未收录静态样例。请以真实模式访问。</span>
@@ -90,7 +95,7 @@ export function DataServicesPage({ onNotice }: { onNotice: (message: string) => 
   )
 }
 
-function DataServicesLive({ onNotice }: { onNotice: (message: string) => void }) {
+function DataServicesLive({ onNotice, onNavigate, onUnavailable }: { onNotice: (message: string) => void; onNavigate: (route: RouteKey) => void; onUnavailable: (label: string) => void }) {
   const [services, setServices] = useState<DataService[]>([])
   const [overview, setOverview] = useState<DataServiceOverview | null>(null)
   const [selectedId, setSelectedId] = useState('')
@@ -190,6 +195,7 @@ function DataServicesLive({ onNotice }: { onNotice: (message: string) => void })
     return (
       <div className={styles.integrationPage}>
         <PageHeader title="数据服务" eyebrow="数据服务 · 接口与 Key 治理" subtitle="ToB 数据 API 的定义、Key 与调用审计工作台" compact />
+        <GovernanceTabs route="dataServices" onNavigate={onNavigate} onUnavailable={onUnavailable} />
         <section className={styles.technicalNotice} role="status">
           <StatusTag tone="warning">{listState === 'loading' ? '读取中' : '待接入'}</StatusTag>
           <span>{listState === 'loading' ? '正在从控制面读取数据服务…' : '控制面暂不可用：数据服务域需要控制面已配置并可访问。'}</span>
@@ -204,6 +210,7 @@ function DataServicesLive({ onNotice }: { onNotice: (message: string) => void })
   return (
     <div className={styles.integrationPage}>
       <PageHeader title="数据服务" eyebrow="数据服务 · 接口与 Key 治理" subtitle="ToB 数据 API 的定义、Key 与调用审计工作台" compact />
+      <GovernanceTabs route="dataServices" onNavigate={onNavigate} onUnavailable={onUnavailable} />
       {overview ? (
         <div className={styles.lineageImpact} role="status" aria-label="数据服务概览">
           <div className={styles.impactItem}><span>数据服务</span><strong>{overview.total}</strong></div>
@@ -244,7 +251,7 @@ function DataServicesLive({ onNotice }: { onNotice: (message: string) => void })
               </li>
             ))}
           </ul>
-          {services.length === 0 ? <div className={styles.emptyRail}>暂无数据服务，点击「新建服务」创建第一个。</div> : null}
+          {services.length === 0 ? <div className={styles.emptyRail}>暂无数据服务，点击<span className={formStyles.textNowrap}>「新建服务」</span>创建第一个。</div> : null}
           <Pager label="服务目录分页" page={railPage} pageCount={railPageCount} pageSize={RAIL_PAGE_SIZE} onPageChange={setRailPage} />
         </aside>
 
@@ -483,7 +490,7 @@ function DataServiceDetailPanel({ service, onNotice, onChanged, onPublish, onDep
                   <td>{key.dailyQuota}</td>
                   <td><code>{key.allowedHospitals}</code></td>
                   <td>{key.status === 'ACTIVE' ? '有效' : '已吊销'}</td>
-                  <td>{key.lastUsedAt || '—'}</td>
+                  <td>{formatDateTime(key.lastUsedAt)}</td>
                   <td>{key.status === 'ACTIVE' ? <span className={formStyles.tableActions}><button className={formStyles.tableButton} disabled={pendingKey === `revoke-${key.id}`} onClick={() => revoke(key.id)}>吊销</button></span> : null}</td>
                 </tr>
               ))}
@@ -499,7 +506,7 @@ function DataServiceDetailPanel({ service, onNotice, onChanged, onPublish, onDep
             <tbody>
               {pagedCalls.map((call) => (
                 <tr key={call.id}>
-                  <td>{new Date(call.calledAt).toLocaleString('zh-CN')}</td>
+                  <td>{formatDateTime(call.calledAt)}</td>
                   <td>{call.rowCount}</td>
                   <td>{call.truncated ? '是' : '否'}</td>
                   <td>{call.elapsedMs}ms</td>
@@ -519,11 +526,11 @@ function DataServiceDetailPanel({ service, onNotice, onChanged, onPublish, onDep
             <tbody>
               {pagedExports.map((item) => (
                 <tr key={item.id}>
-                  <td>{new Date(item.createdAt).toLocaleString('zh-CN')}</td>
+                  <td>{formatDateTime(item.createdAt)}</td>
                   <td>{exportStatusLabel[item.status] ?? item.status}</td>
                   <td>{item.rowCount}</td>
                   <td>{item.fileBytes > 0 ? `${(item.fileBytes / 1024).toFixed(1)} KB` : '—'}</td>
-                  <td>{item.expiresAt || '—'}</td>
+                  <td>{formatDateTime(item.expiresAt)}</td>
                   <td>{item.error || '—'}</td>
                 </tr>
               ))}
@@ -540,7 +547,7 @@ function DataServiceDetailPanel({ service, onNotice, onChanged, onPublish, onDep
             <tbody>
               {pagedEvents.map((event) => (
                 <tr key={event.eventId}>
-                  <td>{new Date(event.occurredAt).toLocaleString('zh-CN')}</td>
+                  <td>{formatDateTime(event.occurredAt)}</td>
                   <td>{contractChangeTypeLabel[event.changeType] ?? event.changeType}</td>
                   <td>{event.fromVersion === event.toVersion ? event.toVersion : `${event.fromVersion} → ${event.toVersion}`}</td>
                   <td><code>{summarizeDiff(event.diff)}</code></td>
@@ -560,7 +567,7 @@ function DataServiceDetailPanel({ service, onNotice, onChanged, onPublish, onDep
                   <td>{subscription.callerName}</td>
                   <td><code>{subscription.webhookUrl}</code></td>
                   <td>{subscription.status === 'ACTIVE' ? '生效中' : '已退订'}</td>
-                  <td>{new Date(subscription.createdAt).toLocaleString('zh-CN')}</td>
+                  <td>{formatDateTime(subscription.createdAt)}</td>
                 </tr>
               ))}
               {subscriptions.length === 0 ? <tr><td colSpan={4}>暂无调用方订阅（调用方经自助 API 订阅）</td></tr> : null}

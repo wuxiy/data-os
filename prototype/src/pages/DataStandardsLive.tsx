@@ -1,4 +1,4 @@
-import { ArrowRightLeft, Braces, Download, FileSearch, GitCompareArrows, Import, RefreshCw, Search, Send, Archive, ShieldCheck, UploadCloud } from 'lucide-react'
+import { ArrowRightLeft, Download, FileSearch, GitCompareArrows, RefreshCw, Search, Send, Archive, ShieldCheck, UploadCloud } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { GovernanceTabs } from '../components/ui/GovernanceTabs'
 import { PageHeader } from '../components/ui/PageHeader'
@@ -178,7 +178,19 @@ export function DataStandardsLive({ onNotice, onNavigate, onUnavailable }: { onN
                 {listState === 'loading' ? <tr className={styles.emptyRow}><td colSpan={6}>正在加载标准清单…</td></tr> : null}
                 {listState === 'live' && paged.paged.length === 0 ? <tr className={styles.emptyRow}><td colSpan={6}>暂无数据标准。可在下方导入区新建（先预检后落库）。</td></tr> : null}
                 {paged.paged.map((item) => (
-                  <tr key={item.id} className={`${styles.clickableRow} ${item.id === selectedId ? styles.activeRow : ''}`} onClick={() => { setSelectedId(item.id); setDetailVersionId('') }}>
+                  /* 键盘可达（2026-10-07 复评 P2）：行可聚焦，Enter/Space 选中；
+                     focus 样式由 .clickableRow:focus-visible 承载。 */
+                  <tr key={item.id} className={`${styles.clickableRow} ${item.id === selectedId ? styles.activeRow : ''}`}
+                    tabIndex={0}
+                    aria-label={`选择标准 ${item.code} ${item.name}`}
+                    onClick={() => { setSelectedId(item.id); setDetailVersionId('') }}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault()
+                        setSelectedId(item.id)
+                        setDetailVersionId('')
+                      }
+                    }}>
                     <td className={styles.inlineCode}>{item.code}</td>
                     <td>{item.name}</td>
                     <td>{item.owner || '—'}</td>
@@ -253,14 +265,25 @@ export function DataStandardsLive({ onNotice, onNavigate, onUnavailable }: { onN
                 <div className={styles.drawerForm}>
                   <h3 className={styles.sectionTitle}>草稿修改（仅 DRAFT 可改）</h3>
                   <div className={styles.drawerFormGrid}>
-                    <label>标准名称<input value={metaDraft.standardName} onChange={(event) => setMetaDraft({ ...metaDraft, standardName: event.target.value })} placeholder={detail.standard.name} /></label>
-                    <label>负责人<input value={metaDraft.owner} onChange={(event) => setMetaDraft({ ...metaDraft, owner: event.target.value })} placeholder={detail.standard.owner || '未指定'} /></label>
+                    <div className={styles.formField}>
+                      <label htmlFor="standard-draft-name">标准名称</label>
+                      <input id="standard-draft-name" value={metaDraft.standardName} onChange={(event) => setMetaDraft({ ...metaDraft, standardName: event.target.value })} placeholder={detail.standard.name} />
+                    </div>
+                    <div className={styles.formField}>
+                      <label htmlFor="standard-draft-owner">负责人</label>
+                      <input id="standard-draft-owner" value={metaDraft.owner} onChange={(event) => setMetaDraft({ ...metaDraft, owner: event.target.value })} placeholder={detail.standard.owner || '未指定'} />
+                    </div>
                   </div>
-                  <label>描述<input value={metaDraft.description} onChange={(event) => setMetaDraft({ ...metaDraft, description: event.target.value })} placeholder={detail.standard.description || '补充标准描述'} /></label>
-                  <label>元素集整体替换（JSON 数组；留空则不修改）<Braces size={13} />
-                    <textarea className={styles.codeInputLarge} rows={5} value={elementsDraft} onChange={(event) => setElementsDraft(event.target.value)}
+                  <div className={styles.formField}>
+                    <label htmlFor="standard-draft-desc">描述</label>
+                    <input id="standard-draft-desc" value={metaDraft.description} onChange={(event) => setMetaDraft({ ...metaDraft, description: event.target.value })} placeholder={detail.standard.description || '补充标准描述'} />
+                  </div>
+                  <div className={styles.formField}>
+                    <label htmlFor="standard-draft-elements">元素集整体替换</label>
+                    <textarea id="standard-draft-elements" className={styles.codeInputLarge} rows={5} value={elementsDraft} onChange={(event) => setElementsDraft(event.target.value)}
                       placeholder='[{"code":"channel","name":"挂号渠道","dataType":"CODE","required":true,"definition":"渠道枚举","sensitivity":"NORMAL","assetRef":"","values":[{"code":"OPD","displayName":"门诊"}]}]' />
-                  </label>
+                    <p className={styles.drawerHint}>JSON 数组，与创建接口的元素结构同构；留空则不修改元素集。</p>
+                  </div>
                   <Button disabled={busy} onClick={() => run('草稿修改', async () => {
                     const payload: Record<string, unknown> = {}
                     if (metaDraft.standardName.trim()) payload.standardName = metaDraft.standardName.trim()
@@ -282,8 +305,8 @@ export function DataStandardsLive({ onNotice, onNavigate, onUnavailable }: { onN
                         <td>{element.dataType}</td>
                         <td>{element.required ? '必填' : '可选'}</td>
                         <td><StatusTag tone={severityTone(element.sensitivity)}>{sensitivityLabel(element.sensitivity)}</StatusTag></td>
-                        <td><small>{element.definition || '—'}</small></td>
-                        <td>{element.dataType === 'CODE'
+                        <td title={element.definition || undefined}><small>{element.definition || '—'}</small></td>
+                        <td title={element.dataType === 'CODE' ? element.values.map((value) => `${value.code} ${value.displayName}`).join('、') : undefined}>{element.dataType === 'CODE'
                           ? element.values.map((value) => <span key={value.code} className={styles.configPill}>{value.code} {value.displayName}</span>)
                           : '—'}</td>
                       </tr>
@@ -302,7 +325,9 @@ export function DataStandardsLive({ onNotice, onNavigate, onUnavailable }: { onN
 
               <div className={styles.listTools}>
                 <label>版本对比：与
-                  <select value={compareWith} onChange={(event) => setCompareWith(event.target.value)} aria-label="选择对比版本">
+                  {/* 目标标准只有一个版本时无可比对象：禁用控件而非留只剩占位项的死下拉（2026-10-07 复评 P1-a）。 */}
+                  <select value={compareWith} onChange={(event) => setCompareWith(event.target.value)} aria-label="选择对比版本"
+                    disabled={detail.versions.filter((item) => item.id !== version.id).length === 0}>
                     <option value="">选择另一版本…</option>
                     {detail.versions.filter((item) => item.id !== version.id).map((item) => (
                       <option key={item.id} value={item.id}>v{item.versionNo}（{STATUS_LABEL[item.status]}）</option>
@@ -347,10 +372,12 @@ export function DataStandardsLive({ onNotice, onNavigate, onUnavailable }: { onN
             <div><h2>导入标准</h2><p>平台 CSV 模板或内部 JSON；先预检（dry-run）再落库</p></div>
           </div>
           <div className={styles.drawerForm}>
-            <label>导入内容（CSV 列：standard_code,standard_name,element_code,element_name,data_type,required,definition,sensitivity,value_code,value_display；或与创建接口同构的 JSON）<Import size={13} />
-              <textarea className={styles.codeInputLarge} rows={5} value={importBody} onChange={(event) => { setImportBody(event.target.value); setImportReport(null) }}
+            <div className={styles.formField}>
+              <label htmlFor="standards-import-body">导入内容</label>
+              <textarea id="standards-import-body" className={styles.codeInputLarge} rows={5} value={importBody} onChange={(event) => { setImportBody(event.target.value); setImportReport(null) }}
                 placeholder={'standard_code,standard_name,element_code,element_name,data_type,required,definition,sensitivity,value_code,value_display\nreg-channel,挂号渠道,channel,挂号渠道,CODE,true,渠道枚举,NORMAL,OPD,门诊'} />
-            </label>
+              <p className={styles.drawerHint}>支持平台 CSV 模板（列：standard_code, standard_name, element_code, element_name, data_type, required, definition, sensitivity, value_code, value_display；占位即样例）或与创建接口同构的 JSON。</p>
+            </div>
             <div className={styles.tableActions}>
               <Button variant="quiet" disabled={!importBody.trim() || busy} onClick={() => run('导入预检', async () => setImportReport(await importStandards(importBody, true)))}><UploadCloud size={14} />预检（dry-run）</Button>
               <Button disabled={!importReport || importReport.dryRun === false || importReport.problems.length > 0 || busy}

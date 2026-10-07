@@ -545,6 +545,11 @@
   color: var(--amber-dark);
 }
 
+/* 短语防折行（如空态文案里的按钮名「新建服务」，CJK 任意断行会把词切碎）。 */
+.textNowrap {
+  white-space: nowrap;
+}
+
 .runTimeline {
   margin: 0;
   padding: 4px 0 0;
@@ -630,7 +635,11 @@ ul.timelineBody > li + li {
   font-size: 12px;
 }
 
-.timelineBody > p {
+/* 详情段落同时覆盖两种 DOM：runTimeline 的 div 单元格（div.timelineBody > p）
+   与列表态时间线（ul.timelineBody > li > p）——原选择器只命中前者，
+   列表态详情曾回落 16px 正文（2026-10-07 复评 P1-b）。 */
+.timelineBody > p,
+.timelineBody li > p {
   margin: 4px 0 8px;
   color: var(--muted);
   font-size: 12px;
@@ -788,6 +797,7 @@ ul.timelineBody > li + li {
 
 .textButton {
   display: inline-flex;
+  flex-shrink: 0;
   align-items: center;
   gap: 4px;
   padding: 6px;
@@ -797,6 +807,7 @@ ul.timelineBody > li + li {
   cursor: pointer;
   font-size: 12px;
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .ranking {
@@ -904,10 +915,15 @@ ul.timelineBody > li + li {
   white-space: nowrap;
 }
 
+/* 长文本单元格（值域/参数/定义）截断必须带省略号，全文经 title 悬停可读
+   （2026-10-07 复评 P2 打包项）。 */
 .table td {
+  max-width: 320px;
   height: 48px;
   padding: 0 16px;
+  overflow: hidden;
   border-top: 1px solid var(--line);
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -1340,17 +1356,21 @@ ul.timelineBody > li + li {
   border-bottom: 1px solid var(--line);
 }
 
-/* 动作行溢出时换行；行内搜索框去掉 .search 给侧栏用的 12px 外边距。 */
+/* 动作行溢出时换行；行内搜索框去掉 .search 给侧栏用的 12px 外边距。
+   min-width 保住 placeholder 不被裁（2026-10-07 复评：映射页搜索框曾被压到不可读）。 */
 .listTools .search {
+  min-width: 240px;
   margin: 0;
 }
 
 .listTools select {
   min-height: 40px;
   padding: 0 12px;
+  color: var(--ink);
   background: var(--paper);
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-control);
+  font-size: 12px;
 }
 
 .listTools label {

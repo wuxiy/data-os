@@ -1,0 +1,75 @@
+/* 技术视图资产选择器（2026-10-07 复评 P1-c）：无 ?asset= 深链参数时，
+   用与资产目录同源的清单替代「缺少资产」死提示。 */
+
+.pickerPanel {
+  margin: 16px 24px 24px;
+  padding: 16px;
+  background: var(--paper);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-card);
+}
+
+.pickerPanel h2 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.pickerPanel > p {
+  margin: 3px 0 0;
+  max-width: 40em;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.pickerEmpty {
+  margin: 16px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.pickerList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 8px;
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pickerList button {
+  display: grid;
+  width: 100%;
+  gap: 2px;
+  padding: 10px 12px;
+  color: var(--ink);
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  cursor: pointer;
+  font-size: 12px;
+  text-align: left;
+  transition: background-color 150ms var(--ease-out), border-color 150ms var(--ease-out);
+}
+
+.pickerList button:hover {
+  background: var(--surface-hover);
+  border-color: var(--jade);
+}
+
+.pickerList button:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.pickerList strong {
+  font-size: 12px;
+}
+
+.pickerList span {
+  overflow: hidden;
+  color: var(--muted);
+  font-family: var(--font-number);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

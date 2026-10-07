@@ -153,7 +153,7 @@ export function App() {
       page = <AIDataPage onNotice={setNotice} />
       break
     case 'dataServices':
-      page = <DataServicesPage onNotice={setNotice} />
+      page = <DataServicesPage onNotice={setNotice} onNavigate={navigate} onUnavailable={showUnavailable} />
       break
     case 'assistant':
       page = <AssistantPage onNotice={setNotice} onNavigate={navigate} />

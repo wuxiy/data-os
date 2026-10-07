@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { eventTone, executorOutputView, formatDateTime, isRecheckRetryEvent, looksLikeExecutorOutput, shortBatchId } from './domain'
+import { eventTone, executorOutputView, formatDateTime, formatInlineDateTimes, isRecheckRetryEvent, looksLikeExecutorOutput, shortBatchId, standardEventLabel } from './domain'
 
 describe('执行器输出治理（critique P0-2）', () => {
   it('识别执行器输出指纹（dbt 全文与后端摘要形态）', () => {
@@ -56,5 +56,21 @@ describe('时间格式化跨年补年份（2026-10-05 复评）', () => {
     expect(formatDateTime(sameYear.toISOString())).toMatch(/^\d{2}-\d{2} \d{2}:\d{2}$/)
     expect(formatDateTime('2020-08-03T02:00:00Z')).toMatch(/^2020-\d{2}-\d{2} \d{2}:\d{2}$/)
     expect(formatDateTime(null)).toBe('—')
+  })
+})
+
+describe('标准/映射审计事件枚举中文口径（2026-10-07 复评 P1-b）', () => {
+  it('CREATED/DRAFT_UPDATED 不再原样上屏，未知值回退原值', () => {
+    expect(standardEventLabel('CREATED')).toBe('创建')
+    expect(standardEventLabel('DRAFT_UPDATED')).toBe('更新草稿')
+    expect(standardEventLabel('SOME_NEW_EVENT')).toBe('SOME_NEW_EVENT')
+  })
+})
+
+describe('自由文本内嵌 ISO 时间戳格式化（2026-10-07 复评：SLA 事件说明）', () => {
+  it('微秒时间戳替换为统一格式，普通文本不动', () => {
+    const formatted = formatInlineDateTimes('SLA 已逾期，截止时间：2020-08-02T18:00:19.419329Z')
+    expect(formatted).toMatch(/^SLA 已逾期，截止时间：2020-\d{2}-\d{2} \d{2}:\d{2}$/)
+    expect(formatInlineDateTimes('复检未通过，问题已退回')).toBe('复检未通过，问题已退回')
   })
 })

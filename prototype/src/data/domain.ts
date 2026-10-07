@@ -102,9 +102,11 @@ export function isRecheckRetryEvent(value: string): boolean {
 
 // ---- 标准中心/标准映射的枚举中文口径（2026-10-05 critique P2）----
 
-/** 审计事件类型（后端 literal：VERSION_CREATED/SUBMITTED/PUBLISHED/…）。 */
+/** 审计事件类型（后端 literal：CREATED/VERSION_CREATED/SUBMITTED/PUBLISHED/…）。
+ * 标准与映射共用本表，取值须对两个域同时成立（CREATED 在标准域是创建标准、
+ * 在映射域是创建映射集，故用中性的「创建」）。 */
 export function standardEventLabel(value: string): string {
-  return ({ VERSION_CREATED: '创建版本', SUBMITTED: '提交评审', PUBLISHED: '发布', DEPRECATED: '停用', IMPORTED: '导入', VALIDATED: '聚合验证', ACTIVATED: '生效', RETIRED: '停用映射', ROLLED_BACK: '回退', SYNC_PENDING: '术语投影待同步', SYNC_SUCCEEDED: '术语投影完成' } as Record<string, string>)[value] ?? value
+  return ({ CREATED: '创建', VERSION_CREATED: '创建版本', DRAFT_UPDATED: '更新草稿', SUBMITTED: '提交评审', PUBLISHED: '发布', DEPRECATED: '停用', IMPORTED: '导入', VALIDATED: '聚合验证', ACTIVATED: '生效', RETIRED: '停用映射', ROLLED_BACK: '回退', SYNC_PENDING: '术语投影待同步', SYNC_SUCCEEDED: '术语投影完成' } as Record<string, string>)[value] ?? value
 }
 
 /** 敏感级别（标准元素）。 */
@@ -170,4 +172,14 @@ export function formatDateTime(value: string | null | undefined): string {
   const base = new Intl.DateTimeFormat('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).format(date).replace('/', '-').replace('/', ' ')
   // 跨年补年份（2026-10-05 复评）：非当年日期缺年份会误判新鲜度。
   return date.getFullYear() === new Date().getFullYear() ? base : `${date.getFullYear()}-${base}`
+}
+
+/** 事件说明等自由文本里内嵌的裸 ISO 时间戳（如 SLA 扫描写入的截止时间
+ * 「2026-08-02T18:00:19.419329Z」）替换为统一时间格式；微秒截到毫秒再解析，
+ * 无法解析的片段原样保留。 */
+export function formatInlineDateTimes(text: string): string {
+  return text.replace(
+    /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?/g,
+    (match) => formatDateTime(match.replace(/(\.\d{3})\d+/, '$1')),
+  )
 }

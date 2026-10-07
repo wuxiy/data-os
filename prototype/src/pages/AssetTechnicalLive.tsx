@@ -4,25 +4,32 @@ import { PageHeader } from '../components/ui/PageHeader'
 import { Button, StatusTag } from '../components/ui/Primitives'
 import {
   fetchLineageAsset,
+  fetchLineageCatalog,
   fetchLineageGraph,
+  fetchLineageSummary,
   lineageNodeKindLabel,
   shortNodeName,
   type LineageAssetDetail,
   type LineageAssetLineage,
+  type LineageAssetSummary,
 } from '../data/lineageApi'
+import { formatDateTime } from '../data/domain'
 import { routePaths } from '../data/routes'
+import { useApiResource } from '../hooks/useApiResource'
 import { useKeyedResource } from '../hooks/useKeyedResource'
 import styles from './IntegrationPages.module.css'
+import local from './AssetTechnicalLive.module.css'
 
 /**
  * 技术视图（真实链路）：结构与血缘证据来自控制面血缘 BFF；
  * 资产以全限定名定位（?asset=doris-dataos.default.ods_ep.ep_mz_cfzb）。
+ * 无 ?asset= 参数时渲染资产选择器（与资产目录同源），不再停留死提示。
  */
 export function AssetTechnicalLive({ onNotice }: { onNotice: (message: string) => void }) {
   const requestedFqn = new URLSearchParams(window.location.search).get('asset') ?? ''
   const [detail, setDetail] = useState<LineageAssetDetail | null>(null)
   const [lineage, setLineage] = useState<LineageAssetLineage | null>(null)
-  // 键控加载：无 ?asset= 键时 idle（渲染为缺少资产提示）。
+  // 键控加载：无 ?asset= 键时 idle（渲染资产选择器）。
   const state = useKeyedResource({
     key: requestedFqn || null,
     load: (signal) => Promise.all([
@@ -51,16 +58,11 @@ export function AssetTechnicalLive({ onNotice }: { onNotice: (message: string) =
     <div className={styles.integrationPage}>
       <PageHeader
         title="技术视图"
-        eyebrow="数据资产 · OpenMetadata"
+        eyebrow="数据资产 · 结构与技术证据"
         subtitle="面向数据开发与运维人员的结构、血缘和同步证据；业务定义仍以资产详情为准。"
         compact
       />
-      {state === 'idle' ? (
-        <section className={styles.technicalNotice} role="status">
-          <StatusTag tone="warning">缺少资产</StatusTag>
-          <span>请从数据资产目录进入技术视图（URL 需带 ?asset=全限定名）。</span>
-        </section>
-      ) : null}
+      {state === 'idle' ? <AssetPicker /> : null}
       {state === 'loading' ? (
         <section className={styles.technicalNotice} role="status"><StatusTag tone="neutral">读取中</StatusTag><span>正在读取技术元数据…</span></section>
       ) : null}
@@ -72,7 +74,7 @@ export function AssetTechnicalLive({ onNotice }: { onNotice: (message: string) =
           <header className={styles.technicalHeader}>
             <div className={styles.technicalIdentity}>
               <div className={styles.technicalIcon}><TableProperties size={19} /></div>
-              <div><span>{detail.fullyQualifiedName}</span><h2>{detail.displayName || detail.name}</h2><p>技术元数据快照 · OpenMetadata 摄取</p></div>
+              <div><span>{detail.fullyQualifiedName}</span><h2>{detail.displayName || detail.name}</h2><p>技术元数据快照 · 元数据中心摄取</p></div>
             </div>
             <div className={styles.technicalHeaderActions}>
               <StatusTag tone="healthy">元数据已摄取</StatusTag>
@@ -84,7 +86,7 @@ export function AssetTechnicalLive({ onNotice }: { onNotice: (message: string) =
             <div><span>实体类型</span><strong>数据表</strong><small>Doris UNIQUE/DUP 表</small></div>
             <div><span>所属服务</span><strong>{detail.fullyQualifiedName.split('.')[0]}</strong><small>只读账号摄取</small></div>
             <div><span>字段数量</span><strong>{detail.columns.length}</strong><small>结构元数据（无数据采样）</small></div>
-            <div><span>最近更新</span><strong>{detail.updatedAt ? new Date(detail.updatedAt).toLocaleString('zh-CN') : '—'}</strong><small>OpenMetadata 摄取时间</small></div>
+            <div><span>最近更新</span><strong>{detail.updatedAt ? formatDateTime(detail.updatedAt) : '—'}</strong><small>元数据中心摄取时间</small></div>
           </div>
 
           <div className={styles.technicalGrid}>
@@ -145,5 +147,50 @@ export function AssetTechnicalLive({ onNotice }: { onNotice: (message: string) =
         </div>
       ) : null}
     </div>
+  )
+}
+
+/**
+ * 无 ?asset= 参数时的资产选择器（2026-10-07 复评 P1-c）：清单与数据资产目录
+ * 同源（血缘 BFF：summary 取库清单 → 逐库 catalog），点击经深链整页跳转，
+ * 与「返回资产详情」的 plain anchor 同一导航口径。
+ */
+function AssetPicker() {
+  const [assets, setAssets] = useState<LineageAssetSummary[]>([])
+  const pickerState = useApiResource({
+    timeoutMs: 15000,
+    load: async (signal) => {
+      const summary = await fetchLineageSummary(signal)
+      const catalogs = await Promise.all(summary.schemas.map((schema) => fetchLineageCatalog(schema, signal)))
+      return catalogs.flatMap((catalog) => catalog.assets)
+    },
+    onData: setAssets,
+    onUnavailable: () => setAssets([]),
+  })
+
+  function openAsset(fullyQualifiedName: string) {
+    window.location.assign(`${routePaths.assetTechnical}?asset=${encodeURIComponent(fullyQualifiedName)}`)
+  }
+
+  return (
+    <section className={local.pickerPanel} aria-label="选择资产">
+      <h2>选择资产查看技术视图</h2>
+      <p>结构与血缘证据按资产全限定名定位；以下清单与数据资产目录同源。</p>
+      {pickerState === 'loading' ? <p className={local.pickerEmpty}>正在读取资产目录…</p> : null}
+      {pickerState === 'unavailable' ? <p className={local.pickerEmpty}>血缘服务暂不可用：资产清单需要控制面完成元数据中心接入配置。</p> : null}
+      {pickerState === 'live' && assets.length === 0 ? <p className={local.pickerEmpty}>暂无已摄取的资产。</p> : null}
+      {assets.length > 0 ? (
+        <ul className={local.pickerList}>
+          {assets.map((asset) => (
+            <li key={asset.fullyQualifiedName}>
+              <button type="button" onClick={() => openAsset(asset.fullyQualifiedName)}>
+                <strong>{asset.displayName || asset.name}</strong>
+                <span title={asset.fullyQualifiedName}>{asset.fullyQualifiedName}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </section>
   )
 }

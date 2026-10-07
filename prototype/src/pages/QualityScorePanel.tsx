@@ -116,7 +116,9 @@ export function QualityScorePanel({ onNotice }: Props) {
             <tbody>
               {summary.rules.map((rule) => (
                 <tr key={rule.ruleId}>
-                  <td><code className={styles.inlineCode}>{rule.ruleId}</code></td>
+                  {/* 评分投影无中文名字段（后端 RuleScore 仅 ruleId/datasetId/score/passed），
+                      slug 全文收进 title 悬停可读。 */}
+                  <td><code className={styles.inlineCode} title={rule.ruleId}>{rule.ruleId}</code></td>
                   <td>{rule.datasetId}</td>
                   <td className={styles.num}><strong>{rule.score == null ? '—' : rule.score.toFixed(1)}</strong></td>
                   <td>{rule.passed == null ? '—' : <StatusTag tone={rule.passed ? 'healthy' : 'danger'}>{rule.passed ? '通过' : '未通过'}</StatusTag>}</td>

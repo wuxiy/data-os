@@ -25,6 +25,7 @@ import {
   executorLabel,
   executorOutputView,
   formatDateTime,
+  formatInlineDateTimes,
   isRecheckRetryEvent,
   isTerminalRun,
   issueStatusLabel,
@@ -284,7 +285,7 @@ export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props
                         <strong>复检投递重试（共 {group.events.length} 条{span[0] !== span[1] ? ` · ${formatDateTime(span[0])} – ${formatDateTime(span[1])}` : ''}）</strong>
                         <details className={styles.executorLog}>
                           <summary>展开每次记录</summary>
-                          {group.events.map((event) => <p key={event.id}>{formatDateTime(event.createdAt)} · {eventTitle(event.eventType)}{event.note ? ` · ${event.note}` : ''}</p>)}
+                          {group.events.map((event) => <p key={event.id}>{formatDateTime(event.createdAt)} · {eventTitle(event.eventType)}{event.note ? ` · ${formatInlineDateTimes(event.note)}` : ''}</p>)}
                         </details>
                       </div>
                     </>
@@ -293,7 +294,7 @@ export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props
               ) : (
                 <li key={group.event.id} data-tone={eventTone(group.event.eventType)}>
                   <time>{formatDateTime(group.event.createdAt)}</time>
-                  <div><strong>{eventTitle(group.event.eventType)}</strong><p>{executorOutputView(group.event.note).folded ? <>{executorOutputView(group.event.note).head}…</> : group.event.note} · {group.event.actor}</p></div>
+                  <div><strong>{eventTitle(group.event.eventType)}</strong><p>{executorOutputView(group.event.note).folded ? <>{formatInlineDateTimes(executorOutputView(group.event.note).head)}…</> : formatInlineDateTimes(group.event.note)} · {group.event.actor}</p></div>
                 </li>
               ))}
               {detail.events.length === 0 ? <li><time>{formatDateTime(selected.updatedAt)}</time><div><strong>问题已登记</strong><p>问题来自质量规则目录，等待责任人处理。</p></div></li> : null}
