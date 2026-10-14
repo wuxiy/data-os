@@ -12,3 +12,16 @@
 .flatEvidenceFirst {
   border-top: 0;
 }
+
+/* antd Drawer 接管的确认抽屉标题区：保留原 eyebrow + h2 层级。 */
+.drawerEyebrow {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.drawerTitle {
+  margin: 0;
+  font-size: 16px;
+}

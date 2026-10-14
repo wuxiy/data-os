@@ -1,13 +1,12 @@
-import { CircleAlert, LoaderCircle, RefreshCw, Search, Send } from 'lucide-react'
+import { AlertTriangle, CircleAlert, LoaderCircle, RefreshCw, Search, Send } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Button, Drawer, Tag } from 'antd'
 import { useAction } from '../hooks/useAction'
 import { useApiResource } from '../hooks/useApiResource'
 import { useKeyedResource } from '../hooks/useKeyedResource'
 import { usePaged } from '../hooks/usePaged'
-import { ConfirmDrawer } from '../components/ui/ConfirmDrawer'
 import { GovernanceTabs } from '../components/ui/GovernanceTabs'
 import { PageHeader } from '../components/ui/PageHeader'
-import { Button, StatusTag } from '../components/ui/Primitives'
 import { Pager } from '../components/ui/Pager'
 import {
   confirmGovernanceIssueRunAbsent,
@@ -41,9 +40,18 @@ import {
 } from '../data/domain'
 import type { GovernanceApiIssue, GovernanceIssueDetailApiResponse, GovernanceIssueEventApiItem } from '../data/controlPlane'
 import type { RouteKey } from '../types'
+import type { Tone } from '../data/domain'
 import { QualityRulesAdmin } from './QualityRulesAdmin'
 import styles from './Pages.module.css'
 import local from './QualityIssuesPage.module.css'
+
+/** 领域色调 → antd Tag 语义色。 */
+function tagColor(tone: Tone): string {
+  if (tone === 'healthy') return 'success'
+  if (tone === 'warning') return 'warning'
+  if (tone === 'danger') return 'error'
+  return 'default'
+}
 
 interface Props {
   onNavigate: (route: RouteKey) => void
@@ -259,7 +267,7 @@ export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props
             {openIssues.length > 0 && apiState === 'live' ? <button className={styles.queueFilter} onClick={() => setBatchRemindOpen(true)}>批量提醒</button> : null}
           </div>
           <ul className={styles.queue}>
-            {pagedIssues.map((issue) => <li key={issue.id}><button className={selected?.id === issue.id ? styles.selected : ''} aria-pressed={selected?.id === issue.id} onClick={() => { setSelectedId(issue.id); setActionError(null) }}><span className={styles.queueTop}><span className={styles.queueId}>{issue.id}</span><StatusTag tone={severityTone(issue.severity)}>{severityLabel(issue.severity)}风险</StatusTag></span><span className={styles.queueTitle}>{issue.title}</span><span className={styles.queueMeta}>{issue.ownerDepartment} · {issue.ownerName} · {issueStatusLabel(issue.status)}</span></button></li>)}
+            {pagedIssues.map((issue) => <li key={issue.id}><button className={selected?.id === issue.id ? styles.selected : ''} aria-pressed={selected?.id === issue.id} onClick={() => { setSelectedId(issue.id); setActionError(null) }}><span className={styles.queueTop}><span className={styles.queueId}>{issue.id}</span><Tag color={tagColor(severityTone(issue.severity))}>{severityLabel(issue.severity)}风险</Tag></span><span className={styles.queueTitle}>{issue.title}</span><span className={styles.queueMeta}>{issue.ownerDepartment} · {issue.ownerName} · {issueStatusLabel(issue.status)}</span></button></li>)}
             {apiState === 'loading' ? <li className={styles.emptyState}><LoaderCircle size={18} className={styles.spin} />正在加载治理问题…</li> : null}
             {apiState === 'live' && visibleIssues.length === 0 ? <li className={styles.emptyState}>当前范围暂无匹配的治理问题</li> : null}
           </ul>
@@ -268,9 +276,9 @@ export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props
         <section className={styles.workspaceMain}>
           {selected && detail ? <>
             <div className={styles.detailHero}>
-              <StatusTag tone={issueStatusTone(selected.status)}>{issueStatusLabel(selected.status)}</StatusTag>
+              <Tag color={tagColor(issueStatusTone(selected.status))}>{issueStatusLabel(selected.status)}</Tag>
               <h2>{selected.title}</h2><p>{selected.id} · {selected.objectLabel || selected.datasetId}</p>
-              <div className={styles.detailActions}><Button variant="primary" onClick={startRetest} disabled={!canRecheck || actionState !== null}>{actionState === 'recheck' ? '提交中…' : selected.status === 'RECHECKING' ? '复检中' : '开始复检'}</Button>{detail.latestRun && !isTerminalRun(detail.latestRun.status) ? <Button onClick={syncRun} disabled={actionState !== null}><RefreshCw size={14} className={actionState === 'sync' ? styles.spin : undefined} />{actionState === 'sync' ? '同步中…' : '同步复检结果'}</Button> : null}<Button onClick={remindOwner} disabled={actionState !== null || selected.status === 'CLOSED'}>{actionState === 'notify' ? '提醒中…' : selected.status === 'CLOSED' ? '问题已关闭' : '提醒责任人'}</Button>{selected.status === 'CLOSED' ? <span className={styles.closedHint}>问题已关闭，主操作停用；如需重新处理请从队列选择未闭环问题</span> : null}</div>
+              <div className={styles.detailActions}><Button type="primary" onClick={startRetest} disabled={!canRecheck || actionState !== null}>{actionState === 'recheck' ? '提交中…' : selected.status === 'RECHECKING' ? '复检中' : '开始复检'}</Button>{detail.latestRun && !isTerminalRun(detail.latestRun.status) ? <Button onClick={syncRun} disabled={actionState !== null}><RefreshCw size={14} className={actionState === 'sync' ? styles.spin : undefined} />{actionState === 'sync' ? '同步中…' : '同步复检结果'}</Button> : null}<Button onClick={remindOwner} disabled={actionState !== null || selected.status === 'CLOSED'}>{actionState === 'notify' ? '提醒中…' : selected.status === 'CLOSED' ? '问题已关闭' : '提醒责任人'}</Button>{selected.status === 'CLOSED' ? <span className={styles.closedHint}>问题已关闭，主操作停用；如需重新处理请从队列选择未闭环问题</span> : null}</div>
             </div>
             <ol className={styles.timeline}>
               {groupedTimeline(detail.events).map((group) => group.kind === 'retries' ? (
@@ -306,29 +314,29 @@ export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props
               {looksLikeExecutorOutput(selected.processingNote) ? <details className={styles.executorLog}><summary>历史执行器输出（仅参考，不作为处理结论）</summary><pre>{selected.processingNote}</pre></details> : null}
               <textarea id="processing-note" value={note} onChange={(event) => setNote(event.target.value)} disabled={!canEdit || actionState !== null} placeholder={canEdit ? '填写人工处理结论（处置动作、原因与复核口径）' : ''} />
               {actionError ? <p className={styles.formError} role="alert">{actionError}</p> : null}
-              <div className={styles.noteActions}><Button variant="primary" onClick={saveNote} disabled={!canEdit || !note.trim() || actionState !== null}><Send size={14} />{actionState === 'note' ? '保存中…' : '提交说明'}</Button></div>
+              <div className={styles.noteActions}><Button type="primary" onClick={saveNote} disabled={!canEdit || !note.trim() || actionState !== null}><Send size={14} />{actionState === 'note' ? '保存中…' : '提交说明'}</Button></div>
             </div>
           </> : detailState === 'error' ? <div className={styles.connectionNotice} role="alert"><CircleAlert size={17} /><div><strong>治理问题详情不可用</strong><span>问题详情读取失败，请刷新后重试</span></div><button className={styles.secondaryButton} onClick={() => window.location.reload()}>重新读取</button></div> : <div className={styles.emptyState}>{apiState === 'loading' ? '正在读取问题详情…' : apiState === 'unavailable' ? '控制面恢复后可查看治理问题详情' : '请选择一个治理问题'}</div>}
         </section>
         <aside className={styles.workspaceInspector}>
           {selected && detail ? <>
-            <div className={styles.sectionTitle}><h3>影响与证据</h3><StatusTag tone={severityTone(selected.severity)}>{severityLabel(selected.severity)}风险</StatusTag></div>
+            <div className={styles.sectionTitle}><h3>影响与证据</h3><Tag color={tagColor(severityTone(selected.severity))}>{severityLabel(selected.severity)}风险</Tag></div>
             <div className={`${styles.evidenceBox} ${local.flatEvidence} ${local.flatEvidenceFirst}`}><h3>影响范围</h3><p>{selected.impact}</p></div>
             <div className={`${styles.evidenceBox} ${local.flatEvidence}`}><h3>规则证据</h3><p>{selected.ruleId}<br />规则结果来源：治理规则运行记录</p></div>
             <div className={styles.evidenceBox}>
               <h3>复检执行批次</h3>
               {detail.latestRun ? <>
-                <p><StatusTag tone={runStatusTone(detail.latestRun.status)}>{runStatusLabel(detail.latestRun.status)}</StatusTag><br />执行器：{executorLabel(detail.latestRun.executor)}<br />批次：<code className={styles.inlineCode} title={detail.latestRun.executionBatchId}>{shortBatchId(detail.latestRun.executionBatchId)}</code><br />提交：{formatDateTime(detail.latestRun.submittedAt)}{detail.latestRun.finishedAt ? <><br />完成：{formatDateTime(detail.latestRun.finishedAt)}</> : null}</p>
+                <p><Tag color={tagColor(runStatusTone(detail.latestRun.status))}>{runStatusLabel(detail.latestRun.status)}</Tag><br />执行器：{executorLabel(detail.latestRun.executor)}<br />批次：<code className={styles.inlineCode} title={detail.latestRun.executionBatchId}>{shortBatchId(detail.latestRun.executionBatchId)}</code><br />提交：{formatDateTime(detail.latestRun.submittedAt)}{detail.latestRun.finishedAt ? <><br />完成：{formatDateTime(detail.latestRun.finishedAt)}</> : null}</p>
                 <p className={styles.evidenceMessage}>尝试 {detail.latestRun.attemptCount} 次{detail.latestRun.nextPollAt ? <> · {formatDateTime(detail.latestRun.nextPollAt)} 自动同步轮询结果（也可手动同步）</> : null}</p>
                 {detail.latestRun.resultMessage ? (() => { const view = executorOutputView(detail.latestRun!.resultMessage!); return <p className={styles.evidenceMessage}>{view.head}{view.folded ? <>…<details className={styles.executorLog}><summary>查看完整执行输出</summary><pre>{view.folded}</pre></details></> : null}</p> })() : null}
                 {detail.latestRun.lastError ? <p className={styles.formError}>最近错误：{detail.latestRun.lastError}</p> : null}
                 {detail.latestRun.reconciliationStatus === 'MANUAL_REQUIRED' ? <div className={styles.connectionNotice} role="status"><CircleAlert size={17} /><div><strong>质量执行批次待人工对账</strong><span>{detail.latestRun.reconciliationMessage ?? '外部执行器未能可靠返回状态，请先重新查询；确认不存在后才允许结束本批次。'}</span></div><div className={styles.timelineActions}><button className={styles.secondaryButton} onClick={reconcileRun} disabled={actionState !== null}>{actionState === 'reconcile' ? '查询中…' : '重新查询'}</button><button className={styles.textButton} onClick={confirmRunAbsent} disabled={actionState !== null}>{actionState === 'confirm-absent' ? '确认中…' : '确认不存在'}</button></div></div> : null}
                 {detail.latestRun.artifactUri ? <p className={styles.evidenceMessage}>制品地址：{isSafeArtifactLink(detail.latestRun.artifactUri) ? <a href={detail.latestRun.artifactUri} target="_blank" rel="noreferrer">打开复检制品</a> : <code className={styles.inlineCode}>{detail.latestRun.artifactUri}</code>}</p> : null}
                 {detail.latestRun.sampleEvidence.length > 0 ? <div className={styles.sampleEvidence}><strong>样本证据（{detail.latestRun.sampleEvidence.length}）</strong>{detail.latestRun.sampleEvidence.map((item, index) => <pre key={`${detail.latestRun?.id}-${index}`}>{JSON.stringify(item, null, 2)}</pre>)}</div> : null}
-                {detail.runs.length > 1 ? <div className={styles.runHistory}><strong>历史执行批次（{detail.runs.length}）</strong>{detail.runs.slice(1).map((run) => <div className={styles.runHistoryItem} key={run.id}><StatusTag tone={runStatusTone(run.status)}>{runStatusLabel(run.status)}</StatusTag><span title={run.executionBatchId}>{shortBatchId(run.executionBatchId)}</span><time>{formatDateTime(run.submittedAt)}</time><small>{run.sampleEvidence.length} 条证据</small></div>)}</div> : null}
+                {detail.runs.length > 1 ? <div className={styles.runHistory}><strong>历史执行批次（{detail.runs.length}）</strong>{detail.runs.slice(1).map((run) => <div className={styles.runHistoryItem} key={run.id}><Tag color={tagColor(runStatusTone(run.status))}>{runStatusLabel(run.status)}</Tag><span title={run.executionBatchId}>{shortBatchId(run.executionBatchId)}</span><time>{formatDateTime(run.submittedAt)}</time><small>{run.sampleEvidence.length} 条证据</small></div>)}</div> : null}
               </> : <p>尚未提交质量规则复检。</p>}
             </div>
-            <div className={`${styles.evidenceBox} ${local.flatEvidence}`}><h3>责任人通知</h3>{detail.notifications.length > 0 ? detail.notifications.slice(0, 3).map((notification) => <p key={notification.id}><StatusTag tone={notificationStatusTone(notification.status)}>{notificationStatusLabel(notification.status)}</StatusTag> {notification.channel} · {notification.recipient}<br />{notification.subject}{notification.lastError ? <><br /><span className={styles.evidenceMessage}>{notification.lastError}</span></> : null}</p>) : <p>当前没有通知记录。</p>}</div>
+            <div className={`${styles.evidenceBox} ${local.flatEvidence}`}><h3>责任人通知</h3>{detail.notifications.length > 0 ? detail.notifications.slice(0, 3).map((notification) => <p key={notification.id}><Tag color={tagColor(notificationStatusTone(notification.status))}>{notificationStatusLabel(notification.status)}</Tag> {notification.channel} · {notification.recipient}<br />{notification.subject}{notification.lastError ? <><br /><span className={styles.evidenceMessage}>{notification.lastError}</span></> : null}</p>) : <p>当前没有通知记录。</p>}</div>
             <div className={`${styles.evidenceBox} ${local.flatEvidence}`}><h3>责任归属</h3><p>{selected.ownerDepartment} · {selected.ownerName}<br />来源：资产责任人与组织主数据</p></div>
           </> : null}
         </aside>
@@ -336,16 +344,21 @@ export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props
       <div className={styles.content}>
         <QualityRulesAdmin onNotice={onNotice} />
       </div>
-      {batchRemindOpen ? <ConfirmDrawer
-        titleId="batch-remind-confirm-title"
-        eyebrow="问题队列 · 批量提醒"
-        title={`提醒 ${openIssues.length} 个待闭环问题的责任人`}
-        confirmLabel={actionState === 'batch-notify' ? '提醒中…' : `确认提醒 ${openIssues.length} 位责任人`}
-        busy={actionState !== null}
-        onConfirm={runBatchRemind}
+      <Drawer
+        open={batchRemindOpen}
         onClose={() => setBatchRemindOpen(false)}
-        body={<p>将按队列当前未闭环清单（{openIssues.length} 条）逐一向责任人投递提醒通知；单条失败不影响其余，已关闭问题不会被打扰。</p>}
-      /> : null}
+        width="min(540px, 44vw)"
+        title={<><span className={local.drawerEyebrow}>问题队列 · 批量提醒</span><h2 id="batch-remind-confirm-title" className={local.drawerTitle}>提醒 {openIssues.length} 个待闭环问题的责任人</h2></>}
+        footer={<>
+          <Button onClick={() => setBatchRemindOpen(false)} disabled={actionState !== null}>取消</Button>
+          <Button type="primary" onClick={runBatchRemind} loading={actionState === 'batch-notify'} disabled={actionState !== null}>{actionState === 'batch-notify' ? '提醒中…' : `确认提醒 ${openIssues.length} 位责任人`}</Button>
+        </>}
+      >
+        <div className={styles.drawerNotice}>
+          <AlertTriangle size={16} />
+          <div><p>将按队列当前未闭环清单（{openIssues.length} 条）逐一向责任人投递提醒通知；单条失败不影响其余，已关闭问题不会被打扰。</p></div>
+        </div>
+      </Drawer>
     </div>
   )
 }

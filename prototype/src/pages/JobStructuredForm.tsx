@@ -1,6 +1,6 @@
 import { CircleAlert, FlaskConical, Play, Table2 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { FormEvent } from 'react'
+import { Button, Checkbox, Form, Input, Select } from 'antd'
 import {
   fetchSourceCatalogs,
   fetchSourceColumns,
@@ -11,7 +11,6 @@ import {
   type StructuredTaskSpec,
 } from '../data/controlPlane'
 import { formatDateTime } from '../data/domain'
-import { Button } from '../components/ui/Primitives'
 import styles from './Pages.module.css'
 
 interface Props {
@@ -191,98 +190,94 @@ export function JobStructuredForm({ source, initial, lastSuccessWatermark, savin
     onSubmitState({ label: submitLabel, disabled: !canSubmit })
   })
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
+  function handleSubmit() {
     if (!canSubmit) return
     submit()
   }
 
   return (
-    <form id={formId} className={styles.structuredForm} onSubmit={handleSubmit}>
+    <Form id={formId} layout="vertical" onFinish={handleSubmit}>
       {lastSuccessWatermark ? (
         <div className={styles.drawerNotice}><CircleAlert size={16} /><span>上次成功水位：{formatDateTime(lastSuccessWatermark)}。增量任务从该时间点继续回放；重新保存配置不会重置进度。</span></div>
       ) : null}
-      <div className={styles.formField}>
-        <label>任务形态</label>
+      <Form.Item label="任务形态">
         <div className={styles.structuredModeSwitch} role="radiogroup" aria-label="任务形态">
-          <button type="button" role="radio" aria-checked={form === 'TABLE'} disabled={editLocked}
+          <Button size="small" type="text" role="radio" aria-checked={form === 'TABLE'} disabled={editLocked}
             className={`${styles.structuredModeButton} ${form === 'TABLE' ? styles.structuredModeActive : ''}`}
-            onClick={() => setForm('TABLE')}><Table2 size={13} />表任务</button>
-          <button type="button" role="radio" aria-checked={form === 'SQL'} disabled={editLocked}
+            onClick={() => setForm('TABLE')}><Table2 size={13} />表任务</Button>
+          <Button size="small" type="text" role="radio" aria-checked={form === 'SQL'} disabled={editLocked}
             className={`${styles.structuredModeButton} ${form === 'SQL' ? styles.structuredModeActive : ''}`}
-            onClick={() => setForm('SQL')}><Play size={13} />SQL 任务</button>
+            onClick={() => setForm('SQL')}><Play size={13} />SQL 任务</Button>
         </div>
-      </div>
+      </Form.Item>
 
       {form === 'TABLE' ? (
         <>
           <div className={styles.drawerFormGrid}>
-            <div className={styles.formField}>
-              <label htmlFor="structured-catalog">源库</label>
-              <select id="structured-catalog" value={catalog} onChange={(event) => void selectCatalog(event.target.value)}>
-                <option value="">{catalogs === null ? '读取中…' : '选择库'}</option>
-                {catalogs?.map((item) => <option key={item} value={item}>{item}</option>)}
-              </select>
-            </div>
-            <div className={styles.formField}>
-              <label htmlFor="structured-mode">采集方式</label>
-              <select id="structured-mode" value={mode} onChange={(event) => setMode(event.target.value as 'FULL' | 'INCREMENTAL')}>
-                <option value="FULL">全量（幂等唯一键目标模型可重跑）</option>
-                <option value="INCREMENTAL">增量（时间序列键水位回放）</option>
-              </select>
-            </div>
+            <Form.Item label="源库">
+              <Select id="structured-catalog" value={catalog} onChange={(value) => void selectCatalog(value)}
+                options={[
+                  { value: '', label: catalogs === null ? '读取中…' : '选择库' },
+                  ...(catalogs ?? []).map((item) => ({ value: item, label: item })),
+                ]} />
+            </Form.Item>
+            <Form.Item label="采集方式">
+              <Select id="structured-mode" value={mode} onChange={(value) => setMode(value as 'FULL' | 'INCREMENTAL')}
+                options={[
+                  { value: 'FULL', label: '全量（幂等唯一键目标模型可重跑）' },
+                  { value: 'INCREMENTAL', label: '增量（时间序列键水位回放）' },
+                ]} />
+            </Form.Item>
           </div>
           {catalog ? (
-            <div className={styles.formField}>
-              <label>源表{editLocked ? '' : '（可多选，每表一个任务）'}</label>
+            <Form.Item label={`源表${editLocked ? '' : '（可多选，每表一个任务）'}`}>
               {tables[catalog] === undefined ? <p className={styles.drawerHint}>正在读取表清单…</p> : (
                 <div className={styles.structuredTablePicker}>
                   {tables[catalog]?.map((table) => (
-                    <button type="button" key={table}
+                    <Button size="small" type="text" key={table}
                       className={`${styles.explorerChip} ${selectedTables.includes(table) ? styles.explorerChipActive : ''}`}
                       onClick={() => void toggleTable(table)}>
                       <Table2 size={12} />{table}
-                    </button>
+                    </Button>
                   ))}
                   {tables[catalog]?.length === 0 ? <p className={styles.drawerHint}>该库没有可采集的表</p> : null}
                 </div>
               )}
-            </div>
+            </Form.Item>
           ) : null}
           {activeColumns ? (
-            <div className={styles.formField}>
-              <label>字段白名单（不选 = 全部字段）{columnsLoading ? ' · 读取中…' : ''}</label>
+            <Form.Item label={`字段白名单（不选 = 全部字段）${columnsLoading ? ' · 读取中…' : ''}`}>
               <div className={styles.structuredColumnPicker}>
                 {activeColumns.map((column) => (
                   <label key={column.name} className={styles.structuredColumnOption}>
-                    <input type="checkbox" checked={selectedColumns.includes(column.name)}
+                    <Checkbox checked={selectedColumns.includes(column.name)}
                       onChange={() => toggleColumn(column.name)} />
                     <span>{column.name}</span>
                     <small>{column.typeName}</small>
                   </label>
                 ))}
               </div>
-            </div>
+            </Form.Item>
           ) : selectedTables.length > 1 ? (
             <p className={styles.drawerHint}>多表批量任务使用全量字段；如需字段白名单或增量序列键，请单选表配置。</p>
           ) : null}
           {mode === 'INCREMENTAL' && activeColumns !== undefined ? (
-            <div className={styles.formField}>
-              <label htmlFor="structured-order-key">增量序列键（时间类型）</label>
-              <select id="structured-order-key" value={orderKey} onChange={(event) => setOrderKey(event.target.value)}>
-                <option value="">选择序列键</option>
-                {timeColumns.map((column) => <option key={column} value={column}>{column}</option>)}
-              </select>
+            <Form.Item label="增量序列键（时间类型）">
+              <Select id="structured-order-key" value={orderKey} onChange={(value) => setOrderKey(value)}
+                options={[
+                  { value: '', label: '选择序列键' },
+                  ...timeColumns.map((column) => ({ value: column, label: column })),
+                ]} />
               {timeColumns.length === 0 ? <p className={styles.drawerHint}>该表没有时间类型字段；整数序列键不支持增量回放，请改用全量。</p> : null}
-            </div>
+            </Form.Item>
           ) : null}
         </>
       ) : (
         <>
-          <div className={styles.formField}>
+          <Form.Item>
             <div className={styles.structuredSqlHeader}>
               <label htmlFor="structured-sql">查询语句（只读 · 单条 SELECT/WITH）</label>
-              <Button size="sm" type="button" disabled={!customSql.trim() || sqlTest.state === 'running'} onClick={() => void testSql()}>
+              <Button size="small" type="text" disabled={!customSql.trim() || sqlTest.state === 'running'} onClick={() => void testSql()}>
                 <FlaskConical size={13} />{sqlTest.state === 'running' ? '测试中…' : '测试 SQL'}
               </Button>
             </div>
@@ -292,37 +287,32 @@ export function JobStructuredForm({ source, initial, lastSuccessWatermark, savin
             {sqlTest.state !== 'idle' && sqlTest.message ? (
               <p className={sqlTest.state === 'error' ? styles.formError : styles.drawerHint} role={sqlTest.state === 'error' ? 'alert' : undefined}>{sqlTest.message}</p>
             ) : null}
-          </div>
-          <div className={styles.formField}>
-            <label htmlFor="structured-sql-target">目标表名</label>
-            <input id="structured-sql-target" value={targetTable} onChange={(event) => setTargetTable(event.target.value)} placeholder="例如：src_patient_overview" />
-          </div>
+          </Form.Item>
+          <Form.Item label="目标表名">
+            <Input id="structured-sql-target" value={targetTable} onChange={(event) => setTargetTable(event.target.value)} placeholder="例如：src_patient_overview" />
+          </Form.Item>
         </>
       )}
 
       <div className={styles.drawerFormGrid}>
         {form === 'TABLE' ? (
-          <div className={styles.formField}>
-            <label htmlFor="structured-target-table">目标表名（缺省 = 源表名）</label>
-            <input id="structured-target-table" value={targetTable} onChange={(event) => setTargetTable(event.target.value)} placeholder={activeTable ?? '与源表同名'} />
-          </div>
+          <Form.Item label="目标表名（缺省 = 源表名）">
+            <Input id="structured-target-table" value={targetTable} onChange={(event) => setTargetTable(event.target.value)} placeholder={activeTable ?? '与源表同名'} />
+          </Form.Item>
         ) : null}
-        <div className={styles.formField}>
-          <label htmlFor="structured-target-database">目标库（缺省按系统类型命名）</label>
-          <input id="structured-target-database" value={targetDatabase} onChange={(event) => setTargetDatabase(event.target.value)} placeholder={`ods_${source.systemType.toLowerCase()}`} />
-        </div>
+        <Form.Item label="目标库（缺省按系统类型命名）">
+          <Input id="structured-target-database" value={targetDatabase} onChange={(event) => setTargetDatabase(event.target.value)} placeholder={`ods_${source.systemType.toLowerCase()}`} />
+        </Form.Item>
       </div>
       <div className={styles.drawerFormGrid}>
-        <div className={styles.formField}>
-          <label htmlFor="structured-fenodes">目标仓库 FE 地址</label>
-          <input id="structured-fenodes" value={sinkFenodes} onChange={(event) => setSinkFenodes(event.target.value)} placeholder="例如：doris-fe.internal:8030" />
-        </div>
-        <div className={styles.formField}>
-          <label htmlFor="structured-sink-credential">目标仓库凭据引用</label>
-          <input id="structured-sink-credential" value={sinkCredentialRef} onChange={(event) => setSinkCredentialRef(event.target.value)} placeholder="已登记凭据的引用 id" />
-        </div>
+        <Form.Item label="目标仓库 FE 地址">
+          <Input id="structured-fenodes" value={sinkFenodes} onChange={(event) => setSinkFenodes(event.target.value)} placeholder="例如：doris-fe.internal:8030" />
+        </Form.Item>
+        <Form.Item label="目标仓库凭据引用">
+          <Input id="structured-sink-credential" value={sinkCredentialRef} onChange={(event) => setSinkCredentialRef(event.target.value)} placeholder="已登记凭据的引用 id" />
+        </Form.Item>
       </div>
       {error ? <p className={styles.formError} role="alert">{error}</p> : null}
-    </form>
+    </Form>
   )
 }

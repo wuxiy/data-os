@@ -1,5 +1,6 @@
 import { CalendarClock, CircleAlert, Eye, ListTree, Power, RefreshCw, Save, Square, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { Button, Drawer, Tag } from 'antd'
 import {
   backfillScheduleInstances,
   changeJobScheduleState,
@@ -18,11 +19,19 @@ import {
   type ScheduleInstanceApiItem,
   type ScheduleTaskApiItem,
 } from '../data/controlPlane'
-import { Drawer } from '../components/ui/Drawer'
-import { StatusTag } from '../components/ui/Primitives'
+import type { Tone } from '../types'
 import { formatDateTime } from '../data/domain'
 import local from './JobScheduleDrawer.module.css'
 import styles from './Pages.module.css'
+
+// 状态语义映射：自研 tone → antd Tag 语义色。
+const TONE_COLOR: Record<Tone, string> = {
+  healthy: 'success',
+  warning: 'warning',
+  danger: 'error',
+  neutral: 'default',
+}
+const DRAWER_WIDTH = 'min(540px, 44vw)'
 
 /**
  * 周期调度配置抽屉（G2G 批次 5）：nema etl 调度语义的 DS 承接——
@@ -281,22 +290,22 @@ export function JobScheduleDrawer({ job, onClose, onNotice }: {
 
   return (
     <Drawer
-      titleId="job-schedule-title"
-      eyebrow={`周期调度 · ${job.name}`}
-      title="调度配置"
-      closeLabel="关闭调度配置"
+      open
+      destroyOnHidden
+      width={DRAWER_WIDTH}
+      title={<div><span className={styles.drawerEyebrow}>{`周期调度 · ${job.name}`}</span><h2 style={{ margin: '4px 0 0', fontSize: 16, fontWeight: 600 }}>调度配置</h2></div>}
       onClose={onClose}
       footer={<>
-        <button className={styles.secondaryButton} type="button" onClick={onClose}>关闭</button>
-        <button className={styles.secondaryButton} type="button" disabled={saving || previewLoading} onClick={() => void submitPreview()}><Eye size={14} />{previewLoading ? '计算中…' : '预览触发时间'}</button>
-        <button className={styles.primaryButton} type="button" disabled={saving || previewLoading} onClick={() => void save()}><Save size={14} />{saving ? '处理中…' : '保存调度'}</button>
+        <Button onClick={onClose}>关闭</Button>
+        <Button disabled={saving || previewLoading} onClick={() => void submitPreview()} icon={<Eye size={14} />}>{previewLoading ? '计算中…' : '预览触发时间'}</Button>
+        <Button type="primary" disabled={saving || previewLoading} onClick={() => void save()} icon={<Save size={14} />}>{saving ? '处理中…' : '保存调度'}</Button>
       </>}
     >
       <div className={styles.drawerNotice}><CalendarClock size={16} /><span>调度由平台调度引擎执行，调度平台是唯一事实源；本页每次打开实时读取。保存不改变上下线状态，新建调度需显式上线。平台定时触发的运行在「调度实例」中查看（门户发起的运行才进任务运行记录）。</span></div>
 
       <div className={`${styles.toolbarRow} ${local.toolbarBlock}`} role="tablist" aria-label="调度管理">
-        <button type="button" role="tab" aria-selected={tab === 'config'} className={tab === 'config' ? styles.primaryButton : styles.textButton} onClick={() => switchTab('config')}><CalendarClock size={14} />调度配置</button>
-        <button type="button" role="tab" aria-selected={tab === 'instances'} className={tab === 'instances' ? styles.primaryButton : styles.textButton} onClick={() => switchTab('instances')}><ListTree size={14} />调度实例</button>
+        <Button size="small" role="tab" aria-selected={tab === 'config'} type={tab === 'config' ? 'primary' : 'text'} onClick={() => switchTab('config')} icon={<CalendarClock size={14} />}>调度配置</Button>
+        <Button size="small" role="tab" aria-selected={tab === 'instances'} type={tab === 'instances' ? 'primary' : 'text'} onClick={() => switchTab('instances')} icon={<ListTree size={14} />}>调度实例</Button>
       </div>
 
       {state === 'loading' ? <p className={styles.drawerHint}>正在读取当前调度状态…</p> : null}
@@ -304,7 +313,7 @@ export function JobScheduleDrawer({ job, onClose, onNotice }: {
 
       {tab === 'config' && state === 'ready' && schedule ? <>
         <div className={styles.drawerFormGrid}>
-          <div className={styles.formField}><label>当前策略</label><div><StatusTag tone={strategy.tone}>{strategy.label}</StatusTag></div></div>
+          <div className={styles.formField}><label>当前策略</label><div><Tag color={TONE_COLOR[strategy.tone]}>{strategy.label}</Tag></div></div>
           <div className={styles.formField}><label>下次触发</label><div>{schedule.nextFireTime ? formatDateTime(schedule.nextFireTime) : '—'}</div></div>
           <div className={styles.formField}><label>当前 CRON</label><div><code>{schedule.crontab ?? '（未配置）'}</code></div></div>
           <div className={styles.formField}><label>生效窗口</label><div>{schedule.startTime || schedule.endTime ? `${schedule.startTime ?? '…'} ~ ${schedule.endTime ?? '…'}` : '长期有效'}</div></div>
@@ -364,7 +373,7 @@ export function JobScheduleDrawer({ job, onClose, onNotice }: {
 
         {preview ? (
           <div className={styles.checkResult}>
-            <StatusTag tone={preview.source === 'DS' ? 'healthy' : 'warning'}>{preview.source === 'DS' ? '平台调度引擎计算' : '引擎不可达 · 本地估算'}</StatusTag>
+            <Tag color={preview.source === 'DS' ? 'success' : 'warning'}>{preview.source === 'DS' ? '平台调度引擎计算' : '引擎不可达 · 本地估算'}</Tag>
             <ul>
               {preview.fireTimes.map((time) => <li key={time}>{formatDateTime(time)}</li>)}
               {preview.fireTimes.length === 0 ? <li>生效窗口内无触发时刻</li> : null}
@@ -373,11 +382,11 @@ export function JobScheduleDrawer({ job, onClose, onNotice }: {
         ) : null}
 
         <div className={`${styles.toolbarRow} ${local.toolbarBlock}`}>
-          <button className={styles.secondaryButton} type="button" disabled={saving || !schedule.scheduled || schedule.online} onClick={() => void toggleOnline(true)}><Power size={14} />上线</button>
-          <button className={styles.secondaryButton} type="button" disabled={saving || !schedule.scheduled || !schedule.online} onClick={() => void toggleOnline(false)}><Power size={14} />下线</button>
-          <button className={styles.secondaryButton} type="button" disabled={saving || !schedule.scheduled} onClick={requestDelete}>
-            <Trash2 size={14} />{confirmDelete ? '再次点击确认删除' : '删除调度'}
-          </button>
+          <Button size="small" disabled={saving || !schedule.scheduled || schedule.online} onClick={() => void toggleOnline(true)} icon={<Power size={14} />}>上线</Button>
+          <Button size="small" disabled={saving || !schedule.scheduled || !schedule.online} onClick={() => void toggleOnline(false)} icon={<Power size={14} />}>下线</Button>
+          <Button size="small" disabled={saving || !schedule.scheduled} onClick={requestDelete} icon={<Trash2 size={14} />}>
+            {confirmDelete ? '再次点击确认删除' : '删除调度'}
+          </Button>
         </div>
         {schedule.scheduled ? null : (
           <p className={styles.drawerHint}><CircleAlert size={13} /> 手动调度=任务不在平台调度周期触发；仍可在任务列表手动启动。</p>
@@ -388,38 +397,38 @@ export function JobScheduleDrawer({ job, onClose, onNotice }: {
         <div className={styles.drawerFormGrid}>
           <div className={styles.formField}><label htmlFor="backfill-start">补数开始日期</label><input id="backfill-start" type="date" value={backfillStart} onChange={(event) => setBackfillStart(event.target.value)} /></div>
           <div className={styles.formField}><label htmlFor="backfill-end">补数结束日期</label><input id="backfill-end" type="date" value={backfillEnd} onChange={(event) => setBackfillEnd(event.target.value)} /></div>
-          <div className={styles.formField}><label>区间补数</label><button type="button" className={styles.secondaryButton} disabled={backfilling} onClick={() => void submitBackfill()}><RefreshCw size={14} />{backfilling ? '提交中…' : '按日补跑'}</button></div>
+          <div className={styles.formField}><label>区间补数</label><Button size="small" disabled={backfilling} onClick={() => void submitBackfill()} icon={<RefreshCw size={14} />}>{backfilling ? '提交中…' : '按日补跑'}</Button></div>
         </div>
         <p className={styles.drawerHint}>补数按日期区间让平台调度逐日重跑工作流；实例状态由调度平台实时读取，门户发起的运行仍在任务运行记录中。</p>
 
         <div className={`${styles.toolbarRow} ${local.toolbarBlock}`}>
           <strong>调度实例（{instTotal}）</strong>
-          <button type="button" className={styles.secondaryButton} disabled={instLoading} onClick={() => void loadInstances()}><RefreshCw size={13} />刷新</button>
-          <button type="button" className={styles.secondaryButton} disabled={instLoading || instPage === 0} onClick={() => void loadInstances(instPage - 1)}>上一页</button>
-          <button type="button" className={styles.secondaryButton} disabled={instLoading || (instPage + 1) * 10 >= instTotal} onClick={() => void loadInstances(instPage + 1)}>下一页</button>
+          <Button size="small" disabled={instLoading} onClick={() => void loadInstances()} icon={<RefreshCw size={13} />}>刷新</Button>
+          <Button size="small" disabled={instLoading || instPage === 0} onClick={() => void loadInstances(instPage - 1)}>上一页</Button>
+          <Button size="small" disabled={instLoading || (instPage + 1) * 10 >= instTotal} onClick={() => void loadInstances(instPage + 1)}>下一页</Button>
         </div>
         {instLoading ? <p className={styles.drawerHint}>正在读取调度实例…</p> : null}
         {instError ? <p className={styles.formError} role="alert">{instError}</p> : null}
 
         {instList.map((instance) => <div key={instance.id} className={styles.instanceBlock}>
           <div className={styles.instanceHead}>
-            <StatusTag tone={instanceTone(instance.state)}>{instanceLabel(instance.state)}</StatusTag>
+            <Tag color={TONE_COLOR[instanceTone(instance.state)]}>{instanceLabel(instance.state)}</Tag>
             <strong>{instance.name ?? `实例 ${instance.id}`}</strong>
             <small>#{instance.id} · {instance.startTime ? formatDateTime(instance.startTime) : '—'}{instance.endTime ? ` ~ ${formatDateTime(instance.endTime)}` : ''}{instance.host ? ` · ${instance.host}` : ''}</small>
             <div className={styles.instanceActions}>
-              <button type="button" className={styles.tableButton} onClick={() => void toggleInstanceTasks(instance)}><ListTree size={13} />{expandedInstance === instance.id ? '收起任务' : '任务与日志'}</button>
-              {instance.state === 'RUNNING' ? <button type="button" className={styles.tableButton} disabled={instBusy} onClick={() => void instanceAction(instance, 'stop')}><Square size={13} />终止</button> : null}
-              {instance.state === 'SUCCEEDED' || instance.state === 'FAILED' || instance.state === 'CANCELED' ? <button type="button" className={styles.tableButton} disabled={instBusy} onClick={() => void instanceAction(instance, 'retry')}><RefreshCw size={13} />重跑</button> : null}
+              <Button size="small" onClick={() => void toggleInstanceTasks(instance)} icon={<ListTree size={13} />}>{expandedInstance === instance.id ? '收起任务' : '任务与日志'}</Button>
+              {instance.state === 'RUNNING' ? <Button size="small" disabled={instBusy} onClick={() => void instanceAction(instance, 'stop')} icon={<Square size={13} />}>终止</Button> : null}
+              {instance.state === 'SUCCEEDED' || instance.state === 'FAILED' || instance.state === 'CANCELED' ? <Button size="small" disabled={instBusy} onClick={() => void instanceAction(instance, 'retry')} icon={<RefreshCw size={13} />}>重跑</Button> : null}
             </div>
           </div>
           {expandedInstance === instance.id ? <div className={styles.instanceTasks}>
             {(tasksByInstance[instance.id] ?? []).map((task) => <div key={task.id}>
               <div className={styles.instanceHead}>
-                <StatusTag tone={instanceTone(task.state)}>{instanceLabel(task.state)}</StatusTag>
+                <Tag color={TONE_COLOR[instanceTone(task.state)]}>{instanceLabel(task.state)}</Tag>
                 <strong>{task.name}</strong>
                 <small>{task.startTime ? formatDateTime(task.startTime) : '—'}{task.endTime ? ` ~ ${formatDateTime(task.endTime)}` : ''}</small>
                 <div className={styles.instanceActions}>
-                  <button type="button" className={styles.tableButton} onClick={() => void toggleTaskLog(instance.id, task.id)}>{logOpenTask === task.id ? '收起日志' : '日志尾部'}</button>
+                  <Button size="small" onClick={() => void toggleTaskLog(instance.id, task.id)}>{logOpenTask === task.id ? '收起日志' : '日志尾部'}</Button>
                 </div>
               </div>
               {logOpenTask === task.id ? <pre className={styles.logTail}>{logByTask[task.id] ?? '（无日志内容）'}</pre> : null}
@@ -444,7 +453,7 @@ function instanceLabel(state: string): string {
   }
 }
 
-function instanceTone(state: string): 'healthy' | 'warning' | 'danger' | 'neutral' {
+function instanceTone(state: string): Tone {
   switch (state) {
     case 'SUCCEEDED': return 'healthy'
     case 'FAILED': return 'danger'

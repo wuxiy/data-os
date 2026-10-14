@@ -12,6 +12,8 @@
   },
   "dependencies": {
     "@superset-ui/embedded-sdk": "^0.4.0",
+    "antd": "^6.6.6",
+    "dayjs": "^1.11.23",
     "lucide-react": "^0.468.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"

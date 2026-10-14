@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronRight, Database, Play, Table2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import type { FormEvent } from 'react'
+import { Button, Form, Input, Table } from 'antd'
+import type { ColumnsType } from 'antd/es/table'
 import {
   fetchSourceCatalogs,
   fetchSourceColumns,
@@ -48,8 +49,7 @@ function SourceConnectionForm({ source, onNotice, onSourceUpdated }: Props) {
     }
   }, [source.protocol])
 
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
+  async function submit() {
     if (!form.jdbcUrl.trim()) return
     const config: Record<string, unknown> = { jdbcUrl: form.jdbcUrl.trim() }
     if (form.username.trim()) config.username = form.username.trim()
@@ -62,14 +62,20 @@ function SourceConnectionForm({ source, onNotice, onSourceUpdated }: Props) {
   }
 
   return (
-    <form id="source-connection-form" className={styles.drawerForm} onSubmit={(event) => void submit(event)}>
+    <Form id="source-connection-form" layout="vertical" onFinish={() => void submit()}>
       <div className={styles.drawerNotice}><Database size={16} /><span>浏览前先登记连接参数。仅保存库地址与账号引用；密码、Secret 请经凭据服务以 credentialRef 引用，本表单不落库明文凭据。</span></div>
-      <div className={styles.formField}><label htmlFor="explorer-jdbc-url">连接地址（JDBC URL）</label><input id="explorer-jdbc-url" required value={form.jdbcUrl} onChange={(event) => setForm((current) => ({ ...current, jdbcUrl: event.target.value }))} placeholder="jdbc:postgresql://主机:5432/数据库" /></div>
-      <div className={styles.formField}><label htmlFor="explorer-username">用户名（只读账号）</label><input id="explorer-username" value={form.username} onChange={(event) => setForm((current) => ({ ...current, username: event.target.value }))} placeholder="例如：dataos_ro" /></div>
-      <div className={styles.formField}><label htmlFor="explorer-credential-ref">凭据引用</label><input id="explorer-credential-ref" value={form.credentialRef} onChange={(event) => setForm((current) => ({ ...current, credentialRef: event.target.value }))} placeholder="已登记凭据的引用名（密码经凭据服务托管）" /></div>
+      <Form.Item label="连接地址（JDBC URL）" required>
+        <Input id="explorer-jdbc-url" required value={form.jdbcUrl} onChange={(event) => setForm((current) => ({ ...current, jdbcUrl: event.target.value }))} placeholder="jdbc:postgresql://主机:5432/数据库" />
+      </Form.Item>
+      <Form.Item label="用户名（只读账号）">
+        <Input id="explorer-username" value={form.username} onChange={(event) => setForm((current) => ({ ...current, username: event.target.value }))} placeholder="例如：dataos_ro" />
+      </Form.Item>
+      <Form.Item label="凭据引用">
+        <Input id="explorer-credential-ref" value={form.credentialRef} onChange={(event) => setForm((current) => ({ ...current, credentialRef: event.target.value }))} placeholder="已登记凭据的引用名（密码经凭据服务托管）" />
+      </Form.Item>
       {error ? <p className={styles.formError} role="alert">{error}</p> : null}
       {saving ? <p className={styles.drawerHint} role="status">登记中…</p> : null}
-    </form>
+    </Form>
   )
 }
 
@@ -143,6 +149,21 @@ function SourceExplorerWorkspace({ source, onNotice }: Omit<Props, 'onSourceUpda
     })
   }
 
+  const columnColumns: ColumnsType<SourceColumnApiItem> = [
+    { title: '字段', key: 'name', render: (_, column) => <strong>{column.name}</strong> },
+    { title: '类型', key: 'type', dataIndex: 'typeName' },
+    { title: '可空', key: 'nullable', render: (_, column) => column.nullable ? '是' : '否' },
+    { title: '注释', key: 'remark', render: (_, column) => column.remark || '—' },
+  ]
+
+  const resultColumns: ColumnsType<unknown[]> = result
+    ? result.columns.map((column, columnIndex) => ({
+        title: column,
+        key: `${columnIndex}`,
+        render: (_: unknown, row: unknown[]) => row[columnIndex] ?? '—',
+      }))
+    : []
+
   return (
     <div className={styles.explorerBody}>
       {catalogsError ? <p className={styles.formError} role="alert">{catalogsError}</p> : null}
@@ -154,22 +175,22 @@ function SourceExplorerWorkspace({ source, onNotice }: Omit<Props, 'onSourceUpda
           const tables = tablesByCatalog[catalog]
           return (
             <div key={catalog} className={styles.explorerCatalog}>
-              <button type="button" className={styles.explorerCatalogRow} aria-expanded={expanded} onClick={() => void toggleCatalog(catalog)}>
+              <Button size="small" type="text" className={styles.explorerCatalogRow} aria-expanded={expanded} onClick={() => void toggleCatalog(catalog)}>
                 {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                 <Database size={14} />
                 <span>{catalog}</span>
-              </button>
+              </Button>
               {expanded ? (
                 <div className={styles.explorerTableList}>
                   {tables === undefined ? <p className={styles.drawerHint}>正在读取表清单…</p> : null}
                   {tables?.length === 0 ? <p className={styles.drawerHint}>该库没有可浏览的表</p> : null}
                   {tables?.map((table) => (
-                    <button type="button" key={table.name}
+                    <Button size="small" type="text" key={table.name}
                       className={`${styles.explorerChip} ${selectedTable?.catalog === catalog && selectedTable.table === table.name ? styles.explorerChipActive : ''}`}
                       title={table.remark || table.type}
                       onClick={() => void selectTable(catalog, table.name)}>
                       <Table2 size={12} />{table.name}
-                    </button>
+                    </Button>
                   ))}
                   {tablesError && tables ? <p className={styles.formError}>{tablesError}</p> : null}
                 </div>
@@ -185,11 +206,13 @@ function SourceExplorerWorkspace({ source, onNotice }: Omit<Props, 'onSourceUpda
           {columnsLoading ? <p className={styles.drawerHint}>正在读取字段清单…</p> : null}
           {columns ? (
             columns.length === 0 ? <p className={styles.drawerHint}>未读取到字段信息</p> : (
-              <div className={styles.explorerColumnsScroll}><table className={styles.table}><thead><tr><th>字段</th><th>类型</th><th>可空</th><th>注释</th></tr></thead><tbody>
-                {columns.map((column) => (
-                  <tr key={column.name}><td><strong>{column.name}</strong></td><td>{column.typeName}</td><td>{column.nullable ? '是' : '否'}</td><td>{column.remark || '—'}</td></tr>
-                ))}
-              </tbody></table></div>
+              <Table<SourceColumnApiItem>
+                rowKey="name"
+                columns={columnColumns}
+                dataSource={columns}
+                pagination={false}
+                size="small"
+              />
             )
           ) : null}
         </div>
@@ -201,20 +224,22 @@ function SourceExplorerWorkspace({ source, onNotice }: Omit<Props, 'onSourceUpda
           onChange={(event) => setSql(event.target.value)} spellCheck={false}
           placeholder="例如：SELECT * FROM 表名 LIMIT 100" aria-label="SQL 查询语句" />
         <div className={styles.explorerQueryActions}>
-          <button type="button" className={styles.primaryButton} disabled={querying || !sql.trim()} onClick={() => void executeQuery()}>
+          <Button type="primary" size="small" disabled={querying || !sql.trim()} onClick={() => void executeQuery()}>
             <Play size={13} />{querying ? '查询中…' : '执行查询'}
-          </button>
+          </Button>
         </div>
         {queryError ? <p className={styles.formError} role="alert">{queryError}</p> : null}
         {result ? (
           <div className={styles.explorerResultBlock}>
             {result.truncated ? <p className={styles.explorerResultNote} role="status">结果超出返回上限，已截断显示前 {result.rows.length} 行。</p> : null}
             {result.rows.length === 0 ? <p className={styles.drawerHint}>查询没有返回数据行。</p> : (
-              <div className={styles.explorerResultScroll}><table className={styles.table}><thead><tr>{result.columns.map((column) => <th key={column}>{column}</th>)}</tr></thead><tbody>
-                {result.rows.map((row, rowIndex) => (
-                  <tr key={rowIndex}>{row.map((cell, cellIndex) => <td key={cellIndex}>{cell ?? '—'}</td>)}</tr>
-                ))}
-              </tbody></table></div>
+              <Table<unknown[]>
+                rowKey={(_, index) => String(index)}
+                columns={resultColumns}
+                dataSource={result.rows}
+                pagination={false}
+                size="small"
+              />
             )}
           </div>
         ) : null}

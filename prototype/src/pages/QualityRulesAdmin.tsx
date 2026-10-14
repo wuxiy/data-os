@@ -1,9 +1,8 @@
-import { Plus, Save, ShieldCheck, Trash2 } from 'lucide-react'
+import { AlertTriangle, Plus, Save, ShieldCheck, Trash2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import { ConfirmDrawer } from '../components/ui/ConfirmDrawer'
-import { Drawer } from '../components/ui/Drawer'
-import { StatusTag } from '../components/ui/Primitives'
+import { Button, Drawer, Table, Tag } from 'antd'
+import type { TableProps } from 'antd'
 import {
   deleteQualityRule,
   fetchQualityRuleTypes,
@@ -328,45 +327,64 @@ export function QualityRulesAdmin({ onNotice }: Props) {
   const needsColumn = form.ruleType !== 'SQL' && form.ruleType !== 'SQL_STAT_VAL'
   const computedEvidence = COMPUTED_EVIDENCE_TYPES.has(form.ruleType)
 
+  // 规则台账列定义：数字列右对齐 + tabular-nums；行内操作用 size="small"。
+  const ruleColumns: TableProps<QualityRuleDefinitionApiItem>['columns'] = [
+    { title: '规则编号', dataIndex: 'ruleId', key: 'ruleId', render: (value: string) => <strong>{value}</strong> },
+    { title: '类型', key: 'ruleType', render: (_, rule) => PARAM_LABELS[rule.ruleType] ?? rule.ruleType },
+    { title: '维度', key: 'dimension', render: (_, rule) => dimensionOf(rule.ruleType) },
+    {
+      title: '目标',
+      key: 'target',
+      render: (_, rule) => <><code className={styles.inlineCode}>{rule.datasetId}</code>{rule.targetColumn ? ` · ${rule.targetColumn}` : ''}</>,
+    },
+    {
+      title: '状态',
+      key: 'enabled',
+      render: (_, rule) => <Tag color={rule.enabled ? 'success' : 'default'}>{rule.enabled ? '启用中' : '已停用'}</Tag>,
+    },
+    {
+      title: '更新时间',
+      key: 'updatedAt',
+      align: 'right',
+      className: local.numCell,
+      render: (_, rule) => formatDateTime(rule.updatedAt),
+    },
+    {
+      title: '操作',
+      key: 'actions',
+      render: (_, rule) => <div className={styles.tableActions}>
+        <Button size="small" type="link" onClick={() => openEdit(rule)}>编辑</Button>
+        <Button size="small" type="link" disabled={pendingKey !== null} onClick={() => toggleEnabled(rule)}>{rule.enabled ? '停用' : '启用'}</Button>
+        <Button size="small" type="link" danger disabled={pendingKey !== null} onClick={() => setPendingDelete(rule)}><Trash2 size={13} />删除</Button>
+      </div>,
+    },
+  ]
+
   return (
     <section className={styles.tablePanel}>
       <div className={styles.panelHeader}>
         <div><h2>质量规则（动态）</h2><p>面向业务库表配置规则；保存即由质量执行器编译生效，复检链自动可用</p></div>
         <div className={styles.panelHeaderActions}>
           <span className={styles.dashboardScope}>{rules.length} 条规则</span>
-          {apiState === 'live' ? <button className={styles.primaryButton} onClick={openCreate}><Plus size={14} />新建规则</button> : null}
+          {apiState === 'live' ? <Button type="primary" onClick={openCreate}><Plus size={14} />新建规则</Button> : null}
         </div>
       </div>
-      <div className={styles.tableScroll}><table className={styles.table}>
-        <thead><tr><th>规则编号</th><th>类型</th><th>维度</th><th>目标</th><th>状态</th><th className={styles.num}>更新时间</th><th>操作</th></tr></thead>
-        <tbody>
-          {rules.map((rule) => (
-            <tr key={rule.ruleId}>
-              <td><strong>{rule.ruleId}</strong></td>
-              <td>{PARAM_LABELS[rule.ruleType] ?? rule.ruleType}</td>
-              <td>{dimensionOf(rule.ruleType)}</td>
-              <td><code className={styles.inlineCode}>{rule.datasetId}</code>{rule.targetColumn ? ` · ${rule.targetColumn}` : ''}</td>
-              <td><StatusTag tone={rule.enabled ? 'healthy' : 'neutral'}>{rule.enabled ? '启用中' : '已停用'}</StatusTag></td>
-              <td className={styles.num}>{formatDateTime(rule.updatedAt)}</td>
-              <td><div className={styles.tableActions}>
-                <button className={styles.tableButton} onClick={() => openEdit(rule)}>编辑</button>
-                <button className={styles.tableButton} disabled={pendingKey !== null} onClick={() => toggleEnabled(rule)}>{rule.enabled ? '停用' : '启用'}</button>
-                <button className={`${styles.tableButton} ${local.dangerAction}`} disabled={pendingKey !== null} onClick={() => setPendingDelete(rule)}><Trash2 size={13} />删除</button>
-              </div></td>
-            </tr>
-          ))}
-          {apiState === 'live' && rules.length === 0 ? <tr><td colSpan={7} className={styles.emptyState}>暂无动态规则；新建后经质量执行器编译即可参与复检。</td></tr> : null}
-          {apiState === 'unavailable' ? <tr><td colSpan={7} className={styles.emptyState}>质量规则控制面暂不可用。</td></tr> : null}
-        </tbody>
-      </table></div>
+      <Table<QualityRuleDefinitionApiItem>
+        columns={ruleColumns}
+        dataSource={rules}
+        rowKey={(rule) => rule.ruleId}
+        pagination={false}
+        locale={{
+          emptyText: apiState === 'unavailable' ? '质量规则控制面暂不可用。' : apiState === 'live' ? '暂无动态规则；新建后经质量执行器编译即可参与复检。' : '',
+        }}
+      />
 
       {formOpen ? <Drawer
-        titleId="quality-rule-form-title"
-        eyebrow={editing ? '质量规则编辑' : '质量规则新建'}
-        title={editing ? editing.ruleId : '新建动态规则'}
-        closeLabel="关闭质量规则表单"
+        open={formOpen}
         onClose={() => setFormOpen(false)}
-        footer={<><button className={styles.secondaryButton} type="button" onClick={() => setFormOpen(false)}>取消</button><button className={styles.primaryButton} type="submit" form="quality-rule-form" disabled={saving}><Save size={14} />{saving ? '保存中…' : '保存并推送'}</button></>}
+        width="min(540px, 44vw)"
+        title={<><span className={local.drawerEyebrow}>{editing ? '质量规则编辑' : '质量规则新建'}</span><h2 id="quality-rule-form-title" className={local.drawerTitle}>{editing ? editing.ruleId : '新建动态规则'}</h2></>}
+        footer={<><Button onClick={() => setFormOpen(false)}>取消</Button><Button type="primary" htmlType="submit" form="quality-rule-form" loading={saving} disabled={saving}><Save size={14} />{saving ? '保存中…' : '保存并推送'}</Button></>}
       >
         <form id="quality-rule-form" className={styles.drawerForm} onSubmit={(event) => submit(event)}>
           <div className={styles.drawerNotice}><ShieldCheck size={16} /><span>规则语义由质量规则执行器编译校验：标识符与 SQL 只读约束在保存时实校验，失败原因会如实返回。证据列是失败样本的展示白名单与脱敏策略。</span></div>
@@ -493,17 +511,24 @@ export function QualityRulesAdmin({ onNotice }: Props) {
         </form>
       </Drawer> : null}
 
-      {pendingDelete ? <ConfirmDrawer
-        titleId="rule-delete-confirm-title"
-        eyebrow="质量规则 · 删除确认"
-        title={`删除 ${pendingDelete.ruleId}`}
-        danger
-        confirmLabel={pendingKey === `delete-${pendingDelete.ruleId}` ? '删除中…' : '确认删除'}
-        busy={pendingKey !== null}
-        onConfirm={() => removeRule(pendingDelete)}
+      <Drawer
+        open={pendingDelete !== null}
         onClose={() => setPendingDelete(null)}
-        body={<><p>规则 <strong>{pendingDelete.ruleId}</strong>（{PARAM_LABELS[pendingDelete.ruleType] ?? pendingDelete.ruleType} · {pendingDelete.datasetId}{pendingDelete.targetColumn ? ` · ${pendingDelete.targetColumn}` : ''}）将被删除，并从质量执行器同步摘除，已产生的治理问题与运行记录保留。</p><p>此操作不可撤销；如需暂停执行请使用「停用」。</p></>}
-      /> : null}
+        width="min(540px, 44vw)"
+        title={<><span className={local.drawerEyebrow}>质量规则 · 删除确认</span><h2 id="rule-delete-confirm-title" className={local.drawerTitle}>删除 {pendingDelete?.ruleId}</h2></>}
+        footer={<>
+          <Button onClick={() => setPendingDelete(null)} disabled={pendingKey !== null}>取消</Button>
+          <Button danger type="primary" onClick={() => pendingDelete && removeRule(pendingDelete)} loading={pendingDelete !== null && pendingKey === `delete-${pendingDelete.ruleId}`} disabled={pendingKey !== null}>{pendingDelete !== null && pendingKey === `delete-${pendingDelete.ruleId}` ? '删除中…' : '确认删除'}</Button>
+        </>}
+      >
+        {pendingDelete ? <div className={`${styles.drawerNotice} ${styles.drawerNoticeDanger}`}>
+          <AlertTriangle size={16} />
+          <div>
+            <p>规则 <strong>{pendingDelete.ruleId}</strong>（{PARAM_LABELS[pendingDelete.ruleType] ?? pendingDelete.ruleType} · {pendingDelete.datasetId}{pendingDelete.targetColumn ? ` · ${pendingDelete.targetColumn}` : ''}）将被删除，并从质量执行器同步摘除，已产生的治理问题与运行记录保留。</p>
+            <p>此操作不可撤销；如需暂停执行请使用「停用」。</p>
+          </div>
+        </div> : null}
+      </Drawer>
     </section>
   )
 }
