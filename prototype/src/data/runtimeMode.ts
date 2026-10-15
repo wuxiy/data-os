@@ -6,6 +6,8 @@
  * 静态演示记录才不会被误认为真实来源；本地验收用
  * `VITE_DATAOS_DEMO_MODE=true npm run dev` 显式开启。
  */
+import { formatDateTime } from './domain'
+
 export const frontendDemoMode = String(import.meta.env.VITE_DATAOS_DEMO_MODE ?? '').toLowerCase() === 'true'
 
 /** 后端亦声明 DEMO 时整个门户按演示呈现：两个真相源在此合一。 */
@@ -41,6 +43,8 @@ export const demoFlowSnapshotLabel: string = frontendDemoMode ? '演示快照 ·
 
 /** 页头时间戳：有值标「截至」，否则按运行模式给出占位文案。 */
 export function timestampPlaceholder(asOf: string | null): string {
-  if (asOf) return `截至 ${asOf}`
+  // 仅当 asOf 是 ISO 时间戳（后端裸值，可能带纳秒）时才格式化；
+  // 已是「MM-DD HH:mm」或演示快照文案的透传——「09-21 12:52」会被 Date 误解析为 2001 年
+  if (asOf) return `截至 ${/\d{4}-\d{2}-\d{2}T/.test(asOf) ? formatDateTime(asOf) : asOf}`
   return frontendDemoMode ? '演示数据快照' : '等待首次数据汇总'
 }

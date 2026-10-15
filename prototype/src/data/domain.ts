@@ -164,10 +164,11 @@ export function notificationStatusTone(value: string): Tone {
 
 // ---- 时间格式化 ----
 
-/** 统一的短时间格式：MM-DD HH:mm；空值为「—」，无法解析时原样展示。 */
+/** 统一的短时间格式：MM-DD HH:mm；空值为「—」，无法解析时原样展示。
+ * 后端可能带纳秒（.778425026Z），先截到毫秒再交给 Date 解析。 */
 export function formatDateTime(value: string | null | undefined): string {
   if (!value) return '—'
-  const date = new Date(value)
+  const date = new Date(value.replace(/(\.\d{3})\d+/, '$1'))
   if (Number.isNaN(date.getTime())) return value
   const base = new Intl.DateTimeFormat('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).format(date).replace('/', '-').replace('/', ' ')
   // 跨年补年份（2026-10-05 复评）：非当年日期缺年份会误判新鲜度。

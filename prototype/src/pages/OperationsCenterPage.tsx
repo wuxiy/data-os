@@ -1,8 +1,9 @@
 import { ChevronRight, ClipboardList, RefreshCw } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { Button, Select, Table, Tag } from 'antd'
+import type { ColumnsType } from 'antd/es/table'
 import { DemoDataBoundary } from '../components/ui/DemoDataBoundary'
 import { PageHeader } from '../components/ui/PageHeader'
-import { Button, StatusTag } from '../components/ui/Primitives'
 import {
   fetchOperationsEvents,
   fetchOperationsSummary,
@@ -12,6 +13,7 @@ import {
   type OperationsSummary,
   type OperationsWorkItem,
 } from '../data/operationsApi'
+import { formatDateTime } from '../data/domain'
 import { frontendDemoMode } from '../data/runtimeMode'
 import { useApiResource } from '../hooks/useApiResource'
 import { usePaged } from '../hooks/usePaged'
@@ -48,6 +50,13 @@ function severityTone(severity: string) {
   return 'neutral' as const
 }
 
+// 状态语义映射：自研 tone → antd Tag 语义色。
+const SEVERITY_COLOR: Record<string, string> = {
+  danger: 'error',
+  warning: 'warning',
+  neutral: 'default',
+}
+
 /** 严重度中文口径：CRITICAL 即「阻断」（SLA 逾期/不可交付语义）。 */
 const SEVERITY_LABEL: Record<string, string> = {
   CRITICAL: '阻断',
@@ -66,6 +75,8 @@ const SOURCE_TYPE_LABEL: Record<string, string> = {
   aiBuildJob: 'AI 构建',
   mpiMetrics: '患者主索引',
 }
+
+const WORK_ITEM_PAGE_SIZE = 12
 
 export function OperationsCenterPage(
   { onNotice, onNavigate }: { onNotice: (message: string) => void; onNavigate: (route: 'ingestion' | 'governance' | 'mpi' | 'aiData' | 'dataServices') => void },
@@ -119,10 +130,43 @@ function OperationsCenterLive(
     onUnavailable: () => setEvents([]),
   })
 
-  const paged = usePaged(workItems, 12)
+  const paged = usePaged(workItems, WORK_ITEM_PAGE_SIZE)
   const presentTypes = useMemo(
     () => WORK_ITEM_TYPES.filter((type) => workItems.some((item) => item.type === type)),
     [workItems])
+
+  const workItemColumns: ColumnsType<OperationsWorkItem> = [
+    { title: '类型', key: 'type', width: 104, render: (_, item) => TYPE_LABEL[item.type] ?? item.type },
+    {
+      title: '严重度',
+      key: 'severity',
+      width: 84,
+      render: (_, item) => <Tag color={SEVERITY_COLOR[severityTone(item.severity)]}>{SEVERITY_LABEL[item.severity] ?? item.severity}</Tag>,
+    },
+    { title: '待办', key: 'title', render: (_, item) => item.title },
+    { title: '来源', key: 'source', width: 104, render: (_, item) => SOURCE_TYPE_LABEL[item.sourceType] ?? item.sourceType },
+    {
+      title: '更新时间',
+      key: 'asOf',
+      align: 'right',
+      width: 104,
+      render: (_, item) => <small style={{ whiteSpace: 'nowrap' }}>{formatDateTime(item.asOf)}</small>,
+    },
+    {
+      title: '',
+      key: 'actions',
+      render: (_, item) => (
+        <Button size="small" type="link" onClick={() => {
+          const route = DEEP_LINK_ROUTES[item.deepLink]
+          if (route) {
+            onNavigate(route)
+          } else {
+            onNotice(`暂无门户路由对应 ${item.deepLink}`)
+          }
+        }}>下钻 <ChevronRight size={13} /></Button>
+      ),
+    },
+  ]
 
   if (workItemsState === 'unavailable' && !summary) {
     return (
@@ -149,15 +193,20 @@ function OperationsCenterLive(
         <div className={styles.listTools}>
           <label>
             类型筛选
-            <select value={typeFilter} onChange={(event) => { setTypeFilter(event.target.value); paged.setPage(0) }} aria-label="按待办类型筛选">
-              <option value="">全部类型</option>
-              {WORK_ITEM_TYPES.map((type) => (
-                <option key={type} value={type}>{TYPE_LABEL[type] ?? type}</option>
-              ))}
-            </select>
+            <Select
+              size="small"
+              style={{ minWidth: 160 }}
+              value={typeFilter}
+              onChange={(value) => { setTypeFilter(value); paged.setPage(0) }}
+              aria-label="按待办类型筛选"
+              options={[
+                { value: '', label: '全部类型' },
+                ...WORK_ITEM_TYPES.map((type) => ({ value: type, label: TYPE_LABEL[type] ?? type })),
+              ]}
+            />
           </label>
           <span className={styles.pagerInfo}>共 {workItems.length} 项{presentTypes.length > 0 ? ` · 当前数据含 ${presentTypes.length} 类` : ''}</span>
-          <Button variant="quiet" onClick={() => setReloadKey((key) => key + 1)}><RefreshCw size={14} />刷新</Button>
+          <Button size="small" onClick={() => setReloadKey((key) => key + 1)}><RefreshCw size={13} />刷新</Button>
         </div>
 
         <div className={styles.twoColumns}>
@@ -166,41 +215,25 @@ function OperationsCenterLive(
               <div><h2>跨域待办</h2><p>每项可下钻到责任工作台 · 与管理驾驶舱同源</p></div>
               <ClipboardList size={16} aria-hidden="true" />
             </div>
-            <div className={styles.tableScroll}>
-              <table className={styles.table}>
-                <thead><tr><th>类型</th><th>严重度</th><th>待办</th><th>来源</th><th>更新时间</th><th aria-label="操作" /></tr></thead>
-                <tbody>
-                  {workItemsState === 'loading' ? <tr className={styles.emptyRow}><td colSpan={6}>正在加载待办…</td></tr> : null}
-                  {workItemsState === 'live' && paged.paged.length === 0 ? <tr className={styles.emptyRow}><td colSpan={6}>该筛选下暂无待办。</td></tr> : null}
-                  {paged.paged.map((item) => (
-                    <tr key={`${item.sourceType}-${item.sourceId}`}>
-                      <td>{TYPE_LABEL[item.type] ?? item.type}</td>
-                      <td><StatusTag tone={severityTone(item.severity)}>{SEVERITY_LABEL[item.severity] ?? item.severity}</StatusTag></td>
-                      <td>{item.title}</td>
-                      <td>{SOURCE_TYPE_LABEL[item.sourceType] ?? item.sourceType}</td>
-                      <td><small>{item.asOf}</small></td>
-                      <td>
-                        <Button variant="quiet" onClick={() => {
-                          const route = DEEP_LINK_ROUTES[item.deepLink]
-                          if (route) {
-                            onNavigate(route)
-                          } else {
-                            onNotice(`暂无门户路由对应 ${item.deepLink}`)
-                          }
-                        }}>下钻 <ChevronRight size={13} /></Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {paged.pageCount > 1 ? (
-              <div className={styles.pagerControls}>
-                <Button variant="quiet" disabled={paged.page === 0} onClick={() => paged.setPage(paged.page - 1)}>上一页</Button>
-                <span className={styles.pagerInfo}>{paged.page + 1} / {paged.pageCount}</span>
-                <Button variant="quiet" disabled={paged.page >= paged.pageCount - 1} onClick={() => paged.setPage(paged.page + 1)}>下一页</Button>
-              </div>
-            ) : null}
+            <Table<OperationsWorkItem>
+              rowKey={(item) => `${item.sourceType}-${item.sourceId}`}
+              columns={workItemColumns}
+              dataSource={paged.paged}
+              pagination={{
+                current: paged.page + 1,
+                pageSize: WORK_ITEM_PAGE_SIZE,
+                total: workItems.length,
+                showSizeChanger: false,
+                onChange: (page) => paged.setPage(page - 1),
+              }}
+              locale={{
+                emptyText: workItemsState === 'loading'
+                  ? '正在加载待办…'
+                  : workItemsState === 'live'
+                    ? '该筛选下暂无待办。'
+                    : '运营待办暂不可用。',
+              }}
+            />
           </section>
 
           <section className={styles.panel}>
@@ -209,7 +242,7 @@ function OperationsCenterLive(
               {events.length === 0 ? <li className={styles.emptyState}>近 48 小时无跨域事件。</li> : null}
               {events.map((event, index) => (
                 <li key={`${event.domain}-${index}`}>
-                  <div className={styles.timelineTitle}><strong>{event.domain} · {event.type}</strong><span>{event.asOf}</span></div>
+                  <div className={styles.timelineTitle}><strong>{event.domain} · {event.type}</strong><span>{formatDateTime(event.asOf)}</span></div>
                   <p>{event.detail}</p>
                 </li>
               ))}

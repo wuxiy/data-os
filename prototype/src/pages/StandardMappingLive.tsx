@@ -1,8 +1,9 @@
 import { ArrowRightLeft, ClipboardCheck, GitCompareArrows, History, RefreshCw, Search, Archive, ShieldCheck, UploadCloud } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { Button, Form, Input, Select, Table, Tag } from 'antd'
+import type { ColumnsType } from 'antd/es/table'
 import { GovernanceTabs } from '../components/ui/GovernanceTabs'
 import { PageHeader } from '../components/ui/PageHeader'
-import { Button, StatusTag } from '../components/ui/Primitives'
 import {
   activateMappingVersion,
   createMappingSet,
@@ -24,7 +25,7 @@ import {
   type MappingSetListItem,
 } from '../data/mappingApi'
 import { actorLabel, formatDateTime, standardEventLabel, transformLabel } from '../data/domain'
-import type { RouteKey } from '../types'
+import type { RouteKey, Tone } from '../types'
 import { fetchStandards, type StandardListItem } from '../data/standardsApi'
 import { useApiResource } from '../hooks/useApiResource'
 import { usePaged } from '../hooks/usePaged'
@@ -40,11 +41,19 @@ const STATUS_LABEL: Record<string, string> = {
   DRAFT: '草稿', IN_REVIEW: '评审中', ACTIVE: '生效中', RETIRED: '已停用',
 }
 
-function statusTone(status: string) {
-  if (status === 'ACTIVE') return 'healthy' as const
-  if (status === 'IN_REVIEW') return 'warning' as const
-  if (status === 'RETIRED') return 'neutral' as const
-  return 'neutral' as const
+// 状态语义映射：自研 tone → antd Tag 语义色。
+const TONE_COLOR: Record<Tone, string> = {
+  healthy: 'success',
+  warning: 'warning',
+  danger: 'error',
+  neutral: 'default',
+}
+
+function statusTone(status: string): Tone {
+  if (status === 'ACTIVE') return 'healthy'
+  if (status === 'IN_REVIEW') return 'warning'
+  if (status === 'RETIRED') return 'neutral'
+  return 'neutral'
 }
 
 export function StandardMappingLive({ onNotice, onNavigate, onUnavailable }: { onNotice: (message: string) => void; onNavigate: (route: RouteKey) => void; onUnavailable: (label: string) => void }) {
@@ -134,6 +143,21 @@ export function StandardMappingLive({ onNotice, onNavigate, onUnavailable }: { o
     return detail.versions.find((item) => item.versionNo === active.versionNo) ?? null
   }, [detail])
 
+  // 映射集清单列定义：行可点击选中（键盘可达经 onRow 承载）。
+  const setColumns: ColumnsType<MappingSetListItem> = [
+    { title: '代码', key: 'code', render: (_, set) => <span className={styles.inlineCode}>{set.code}</span> },
+    { title: '源资产', key: 'sourceAsset', render: (_, set) => <small>{set.sourceAsset}</small> },
+    { title: '目标标准', key: 'standard', render: (_, set) => set.standard.code },
+    {
+      title: '活动版本',
+      key: 'activeVersion',
+      render: (_, set) => 'versionNo' in set.activeVersion && set.activeVersion.versionNo
+        ? <Tag color="success">v{set.activeVersion.versionNo} 生效中</Tag>
+        : <Tag>未生效</Tag>,
+    },
+    { title: '版本数', key: 'versionCount', align: 'right', render: (_, set) => set.versionCount },
+  ]
+
   if (listState === 'unavailable') {
     return (
       <div className={styles.page}>
@@ -143,7 +167,7 @@ export function StandardMappingLive({ onNotice, onNavigate, onUnavailable }: { o
           <section className={styles.panel} role="status">
             <div className={styles.panelHeader}><h2>控制面暂不可用</h2></div>
             <p className={styles.emptyState}>标准映射服务不可达，暂无法加载映射集；本页不显示静态样例。</p>
-            <Button onClick={() => setReloadKey((key) => key + 1)}><RefreshCw size={14} />重试</Button>
+            <Button size="small" onClick={() => setReloadKey((key) => key + 1)}><RefreshCw size={14} />重试</Button>
           </section>
         </div>
       </div>
@@ -169,9 +193,9 @@ export function StandardMappingLive({ onNotice, onNavigate, onUnavailable }: { o
                 <p>ACTIVE 映射版本 {coverage.activeMappingVersions} 个 · 已发布标准值域数据元 {coverage.publishedCodeElements} 个 · 已覆盖 {coverage.coveredCodeElements} 个；AI Ready 的 FHIR 映射就绪检查消费同一投影。</p>
               </div>
             </div>
-            <StatusTag tone={coverage.coverage === null ? 'neutral' : coverage.coverage >= 0.9 ? 'healthy' : 'warning'}>
+            <Tag color={TONE_COLOR[coverage.coverage === null ? 'neutral' : coverage.coverage >= 0.9 ? 'healthy' : 'warning']}>
               {coverage.coverage === null ? 'N/A' : `${(coverage.coverage * 100).toFixed(1)}%`}
-            </StatusTag>
+            </Tag>
           </section>
         ) : null}
 
@@ -180,43 +204,45 @@ export function StandardMappingLive({ onNotice, onNavigate, onUnavailable }: { o
             <Search size={15} aria-hidden="true" />
             <input value={query} onChange={(event) => { setQuery(event.target.value); paged.setPage(0) }} placeholder="搜索映射集代码/名称/源资产" aria-label="搜索映射集" />
           </label>
-          <Button variant="quiet" disabled={busy} onClick={() => setCreateOpen((open) => !open)}><GitCompareArrows size={14} />新建映射集</Button>
+          <Button size="small" disabled={busy} onClick={() => setCreateOpen((open) => !open)}><GitCompareArrows size={14} />新建映射集</Button>
         </div>
 
         {createOpen ? (
           <section className={styles.tablePanel}>
             <div className={styles.panelHeader}><div><h2>新建映射集</h2><p>目标标准须为已发布；映射项可用 CSV/JSON 导入补齐</p></div></div>
             <div className={styles.drawerForm}>
-              <div className={styles.drawerFormGrid}>
-                <div className={styles.formField}>
-                  <label htmlFor="mapping-create-code">映射集代码</label>
-                  <input id="mapping-create-code" value={createForm.code} onChange={(event) => setCreateForm({ ...createForm, code: event.target.value })} placeholder="MAP-EP-CFZB" />
+              <Form layout="vertical">
+                <div className={styles.drawerFormGrid}>
+                  <Form.Item label="映射集代码">
+                    <Input value={createForm.code} onChange={(event) => setCreateForm({ ...createForm, code: event.target.value })} placeholder="MAP-EP-CFZB" />
+                  </Form.Item>
+                  <Form.Item label="名称">
+                    <Input value={createForm.name} onChange={(event) => setCreateForm({ ...createForm, name: event.target.value })} placeholder="门诊处方表映射" />
+                  </Form.Item>
                 </div>
-                <div className={styles.formField}>
-                  <label htmlFor="mapping-create-name">名称</label>
-                  <input id="mapping-create-name" value={createForm.name} onChange={(event) => setCreateForm({ ...createForm, name: event.target.value })} placeholder="门诊处方表映射" />
+                <div className={styles.drawerFormGrid}>
+                  <Form.Item label="源资产（fqn）">
+                    <Input value={createForm.sourceAsset} onChange={(event) => setCreateForm({ ...createForm, sourceAsset: event.target.value })} />
+                  </Form.Item>
+                  <Form.Item label="验证数据集（须已登记）">
+                    <Input value={createForm.dataset} onChange={(event) => setCreateForm({ ...createForm, dataset: event.target.value })} />
+                  </Form.Item>
                 </div>
-              </div>
-              <div className={styles.drawerFormGrid}>
-                <div className={styles.formField}>
-                  <label htmlFor="mapping-create-source">源资产（fqn）</label>
-                  <input id="mapping-create-source" value={createForm.sourceAsset} onChange={(event) => setCreateForm({ ...createForm, sourceAsset: event.target.value })} />
-                </div>
-                <div className={styles.formField}>
-                  <label htmlFor="mapping-create-dataset">验证数据集（须已登记）</label>
-                  <input id="mapping-create-dataset" value={createForm.dataset} onChange={(event) => setCreateForm({ ...createForm, dataset: event.target.value })} />
-                </div>
-              </div>
-              <div className={styles.formField}>
-                <label htmlFor="mapping-create-standard">目标标准</label>
-                <select id="mapping-create-standard" value={createForm.standardId} onChange={(event) => setCreateForm({ ...createForm, standardId: event.target.value })}>
-                  <option value="">选择已发布标准…</option>
-                  {standardOptions.map((standard) => (
-                    <option key={standard.id} value={standard.id}>{standard.code} · {standard.name}</option>
-                  ))}
-                </select>
-              </div>
+                <Form.Item label="目标标准">
+                  <Select
+                    value={createForm.standardId}
+                    onChange={(value) => setCreateForm({ ...createForm, standardId: value })}
+                    aria-label="选择已发布标准"
+                    options={[
+                      { value: '', label: '选择已发布标准…' },
+                      ...standardOptions.map((standard) => ({ value: standard.id, label: `${standard.code} · ${standard.name}` })),
+                    ]}
+                  />
+                </Form.Item>
+              </Form>
               <Button
+                type="primary"
+                size="small"
                 disabled={busy || !createForm.code.trim() || !createForm.standardId}
                 onClick={() => run('映射集创建', async () => {
                   await createMappingSet({ ...createForm, items: [] })
@@ -231,44 +257,38 @@ export function StandardMappingLive({ onNotice, onNavigate, onUnavailable }: { o
           <div className={styles.panelHeader}>
             <div><h2>映射集清单</h2><p>{sets.length} 项 · 版本不可变，生效需同 checksum 的 PASS 验证</p></div>
           </div>
-          <div className={styles.tableScroll}>
-            <table className={styles.table}>
-              <thead><tr><th>代码</th><th>源资产</th><th>目标标准</th><th>活动版本</th><th>版本数</th></tr></thead>
-              <tbody>
-                {listState === 'loading' ? <tr className={styles.emptyRow}><td colSpan={5}>正在加载映射集…</td></tr> : null}
-                {listState === 'live' && paged.paged.length === 0 ? <tr className={styles.emptyRow}><td colSpan={5}>暂无映射集。新建后经「导入 → 聚合验证 → 评审 → 生效」闭环。</td></tr> : null}
-                {paged.paged.map((set) => (
-                  /* 键盘可达（2026-10-07 复评 P2）：行可聚焦，Enter/Space 选中。 */
-                  <tr key={set.id} className={`${styles.clickableRow} ${set.id === selectedId ? styles.activeRow : ''}`}
-                    tabIndex={0}
-                    aria-label={`选择映射集 ${set.code}`}
-                    onClick={() => { setSelectedId(set.id); setDetailVersionId('') }}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault()
-                        setSelectedId(set.id)
-                        setDetailVersionId('')
-                      }
-                    }}>
-                    <td className={styles.inlineCode}>{set.code}</td>
-                    <td title={set.sourceAsset}><small>{set.sourceAsset}</small></td>
-                    <td>{set.standard.code}</td>
-                    <td>{'versionNo' in set.activeVersion && set.activeVersion.versionNo
-                      ? <StatusTag tone="healthy">v{set.activeVersion.versionNo} 生效中</StatusTag>
-                      : <StatusTag>未生效</StatusTag>}</td>
-                    <td>{set.versionCount}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {paged.pageCount > 1 ? (
-            <div className={styles.pagerControls}>
-              <Button variant="quiet" disabled={paged.page === 0} onClick={() => paged.setPage(paged.page - 1)}>上一页</Button>
-              <span className={styles.pagerInfo}>{paged.page + 1} / {paged.pageCount}</span>
-              <Button variant="quiet" disabled={paged.page >= paged.pageCount - 1} onClick={() => paged.setPage(paged.page + 1)}>下一页</Button>
-            </div>
-          ) : null}
+          <Table<MappingSetListItem>
+            rowKey="id"
+            columns={setColumns}
+            dataSource={paged.paged}
+            pagination={{
+              current: paged.page + 1,
+              pageSize: 8,
+              total: sets.length,
+              showSizeChanger: false,
+              onChange: (page) => paged.setPage(page - 1),
+            }}
+            locale={{
+              emptyText: listState === 'loading'
+                ? '正在加载映射集…'
+                : listState === 'live'
+                  ? '暂无映射集。新建后经「导入 → 聚合验证 → 评审 → 生效」闭环。'
+                  : '',
+            }}
+            onRow={(set) => ({
+              className: `${styles.clickableRow} ${set.id === selectedId ? styles.activeRow : ''}`,
+              tabIndex: 0,
+              'aria-label': `选择映射集 ${set.code}`,
+              onClick: () => { setSelectedId(set.id); setDetailVersionId('') },
+              onKeyDown: (event: React.KeyboardEvent) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault()
+                  setSelectedId(set.id)
+                  setDetailVersionId('')
+                }
+              },
+            })}
+          />
         </div>
 
         {detail && version ? (
@@ -277,7 +297,7 @@ export function StandardMappingLive({ onNotice, onNavigate, onUnavailable }: { o
               <div className={styles.panelHeader}>
                 <div><h2>{detail.set.name}</h2><p>{detail.set.code} · {detail.set.sourceAsset} → {detail.set.standard.code}（验证数据集 {detail.set.dataset}）</p></div>
                 <div className={styles.panelHeaderActions}>
-                  <Button variant="quiet" disabled={busy} onClick={() => run('新建映射版本', () => createMappingVersion(detail.set.id))}><GitCompareArrows size={14} />基于活动版新建草稿</Button>
+                  <Button size="small" disabled={busy} onClick={() => run('新建映射版本', () => createMappingVersion(detail.set.id))}><GitCompareArrows size={14} />基于活动版新建草稿</Button>
                 </div>
               </div>
 
@@ -288,42 +308,38 @@ export function StandardMappingLive({ onNotice, onNavigate, onUnavailable }: { o
                     onClick={() => setDetailVersionId(item.id)} aria-pressed={item.id === version.id}
                     title={`checksum ${item.checksum} · 生效需同值 PASS 验证`}>
                     <strong>v{item.versionNo}</strong>
-                    <StatusTag tone={statusTone(item.status)}>{STATUS_LABEL[item.status] ?? item.status}</StatusTag>
+                    <Tag color={TONE_COLOR[statusTone(item.status)]}>{STATUS_LABEL[item.status] ?? item.status}</Tag>
                   </button>
                 ))}
               </div>
 
               <div className={styles.tableActions}>
                 {version.status === 'DRAFT' ? (
-                  <Button disabled={busy} onClick={() => run('提交评审', () => submitMappingVersion(version.id))}>提交评审</Button>
+                  <Button size="small" disabled={busy} onClick={() => run('提交评审', () => submitMappingVersion(version.id))}>提交评审</Button>
                 ) : null}
-                <Button variant="quiet" disabled={busy} onClick={() => run('聚合验证', () => validateMappingVersion(version.id))}><ShieldCheck size={14} />聚合验证</Button>
+                <Button size="small" disabled={busy} onClick={() => run('聚合验证', () => validateMappingVersion(version.id))}><ShieldCheck size={14} />聚合验证</Button>
                 {version.status === 'IN_REVIEW' ? (
-                  <Button disabled={busy} onClick={() => run('生效', () => activateMappingVersion(version.id))}><ShieldCheck size={14} />生效（管理员 · 需 PASS 证据）</Button>
+                  <Button size="small" disabled={busy} onClick={() => run('生效', () => activateMappingVersion(version.id))}><ShieldCheck size={14} />生效（管理员 · 需 PASS 证据）</Button>
                 ) : null}
                 {version.status === 'ACTIVE' ? (
-                  <Button variant="quiet" disabled={busy} onClick={() => run('停用', () => retireMappingVersion(version.id))}><Archive size={14} />停用</Button>
+                  <Button size="small" disabled={busy} onClick={() => run('停用', () => retireMappingVersion(version.id))}><Archive size={14} />停用</Button>
                 ) : null}
-                <Button variant="quiet" disabled={busy} onClick={() => run('影响范围读取', async () => setImpact(await fetchMappingImpact(undefined, version.id)))}><ArrowRightLeft size={14} />影响范围</Button>
+                <Button size="small" disabled={busy} onClick={() => run('影响范围读取', async () => setImpact(await fetchMappingImpact(undefined, version.id)))}><ArrowRightLeft size={14} />影响范围</Button>
               </div>
 
-              <div className={styles.tableScroll}>
-                <table className={styles.table}>
-                  <thead><tr><th>源字段</th><th>目标数据元</th><th>转换</th><th>参数</th><th>人工结论</th></tr></thead>
-                  <tbody>
-                    {version.items.map((item) => (
-                      <tr key={item.id}>
-                        <td className={styles.inlineCode}>{item.sourceColumn}</td>
-                        <td>{item.targetElementCode}</td>
-                        <td>{transformLabel(item.transform)}</td>
-                        <td title={item.transformParam || undefined}><small>{item.transformParam || '—'}</small></td>
-                        <td><StatusTag tone={item.conclusion === 'CONFIRMED' ? 'healthy' : 'warning'}>{item.conclusion === 'CONFIRMED' ? '已确认' : '待复核'}</StatusTag></td>
-                      </tr>
-                    ))}
-                    {version.items.length === 0 ? <tr className={styles.emptyRow}><td colSpan={5}>该版本暂无映射项；可用下方导入区补齐（先预检）。</td></tr> : null}
-                  </tbody>
-                </table>
-              </div>
+              <Table
+                rowKey="id"
+                columns={[
+                  { title: '源字段', key: 'sourceColumn', width: 180, render: (_, item: MappingDetailView['version']['items'][number]) => <span className={styles.inlineCode}>{item.sourceColumn}</span> },
+                  { title: '目标数据元', key: 'targetElementCode', render: (_, item: MappingDetailView['version']['items'][number]) => item.targetElementCode },
+                  { title: '转换', key: 'transform', render: (_, item: MappingDetailView['version']['items'][number]) => transformLabel(item.transform) },
+                  { title: '参数', key: 'transformParam', render: (_, item: MappingDetailView['version']['items'][number]) => <small>{item.transformParam || '—'}</small> },
+                  { title: '人工结论', key: 'conclusion', render: (_, item: MappingDetailView['version']['items'][number]) => <Tag color={TONE_COLOR[item.conclusion === 'CONFIRMED' ? 'healthy' : 'warning']}>{item.conclusion === 'CONFIRMED' ? '已确认' : '待复核'}</Tag> },
+                ]}
+                dataSource={version.items}
+                pagination={false}
+                locale={{ emptyText: '该版本暂无映射项；可用下方导入区补齐（先预检）。' }}
+              />
 
               {impact ? (
                 <div className={styles.evidenceBox}>
@@ -338,7 +354,7 @@ export function StandardMappingLive({ onNotice, onNavigate, onUnavailable }: { o
                   <h3>验证证据（最新 {version.validations.length} 次）</h3>
                   {version.validations.map((validation) => (
                     <p key={validation.id}>
-                      <StatusTag tone={validation.status === 'PASS' ? 'healthy' : validation.status === 'FAIL' ? 'danger' : 'warning'}>{validation.status}</StatusTag>
+                      <Tag color={TONE_COLOR[validation.status === 'PASS' ? 'healthy' : validation.status === 'FAIL' ? 'danger' : 'warning']}>{validation.status}</Tag>
                       <span className={styles.inlineCode}>{validation.checksum.slice(0, 10)}…</span>
                       <small> {formatDateTime(validation.dataTime || validation.createdAt)}</small>
                     </p>
@@ -349,14 +365,20 @@ export function StandardMappingLive({ onNotice, onNavigate, onUnavailable }: { o
               {activeVersionMeta && activeVersionMeta.status === 'ACTIVE' && detail.versions.some((item) => item.status === 'RETIRED') ? (
                 <div className={styles.listTools}>
                   <label>回退到
-                    <select value={rollbackTo} onChange={(event) => setRollbackTo(event.target.value)} aria-label="选择回退目标版本">
-                      <option value="">选择曾生效的停用版本…</option>
-                      {detail.versions.filter((item) => item.status === 'RETIRED').map((item) => (
-                        <option key={item.id} value={item.id}>v{item.versionNo}</option>
-                      ))}
-                    </select>
+                    <Select
+                      value={rollbackTo}
+                      onChange={(value) => setRollbackTo(value)}
+                      aria-label="选择回退目标版本"
+                      options={[
+                        { value: '', label: '选择曾生效的停用版本…' },
+                        ...detail.versions.filter((item) => item.status === 'RETIRED').map((item) => ({
+                          value: item.id,
+                          label: `v${item.versionNo}`,
+                        })),
+                      ]}
+                    />
                   </label>
-                  <Button variant="quiet" disabled={!rollbackTo || busy} onClick={() => run('回退', () => rollbackMapping(detail.set.id, rollbackTo))}><History size={14} />回退（管理员）</Button>
+                  <Button size="small" disabled={!rollbackTo || busy} onClick={() => run('回退', () => rollbackMapping(detail.set.id, rollbackTo))}><History size={14} />回退（管理员）</Button>
                 </div>
               ) : null}
             </section>
@@ -391,15 +413,16 @@ export function StandardMappingLive({ onNotice, onNavigate, onUnavailable }: { o
               <div><h2>草稿维护（仅 DRAFT）</h2><p>导入映射项（CSV/JSON，先预检）或整体替换（JSON）</p></div>
             </div>
             <div className={styles.drawerForm}>
-              <div className={styles.formField}>
-                <label htmlFor="mapping-import-body">导入内容</label>
-                <textarea id="mapping-import-body" className={styles.codeInputLarge} rows={5} value={importBody} onChange={(event) => { setImportBody(event.target.value); setImportReport(null) }}
-                  placeholder={'source_column,target_element_code,transform,transform_param,conclusion\nchannel_code,channel,VALUE_MAP,"{""OPD"":""OPD""}",CONFIRMED'} />
-                <p className={styles.drawerHint}>支持 CSV（列：source_column, target_element_code, transform, transform_param, conclusion；占位即样例）或 JSON（{'{'}"items":[…]{'}'}）。</p>
-              </div>
+              <Form layout="vertical">
+                <Form.Item label="导入内容">
+                  <Input.TextArea rows={5} value={importBody} onChange={(event) => { setImportBody(event.target.value); setImportReport(null) }}
+                    placeholder={'source_column,target_element_code,transform,transform_param,conclusion\nchannel_code,channel,VALUE_MAP,"{""OPD"":""OPD""}",CONFIRMED'} />
+                  <p className={styles.drawerHint}>支持 CSV（列：source_column, target_element_code, transform, transform_param, conclusion；占位即样例）或 JSON（{'{'}"items":[…]{'}'}）。</p>
+                </Form.Item>
+              </Form>
               <div className={styles.tableActions}>
-                <Button variant="quiet" disabled={!importBody.trim() || busy} onClick={() => run('导入预检', async () => setImportReport(await importMappingItems(version.id, importBody, true)))}><UploadCloud size={14} />预检（dry-run）</Button>
-                <Button disabled={!importReport || importReport.problems.length > 0 || busy}
+                <Button size="small" disabled={!importBody.trim() || busy} onClick={() => run('导入预检', async () => setImportReport(await importMappingItems(version.id, importBody, true)))}><UploadCloud size={14} />预检（dry-run）</Button>
+                <Button size="small" type="primary" disabled={!importReport || importReport.problems.length > 0 || busy}
                   onClick={() => run('导入落库', async () => setImportReport(await importMappingItems(version.id, importBody, false)))}>确认导入</Button>
               </div>
               {importReport ? (
@@ -411,13 +434,14 @@ export function StandardMappingLive({ onNotice, onNavigate, onUnavailable }: { o
                     : <p className={styles.textHealthy}>校验通过。</p>}
                 </div>
               ) : null}
-              <div className={styles.formField}>
-                <label htmlFor="mapping-items-replace">元素整体替换</label>
-                <textarea id="mapping-items-replace" className={styles.codeInputLarge} rows={4} value={itemsDraft} onChange={(event) => setItemsDraft(event.target.value)}
-                  placeholder='[{"sourceColumn":"channel_code","targetElementCode":"channel","transform":"VALUE_MAP","transformParam":"{\"OPD\":\"OPD\"}","conclusion":"CONFIRMED"}]' />
-                <p className={styles.drawerHint}>JSON 数组，整体替换该草稿的映射项并重算 checksum；留空不修改。</p>
-              </div>
-              <Button disabled={!itemsDraft.trim() || busy} onClick={() => run('草稿替换', async () => {
+              <Form layout="vertical">
+                <Form.Item label="元素整体替换">
+                  <Input.TextArea rows={4} value={itemsDraft} onChange={(event) => setItemsDraft(event.target.value)}
+                    placeholder='[{"sourceColumn":"channel_code","targetElementCode":"channel","transform":"VALUE_MAP","transformParam":"{\"OPD\":\"OPD\"}","conclusion":"CONFIRMED"}]' />
+                  <p className={styles.drawerHint}>JSON 数组，整体替换该草稿的映射项并重算 checksum；留空不修改。</p>
+                </Form.Item>
+              </Form>
+              <Button size="small" type="primary" disabled={!itemsDraft.trim() || busy} onClick={() => run('草稿替换', async () => {
                 await updateMappingVersion(version.id, { items: JSON.parse(itemsDraft) })
               })}>整体替换并重算 checksum</Button>
             </div>

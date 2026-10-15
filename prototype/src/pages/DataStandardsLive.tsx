@@ -1,8 +1,9 @@
 import { ArrowRightLeft, Download, FileSearch, GitCompareArrows, RefreshCw, Search, Send, Archive, ShieldCheck, UploadCloud } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { Button, Form, Input, Select, Table, Tag } from 'antd'
+import type { ColumnsType } from 'antd/es/table'
 import { GovernanceTabs } from '../components/ui/GovernanceTabs'
 import { PageHeader } from '../components/ui/PageHeader'
-import { Button, StatusTag } from '../components/ui/Primitives'
 import {
   compareStandardVersions,
   createStandardVersion,
@@ -25,7 +26,7 @@ import {
 import { actorLabel, formatDateTime, sensitivityLabel, standardEventLabel } from '../data/domain'
 import { useApiResource } from '../hooks/useApiResource'
 import { usePaged } from '../hooks/usePaged'
-import type { RouteKey } from '../types'
+import type { RouteKey, Tone } from '../types'
 import styles from './Pages.module.css'
 
 /**
@@ -39,17 +40,25 @@ const STATUS_LABEL: Record<string, string> = {
   DRAFT: '草稿', IN_REVIEW: '评审中', PUBLISHED: '已发布', DEPRECATED: '已停用',
 }
 
-function statusTone(status: string) {
-  if (status === 'PUBLISHED') return 'healthy' as const
-  if (status === 'DEPRECATED') return 'neutral' as const
-  if (status === 'IN_REVIEW') return 'warning' as const
-  return 'neutral' as const
+// 状态语义映射：自研 tone → antd Tag 语义色。
+const TONE_COLOR: Record<Tone, string> = {
+  healthy: 'success',
+  warning: 'warning',
+  danger: 'error',
+  neutral: 'default',
 }
 
-function severityTone(severity: string) {
-  if (severity === 'CRITICAL' || severity === 'SENSITIVE') return 'danger' as const
-  if (severity === 'HIGH') return 'warning' as const
-  return 'neutral' as const
+function statusTone(status: string): Tone {
+  if (status === 'PUBLISHED' || status === 'ACTIVE') return 'healthy'
+  if (status === 'DEPRECATED' || status === 'RETIRED') return 'neutral'
+  if (status === 'IN_REVIEW') return 'warning'
+  return 'neutral'
+}
+
+function severityTone(severity: string): Tone {
+  if (severity === 'CRITICAL' || severity === 'SENSITIVE') return 'danger'
+  if (severity === 'HIGH') return 'warning'
+  return 'neutral'
 }
 
 /** 事件 detail 为后端原文透传；OM（OpenMetadata 缩写）属引擎名禁令，渲染时最小改写（同 businessMessage 消毒器先例），后端原文不动。 */
@@ -139,6 +148,26 @@ export function DataStandardsLive({ onNotice, onNavigate, onUnavailable }: { onN
     }
   }
 
+  // 标准清单列定义：行可点击选中（键盘可达经 onRow 承载）。
+  const listColumns: ColumnsType<StandardListItem> = [
+    { title: '代码', key: 'code', render: (_, item) => <span className={styles.inlineCode}>{item.code}</span> },
+    { title: '名称', key: 'name', render: (_, item) => item.name },
+    { title: '负责人', key: 'owner', render: (_, item) => item.owner || '—' },
+    { title: '最新版本', key: 'version', render: (_, item) => `v${item.latestVersion.versionNo} / 共 ${item.versionCount} 版` },
+    {
+      title: '状态',
+      key: 'status',
+      render: (_, item) => <Tag color={TONE_COLOR[statusTone(item.latestVersion.status)]}>{STATUS_LABEL[item.latestVersion.status] ?? item.latestVersion.status}</Tag>,
+    },
+    {
+      title: '术语投影',
+      key: 'sync',
+      render: (_, item) => item.latestVersion.status === 'PUBLISHED'
+        ? <Tag color={TONE_COLOR[item.latestVersion.syncStatus === 'SYNCED' ? 'healthy' : 'warning']}>{item.latestVersion.syncStatus === 'SYNCED' ? '已同步' : '待同步'}</Tag>
+        : '—',
+    },
+  ]
+
   if (listState === 'unavailable') {
     return (
       <div className={styles.page}>
@@ -148,7 +177,7 @@ export function DataStandardsLive({ onNotice, onNavigate, onUnavailable }: { onN
           <section className={styles.panel} role="status">
             <div className={styles.panelHeader}><h2>控制面暂不可用</h2></div>
             <p className={styles.emptyState}>数据标准服务不可达，暂无法加载标准清单。请稍后重试；本页不显示静态样例。</p>
-            <Button onClick={() => setReloadKey((key) => key + 1)}><RefreshCw size={14} />重试</Button>
+            <Button size="small" onClick={() => setReloadKey((key) => key + 1)}><RefreshCw size={14} />重试</Button>
           </section>
         </div>
       </div>
@@ -165,57 +194,50 @@ export function DataStandardsLive({ onNotice, onNavigate, onUnavailable }: { onN
             <Search size={15} aria-hidden="true" />
             <input value={query} onChange={(event) => { setQuery(event.target.value); paged.setPage(0) }} placeholder="搜索标准代码或名称" aria-label="搜索数据标准" />
           </label>
-          <select value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); paged.setPage(0) }} aria-label="按最新版本状态筛选">
-            {STATUS_OPTIONS.map((option) => (
-              <option key={option} value={option}>{option === '' ? '全部状态' : STATUS_LABEL[option]}</option>
-            ))}
-          </select>
+          <Select
+            value={statusFilter}
+            onChange={(value) => { setStatusFilter(value); paged.setPage(0) }}
+            aria-label="按最新版本状态筛选"
+            options={STATUS_OPTIONS.map((option) => ({ value: option, label: option === '' ? '全部状态' : STATUS_LABEL[option] }))}
+          />
         </div>
 
         <div className={styles.tablePanel}>
           <div className={styles.panelHeader}>
             <div><h2>标准清单</h2><p>{items.length} 项 · 版本不可变，发布需经评审</p></div>
           </div>
-          <div className={styles.tableScroll}>
-            <table className={styles.table}>
-              <thead><tr><th>代码</th><th>名称</th><th>负责人</th><th>最新版本</th><th>状态</th><th>术语投影</th></tr></thead>
-              <tbody>
-                {listState === 'loading' ? <tr className={styles.emptyRow}><td colSpan={6}>正在加载标准清单…</td></tr> : null}
-                {listState === 'live' && paged.paged.length === 0 ? <tr className={styles.emptyRow}><td colSpan={6}>暂无数据标准。可在下方导入区新建（先预检后落库）。</td></tr> : null}
-                {paged.paged.map((item) => (
-                  /* 键盘可达（2026-10-07 复评 P2）：行可聚焦，Enter/Space 选中；
-                     focus 样式由 .clickableRow:focus-visible 承载。 */
-                  <tr key={item.id} className={`${styles.clickableRow} ${item.id === selectedId ? styles.activeRow : ''}`}
-                    tabIndex={0}
-                    aria-label={`选择标准 ${item.code} ${item.name}`}
-                    onClick={() => { setSelectedId(item.id); setDetailVersionId('') }}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault()
-                        setSelectedId(item.id)
-                        setDetailVersionId('')
-                      }
-                    }}>
-                    <td className={styles.inlineCode}>{item.code}</td>
-                    <td>{item.name}</td>
-                    <td>{item.owner || '—'}</td>
-                    <td>v{item.latestVersion.versionNo} / 共 {item.versionCount} 版</td>
-                    <td><StatusTag tone={statusTone(item.latestVersion.status)}>{STATUS_LABEL[item.latestVersion.status] ?? item.latestVersion.status}</StatusTag></td>
-                    <td>{item.latestVersion.status === 'PUBLISHED'
-                      ? <StatusTag tone={item.latestVersion.syncStatus === 'SYNCED' ? 'healthy' : 'warning'}>{item.latestVersion.syncStatus === 'SYNCED' ? '已同步' : '待同步'}</StatusTag>
-                      : '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {paged.pageCount > 1 ? (
-            <div className={styles.pagerControls}>
-              <Button variant="quiet" disabled={paged.page === 0} onClick={() => paged.setPage(paged.page - 1)}>上一页</Button>
-              <span className={styles.pagerInfo}>{paged.page + 1} / {paged.pageCount}</span>
-              <Button variant="quiet" disabled={paged.page >= paged.pageCount - 1} onClick={() => paged.setPage(paged.page + 1)}>下一页</Button>
-            </div>
-          ) : null}
+          <Table<StandardListItem>
+            rowKey="id"
+            columns={listColumns}
+            dataSource={paged.paged}
+            pagination={{
+              current: paged.page + 1,
+              pageSize: 8,
+              total: items.length,
+              showSizeChanger: false,
+              onChange: (page) => paged.setPage(page - 1),
+            }}
+            locale={{
+              emptyText: listState === 'loading'
+                ? '正在加载标准清单…'
+                : listState === 'live'
+                  ? '暂无数据标准。可在下方导入区新建（先预检后落库）。'
+                  : '',
+            }}
+            onRow={(item) => ({
+              className: `${styles.clickableRow} ${item.id === selectedId ? styles.activeRow : ''}`,
+              tabIndex: 0,
+              'aria-label': `选择标准 ${item.code} ${item.name}`,
+              onClick: () => { setSelectedId(item.id); setDetailVersionId('') },
+              onKeyDown: (event: React.KeyboardEvent) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault()
+                  setSelectedId(item.id)
+                  setDetailVersionId('')
+                }
+              },
+            })}
+          />
         </div>
 
         {detail && version ? (
@@ -227,7 +249,7 @@ export function DataStandardsLive({ onNotice, onNavigate, onUnavailable }: { onN
                   <p>{detail.standard.code} · {detail.standard.owner || '未指定负责人'}</p>
                 </div>
                 <div className={styles.panelHeaderActions}>
-                  <Button disabled={busy} onClick={() => run('创建新版本', async () => { await createStandardVersion(detail.standard.id) })}><GitCompareArrows size={14} />基于当前发布版新建草稿</Button>
+                  <Button size="small" disabled={busy} onClick={() => run('创建新版本', async () => { await createStandardVersion(detail.standard.id) })}><GitCompareArrows size={14} />基于当前发布版新建草稿</Button>
                 </div>
               </div>
               <div className={styles.versionChips}>
@@ -239,7 +261,7 @@ export function DataStandardsLive({ onNotice, onNavigate, onUnavailable }: { onN
                     aria-pressed={item.id === version.id}
                   >
                     <strong>v{item.versionNo}</strong>
-                    <StatusTag tone={statusTone(item.status)}>{STATUS_LABEL[item.status]}</StatusTag>
+                    <Tag color={TONE_COLOR[statusTone(item.status)]}>{STATUS_LABEL[item.status]}</Tag>
                     <span>{item.syncStatus === 'SYNCED' ? '术语已投影' : item.status === 'PUBLISHED' ? '投影待同步' : ''}</span>
                   </button>
                 ))}
@@ -248,48 +270,46 @@ export function DataStandardsLive({ onNotice, onNavigate, onUnavailable }: { onN
               <div className={styles.tableActions}>
                 {version.status === 'DRAFT' ? (
                   <>
-                    <Button disabled={busy} onClick={() => run('提交评审', () => submitStandardVersion(version.id))}><Send size={14} />提交评审</Button>
+                    <Button size="small" disabled={busy} onClick={() => run('提交评审', () => submitStandardVersion(version.id))}><Send size={14} />提交评审</Button>
                   </>
                 ) : null}
                 {version.status === 'IN_REVIEW' ? (
-                  <Button disabled={busy} onClick={() => run('发布', () => publishStandardVersion(version.id))}><ShieldCheck size={14} />发布（管理员）</Button>
+                  <Button size="small" disabled={busy} onClick={() => run('发布', () => publishStandardVersion(version.id))}><ShieldCheck size={14} />发布（管理员）</Button>
                 ) : null}
                 {version.status === 'PUBLISHED' ? (
                   <>
-                    <Button variant="quiet" disabled={busy} onClick={() => run('停用', () => deprecateStandardVersion(version.id))}><Archive size={14} />停用</Button>
+                    <Button size="small" disabled={busy} onClick={() => run('停用', () => deprecateStandardVersion(version.id))}><Archive size={14} />停用</Button>
                     {version.syncStatus !== 'SYNCED' ? (
-                      <Button variant="quiet" disabled={busy} onClick={() => run('术语投影重试', () => retryStandardSync(version.id))}><RefreshCw size={14} />重试术语投影</Button>
+                      <Button size="small" disabled={busy} onClick={() => run('术语投影重试', () => retryStandardSync(version.id))}><RefreshCw size={14} />重试术语投影</Button>
                     ) : null}
                   </>
                 ) : null}
-                <Button variant="quiet" disabled={busy} onClick={() => run('影响范围读取', async () => setImpact(await fetchVersionImpact(undefined, version.id)))}><FileSearch size={14} />影响范围</Button>
-                <Button variant="quiet" onClick={downloadFhir}><Download size={14} />FHIR 导出</Button>
+                <Button size="small" disabled={busy} onClick={() => run('影响范围读取', async () => setImpact(await fetchVersionImpact(undefined, version.id)))}><FileSearch size={14} />影响范围</Button>
+                <Button size="small" onClick={downloadFhir}><Download size={14} />FHIR 导出</Button>
               </div>
 
               {version.status === 'DRAFT' ? (
                 <div className={styles.drawerForm}>
                   <h3 className={styles.sectionTitle}>草稿修改（仅 DRAFT 可改）</h3>
-                  <div className={styles.drawerFormGrid}>
-                    <div className={styles.formField}>
-                      <label htmlFor="standard-draft-name">标准名称</label>
-                      <input id="standard-draft-name" value={metaDraft.standardName} onChange={(event) => setMetaDraft({ ...metaDraft, standardName: event.target.value })} placeholder={detail.standard.name} />
+                  <Form layout="vertical">
+                    <div className={styles.drawerFormGrid}>
+                      <Form.Item label="标准名称">
+                        <Input value={metaDraft.standardName} onChange={(event) => setMetaDraft({ ...metaDraft, standardName: event.target.value })} placeholder={detail.standard.name} />
+                      </Form.Item>
+                      <Form.Item label="负责人">
+                        <Input value={metaDraft.owner} onChange={(event) => setMetaDraft({ ...metaDraft, owner: event.target.value })} placeholder={detail.standard.owner || '未指定'} />
+                      </Form.Item>
                     </div>
-                    <div className={styles.formField}>
-                      <label htmlFor="standard-draft-owner">负责人</label>
-                      <input id="standard-draft-owner" value={metaDraft.owner} onChange={(event) => setMetaDraft({ ...metaDraft, owner: event.target.value })} placeholder={detail.standard.owner || '未指定'} />
-                    </div>
-                  </div>
-                  <div className={styles.formField}>
-                    <label htmlFor="standard-draft-desc">描述</label>
-                    <input id="standard-draft-desc" value={metaDraft.description} onChange={(event) => setMetaDraft({ ...metaDraft, description: event.target.value })} placeholder={detail.standard.description || '补充标准描述'} />
-                  </div>
-                  <div className={styles.formField}>
-                    <label htmlFor="standard-draft-elements">元素集整体替换</label>
-                    <textarea id="standard-draft-elements" className={styles.codeInputLarge} rows={5} value={elementsDraft} onChange={(event) => setElementsDraft(event.target.value)}
-                      placeholder='[{"code":"channel","name":"挂号渠道","dataType":"CODE","required":true,"definition":"渠道枚举","sensitivity":"NORMAL","assetRef":"","values":[{"code":"OPD","displayName":"门诊"}]}]' />
-                    <p className={styles.drawerHint}>JSON 数组，与创建接口的元素结构同构；留空则不修改元素集。</p>
-                  </div>
-                  <Button disabled={busy} onClick={() => run('草稿修改', async () => {
+                    <Form.Item label="描述">
+                      <Input value={metaDraft.description} onChange={(event) => setMetaDraft({ ...metaDraft, description: event.target.value })} placeholder={detail.standard.description || '补充标准描述'} />
+                    </Form.Item>
+                    <Form.Item label="元素集整体替换">
+                      <Input.TextArea rows={5} value={elementsDraft} onChange={(event) => setElementsDraft(event.target.value)}
+                        placeholder='[{"code":"channel","name":"挂号渠道","dataType":"CODE","required":true,"definition":"渠道枚举","sensitivity":"NORMAL","assetRef":"","values":[{"code":"OPD","displayName":"门诊"}]}]' />
+                      <p className={styles.drawerHint}>JSON 数组，与创建接口的元素结构同构；留空则不修改元素集。</p>
+                    </Form.Item>
+                  </Form>
+                  <Button size="small" disabled={busy} onClick={() => run('草稿修改', async () => {
                     const payload: Record<string, unknown> = {}
                     if (metaDraft.standardName.trim()) payload.standardName = metaDraft.standardName.trim()
                     if (metaDraft.description.trim()) payload.description = metaDraft.description.trim()
@@ -300,26 +320,26 @@ export function DataStandardsLive({ onNotice, onNavigate, onUnavailable }: { onN
                 </div>
               ) : null}
 
-              <div className={styles.tableScroll}>
-                <table className={styles.table}>
-                  <thead><tr><th>数据元</th><th>类型</th><th>必填</th><th>敏感级别</th><th>定义</th><th>值域</th></tr></thead>
-                  <tbody>
-                    {version.elements.map((element) => (
-                      <tr key={element.id}>
-                        <td><span className={styles.inlineCode}>{element.code}</span><br /><small>{element.name}</small></td>
-                        <td>{element.dataType}</td>
-                        <td>{element.required ? '必填' : '可选'}</td>
-                        <td><StatusTag tone={severityTone(element.sensitivity)}>{sensitivityLabel(element.sensitivity)}</StatusTag></td>
-                        <td title={element.definition || undefined}><small>{element.definition || '—'}</small></td>
-                        <td title={element.dataType === 'CODE' ? element.values.map((value) => `${value.code} ${value.displayName}`).join('、') : undefined}>{element.dataType === 'CODE'
-                          ? element.values.map((value) => <span key={value.code} className={styles.configPill}>{value.code} {value.displayName}</span>)
-                          : '—'}</td>
-                      </tr>
-                    ))}
-                    {version.elements.length === 0 ? <tr className={styles.emptyRow}><td colSpan={6}>该版本暂无数据元。</td></tr> : null}
-                  </tbody>
-                </table>
-              </div>
+              <Table
+                rowKey="id"
+                columns={[
+                  { title: '数据元', key: 'element', render: (_, element: StandardDetailView['version']['elements'][number]) => <><span className={styles.inlineCode}>{element.code}</span><br /><small>{element.name}</small></> },
+                  { title: '类型', key: 'dataType', render: (_, element: StandardDetailView['version']['elements'][number]) => element.dataType },
+                  { title: '必填', key: 'required', width: 64, render: (_, element: StandardDetailView['version']['elements'][number]) => element.required ? '必填' : '可选' },
+                  { title: '敏感级别', key: 'sensitivity', width: 96, render: (_, element: StandardDetailView['version']['elements'][number]) => <Tag color={TONE_COLOR[severityTone(element.sensitivity)]}>{sensitivityLabel(element.sensitivity)}</Tag> },
+                  { title: '定义', key: 'definition', render: (_, element: StandardDetailView['version']['elements'][number]) => <small>{element.definition || '—'}</small> },
+                  {
+                    title: '值域',
+                    key: 'values',
+                    render: (_, element: StandardDetailView['version']['elements'][number]) => element.dataType === 'CODE'
+                      ? element.values.map((value) => <span key={value.code} className={styles.configPill}>{value.code} {value.displayName}</span>)
+                      : '—',
+                  },
+                ]}
+                dataSource={version.elements}
+                pagination={false}
+                locale={{ emptyText: '该版本暂无数据元。' }}
+              />
 
               {impact ? (
                 <div className={styles.evidenceBox}>
@@ -331,15 +351,21 @@ export function DataStandardsLive({ onNotice, onNavigate, onUnavailable }: { onN
               <div className={styles.listTools}>
                 <label>版本对比：与
                   {/* 目标标准只有一个版本时无可比对象：禁用控件而非留只剩占位项的死下拉（2026-10-07 复评 P1-a）。 */}
-                  <select value={compareWith} onChange={(event) => setCompareWith(event.target.value)} aria-label="选择对比版本"
-                    disabled={detail.versions.filter((item) => item.id !== version.id).length === 0}>
-                    <option value="">选择另一版本…</option>
-                    {detail.versions.filter((item) => item.id !== version.id).map((item) => (
-                      <option key={item.id} value={item.id}>v{item.versionNo}（{STATUS_LABEL[item.status]}）</option>
-                    ))}
-                  </select>
+                  <Select
+                    value={compareWith}
+                    onChange={(value) => setCompareWith(value)}
+                    aria-label="选择对比版本"
+                    disabled={detail.versions.filter((item) => item.id !== version.id).length === 0}
+                    options={[
+                      { value: '', label: '选择另一版本…' },
+                      ...detail.versions.filter((item) => item.id !== version.id).map((item) => ({
+                        value: item.id,
+                        label: `v${item.versionNo}（${STATUS_LABEL[item.status]}）`,
+                      })),
+                    ]}
+                  />
                 </label>
-                <Button variant="quiet" disabled={!compareWith || busy} onClick={() => run('版本对比', async () => setCompareResult(await compareStandardVersions(version.id, compareWith)))}><ArrowRightLeft size={14} />对比</Button>
+                <Button size="small" disabled={!compareWith || busy} onClick={() => run('版本对比', async () => setCompareResult(await compareStandardVersions(version.id, compareWith)))}><ArrowRightLeft size={14} />对比</Button>
               </div>
               {compareResult ? (
                 <div className={styles.compareWrap}>
@@ -377,15 +403,16 @@ export function DataStandardsLive({ onNotice, onNavigate, onUnavailable }: { onN
             <div><h2>导入标准</h2><p>平台 CSV 模板或内部 JSON；先预检（dry-run）再落库</p></div>
           </div>
           <div className={styles.drawerForm}>
-            <div className={styles.formField}>
-              <label htmlFor="standards-import-body">导入内容</label>
-              <textarea id="standards-import-body" className={styles.codeInputLarge} rows={5} value={importBody} onChange={(event) => { setImportBody(event.target.value); setImportReport(null) }}
-                placeholder={'standard_code,standard_name,element_code,element_name,data_type,required,definition,sensitivity,value_code,value_display\nreg-channel,挂号渠道,channel,挂号渠道,CODE,true,渠道枚举,NORMAL,OPD,门诊'} />
-              <p className={styles.drawerHint}>支持平台 CSV 模板（列：standard_code, standard_name, element_code, element_name, data_type, required, definition, sensitivity, value_code, value_display；占位即样例）或与创建接口同构的 JSON。</p>
-            </div>
+            <Form layout="vertical">
+              <Form.Item label="导入内容">
+                <Input.TextArea rows={5} value={importBody} onChange={(event) => { setImportBody(event.target.value); setImportReport(null) }}
+                  placeholder={'standard_code,standard_name,element_code,element_name,data_type,required,definition,sensitivity,value_code,value_display\nreg-channel,挂号渠道,channel,挂号渠道,CODE,true,渠道枚举,NORMAL,OPD,门诊'} />
+                <p className={styles.drawerHint}>支持平台 CSV 模板（列：standard_code, standard_name, element_code, element_name, data_type, required, definition, sensitivity, value_code, value_display；占位即样例）或与创建接口同构的 JSON。</p>
+              </Form.Item>
+            </Form>
             <div className={styles.tableActions}>
-              <Button variant="quiet" disabled={!importBody.trim() || busy} onClick={() => run('导入预检', async () => setImportReport(await importStandards(importBody, true)))}><UploadCloud size={14} />预检（dry-run）</Button>
-              <Button disabled={!importReport || importReport.dryRun === false || importReport.problems.length > 0 || busy}
+              <Button size="small" disabled={!importBody.trim() || busy} onClick={() => run('导入预检', async () => setImportReport(await importStandards(importBody, true)))}><UploadCloud size={14} />预检（dry-run）</Button>
+              <Button size="small" type="primary" disabled={!importReport || importReport.dryRun === false || importReport.problems.length > 0 || busy}
                 onClick={() => run('导入落库', async () => setImportReport(await importStandards(importBody, false)))}>确认导入</Button>
             </div>
             {importReport ? (

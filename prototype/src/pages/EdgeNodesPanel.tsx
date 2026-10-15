@@ -231,6 +231,8 @@ export function EdgeNodesPanel() {
         <div className={styles.watermarkGrid} aria-label="边缘表采集水位">
           {watermarks.map((table) => {
             const max = Math.max(1, ...table.dailyCounts.map((item) => item.count))
+            // 近 7 天全零/无数据时直说，避免一排 6% 地板高度的假柱状图
+            const hasRecent = table.dailyCounts.some((item) => item.count > 0)
             return (
               <div key={table.key} className={styles.watermarkCard}>
                 <div className={styles.watermarkHead}>
@@ -238,14 +240,16 @@ export function EdgeNodesPanel() {
                   <strong>{table.dataset}</strong>
                 </div>
                 <p>累计 {table.totalRows.toLocaleString()} 行 · 最近写入 {formatDateTime(table.latestWriteAt)}</p>
-                <div className={styles.watermarkBars}>
-                  {table.dailyCounts.map((item) => (
-                    <span key={item.date} title={`${item.date}：${item.count} 行`}>
-                      <i style={{ height: `${Math.max(6, (item.count / max) * 100)}%` }} />
-                    </span>
-                  ))}
-                </div>
-                <small>近 7 天按日入仓行数</small>
+                {hasRecent ? (
+                  <div className={styles.watermarkBars}>
+                    {table.dailyCounts.map((item) => (
+                      <span key={item.date} title={`${item.date}：${item.count} 行`}>
+                        <i style={{ height: `${Math.max(6, (item.count / max) * 100)}%` }} />
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+                <small>{hasRecent ? '近 7 天按日入仓行数' : '近 7 天无入仓记录'}</small>
               </div>
             )
           })}

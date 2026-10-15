@@ -1,41 +1,43 @@
 :root {
   font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
   font-variant-numeric: tabular-nums;
-  color: #20312d;
-  background: #f4f5f1;
+  color: #1f2937;
+  background: #f6f7f8;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
-  --canvas: #f4f5f1;
+  /* 2026-10-15：v1 令牌值整体重映射到 v2「云峰中性」色板（DESIGN.md §12），
+     令牌名保留以免惊扰存量组件引用；antd 域仍以 src/theme.ts 为准。 */
+  --canvas: #f6f7f8;
   --paper: #ffffff;
-  --ink: #20312d;
-  --sidebar: #eceee9;
-  --selection-mark: #c0a56a;
-  --muted: #5a6b64; /* 苔灰加深一档：画布对比 4.06→5.15 过 AA（2026-10-05 critique） */
+  --ink: #1f2937;
+  --sidebar: #eceef0;
+  --selection-mark: #0e7490;
+  --muted: #4b5563;
   --ink-muted: var(--muted);
-  --jade: #2e7669;
-  --jade-dark: #255f55;
+  --jade: #0e7490;
+  --jade-dark: #0b5a71;
   --jade-deep: var(--jade-dark);
-  --jade-soft: #e1ece8;
-  --amber: #b96c26;
-  --amber-dark: #94531b;
-  --amber-soft: #f8ebdf;
-  --red: #b4483e;
-  --red-soft: #f9e7e4;
-  --surface-raised: #f7f8f5;
+  --jade-soft: #e2eef2;
+  --amber: #b45309;
+  --amber-dark: #92400e;
+  --amber-soft: #faf1e6;
+  --red: #b42318;
+  --red-soft: #fbe9e7;
+  --surface-raised: #f9fafb;
   --surface: var(--paper);
-  --surface-hover: #f8faf7;
-  --surface-active: #f2f7f4;
-  --surface-sunken: #e9eeea;
+  --surface-hover: #f3f6f7;
+  --surface-active: #e6f1f4;
+  --surface-sunken: #eef0f2;
   --surface-overlay: rgba(255, 255, 255, 0.8);
-  --line: rgba(32, 49, 45, 0.11);
-  --line-strong: rgba(32, 49, 45, 0.19);
-  --ring: rgba(20, 28, 25, 0.05);
-  --focus-ring: #1f6c5e;
+  --line: rgba(31, 41, 55, 0.11);
+  --line-strong: rgba(31, 41, 55, 0.19);
+  --ring: rgba(31, 41, 55, 0.05);
+  --focus-ring: #0e7490;
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
-  --shadow: 0 8px 28px rgba(32, 49, 45, 0.12);
-  --shadow-card: 0 1px 2px rgba(20, 28, 25, 0.04), 0 4px 16px -8px rgba(20, 28, 25, 0.06);
-  --shadow-raise: 0 2px 4px rgba(20, 28, 25, 0.05), 0 12px 32px -12px rgba(20, 28, 25, 0.12);
+  --shadow: 0 8px 28px rgba(31, 41, 55, 0.12);
+  --shadow-card: 0 1px 2px rgba(31, 41, 55, 0.04), 0 4px 16px -8px rgba(31, 41, 55, 0.06);
+  --shadow-raise: 0 2px 4px rgba(31, 41, 55, 0.05), 0 12px 32px -12px rgba(31, 41, 55, 0.12);
   --radius-panel: 10px;
   --radius-control: 7px;
   --radius-icon: 8px;
@@ -49,19 +51,18 @@
   --space-7: 48px;
   --control-h: 32px;
   --control-h-lg: 40px;
-  --font-title: "Noto Serif SC", "Songti SC", serif;
+  --font-title: "Noto Sans SC", "PingFang SC", sans-serif;
   --font-number: "DIN Alternate", "Helvetica Neue", Arial, sans-serif;
 }
 
 /* 字号地板（2026-10-05 critique）：small 的 0.8em 在 12-13px 父级下会跌破 11px，
    统一钳到不小于 12px。 */
-/* 状态标签文字红（2026-10-05 critique）：--red #b4483e 在淡红底上 4.46:1，
-   12px 文字需 4.5:1——标签/正文场景统一用加深档。 */
-/* v1 token（上方 :root）继续服务未迁移页面；antd 域（已迁移页面）的
-   色板/密度/字体以 src/theme.ts 为唯一来源（v2「云峰中性」，见 DESIGN.md §12）。
-   新写页面/组件不得再引用 v1 色值。 */
+/* 状态标签文字红：淡红底上的小字号需 4.5:1，标签/正文场景统一用加深档
+   （2026-10-15 随 v2 色板由 #a83f35 调整为 #8f1d13）。 */
+/* v1 令牌已重映射为 v2「云峰中性」色值（2026-10-15，DESIGN.md §12）；
+   antd 组件域的 token 以 src/theme.ts 为唯一来源。 */
 :root {
-  --red-deep: #a83f35;
+  --red-deep: #8f1d13;
 }
 
 small {

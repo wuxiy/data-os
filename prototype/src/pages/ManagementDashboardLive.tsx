@@ -1,7 +1,10 @@
 import { Activity, ChevronRight, CloudCog, RefreshCw } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { Button, Table, Tag } from 'antd'
+import type { ColumnsType } from 'antd/es/table'
 import { PageHeader } from '../components/ui/PageHeader'
-import { Button, MetricStrip, StatusTag } from '../components/ui/Primitives'
+import { formatDateTime } from '../data/domain'
+import { MetricStrip } from '../components/ui/Primitives'
 import type { Metric, Tone } from '../types'
 import {
   fetchOperationsEvents,
@@ -25,6 +28,14 @@ const SEVERITY_ORDER: Record<string, number> = { CRITICAL: 0, HIGH: 1, MEDIUM: 2
 
 /* 严重度中文化（2026-10-06 对齐收敛）：英文枚举只留在数据层，界面直出中文。 */
 const SEVERITY_LABEL: Record<string, string> = { CRITICAL: '阻断', HIGH: '高', MEDIUM: '中', LOW: '低' }
+
+// 状态语义映射：自研 tone → antd Tag 语义色。
+const TONE_COLOR: Record<Tone, string> = {
+  healthy: 'success',
+  warning: 'warning',
+  danger: 'error',
+  neutral: 'default',
+}
 
 const DEEP_LINK_ROUTES: Record<string, 'ingestion' | 'governance' | 'mpi' | 'aiData' | 'dataServices'> = {
   '/ingestion': 'ingestion',
@@ -97,6 +108,43 @@ export function ManagementDashboardLive(
       (SEVERITY_ORDER[left.severity] ?? 9) - (SEVERITY_ORDER[right.severity] ?? 9)).slice(0, 8),
     [workItems])
 
+  const workItemColumns: ColumnsType<OperationsWorkItem> = [
+    {
+      title: '严重度',
+      key: 'severity',
+      width: 84,
+      render: (_, item) => <Tag color={TONE_COLOR[severityTone(item.severity)]}>{SEVERITY_LABEL[item.severity] ?? item.severity}</Tag>,
+    },
+    { title: '待办', dataIndex: 'title', key: 'title' },
+    {
+      title: '来源',
+      key: 'source',
+      width: 200,
+      render: (_, item) => <code className={styles.inlineCode}>{item.sourceType}:{item.sourceId.slice(0, 12)}</code>,
+    },
+    {
+      title: '更新时间',
+      key: 'asOf',
+      align: 'right',
+      width: 110,
+      render: (_, item) => <small style={{ whiteSpace: 'nowrap' }}>{formatDateTime(item.asOf)}</small>,
+    },
+    {
+      title: '',
+      key: 'actions',
+      render: (_, item) => (
+        <Button type="text" size="small" onClick={() => {
+          const route = DEEP_LINK_ROUTES[item.deepLink]
+          if (route) {
+            onNavigate(route)
+          } else {
+            onNotice(`暂无门户路由对应 ${item.deepLink}`)
+          }
+        }}>进入工作台 <ChevronRight size={13} /></Button>
+      ),
+    },
+  ]
+
   if (summaryState === 'unavailable') {
     return (
       <div className={styles.page}>
@@ -133,10 +181,10 @@ export function ManagementDashboardLive(
             </div>
           </div>
           <div className={styles.panelHeaderActions}>
-            <StatusTag tone={components?.state === 'READY' ? 'healthy' : components?.state === 'DEGRADED' ? 'warning' : 'neutral'}>
+            <Tag color={TONE_COLOR[components?.state === 'READY' ? 'healthy' : components?.state === 'DEGRADED' ? 'warning' : 'neutral']}>
               {components?.state ?? 'UNKNOWN'}
-            </StatusTag>
-            <Button variant="quiet" onClick={() => setReloadKey((key) => key + 1)}><RefreshCw size={14} />刷新</Button>
+            </Tag>
+            <Button type="text" size="small" onClick={() => setReloadKey((key) => key + 1)}><RefreshCw size={14} />刷新</Button>
           </div>
         </section>
 
@@ -144,37 +192,21 @@ export function ManagementDashboardLive(
           <section className={styles.tablePanel}>
             <div className={styles.panelHeader}>
               <div><h2>优先处理</h2><p>共 {workItems.length} 项跨域待办 · 按严重度排序 · 完整清单在运营中心</p></div>
-              <button className={styles.textButton} onClick={() => onNavigate('operationsCenter')}>查看全部 <ChevronRight size={13} /></button>
+              <Button type="text" size="small" onClick={() => onNavigate('operationsCenter')}>查看全部 <ChevronRight size={13} /></Button>
             </div>
-            <div className={styles.tableScroll}>
-              <table className={styles.table}>
-                <thead><tr><th>严重度</th><th>待办</th><th>来源</th><th>更新时间</th><th aria-label="操作" /></tr></thead>
-                <tbody>
-                  {workItemsState === 'loading' ? <tr className={styles.emptyRow}><td colSpan={5}>正在加载待办…</td></tr> : null}
-                  {workItemsState === 'live' && topItems.length === 0 ? <tr className={styles.emptyRow}><td colSpan={5}>当前没有待处理的跨域事项。</td></tr> : null}
-                  {topItems.map((item) => (
-                    <tr key={`${item.sourceType}-${item.sourceId}`}>
-                      <td><StatusTag tone={severityTone(item.severity)}>{SEVERITY_LABEL[item.severity] ?? item.severity}</StatusTag></td>
-                      <td>{item.title}</td>
-                      {/* inlineCode 是 inline-block，直接挂 td 会被踢出表格布局（整列错位），
-                          必须包在 code 里（2026-10-06 对齐收敛）。 */}
-                      <td><code className={styles.inlineCode}>{item.sourceType}:{item.sourceId.slice(0, 12)}</code></td>
-                      <td><small>{item.asOf}</small></td>
-                      <td>
-                        <Button variant="quiet" onClick={() => {
-                          const route = DEEP_LINK_ROUTES[item.deepLink]
-                          if (route) {
-                            onNavigate(route)
-                          } else {
-                            onNotice(`暂无门户路由对应 ${item.deepLink}`)
-                          }
-                        }}>进入工作台 <ChevronRight size={13} /></Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <Table<OperationsWorkItem>
+              rowKey={(item) => `${item.sourceType}-${item.sourceId}`}
+              columns={workItemColumns}
+              dataSource={topItems}
+              pagination={false}
+              locale={{
+                emptyText: workItemsState === 'loading'
+                  ? '正在加载待办…'
+                  : workItemsState === 'live'
+                    ? '当前没有待处理的跨域事项。'
+                    : '运营待办投影暂不可用。',
+              }}
+            />
           </section>
 
           <section className={styles.panel}>
@@ -183,7 +215,7 @@ export function ManagementDashboardLive(
               {eventsState === 'loading' ? <li className={styles.emptyState}>正在加载事件…</li> : null}
               {events.slice(0, 10).map((event, index) => (
                 <li key={`${event.domain}-${index}`}>
-                  <div className={styles.timelineTitle}><strong>{event.domain} · {event.type}</strong><span>{event.asOf}</span></div>
+                  <div className={styles.timelineTitle}><strong>{event.domain} · {event.type}</strong><span>{formatDateTime(event.asOf)}</span></div>
                   <p>{event.detail}</p>
                 </li>
               ))}
