@@ -3,7 +3,7 @@
 /* 筛选激活态：在次按钮上叠灰玉淡底，不与主动作「保存此映射」竞争。 */
 .filterActive.filterActive {
   color: var(--jade-dark);
-  background: rgba(46, 118, 105, 0.12);
+  background: rgba(14, 116, 144, 0.12);
   border-color: var(--jade);
 }
 

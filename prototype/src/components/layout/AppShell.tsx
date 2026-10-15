@@ -101,7 +101,7 @@ export function AppShell({ route, children, onNavigate, onUnavailable, authDispl
                 : item.route === 'assistant'
                   ? ['assistant', 'assistantWorkspace'].includes(route)
                   : item.route === route
-            const content = <><Icon size={19} strokeWidth={1.5} /><span>{item.label}</span>{!item.route ? <em className={styles.plannedLabel}>规划中</em> : null}</>
+            const content = <><Icon size={19} strokeWidth={1.7} /><span>{item.label}</span>{!item.route ? <em className={styles.plannedLabel}>规划中</em> : null}</>
             return item.route ? (
               <button
                 key={item.label}
@@ -133,7 +133,7 @@ export function AppShell({ route, children, onNavigate, onUnavailable, authDispl
             </button>
           </div> : null}
           <button className={styles.settings} onClick={() => onUnavailable('系统设置')} title="系统设置">
-            <Settings size={19} strokeWidth={1.5} />
+            <Settings size={19} strokeWidth={1.7} />
             <span>系统设置</span>
           </button>
         </div>
@@ -149,7 +149,7 @@ export function AppShell({ route, children, onNavigate, onUnavailable, authDispl
 function Brand() {
   return (
     <div className={styles.brand} aria-label="医数中枢">
-      <Waypoints size={30} strokeWidth={1.65} aria-hidden="true" />
+      <Waypoints size={30} strokeWidth={1.7} aria-hidden="true" />
       <span>医数中枢</span>
     </div>
   )

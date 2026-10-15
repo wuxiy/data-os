@@ -56,7 +56,7 @@
 }
 
 .tabs .active::after {
-  background: var(--jade);
+  background: var(--selection-mark);
 }
 
 .tabs .unavailable {
