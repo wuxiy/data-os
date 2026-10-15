@@ -4,7 +4,7 @@
   gap: 10px;
   margin: 0 0 18px;
   padding: 10px 12px;
-  color: var(--ink-muted);
+  color: var(--muted);
   background: color-mix(in srgb, var(--jade-soft) 58%, var(--surface));
   border: 1px solid color-mix(in srgb, var(--jade) 28%, var(--line));
   border-radius: 8px;
@@ -14,7 +14,7 @@
 
 .label {
   flex: 0 0 auto;
-  color: var(--jade-deep, var(--jade));
+  color: var(--jade-dark);
   font-weight: 700;
   letter-spacing: 0.04em;
 }

@@ -243,6 +243,7 @@ export function AssetCatalogLive({ onNotice }: { onNotice: (message: string) => 
                   rowKey="name"
                   columns={columnColumns}
                   dataSource={pagedColumns}
+                  loading={detailState === 'loading'}
                   pagination={{
                     current: columnsPage + 1,
                     pageSize: COLUMNS_PAGE_SIZE,

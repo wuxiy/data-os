@@ -271,7 +271,7 @@ export function EdgeNodesPanel() {
         open={deployNode !== null}
         destroyOnHidden
         width={DRAWER_WIDTH}
-        title={<div><span className={styles.drawerEyebrow}>{deployNode ? `发布记录 · ${deployNode.name}` : ''}</span><h2 style={{ margin: '4px 0 0', fontSize: 16, fontWeight: 600 }}>版本登记与历史</h2></div>}
+        title={<div><span className={styles.drawerEyebrow}>{deployNode ? `发布记录 · ${deployNode.name}` : ''}</span><h2 className={styles.drawerTitleText}>版本登记与历史</h2></div>}
         onClose={() => setDeployNode(null)}
       >
         {deployNode ? <>
@@ -311,7 +311,7 @@ export function EdgeNodesPanel() {
         open={formOpen}
         destroyOnHidden
         width={DRAWER_WIDTH}
-        title={<div><span className={styles.drawerEyebrow}>{editing ? '前置机编辑' : '前置机登记'}</span><h2 style={{ margin: '4px 0 0', fontSize: 16, fontWeight: 600 }}>{editing ? editing.name : '登记前置机节点'}</h2></div>}
+        title={<div><span className={styles.drawerEyebrow}>{editing ? '前置机编辑' : '前置机登记'}</span><h2 className={styles.drawerTitleText}>{editing ? editing.name : '登记前置机节点'}</h2></div>}
         onClose={() => setFormOpen(false)}
         footer={<><Button onClick={() => setFormOpen(false)}>取消</Button><Button type="primary" htmlType="submit" form="edge-node-form" loading={saving} icon={<Save size={14} />}>{saving ? '保存中…' : '保存节点'}</Button></>}
       >

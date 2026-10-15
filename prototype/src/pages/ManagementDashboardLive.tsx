@@ -199,6 +199,7 @@ export function ManagementDashboardLive(
               columns={workItemColumns}
               dataSource={topItems}
               pagination={false}
+              loading={workItemsState === 'loading'}
               locale={{
                 emptyText: workItemsState === 'loading'
                   ? '正在加载待办…'

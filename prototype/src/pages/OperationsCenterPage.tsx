@@ -219,6 +219,7 @@ function OperationsCenterLive(
               rowKey={(item) => `${item.sourceType}-${item.sourceId}`}
               columns={workItemColumns}
               dataSource={paged.paged}
+              loading={workItemsState === 'loading'}
               pagination={{
                 current: paged.page + 1,
                 pageSize: WORK_ITEM_PAGE_SIZE,

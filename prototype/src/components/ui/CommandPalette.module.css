@@ -5,7 +5,7 @@
   z-index: 90;
   padding: 0;
   border: 0;
-  background: rgba(20, 44, 39, 0.32);
+  background: rgba(31, 41, 55, 0.32);
   cursor: pointer;
 }
 
@@ -20,7 +20,7 @@
   background: var(--paper);
   border: 1px solid var(--line-strong);
   border-radius: 10px;
-  box-shadow: 0 8px 28px rgba(20, 44, 39, 0.16);
+  box-shadow: 0 8px 28px rgba(31, 41, 55, 0.16);
   transform: translateX(-50%);
   text-align: left;
 }
@@ -90,6 +90,7 @@
 .paletteItemActive,
 .paletteItemActive:hover {
   background: var(--jade-soft);
+  transition: background 120ms var(--ease-out);
 }
 
 .paletteItem:focus-visible {

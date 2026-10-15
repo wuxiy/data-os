@@ -1035,7 +1035,7 @@ function Summary({ label, value, icon }: { label: string; value: string; icon: R
 
 /** 抽屉标题：眉标 + 主标题，对齐原自研 Drawer 的标题结构。 */
 function DrawerTitle({ eyebrow, title }: { eyebrow: ReactNode; title: ReactNode }) {
-  return <div><span className={styles.drawerEyebrow}>{eyebrow}</span><h2 style={{ margin: '4px 0 0', fontSize: 16, fontWeight: 600 }}>{title}</h2></div>
+  return <div><span className={styles.drawerEyebrow}>{eyebrow}</span><h2 className={styles.drawerTitleText}>{title}</h2></div>
 }
 
 function isDolphinJob(job: IngestionJobApiItem | null): boolean {

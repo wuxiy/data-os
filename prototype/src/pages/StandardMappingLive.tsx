@@ -261,6 +261,7 @@ export function StandardMappingLive({ onNotice, onNavigate, onUnavailable }: { o
             rowKey="id"
             columns={setColumns}
             dataSource={paged.paged}
+            loading={listState === 'loading'}
             pagination={{
               current: paged.page + 1,
               pageSize: 8,

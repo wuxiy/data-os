@@ -84,11 +84,7 @@ export function App() {
     return () => window.removeEventListener('popstate', handlePopState)
   }, [])
 
-  useEffect(() => {
-    if (!notice) return
-    const timer = window.setTimeout(() => setNotice(''), 3200)
-    return () => window.clearTimeout(timer)
-  }, [notice])
+  // 提示自动关闭已移入 Toast 组件（先播退出动画再卸载）
 
   // 全局命令面板（⌘K / Ctrl+K）：输入框聚焦时不抢占（面板自身另有 Esc 处理）。
   useEffect(() => {

@@ -293,7 +293,7 @@ export function JobScheduleDrawer({ job, onClose, onNotice }: {
       open
       destroyOnHidden
       width={DRAWER_WIDTH}
-      title={<div><span className={styles.drawerEyebrow}>{`周期调度 · ${job.name}`}</span><h2 style={{ margin: '4px 0 0', fontSize: 16, fontWeight: 600 }}>调度配置</h2></div>}
+      title={<div><span className={styles.drawerEyebrow}>{`周期调度 · ${job.name}`}</span><h2 className={styles.drawerTitleText}>调度配置</h2></div>}
       onClose={onClose}
       footer={<>
         <Button onClick={onClose}>关闭</Button>

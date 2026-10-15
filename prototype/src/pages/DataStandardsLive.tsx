@@ -210,6 +210,7 @@ export function DataStandardsLive({ onNotice, onNavigate, onUnavailable }: { onN
             rowKey="id"
             columns={listColumns}
             dataSource={paged.paged}
+            loading={listState === 'loading'}
             pagination={{
               current: paged.page + 1,
               pageSize: 8,

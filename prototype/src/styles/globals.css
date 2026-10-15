@@ -13,10 +13,8 @@
   --sidebar: #eceef0;
   --selection-mark: #0e7490;
   --muted: #4b5563;
-  --ink-muted: var(--muted);
   --jade: #0e7490;
   --jade-dark: #0b5a71;
-  --jade-deep: var(--jade-dark);
   --jade-soft: #e2eef2;
   --amber: #b45309;
   --amber-dark: #92400e;
@@ -35,7 +33,6 @@
   --focus-ring: #0e7490;
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
-  --shadow: 0 8px 28px rgba(31, 41, 55, 0.12);
   --shadow-card: 0 1px 2px rgba(31, 41, 55, 0.04), 0 4px 16px -8px rgba(31, 41, 55, 0.06);
   --shadow-raise: 0 2px 4px rgba(31, 41, 55, 0.05), 0 12px 32px -12px rgba(31, 41, 55, 0.12);
   --radius-panel: 10px;
@@ -52,7 +49,7 @@
   --control-h: 32px;
   --control-h-lg: 40px;
   --font-title: "Noto Sans SC", "PingFang SC", sans-serif;
-  --font-number: "DIN Alternate", "Helvetica Neue", Arial, sans-serif;
+  --font-number: "DIN Alternate", "Helvetica Neue", "Segoe UI", "Roboto Condensed", Arial, sans-serif;
 }
 
 /* 字号地板（2026-10-05 critique）：small 的 0.8em 在 12-13px 父级下会跌破 11px，

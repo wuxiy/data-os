@@ -277,7 +277,7 @@
   width: 100%;
   height: 100%;
   padding: 0;
-  background: rgba(17, 34, 31, 0.22);
+  background: rgba(31, 41, 55, 0.22);
   border: 0;
   cursor: default;
 }
@@ -1122,7 +1122,7 @@ ul.timelineBody > li + li {
 }
 
 .search:focus-within {
-  box-shadow: 0 0 0 2px rgba(46, 118, 105, 0.5);
+  box-shadow: 0 0 0 2px rgba(14, 116, 144, 0.5);
 }
 
 .search input {
@@ -1352,7 +1352,7 @@ ul.timelineBody > li + li {
   color: var(--red);
   font-size: 12px;
   font-weight: 600;
-  background: rgba(180, 72, 62, 0.08);
+  background: rgba(180, 35, 24, 0.08);
   border-radius: 999px;
 }
 
@@ -2505,7 +2505,7 @@ ul.timelineBody > li + li {
 }
 
 .instanceHead small {
-  color: var(--ink-muted);
+  color: var(--muted);
 }
 
 .instanceActions {
@@ -2534,4 +2534,10 @@ ul.timelineBody > li + li {
   word-break: break-all;
   max-height: 240px;
   overflow: auto;
+}
+
+.drawerTitleText {
+  margin: 4px 0 0;
+  font-size: 16px;
+  font-weight: 600;
 }

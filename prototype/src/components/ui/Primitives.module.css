@@ -126,6 +126,10 @@
   background: var(--surface-hover);
 }
 
+.metricInteractive:active {
+  transform: scale(0.98);
+}
+
 .metricLabel,
 .metricDetail {
   overflow: hidden;
@@ -202,6 +206,10 @@
   font-size: 13px;
 }
 
+.toastLeaving {
+  animation: toastOut 180ms var(--ease-standard) forwards;
+}
+
 .toastIcon {
   display: grid;
   width: 24px;
@@ -241,6 +249,10 @@
 
 @keyframes toastIn {
   from { opacity: 0; transform: translateY(12px); }
+}
+
+@keyframes toastOut {
+  to { opacity: 0; transform: translateY(-4px); }
 }
 
 @media (max-width: 600px) {

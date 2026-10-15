@@ -9,7 +9,7 @@
   gap: 8px;
   margin: 0 0 16px;
   padding: 8px 12px;
-  color: var(--ink-muted);
+  color: var(--muted);
   background: var(--amber-soft);
   border: 1px solid color-mix(in srgb, var(--amber) 18%, var(--line));
   border-radius: var(--radius-control);
@@ -54,7 +54,7 @@
 
 .boundaryCopy p {
   margin: 0;
-  color: var(--ink-muted);
+  color: var(--muted);
   font-size: 13px;
   line-height: 1.7;
 }

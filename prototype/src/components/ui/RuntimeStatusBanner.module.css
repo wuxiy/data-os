@@ -5,7 +5,7 @@
   flex-wrap: wrap;
   gap: 8px;
   padding: 6px 10px;
-  color: var(--ink-muted);
+  color: var(--muted);
   border-bottom: 1px solid var(--line);
   font-size: 12px;
   line-height: 1.4;

@@ -292,7 +292,7 @@ function MpiPersonDrawer({ personId, onClose, onNotice, onSplit }: { personId: s
       open
       destroyOnHidden
       width="min(540px, 44vw)"
-      title={<><span className={styles.drawerEyebrow}>黄金人详情</span><h2 id="mpi-person-drawer-title" style={{ margin: '4px 0 0', fontSize: 16, fontWeight: 600 }}>{person?.goldenName ?? '黄金人'}</h2></>}
+      title={<><span className={styles.drawerEyebrow}>黄金人详情</span><h2 id="mpi-person-drawer-title" className={styles.drawerTitleText}>{person?.goldenName ?? '黄金人'}</h2></>}
       onClose={onClose}
       footer={<Button onClick={onClose}>关闭</Button>}
     >
