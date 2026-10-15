@@ -1,20 +1,39 @@
 import { AlertTriangle, Code2, ExternalLink, FileText, MessageSquareText, Send, ShieldCheck, ThumbsDown, ThumbsUp } from 'lucide-react'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
+import { Button, Table, Tag } from 'antd'
+import type { ColumnsType } from 'antd/es/table'
 import { DemoDataBoundary } from '../components/ui/DemoDataBoundary'
 import { PageHeader } from '../components/ui/PageHeader'
-import { Button, StatusTag } from '../components/ui/Primitives'
 import { frontendDemoMode } from '../data/runtimeMode'
 import { assistantScenarios } from '../data/integrations'
 import { routePaths } from '../data/routes'
 import { AssistantLive } from './AssistantLive'
 import styles from './IntegrationPages.module.css'
 
-/** 建议提问的策划问句（演示页）：每条引导到一个演示场景。 */
+/** 建议提问的策划问句（演示）：每条引导到一个演示场景。 */
 const suggestedPrompts = [
   { scenarioId: 'assistant-outpatient', text: '门诊量下降是停诊导致的，还是真实需求下降？' },
   { scenarioId: 'assistant-record', text: '病案首页哪些字段拖累了完整率？' },
   { scenarioId: 'assistant-lab', text: '哪些成员医院的检验数据最晚送达？' },
+]
+
+// 状态语义映射：自研 tone → antd Tag 语义色。
+const TONE_COLOR = { healthy: 'success', warning: 'warning', danger: 'error', neutral: 'default' } as const
+
+interface ScenarioTableRow {
+  department: string
+  visits: string
+  wait: string
+  change: string
+}
+
+/** 核对明细列定义：原本不分页，迁移后严格保持（pagination=false）。 */
+const detailColumns: ColumnsType<ScenarioTableRow> = [
+  { title: '对象', dataIndex: 'department', key: 'department' },
+  { title: '业务量', dataIndex: 'visits', key: 'visits', align: 'right' },
+  { title: '关键指标', dataIndex: 'wait', key: 'wait', align: 'right' },
+  { title: '变化', dataIndex: 'change', key: 'change', align: 'right' },
 ]
 
 export function AssistantPage({ onNotice, onNavigate, professional = false, governance = false }: { onNotice: (message: string) => void; onNavigate: (route: 'ingestion' | 'governance' | 'quality') => void; professional?: boolean; governance?: boolean }) {
@@ -91,7 +110,7 @@ function DemoAssistantPage({ onNotice, onNavigate, professional = false }: { onN
               <span className={styles.chatIdentityIcon}><MessageSquareText size={17} /></span>
               <div><strong>医疗运营问数助手</strong><span>仅查询已授权的可信数据集</span></div>
             </div>
-            <StatusTag tone="healthy">只读模式</StatusTag>
+            <Tag color={TONE_COLOR.healthy}>只读模式</Tag>
           </header>
           <div className={styles.chatScroll} aria-live="polite">
             <div className={styles.userBubbleRow}><div className={styles.userBubble}>{displayQuestion}</div></div>
@@ -126,10 +145,13 @@ function DemoAssistantPage({ onNotice, onNavigate, professional = false }: { onN
                 <section className={styles.answerPanel}>
                   <h3>核对明细</h3>
                   <div className={styles.horizontalScroll}>
-                    <table className={styles.resultTable}>
-                      <thead><tr><th>对象</th><th>业务量</th><th>关键指标</th><th>变化</th></tr></thead>
-                      <tbody>{selected.table.map((row) => <tr key={row.department}><td>{row.department}</td><td>{row.visits}</td><td>{row.wait}</td><td>{row.change}</td></tr>)}</tbody>
-                    </table>
+                    <Table<ScenarioTableRow>
+                      rowKey="department"
+                      columns={detailColumns}
+                      dataSource={selected.table}
+                      pagination={false}
+                      size="small"
+                    />
                   </div>
                 </section>
               </div>
@@ -148,7 +170,7 @@ function DemoAssistantPage({ onNotice, onNavigate, professional = false }: { onN
         </section>
 
         <aside className={styles.evidenceRail} aria-label="问数证据">
-          <div className={styles.evidenceHeader}><h2>回答证据</h2><StatusTag tone="healthy">可复核</StatusTag></div>
+          <div className={styles.evidenceHeader}><h2>回答证据</h2><Tag color={TONE_COLOR.healthy}>可复核</Tag></div>
           <div className={styles.evidenceBody}>
             <div className={styles.evidenceStamp}>
               <span className={styles.evidenceStampIcon}><FileText size={17} /></span>

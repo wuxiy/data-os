@@ -1,7 +1,8 @@
 import { ArrowLeft, Database, Link2, Rows3, TableProperties } from 'lucide-react'
 import { useState } from 'react'
+import { Button, Table, Tag } from 'antd'
+import type { ColumnsType } from 'antd/es/table'
 import { PageHeader } from '../components/ui/PageHeader'
-import { Button, StatusTag } from '../components/ui/Primitives'
 import {
   fetchLineageAsset,
   fetchLineageCatalog,
@@ -9,6 +10,7 @@ import {
   fetchLineageSummary,
   lineageNodeKindLabel,
   shortNodeName,
+  type LineageAssetColumn,
   type LineageAssetDetail,
   type LineageAssetLineage,
   type LineageAssetSummary,
@@ -19,6 +21,20 @@ import { useApiResource } from '../hooks/useApiResource'
 import { useKeyedResource } from '../hooks/useKeyedResource'
 import styles from './IntegrationPages.module.css'
 import local from './AssetTechnicalLive.module.css'
+
+// 状态语义映射：自研 tone → antd Tag 语义色。
+const TAG_COLOR = {
+  healthy: 'success',
+  warning: 'warning',
+  neutral: 'default',
+} as const
+
+// 字段结构列定义：物理字段等宽文本列，无数字列。
+const columnColumns: ColumnsType<LineageAssetColumn> = [
+  { title: '物理字段', dataIndex: 'name', key: 'name' },
+  { title: '类型', dataIndex: 'dataType', key: 'dataType' },
+  { title: '说明', key: 'description', render: (_, column) => column.description || '—' },
+]
 
 /**
  * 技术视图（真实链路）：结构与血缘证据来自控制面血缘 BFF；
@@ -64,10 +80,10 @@ export function AssetTechnicalLive({ onNotice }: { onNotice: (message: string) =
       />
       {state === 'idle' ? <AssetPicker /> : null}
       {state === 'loading' ? (
-        <section className={styles.technicalNotice} role="status"><StatusTag tone="neutral">读取中</StatusTag><span>正在读取技术元数据…</span></section>
+        <section className={styles.technicalNotice} role="status"><Tag>读取中</Tag><span>正在读取技术元数据…</span></section>
       ) : null}
       {state === 'error' ? (
-        <section className={styles.technicalNotice} role="status"><StatusTag tone="warning">读取失败</StatusTag><span>技术元数据暂不可读，请稍后重试。</span></section>
+        <section className={styles.technicalNotice} role="status"><Tag color={TAG_COLOR.warning}>读取失败</Tag><span>技术元数据暂不可读，请稍后重试。</span></section>
       ) : null}
       {state === 'ready' && detail ? (
         <div className={styles.technicalWorkspace}>
@@ -77,7 +93,7 @@ export function AssetTechnicalLive({ onNotice }: { onNotice: (message: string) =
               <div><span>{detail.fullyQualifiedName}</span><h2>{detail.displayName || detail.name}</h2><p>技术元数据快照 · 元数据中心摄取</p></div>
             </div>
             <div className={styles.technicalHeaderActions}>
-              <StatusTag tone="healthy">元数据已摄取</StatusTag>
+              <Tag color={TAG_COLOR.healthy}>元数据已摄取</Tag>
               <a className={styles.externalLinkButton} href={backHref}><ArrowLeft size={14} />返回资产详情</a>
             </div>
           </header>
@@ -92,16 +108,12 @@ export function AssetTechnicalLive({ onNotice }: { onNotice: (message: string) =
           <div className={styles.technicalGrid}>
             <section className={styles.technicalPanel}>
               <div className={styles.technicalPanelHeader}><div><h3>字段结构</h3><span>物理字段与类型（OpenMetadata 摄取）</span></div><Rows3 size={17} /></div>
-              <div className={styles.horizontalScroll}>
-                <table className={styles.fieldTable}>
-                  <thead><tr><th>物理字段</th><th>类型</th><th>说明</th></tr></thead>
-                  <tbody>
-                    {detail.columns.map((column) => (
-                      <tr key={column.name}><td>{column.name}</td><td>{column.dataType}</td><td>{column.description || '—'}</td></tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <Table<LineageAssetColumn>
+                rowKey="name"
+                columns={columnColumns}
+                dataSource={detail.columns}
+                pagination={false}
+              />
             </section>
 
             <aside className={styles.technicalPanel}>
@@ -141,7 +153,7 @@ export function AssetTechnicalLive({ onNotice }: { onNotice: (message: string) =
             </div>
             <div className={styles.technicalFooter}>
               <span>技术视图是资产详情的深链，不复制底层元数据控制台。</span>
-              <Button variant="quiet" onClick={() => void copyTechnicalId()}>复制全限定名</Button>
+              <Button type="text" onClick={() => void copyTechnicalId()}>复制全限定名</Button>
             </div>
           </section>
         </div>

@@ -1,17 +1,19 @@
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight, RefreshCw } from 'lucide-react'
 import { useState } from 'react'
+import { Button, Table, Tag } from 'antd'
+import type { ColumnsType } from 'antd/es/table'
 import { useApiResource } from '../hooks/useApiResource'
 import { TrendChart } from '../components/charts/TrendChart'
 import { ResponsibilityChain } from '../components/governance/ResponsibilityChain'
 import { GovernanceTabs } from '../components/ui/GovernanceTabs'
 import { PageHeader } from '../components/ui/PageHeader'
-import { MetricStrip, StatusTag } from '../components/ui/Primitives'
+import { MetricStrip } from '../components/ui/Primitives'
 import { fetchGovernanceSummary, type GovernanceApiIssue } from '../data/controlPlane'
 import { QualityScorePanel } from './QualityScorePanel'
 import { formatDateTime, issueStatusLabel, issueStatusTone } from '../data/domain'
 import { routePaths } from '../data/routes'
 import { frontendDemoMode, showStaticSamples } from '../data/runtimeMode'
-import type { Metric } from '../types'
+import type { Metric, Tone } from '../types'
 import type { RouteKey } from '../types'
 import styles from './Pages.module.css'
 import pageStyles from './GovernanceDashboardPage.module.css'
@@ -21,6 +23,14 @@ interface Props {
   onNavigate: (route: RouteKey) => void
   onUnavailable: (label: string) => void
   onNotice: (message: string) => void
+}
+
+// 状态语义映射：自研 tone → antd Tag 语义色。
+const TONE_COLOR: Record<Tone, string> = {
+  healthy: 'success',
+  warning: 'warning',
+  danger: 'error',
+  neutral: 'default',
 }
 
 export function GovernanceDashboardPage({ onOpenChain, onNavigate, onUnavailable, onNotice }: Props) {
@@ -61,6 +71,30 @@ export function GovernanceDashboardPage({ onOpenChain, onNavigate, onUnavailable
     onUnavailable: () => setAsOf(null),
   })
 
+  const todoIssues = todaysIssues(issues)
+  // 治理待办列定义：整行可点保留原深链语义，逾期标记随问题标题呈现。
+  const todoColumns: ColumnsType<GovernanceApiIssue> = [
+    {
+      title: '问题',
+      key: 'title',
+      render: (_, issue) => <>{issue.title}{isIssueOverdue(issue) ? <span className={styles.overdueMark}>SLA 逾期</span> : null}</>,
+    },
+    { title: '影响范围', key: 'impact', render: (_, issue) => issue.impact },
+    { title: '责任部门', key: 'ownerDepartment', render: (_, issue) => issue.ownerDepartment },
+    {
+      title: 'SLA',
+      key: 'dueAt',
+      align: 'right',
+      className: pageStyles.numCell,
+      render: (_, issue) => formatDateTime(issue.dueAt),
+    },
+    {
+      title: '状态',
+      key: 'status',
+      render: (_, issue) => <Tag color={TONE_COLOR[issueStatusTone(issue.status)]}>{issueStatusLabel(issue.status)}</Tag>,
+    },
+  ]
+
   return (
     <div className={styles.page}>
       <PageHeader title="治理驾驶舱" asOf={apiState === 'live' ? asOf : null} />
@@ -69,43 +103,35 @@ export function GovernanceDashboardPage({ onOpenChain, onNavigate, onUnavailable
         <span className={`${styles.apiDot} ${apiState === 'live' ? styles.apiDotLive : ''}`} />
         {apiState === 'loading' ? '正在连接治理控制面…' : apiState === 'live' ? '控制面已连接 · 数据来自治理控制面' : '控制面暂不可用 · 未加载真实治理指标或问题'}
       </div>
-      {apiState === 'unavailable' ? <div className={styles.connectionNotice} role="alert"><div><strong>治理控制面不可用</strong><span>为避免误导，当前没有展示本地演示指标、问题或责任链样例。请恢复控制面后重新连接。</span></div><button className={styles.secondaryButton} onClick={() => window.location.reload()}>重新连接</button></div> : null}
+      {apiState === 'unavailable' ? <div className={styles.connectionNotice} role="alert"><div><strong>治理控制面不可用</strong><span>为避免误导，当前没有展示本地演示指标、问题或责任链样例。请恢复控制面后重新连接。</span></div><Button onClick={() => window.location.reload()}><RefreshCw size={13} />重新连接</Button></div> : null}
       <div className={styles.content}>
         {/* 指标带收进 .content（2026-10-06 对齐收敛）：原挂在 content 外导致满宽出血、
             左缘与下方 24px 内边距内容不齐。 */}
         <MetricStrip metrics={metrics} onSelect={showStaticSamples(apiState) ? onOpenChain : apiState === 'live' ? openMetricTarget : undefined} />
         <section className={styles.tablePanel}>
-          <div className={styles.panelHeader}><div><h2>治理待办</h2><p>未闭环问题按 SLA 截止时间排序</p></div><button className={styles.textButton} onClick={() => onNavigate('quality')}>进入质量闭环 <ChevronRight size={13} /></button></div>
-          <div className={styles.tableScroll}>
-            <table className={styles.table}>
-              <thead><tr><th>问题</th><th>影响范围</th><th>责任部门</th><th>SLA</th><th>状态</th></tr></thead>
-              <tbody>
-                {todaysIssues(issues).map((issue) => (
-                  <tr
-                    key={issue.id}
-                    className={styles.clickableRow}
-                    onClick={() => openIssue(issue)}
-                    tabIndex={0}
-                    role="button"
-                    aria-label={`打开问题：${issue.title}`}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault()
-                        openIssue(issue)
-                      }
-                    }}
-                  >
-                    <td>{issue.title}{isIssueOverdue(issue) ? <span className={styles.overdueMark}>SLA 逾期</span> : null}</td>
-                    <td>{issue.impact}</td>
-                    <td>{issue.ownerDepartment}</td>
-                    <td>{formatDateTime(issue.dueAt)}</td>
-                    <td><StatusTag tone={issueStatusTone(issue.status)}>{issueStatusLabel(issue.status)}</StatusTag></td>
-                  </tr>
-                ))}
-                {apiState === 'live' && issues.length === 0 ? <tr><td colSpan={5} className={styles.emptyRow}>当前机构暂无待办问题</td></tr> : null}
-              </tbody>
-            </table>
-          </div>
+          <div className={styles.panelHeader}><div><h2>治理待办</h2><p>未闭环问题按 SLA 截止时间排序</p></div><Button type="text" size="small" onClick={() => onNavigate('quality')}>进入质量闭环 <ChevronRight size={13} /></Button></div>
+          <Table<GovernanceApiIssue>
+            rowKey="id"
+            columns={todoColumns}
+            dataSource={todoIssues}
+            pagination={false}
+            rowClassName={() => pageStyles.clickableRow}
+            locale={{
+              emptyText: apiState === 'unavailable' ? '控制面暂不可用 · 未加载真实治理指标或问题' : apiState === 'live' ? '当前机构暂无待办问题' : '正在连接治理控制面…',
+            }}
+            onRow={(issue) => ({
+              tabIndex: 0,
+              role: 'button',
+              'aria-label': `打开问题：${issue.title}`,
+              onClick: () => openIssue(issue),
+              onKeyDown: (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault()
+                  openIssue(issue)
+                }
+              },
+            })}
+          />
         </section>
         {/* 责任链全宽置于待办之下（2026-10-06 对齐收敛）：责任链是视觉记忆点，
             不再压进 0.85fr 窄列；真实模式认领质量工作台证据链，副题不重复正文，
@@ -115,14 +141,14 @@ export function GovernanceDashboardPage({ onOpenChain, onNavigate, onUnavailable
             <div className={styles.panelHeader}>
               <div><h2>治理责任链 · v1</h2><p>影响范围 → 规则证据 → 复检批次 → 责任人通知 → 责任归属</p></div>
               {chainTodo
-                ? <button className={styles.textButton} onClick={() => openIssue(chainTodo)}>打开 {chainTodo.id} 的责任链 <ChevronRight size={13} /></button>
-                : <button className={styles.textButton} onClick={() => onNavigate('quality')}>前往质量问题工作台 <ChevronRight size={13} /></button>}
+                ? <Button type="text" size="small" onClick={() => openIssue(chainTodo)}>打开 {chainTodo.id} 的责任链 <ChevronRight size={13} /></Button>
+                : <Button type="text" size="small" onClick={() => onNavigate('quality')}>前往质量问题工作台 <ChevronRight size={13} /></Button>}
             </div>
           </section>
         )}
         <div className={styles.twoColumns}>
           <section className={styles.panel}>
-            <div className={styles.panelHeader}><div><h2>高风险系统排行</h2><p>按逾期与高危问题综合排序</p></div><button className={styles.textButton} onClick={() => onNavigate('quality')}>查看全部 <ChevronRight size={13} /></button></div>
+            <div className={styles.panelHeader}><div><h2>高风险系统排行</h2><p>按逾期与高危问题综合排序</p></div><Button type="text" size="small" onClick={() => onNavigate('quality')}>查看全部 <ChevronRight size={13} /></Button></div>
             <ol className={styles.ranking}>
               {riskRankingFromIssues(issues).map(({ system, owner, value, overdue }, index) => <li key={system}><span className={styles.rank}>{String(index + 1).padStart(2, '0')}</span><div className={styles.rankBody}><strong>{system}</strong><span>{owner}</span></div><span className={`${styles.rankValue} ${overdue > 0 ? pageStyles.overdueValue : ''}`}>{value}</span></li>)}
               {apiState === 'live' && issues.length === 0 ? <li className={styles.emptyRow}>当前机构暂无高风险问题</li> : null}
@@ -195,4 +221,3 @@ function riskRankingFromIssues(issues: GovernanceApiIssue[]) {
       value: overdue > 0 ? `${count} 项 · ${overdue} 逾期` : `${count} 项`,
     }))
 }
-

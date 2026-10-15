@@ -1,8 +1,8 @@
 import { BrainCircuit, Plus, RefreshCw, Sparkles } from 'lucide-react'
 import { useState } from 'react'
+import type { ReactNode } from 'react'
+import { Button, Drawer, Form, Input, Select, Tag } from 'antd'
 import { PageHeader } from '../components/ui/PageHeader'
-import { Button, StatusTag } from '../components/ui/Primitives'
-import { Drawer } from '../components/ui/Drawer'
 import {
   aiCertificationLabel,
   createAIDataProduct,
@@ -33,6 +33,7 @@ import styles from './IntegrationPages.module.css'
 import formStyles from './Pages.module.css'
 
 const PRODUCT_TYPES = Object.keys(productTypeLabel) as AIDataProductType[]
+const DRAWER_WIDTH = 'min(540px, 44vw)'
 
 /**
  * AI Data 工作台（G8）：AI Data Product 一等域对象的列表与详情。
@@ -47,7 +48,7 @@ export function AIDataPage({ onNotice }: { onNotice: (message: string) => void }
     <div className={styles.integrationPage}>
       <PageHeader title="AI Data" eyebrow="AI 数据产品" subtitle="AI 数据产品的清单、版本与生命周期工作台" compact />
       <section className={styles.technicalNotice} role="status">
-        <StatusTag tone="neutral">演示边界</StatusTag>
+        <Tag>演示边界</Tag>
         <span>AI Data 工作台仅接入真实控制面 API（G8 起交付）；演示构建未收录静态样例。请以真实模式访问。</span>
       </section>
     </div>
@@ -209,7 +210,7 @@ function AIDataLive({ onNotice }: { onNotice: (message: string) => void }) {
       <div className={styles.integrationPage}>
         <PageHeader title="AI Data" eyebrow="AI 数据产品" subtitle="AI 数据产品的清单、版本与生命周期工作台" compact />
         <section className={styles.technicalNotice} role="status">
-          <StatusTag tone="warning">{listState === 'loading' ? '读取中' : '待接入'}</StatusTag>
+          <Tag color={listState === 'loading' ? undefined : 'warning'}>{listState === 'loading' ? '读取中' : '待接入'}</Tag>
           <span>{listState === 'loading' ? '正在从控制面读取 AI Data 产品…' : '控制面暂不可用：AI Data 域需要控制面已配置并可访问。'}</span>
         </section>
       </div>
@@ -237,7 +238,7 @@ function AIDataLive({ onNotice }: { onNotice: (message: string) => void }) {
             <span className={styles.railCount}>{products.length} 项</span>
           </div>
           <div className={styles.railAction}>
-            <Button variant="primary" onClick={() => setCreateOpen(true)}><Plus size={13} aria-hidden="true" />新建产品</Button>
+            <Button type="primary" size="small" onClick={() => setCreateOpen(true)}><Plus size={13} aria-hidden="true" />新建产品</Button>
           </div>
           <div className={styles.schemaTabs}>
             <button className={styles.schemaTab} onClick={refresh}>
@@ -280,34 +281,50 @@ function AIDataLive({ onNotice }: { onNotice: (message: string) => void }) {
             />
           ) : (
             <div className={styles.technicalNotice} role="status">
-              <StatusTag tone="neutral">未选择</StatusTag>
+              <Tag>未选择</Tag>
               <span>从左侧选择一个 AI Data Product 查看版本历史与生命周期。</span>
             </div>
           )}
         </section>
       </div>
 
-      {createOpen ? <Drawer
-        titleId="ai-product-create-title"
-        eyebrow="AI 数据产品登记"
-        title="新建 AI Data Product"
-        closeLabel="关闭新建 AI Data Product"
+      <Drawer
+        open={createOpen}
+        destroyOnHidden
+        width={DRAWER_WIDTH}
+        title={<DrawerTitle eyebrow="AI 数据产品登记" title="新建 AI Data Product" />}
         onClose={() => setCreateOpen(false)}
-        footer={<><button className={formStyles.secondaryButton} type="button" onClick={() => setCreateOpen(false)}>取消</button><button className={formStyles.primaryButton} type="submit" form="ai-product-create-form" disabled={pendingKey === 'create'}><Plus size={14} />{pendingKey === 'create' ? '创建中…' : `创建（${lifecycleLabel.DRAFT} + v0.1.0）`}</button></>}
+        footer={<><Button onClick={() => setCreateOpen(false)}>取消</Button><Button type="primary" htmlType="submit" form="ai-product-create-form" loading={pendingKey === 'create'} icon={<Plus size={14} />}>{pendingKey === 'create' ? '创建中…' : `创建（${lifecycleLabel.DRAFT} + v0.1.0）`}</Button></>}
       >
-        <form id="ai-product-create-form" className={formStyles.drawerForm} onSubmit={(event) => { event.preventDefault(); void submitCreate() }}>
+        <Form id="ai-product-create-form" layout="vertical" onFinish={() => void submitCreate()}>
           <div className={formStyles.drawerNotice}><Sparkles size={16} /><span>创建后从「{lifecycleLabel.DRAFT} + v0.1.0」起步：构建与评估委托 AI Ready 引擎执行，结论回写当前版本的就绪度。</span></div>
           <div className={formStyles.drawerFormGrid}>
-            <div className={formStyles.formField}><label htmlFor="ai-product-name">名称</label><input id="ai-product-name" required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="如：临床指南 RAG 语料库" /></div>
-            <div className={formStyles.formField}><label htmlFor="ai-product-type">类型</label><select id="ai-product-type" value={form.type} onChange={(event) => setForm({ ...form, type: event.target.value as AIDataProductType })}>{PRODUCT_TYPES.map((type) => <option key={type} value={type}>{productTypeLabel[type]}</option>)}</select></div>
+            <Form.Item label="名称" required>
+              <Input required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="如：临床指南 RAG 语料库" />
+            </Form.Item>
+            <Form.Item label="类型">
+              <Select value={form.type} onChange={(value) => setForm({ ...form, type: value as AIDataProductType })}
+                options={PRODUCT_TYPES.map((type) => ({ value: type, label: productTypeLabel[type] }))} />
+            </Form.Item>
           </div>
           <div className={formStyles.drawerFormGrid}>
-            <div className={formStyles.formField}><label htmlFor="ai-product-owner">负责人</label><input id="ai-product-owner" required value={form.owner} onChange={(event) => setForm({ ...form, owner: event.target.value })} placeholder="如：data-team" /></div>
-            <div className={formStyles.formField}><label htmlFor="ai-product-workflow">工作流</label><input id="ai-product-workflow" value={form.workflow} onChange={(event) => setForm({ ...form, workflow: event.target.value })} placeholder="如：MEDICAL_RAG" /></div>
+            <Form.Item label="负责人" required>
+              <Input required value={form.owner} onChange={(event) => setForm({ ...form, owner: event.target.value })} placeholder="如：data-team" />
+            </Form.Item>
+            <Form.Item label="工作流">
+              <Input value={form.workflow} onChange={(event) => setForm({ ...form, workflow: event.target.value })} placeholder="如：MEDICAL_RAG" />
+            </Form.Item>
           </div>
-          <div className={formStyles.formField}><label htmlFor="ai-product-source">数据来源</label><input id="ai-product-source" required value={form.source} onChange={(event) => setForm({ ...form, source: event.target.value })} placeholder="如：ods_ep 处方与诊断（合成口径）" /></div>
-        </form>
-      </Drawer> : null}
+          <Form.Item label="数据来源" required>
+            <Input required value={form.source} onChange={(event) => setForm({ ...form, source: event.target.value })} placeholder="如：ods_ep 处方与诊断（合成口径）" />
+          </Form.Item>
+        </Form>
+      </Drawer>
     </div>
   )
+}
+
+/** 抽屉标题：眉标 + 主标题，对齐原自研 Drawer 的标题结构。 */
+function DrawerTitle({ eyebrow, title }: { eyebrow: ReactNode; title: ReactNode }) {
+  return <div><span className={formStyles.drawerEyebrow}>{eyebrow}</span><h2 style={{ margin: '4px 0 0', fontSize: 16, fontWeight: 600 }}>{title}</h2></div>
 }

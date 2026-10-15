@@ -5,17 +5,17 @@ import {
   Database,
   LockKeyhole,
   RefreshCw,
-  ServerCog,
   ShieldCheck,
   Workflow,
 } from 'lucide-react'
 import { useCallback, useState } from 'react'
+import { Button, Tag } from 'antd'
 import { fetchPlatformOperations, type PlatformOperationsApiResponse, type PlatformServiceApiItem } from '../data/controlPlane'
 import { PortalHttpError } from '../data/http'
 import { usePolling } from '../hooks/usePolling'
-import { Button, StatusTag } from '../components/ui/Primitives'
 import { PageHeader } from '../components/ui/PageHeader'
 import { formatDateTime } from '../data/domain'
+import type { Tone } from '../types'
 import { EdgeNodesPanel } from './EdgeNodesPanel'
 import styles from './PlatformOperationsPage.module.css'
 import flowStyles from './PlatformOperationsFlow.module.css'
@@ -25,6 +25,14 @@ const iconByService = {
   dolphinscheduler: Workflow,
   rustfs: Boxes,
 } as const
+
+// 状态语义映射：自研 tone → antd Tag 语义色。
+const TONE_COLOR: Record<Tone, string> = {
+  healthy: 'success',
+  warning: 'warning',
+  danger: 'error',
+  neutral: 'default',
+}
 
 const roleLabel = 'DATA_ENGINEER · PLATFORM_OPERATOR · PLATFORM_ADMIN'
 
@@ -90,14 +98,14 @@ export function PlatformOperationsPage({ canAccess }: { canAccess: boolean }) {
             <div><dt>最后检查</dt><dd>{checkedAt}</dd></div>
           </dl>
           <div className={styles.probeActions}>
-            <Button variant="secondary" onClick={() => void load()}><RefreshCw size={13} />刷新</Button>
+            <Button onClick={() => void load()} icon={<RefreshCw size={13} />}>刷新</Button>
           </div>
         </section>
 
         {state === 'error' ? (
           <section className={styles.alert} role="alert">
             <div><strong>平台状态暂时不可用</strong><span>{error}</span></div>
-            <Button variant="secondary" onClick={() => void load()}>重新检查</Button>
+            <Button onClick={() => void load()}>重新检查</Button>
           </section>
         ) : null}
 
@@ -113,7 +121,7 @@ export function PlatformOperationsPage({ canAccess }: { canAccess: boolean }) {
 
         <section className={styles.bottomGrid}>
           <div className={styles.boundaryPanel}>
-            <div className={styles.panelTitle}><ShieldCheck size={17} /><h2>访问边界</h2><StatusTag tone="healthy">已启用</StatusTag></div>
+            <div className={styles.panelTitle}><ShieldCheck size={17} /><h2>访问边界</h2><Tag color="success" className={styles.panelTitleTag}>已启用</Tag></div>
             <p>平台运维入口仅向具备以下 OIDC 角色的技术人员开放。甲方业务账号不会看到此菜单，直接访问路由也会被控制面拒绝。</p>
             <div className={styles.roleLine}><span>允许角色</span><code>{roleLabel}</code></div>
             <div className={styles.roleLine}><span>数据范围</span><code>仅组件元数据、健康状态与受控入口</code></div>
@@ -137,7 +145,7 @@ function ServiceCard({ service, pending = false }: { service: PlatformServiceApi
   const Icon = iconByService[service.key]
   const isUp = service.status === 'UP'
   const isConfigured = service.status !== 'NOT_CONFIGURED'
-  const tone = isUp ? 'healthy' : isConfigured ? 'warning' : 'neutral'
+  const tone: Tone = isUp ? 'healthy' : isConfigured ? 'warning' : 'neutral'
   // 状态由图标色调承载：健康=玉绿（基类默认）、异常（已配置但未通过）=琥珀、未配置=中性。
   const iconTone = isUp ? '' : isConfigured ? styles.serviceIconWarn : styles.serviceIconOff
   // 探针未返回前是「检查中」，不得把加载态说成「未配置」。
@@ -146,7 +154,7 @@ function ServiceCard({ service, pending = false }: { service: PlatformServiceApi
     <article className={styles.serviceCard}>
       <div className={styles.serviceTopline}>
         <div className={styles.serviceIdentity}><span className={`${styles.serviceIcon} ${iconTone}`}><Icon size={19} /></span><div><h3>{service.name}</h3><span>{service.role}</span></div></div>
-        <StatusTag tone={tone}>{statusLabel}</StatusTag>
+        <Tag color={TONE_COLOR[tone]}>{statusLabel}</Tag>
       </div>
       <p className={styles.serviceDescription}>{service.description}</p>
       <div className={styles.serviceRule} />

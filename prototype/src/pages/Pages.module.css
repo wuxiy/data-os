@@ -12,10 +12,8 @@
 }
 
 /* 页宽约束带：1480px 居中（DESIGN §5）。apiStatus / connectionNotice / metricStrip
-   与新增 .pageBand 共用同一组容器规则，后续页面波次可直接套用 .pageBand。
-   metricStrip 不加 24px 内边距：1px 发丝网格底色会露成边框，保持满 bleed 与下方
-   workspace 对齐。 */
-.pageBand,
+   共用同一组容器规则。metricStrip 不加 24px 内边距：1px 发丝网格底色会露成边框，
+   保持满 bleed 与下方 workspace 对齐。 */
 .apiStatus,
 .connectionNotice,
 .metricStrip {
@@ -24,7 +22,6 @@
   margin-left: auto;
 }
 
-.pageBand,
 .apiStatus,
 .connectionNotice {
   padding-right: 24px;
@@ -86,19 +83,6 @@
   color: var(--muted);
   text-align: center;
   font-size: 12px;
-}
-
-/* 责任链 v1 说明行（驾驶舱，2026-10-05 复评）：左对齐正文而非居中空态。 */
-.chainIntro {
-  margin: 0 16px;
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.7;
-}
-
-.chainActions {
-  display: inline-flex;
-  margin: 12px 16px 16px;
 }
 
 .dashboardScope {
@@ -163,7 +147,6 @@
   gap: 8px;
 }
 
-.primaryButton,
 .secondaryButton {
   display: inline-flex;
   min-height: 40px;
@@ -179,23 +162,11 @@
   transition: background-color 120ms var(--ease-out), border-color 120ms var(--ease-out), opacity 120ms var(--ease-out);
 }
 
-.primaryButton:focus-visible,
 .secondaryButton:focus-visible,
 .tableButton:focus-visible,
 .attention button:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
-}
-
-.primaryButton {
-  color: var(--paper);
-  background: var(--jade-dark);
-  border: 1px solid var(--jade-dark);
-}
-
-.primaryButton:hover {
-  background: var(--jade);
-  border-color: var(--jade);
 }
 
 .secondaryButton {
@@ -209,7 +180,6 @@
   border-color: var(--jade);
 }
 
-.primaryButton:disabled,
 .secondaryButton:disabled {
   cursor: not-allowed;
   opacity: 0.5;
@@ -300,34 +270,6 @@
   background: var(--amber-soft);
 }
 
-.lifecyclePill {
-  display: inline-flex;
-  margin: 4px 0 0 4px;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 12px;
-}
-
-.lifecycleHealthy {
-  color: var(--jade-dark);
-  background: var(--jade-soft);
-}
-
-.lifecycleWarning {
-  color: var(--amber-dark);
-  background: var(--amber-soft);
-}
-
-.lifecycleDanger {
-  color: var(--red);
-  background: var(--red-soft);
-}
-
-.lifecycleNeutral {
-  color: var(--muted);
-  background: var(--surface-sunken);
-}
-
 .drawerBackdrop {
   position: fixed;
   z-index: 30;
@@ -338,21 +280,6 @@
   background: rgba(17, 34, 31, 0.22);
   border: 0;
   cursor: default;
-}
-
-.sideDrawer {
-  position: fixed;
-  z-index: 31;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  display: flex;
-  width: min(540px, 44vw);
-  min-width: 0;
-  flex-direction: column;
-  background: var(--paper);
-  border-left: 1px solid var(--line-strong);
-  box-shadow: -16px 0 42px rgba(20, 49, 44, 0.13);
 }
 
 .drawerHeader {
@@ -400,13 +327,6 @@
   background: var(--surface-raised);
 }
 
-.drawerBody {
-  flex: 1;
-  min-height: 0;
-  padding: 16px 24px;
-  overflow-y: auto;
-}
-
 .drawerNotice {
   display: flex;
   align-items: flex-start;
@@ -426,11 +346,6 @@
   color: var(--red-deep);
   background: color-mix(in srgb, var(--red-deep) 7%, var(--paper));
   border-color: color-mix(in srgb, var(--red-deep) 38%, transparent);
-}
-
-.dangerButton {
-  background: var(--red-deep);
-  border-color: var(--red-deep);
 }
 
 .drawerNotice svg {
@@ -505,16 +420,6 @@
 .checkResult small {
   color: var(--muted);
   font-size: 12px;
-}
-
-.drawerFooter {
-  display: flex;
-  min-height: 64px;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  padding: 0 24px;
-  border-top: 1px solid var(--line);
 }
 
 .runSummary {
@@ -718,10 +623,6 @@ ul.timelineBody > li + li {
   color: var(--muted);
 }
 
-.spaced {
-  margin-top: 16px;
-}
-
 .twoColumns {
   display: grid;
   grid-template-columns: minmax(0, 1.5fr) minmax(300px, 0.85fr);
@@ -882,73 +783,6 @@ ul.timelineBody > li + li {
   box-shadow: var(--shadow-card);
 }
 
-.tableScroll {
-  width: 100%;
-  max-width: 100%;
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
-  /* 剪裁缘与表卡之间留 8px 呼吸位（2026-10-06 部署验收 edge-flush-cards）；
-     首列内边距补差 8px，首列文字仍与面板标题 16px 对齐。 */
-  padding: 0 8px;
-}
-
-.table th:first-child,
-.table td:first-child {
-  padding-left: 8px;
-}
-
-.table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 14px;
-}
-
-.table th {
-  height: 40px;
-  padding: 0 16px;
-  color: var(--muted);
-  background: var(--surface-raised);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-align: left;
-  white-space: nowrap;
-}
-
-/* 长文本单元格（值域/参数/定义）截断必须带省略号，全文经 title 悬停可读
-   （2026-10-07 复评 P2 打包项）。 */
-.table td {
-  max-width: 320px;
-  height: 48px;
-  padding: 0 16px;
-  overflow: hidden;
-  border-top: 1px solid var(--line);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* 数字列工具类（DESIGN §9）：右对齐 + 等宽数字。 */
-.table td.num,
-.table th.num {
-  font-family: var(--font-number);
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-}
-
-/* 表格选中行（交付中心等此前缺选中样式）。 */
-.table tr.selected,
-.table tr.selected td {
-  background: var(--surface-active);
-}
-
-.table tbody tr {
-  transition: background 120ms var(--ease-out);
-}
-
-.table tbody tr:hover {
-  background: var(--surface-hover);
-}
-
 .activeRow {
   background: var(--surface-active);
 }
@@ -960,10 +794,6 @@ ul.timelineBody > li + li {
 .clickableRow:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: -2px;
-}
-
-.noCellPadding {
-  padding: 0 !important;
 }
 
 .tableButton {
@@ -2076,34 +1906,6 @@ ul.timelineBody > li + li {
   padding: 16px 24px;
 }
 
-.compareTable {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 12px;
-}
-
-.compareTable th,
-.compareTable td {
-  height: 48px;
-  padding: 0 12px;
-  text-align: left;
-}
-
-.compareTable td {
-  border-top: 1px solid var(--line);
-}
-
-.compareTable th {
-  color: var(--muted);
-  background: var(--surface-raised);
-  font-size: 12px;
-}
-
-.compareTable th:first-child,
-.compareTable td:first-child {
-  width: 120px;
-}
-
 .recommendedValue {
   background: var(--surface-active);
 }
@@ -2301,10 +2103,6 @@ ul.timelineBody > li + li {
     flex: 0 0 auto;
   }
 
-  .drawerBody {
-    min-width: 0;
-  }
-
   .drawerFormGrid {
     grid-template-columns: 1fr;
   }
@@ -2312,10 +2110,6 @@ ul.timelineBody > li + li {
   .tableActions {
     flex-wrap: wrap;
     max-width: 280px;
-  }
-
-  .sideDrawer {
-    width: 100%;
   }
 
   .flow {
@@ -2343,10 +2137,6 @@ ul.timelineBody > li + li {
   .compareWrap {
     overflow-x: auto;
     padding-inline: 12px;
-  }
-
-  .compareTable {
-    min-width: 650px;
   }
 
   .mpiActions {
@@ -2464,24 +2254,10 @@ ul.timelineBody > li + li {
   font-weight: 400;
 }
 
-.explorerColumnsScroll {
-  max-height: 160px;
-  overflow: auto;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-control);
-}
-
 .explorerQueryActions {
   display: flex;
   align-items: center;
   gap: 12px;
-}
-
-.explorerResultScroll {
-  max-height: 240px;
-  overflow: auto;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-control);
 }
 
 .explorerResultNote {
@@ -2491,11 +2267,6 @@ ul.timelineBody > li + li {
 }
 
 /* —— 结构化任务表单（G2G 批次 1 第二刀，JobStructuredForm）—— */
-
-.structuredForm {
-  display: grid;
-  gap: 16px;
-}
 
 .structuredModeSwitch {
   display: inline-flex;

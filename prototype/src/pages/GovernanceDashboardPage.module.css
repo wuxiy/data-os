@@ -3,3 +3,18 @@
 .overdueValue {
   color: var(--red);
 }
+
+/* antd 迁移后：数字列右对齐 + tabular-nums。 */
+.numCell {
+  font-variant-numeric: tabular-nums;
+}
+
+/* 治理待办整行可点（原共享 .clickableRow 同款语义）：行级 cursor 暗示。 */
+.clickableRow {
+  cursor: pointer;
+}
+
+.clickableRow:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}

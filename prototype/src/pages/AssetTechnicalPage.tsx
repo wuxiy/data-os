@@ -1,13 +1,21 @@
 import { ArrowLeft, Braces, Database, ExternalLink, KeyRound, Link2, Rows3, ShieldCheck, TableProperties } from 'lucide-react'
 import { useMemo } from 'react'
+import { Button, Table, Tag } from 'antd'
+import type { ColumnsType } from 'antd/es/table'
 import { DemoDataBoundary } from '../components/ui/DemoDataBoundary'
 import { PageHeader } from '../components/ui/PageHeader'
-import { Button, StatusTag } from '../components/ui/Primitives'
-import { assets, type AssetItem } from '../data/integrations'
+import { assets, type AssetItem, type AssetField } from '../data/integrations'
 import { routePaths } from '../data/routes'
 import { frontendDemoMode } from '../data/runtimeMode'
 import { AssetTechnicalLive } from './AssetTechnicalLive'
 import styles from './IntegrationPages.module.css'
+
+// 状态语义映射：自研 tone → antd Tag 语义色。
+const STATUS_COLOR = {
+  healthy: 'success',
+  warning: 'warning',
+  neutral: 'default',
+} as const
 
 export function AssetTechnicalPage({ onNotice }: { onNotice: (message: string) => void }) {
   // 运行模式（CONTEXT.md）：演示构建保留静态样例；真实构建渲染
@@ -17,6 +25,21 @@ export function AssetTechnicalPage({ onNotice }: { onNotice: (message: string) =
   }
   return <DemoAssetTechnicalPage onNotice={onNotice} />
 }
+
+// 字段结构列定义：安全标记列按行索引渲染敏感标识（与原表格行为一致）。
+const fieldColumns: ColumnsType<AssetField> = [
+  { title: '物理字段', dataIndex: 'name', key: 'name' },
+  { title: '类型', dataIndex: 'type', key: 'type' },
+  { title: '业务名称', dataIndex: 'label', key: 'label' },
+  { title: '绑定标准', dataIndex: 'standard', key: 'standard' },
+  {
+    title: '安全标记',
+    key: 'security',
+    render: (_, field, index) => index === 1
+      ? <Tag color={STATUS_COLOR.warning}>敏感标识</Tag>
+      : <Tag>普通</Tag>,
+  },
+]
 
 function DemoAssetTechnicalPage({ onNotice }: { onNotice: (message: string) => void }) {
   const asset = useMemo(() => {
@@ -50,7 +73,7 @@ function DemoAssetTechnicalPage({ onNotice }: { onNotice: (message: string) => v
             <div><h2>{asset.name}</h2><p>技术元数据快照 · 最近同步 {asset.freshness}</p></div>
           </div>
           <div className={styles.technicalHeaderActions}>
-            <StatusTag tone={asset.status === '可信' ? 'healthy' : 'warning'}>{asset.status}</StatusTag>
+            <Tag color={asset.status === '可信' ? STATUS_COLOR.healthy : STATUS_COLOR.warning}>{asset.status}</Tag>
             <a className={styles.externalLinkButton} href={backHref}><ArrowLeft size={14} />返回资产详情</a>
           </div>
         </header>
@@ -65,12 +88,12 @@ function DemoAssetTechnicalPage({ onNotice }: { onNotice: (message: string) => v
         <div className={styles.technicalGrid}>
           <section className={styles.technicalPanel}>
             <div className={styles.technicalPanelHeader}><div><h3>字段结构</h3><span>技术字段与医疗数据标准绑定关系</span></div><Rows3 size={17} /></div>
-            <div className={styles.horizontalScroll}>
-              <table className={styles.fieldTable}>
-                <thead><tr><th>物理字段</th><th>类型</th><th>业务名称</th><th>绑定标准</th><th>安全标记</th></tr></thead>
-                <tbody>{asset.fields.map((field, index) => <tr key={field.name}><td>{field.name}</td><td>{field.type}</td><td>{field.label}</td><td>{field.standard}</td><td>{index === 1 ? <StatusTag tone="warning">敏感标识</StatusTag> : <StatusTag tone="neutral">普通</StatusTag>}</td></tr>)}</tbody>
-              </table>
-            </div>
+            <Table<AssetField>
+              rowKey="name"
+              columns={fieldColumns}
+              dataSource={asset.fields}
+              pagination={false}
+            />
           </section>
 
           <aside className={styles.technicalPanel}>
@@ -88,7 +111,7 @@ function DemoAssetTechnicalPage({ onNotice }: { onNotice: (message: string) => v
         <section className={styles.technicalLineage}>
           <div className={styles.technicalPanelHeader}><div><h3>技术链路</h3><span>从源系统到消费对象的已登记节点</span></div><Link2 size={17} /></div>
           <div className={styles.technicalLineageRow}>{asset.lineage.map((node) => <div className={styles.technicalLineageNode} key={`${node.stage}-${node.name}`}><span>{node.stage}</span><strong>{node.name}</strong><small>{node.detail}</small></div>)}</div>
-          <div className={styles.technicalFooter}><span>技术视图是资产详情的深链，不复制底层元数据控制台。</span><Button variant="quiet" onClick={() => void copyTechnicalId()}>复制技术编号 <ExternalLink size={13} /></Button></div>
+          <div className={styles.technicalFooter}><span>技术视图是资产详情的深链，不复制底层元数据控制台。</span><Button type="text" onClick={() => void copyTechnicalId()}>复制技术编号 <ExternalLink size={13} /></Button></div>
         </section>
         </div>
       </DemoDataBoundary>

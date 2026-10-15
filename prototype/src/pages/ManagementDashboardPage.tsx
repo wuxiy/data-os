@@ -1,13 +1,54 @@
 import { AlertTriangle, ChevronRight } from 'lucide-react'
+import { Button, Table, Tag } from 'antd'
+import type { ColumnsType } from 'antd/es/table'
 import { DemoDataBoundary } from '../components/ui/DemoDataBoundary'
 import { TrendChart } from '../components/charts/TrendChart'
 import { PageHeader } from '../components/ui/PageHeader'
-import { Button, MetricStrip, StatusTag } from '../components/ui/Primitives'
+import { MetricStrip } from '../components/ui/Primitives'
 import { managementMetrics, riskRanking } from '../data/mock'
 import { demoFlowSnapshotLabel, demoSnapshotAsOf } from '../data/runtimeMode'
 import { frontendDemoMode } from '../data/runtimeMode'
 import { ManagementDashboardLive } from './ManagementDashboardLive'
+import type { Tone } from '../types'
 import styles from './Pages.module.css'
+import local from './ManagementDashboardPage.module.css'
+
+// 状态语义映射：自研 tone → antd Tag 语义色。
+const TONE_COLOR: Record<Tone, string> = {
+  healthy: 'success',
+  warning: 'warning',
+  danger: 'error',
+  neutral: 'default',
+}
+
+interface DeliveryRow {
+  key: string
+  theme: string
+  department: string
+  stage: string
+  availability: string
+  launchDate: string
+  status: { label: string; tone: Tone }
+}
+
+const DELIVERY_ROWS: DeliveryRow[] = [
+  { key: 'op-theme', theme: '门诊运营主题库', department: '门诊部', stage: '试运行', availability: '99.1%', launchDate: '08-08', status: { label: '按计划', tone: 'healthy' } },
+  { key: 'mr-quality', theme: '病案首页质量专题', department: '病案室', stage: '质量整改', availability: '96.8%', launchDate: '08-12', status: { label: '需关注', tone: 'warning' } },
+  { key: 'lab-sharing', theme: '区域检验共享数据集', department: '信息中心', stage: '标准映射', availability: '94.5%', launchDate: '08-20', status: { label: '待确认', tone: 'warning' } },
+]
+
+const deliveryColumns: ColumnsType<DeliveryRow> = [
+  { title: '交付主题', dataIndex: 'theme', key: 'theme' },
+  { title: '使用部门', dataIndex: 'department', key: 'department' },
+  { title: '当前阶段', dataIndex: 'stage', key: 'stage' },
+  { title: '数据可用率', dataIndex: 'availability', key: 'availability', align: 'right', className: local.numCell },
+  { title: '计划上线', dataIndex: 'launchDate', key: 'launchDate', align: 'right', className: local.numCell },
+  {
+    title: '状态',
+    key: 'status',
+    render: (_, row) => <Tag color={TONE_COLOR[row.status.tone]}>{row.status.label}</Tag>,
+  },
+]
 
 export function ManagementDashboardPage({ onOpenChain, onNotice, onNavigate }: { onOpenChain: () => void; onNotice: (message: string) => void; onNavigate: (route: 'ingestion' | 'governance' | 'quality' | 'mpi' | 'aiData' | 'dataServices' | 'operationsCenter') => void }) {
   // 真实构建走 G24 运营投影；演示构建保留静态样例。
@@ -27,7 +68,7 @@ export function ManagementDashboardPage({ onOpenChain, onNotice, onNavigate }: {
             <AlertTriangle size={21} />
             <div><h2>今日 3 类事项需要关注</h2><p>核心数据可用率未达标、治理问题逾期、主索引候选积压，均需今日认领处理——沿责任链定位责任部门。</p></div>
           </div>
-          <Button variant="secondary" onClick={onOpenChain}>查看治理责任链 <ChevronRight size={15} /></Button>
+          <Button onClick={onOpenChain}>查看治理责任链 <ChevronRight size={15} /></Button>
         </section>
         <div className={styles.twoColumns}>
           <TrendChart title="近 30 天核心数据健康趋势" primaryLabel="可用率" secondaryLabel="标准覆盖率" />
@@ -45,16 +86,12 @@ export function ManagementDashboardPage({ onOpenChain, onNotice, onNavigate }: {
         </section>
         <section className={styles.tablePanel}>
           <div className={styles.panelHeader}><div><h2>重点交付进展</h2><p>面向院内经营、临床与上报场景 · 完整清单在交付中心</p></div></div>
-          <div className={styles.tableScroll}>
-            <table className={styles.table}>
-              <thead><tr><th>交付主题</th><th>使用部门</th><th>当前阶段</th><th>数据可用率</th><th>计划上线</th><th>状态</th></tr></thead>
-              <tbody>
-                <tr><td>门诊运营主题库</td><td>门诊部</td><td>试运行</td><td>99.1%</td><td>08-08</td><td><StatusTag tone="healthy">按计划</StatusTag></td></tr>
-                <tr><td>病案首页质量专题</td><td>病案室</td><td>质量整改</td><td>96.8%</td><td>08-12</td><td><StatusTag tone="warning">需关注</StatusTag></td></tr>
-                <tr><td>区域检验共享数据集</td><td>信息中心</td><td>标准映射</td><td>94.5%</td><td>08-20</td><td><StatusTag tone="warning">待确认</StatusTag></td></tr>
-              </tbody>
-            </table>
-          </div>
+          <Table<DeliveryRow>
+            rowKey="key"
+            columns={deliveryColumns}
+            dataSource={DELIVERY_ROWS}
+            pagination={false}
+          />
         </section>
         </DemoDataBoundary>
       </div>
@@ -65,7 +102,7 @@ export function ManagementDashboardPage({ onOpenChain, onNotice, onNavigate }: {
 function RiskRanking({ onSelect }: { onSelect: () => void }) {
   return (
     <section className={styles.panel}>
-      <div className={styles.panelHeader}><div><h2>高风险系统排行</h2><p>按逾期与高危问题综合排序</p></div><button className={styles.textButton} onClick={onSelect}>查看全部 <ChevronRight size={13} /></button></div>
+      <div className={styles.panelHeader}><div><h2>高风险系统排行</h2><p>按逾期与高危问题综合排序</p></div><Button type="text" size="small" onClick={onSelect}>查看全部 <ChevronRight size={13} /></Button></div>
       <ol className={styles.ranking}>
         {riskRanking.map(({ system, owner, value }, index) => <li key={system}><span className={styles.rank}>{String(index + 1).padStart(2, '0')}</span><div className={styles.rankBody}><strong>{system}</strong><span>{owner}</span></div><span className={styles.rankValue}>{value}</span></li>)}
       </ol>

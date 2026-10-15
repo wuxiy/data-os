@@ -151,7 +151,7 @@
 .panelTitle { display: flex; align-items: center; gap: 8px; }
 .panelTitle svg { color: var(--jade); }
 .panelTitle h2 { margin: 0; font-size: 14px; font-weight: 600; }
-.panelTitle .tag { margin-left: auto; }
+.panelTitleTag { margin-left: auto; }
 .boundaryPanel p { max-width: 720px; margin: 12px 0 16px; color: var(--muted); font-size: 12px; line-height: 1.7; }
 .roleLine { display: flex; align-items: baseline; gap: 16px; padding-top: 8px; color: var(--muted); font-size: 12px; }
 .roleLine + .roleLine { margin-top: 4px; border-top: 1px solid var(--line); }

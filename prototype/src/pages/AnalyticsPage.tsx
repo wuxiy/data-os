@@ -1,13 +1,19 @@
 import { ChartNoAxesCombined, ExternalLink, FileText, Maximize2, Pencil, RefreshCw, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { Button, Tag } from 'antd'
 import { DemoDataBoundary } from '../components/ui/DemoDataBoundary'
 import { TrendChart } from '../components/charts/TrendChart'
 import { PageHeader } from '../components/ui/PageHeader'
-import { Button, StatusTag } from '../components/ui/Primitives'
 import { dashboards } from '../data/integrations'
 import { frontendDemoMode } from '../data/runtimeMode'
 import { AnalyticsLive } from './AnalyticsLive'
 import styles from './IntegrationPages.module.css'
+
+/** 状态语义映射：自研 tone → antd Tag 语义色。 */
+const STATUS_COLOR: Record<'healthy' | 'warning', string> = {
+  healthy: 'success',
+  warning: 'warning',
+}
 
 export function AnalyticsPage({ onNotice, onNavigate }: { onNotice: (message: string) => void; onNavigate: (route: 'ingestion' | 'governance' | 'quality') => void }) {
   // 运行模式（CONTEXT.md）：演示构建保留静态样例供交互验收；
@@ -71,8 +77,8 @@ function DemoAnalyticsPage({ onNotice, onNavigate }: { onNotice: (message: strin
             <div className={styles.embedToolbar}>
               <div className={styles.embedIdentity}><ChartNoAxesCombined size={15} /><span>受控嵌入视图 · {selected.bindingId}</span></div>
               <div className={styles.toolbarActions}>
-                <button className={styles.toolbarButton} onClick={() => onNotice(`${selected.title}已刷新至 ${selected.updatedAt}`)}><RefreshCw size={14} />刷新</button>
-                <button className={styles.toolbarButton} onClick={() => onNotice('已进入全屏预览；原型中保留 data-os 的范围与权限上下文')}><Maximize2 size={14} />全屏</button>
+                <Button size="small" onClick={() => onNotice(`${selected.title}已刷新至 ${selected.updatedAt}`)}><RefreshCw size={14} />刷新</Button>
+                <Button size="small" onClick={() => onNotice('已进入全屏预览；原型中保留 data-os 的范围与权限上下文')}><Maximize2 size={14} />全屏</Button>
               </div>
             </div>
             <div className={styles.dashboardHeader}>
@@ -117,7 +123,7 @@ function DemoAnalyticsPage({ onNotice, onNavigate }: { onNotice: (message: strin
         </section>
 
         <aside className={styles.evidenceRail} aria-label="分析证据">
-          <div className={styles.evidenceHeader}><h2>分析证据</h2><StatusTag tone={selected.status === '运行正常' ? 'healthy' : 'warning'}>{selected.status}</StatusTag></div>
+          <div className={styles.evidenceHeader}><h2>分析证据</h2><Tag color={STATUS_COLOR[selected.status === '运行正常' ? 'healthy' : 'warning']}>{selected.status}</Tag></div>
           <div className={styles.evidenceBody}>
             <div className={styles.evidenceStamp}>
               <span className={styles.evidenceStampIcon}><FileText size={17} /></span>
@@ -136,7 +142,7 @@ function DemoAnalyticsPage({ onNotice, onNavigate }: { onNotice: (message: strin
               </ul>
             </section>
             <Button className={styles.evidenceAction} onClick={() => onNotice('已打开指标口径与数据血缘详情')}>查看口径与血缘</Button>
-            <Button className={styles.evidenceAction} variant="quiet" onClick={() => onNotice('专业分析设计器将在新标签页打开，并沿用统一登录')}><Pencil size={14} />进入专业编辑 <ExternalLink size={13} /></Button>
+            <Button className={styles.evidenceAction} type="text" onClick={() => onNotice('专业分析设计器将在新标签页打开，并沿用统一登录')}><Pencil size={14} />进入专业编辑 <ExternalLink size={13} /></Button>
           </div>
         </aside>
         </div>

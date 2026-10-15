@@ -1,8 +1,7 @@
 import { Gauge, Save, Settings2 } from 'lucide-react'
 import { useState } from 'react'
-import type { FormEvent } from 'react'
-import { Drawer } from '../components/ui/Drawer'
-import { StatusTag } from '../components/ui/Primitives'
+import { Button, Drawer, Form, Input, Table, Tag } from 'antd'
+import type { ColumnsType } from 'antd/es/table'
 import {
   fetchQualityScore,
   updateQualityScoreStandard,
@@ -52,8 +51,7 @@ export function QualityScorePanel({ onNotice }: Props) {
     setStandardOpen(true)
   }
 
-  function submitStandard(event: FormEvent) {
-    event.preventDefault()
+  function submitStandard() {
     void run('save-standard', '评分标准保存失败，请稍后重试', async () => {
       const nextWeights: Record<string, number> = {}
       for (const dimension of DIMENSIONS) {
@@ -75,13 +73,42 @@ export function QualityScorePanel({ onNotice }: Props) {
     })
   }
 
+  // 规则得分列定义：数字列右对齐（tabular-nums 由全局表格样式承载）。
+  const ruleColumns: ColumnsType<QualityScoreSummary['rules'][number]> = [
+    {
+      title: '规则',
+      key: 'rule',
+      render: (_, rule) => {
+        const typeLabel = rule.ruleType ? (QUALITY_RULE_TYPE_LABELS[rule.ruleType] ?? rule.ruleType) : null
+        // 动态规则展示「类型 · 目标列」（台账投影的真实字段），slug 收进 title 悬停；
+        // 静态注册表规则无投影字段，如实回落 ruleId。
+        return typeLabel
+          ? <span title={rule.ruleId}>{typeLabel}{rule.targetColumn ? ` · ${rule.targetColumn}` : ''}</span>
+          : <code className={styles.inlineCode} title={rule.ruleId}>{rule.ruleId}</code>
+      },
+    },
+    { title: '数据集', key: 'datasetId', render: (_, rule) => rule.datasetId },
+    {
+      title: '得分',
+      key: 'score',
+      align: 'right',
+      className: local.numCell,
+      render: (_, rule) => <strong>{rule.score == null ? '—' : rule.score.toFixed(1)}</strong>,
+    },
+    {
+      title: '结果',
+      key: 'passed',
+      render: (_, rule) => rule.passed == null ? '—' : <Tag color={rule.passed ? 'success' : 'error'}>{rule.passed ? '通过' : '未通过'}</Tag>,
+    },
+  ]
+
   return (
     <section className={styles.panel}>
       <div className={styles.panelHeader}>
         <div><h2>质量评分</h2><p>规则级得分按维度聚合为加权总分与等级（无终态运行的规则不进入均值）</p></div>
         <div className={styles.panelHeaderActions}>
           {summary ? <span className={styles.dashboardScope}>标准更新：{formatDateTime(summary.standard.updatedAt)}</span> : null}
-          {apiState === 'live' ? <button className={styles.textButton} onClick={openStandard}><Settings2 size={13} />评分标准</button> : null}
+          {apiState === 'live' ? <Button type="text" size="small" onClick={openStandard}><Settings2 size={13} />评分标准</Button> : null}
         </div>
       </div>
       {apiState === 'unavailable' ? (
@@ -96,8 +123,8 @@ export function QualityScorePanel({ onNotice }: Props) {
             <div className={styles.scoreTotal}>
               <Gauge size={22} />
               <strong>{summary.totalScore == null ? '—' : summary.totalScore.toFixed(1)}</strong>
-              {summary.grade ? <StatusTag tone="neutral">等级 {summary.grade}</StatusTag> : null}
-              {summary.totalScore != null ? <StatusTag tone={summary.totalScore >= summary.standard.passScore ? 'healthy' : 'warning'}>{summary.totalScore >= summary.standard.passScore ? '达标' : '未达标'}</StatusTag> : null}
+              {summary.grade ? <Tag>等级 {summary.grade}</Tag> : null}
+              {summary.totalScore != null ? <Tag color={summary.totalScore >= summary.standard.passScore ? 'success' : 'warning'}>{summary.totalScore >= summary.standard.passScore ? '达标' : '未达标'}</Tag> : null}
             </div>
             <div className={styles.scoreDimensions}>
               {DIMENSIONS.map((dimension) => {
@@ -112,68 +139,55 @@ export function QualityScorePanel({ onNotice }: Props) {
               })}
             </div>
           </div>
-          <div className={styles.tableScroll}><table className={styles.table}>
-            <thead><tr><th>规则</th><th>数据集</th><th className={styles.num}>得分</th><th>结果</th></tr></thead>
-            <tbody>
-              {summary.rules.map((rule) => {
-                const typeLabel = rule.ruleType ? (QUALITY_RULE_TYPE_LABELS[rule.ruleType] ?? rule.ruleType) : null
-                return (
-                <tr key={rule.ruleId}>
-                  {/* 动态规则展示「类型 · 目标列」（台账投影的真实字段），slug 收进 title 悬停；
-                      静态注册表规则无投影字段，如实回落 ruleId。 */}
-                  <td title={rule.ruleId}>{typeLabel ? <>{typeLabel}{rule.targetColumn ? ` · ${rule.targetColumn}` : ''}</> : <code className={styles.inlineCode}>{rule.ruleId}</code>}</td>
-                  <td>{rule.datasetId}</td>
-                  <td className={styles.num}><strong>{rule.score == null ? '—' : rule.score.toFixed(1)}</strong></td>
-                  <td>{rule.passed == null ? '—' : <StatusTag tone={rule.passed ? 'healthy' : 'danger'}>{rule.passed ? '通过' : '未通过'}</StatusTag>}</td>
-                </tr>
-                )
-              })}
-              {summary.rules.length === 0 ? <tr><td colSpan={4} className={styles.emptyState}>尚无带评分的规则运行</td></tr> : null}
-            </tbody>
-          </table></div>
+          <Table<QualityScoreSummary['rules'][number]>
+            rowKey={(rule) => rule.ruleId}
+            columns={ruleColumns}
+            dataSource={summary.rules}
+            pagination={false}
+            locale={{ emptyText: '尚无带评分的规则运行' }}
+          />
         </>
       ) : (
         <div className={styles.emptyRow}>正在读取质量评分…</div>
       )}
 
-      {standardOpen && summary ? <Drawer
-        titleId="score-standard-title"
-        eyebrow="评分标准 · 单一生效"
-        title="通过线 / 维度权重 / 等级"
-        closeLabel="关闭评分标准编辑"
+      <Drawer
+        open={standardOpen && summary !== null}
+        destroyOnHidden
+        width="min(540px, 44vw)"
+        title={<><span className={local.drawerEyebrow}>评分标准 · 单一生效</span><h2 className={local.drawerTitle}>通过线 / 维度权重 / 等级</h2></>}
         onClose={() => setStandardOpen(false)}
-        footer={<><button className={styles.secondaryButton} type="button" onClick={() => setStandardOpen(false)}>取消</button><button className={styles.primaryButton} type="submit" form="score-standard-form" disabled={saving}><Save size={14} />{saving ? '保存中…' : '保存并重算'}</button></>}
+        footer={<><Button onClick={() => setStandardOpen(false)}>取消</Button><Button type="primary" htmlType="submit" form="score-standard-form" loading={saving} icon={<Save size={14} />}>{saving ? '保存中…' : '保存并重算'}</Button></>}
       >
-        <form id="score-standard-form" className={styles.drawerForm} onSubmit={(event) => submitStandard(event)}>
+        {summary ? <Form id="score-standard-form" layout="vertical" onFinish={() => submitStandard()}>
           <div className={styles.drawerNotice}><Gauge size={16} /><span>维度分 = 维度内规则得分均值；总分 = 维度加权平均（权重全为 1 时等权）；等级按最低分阈值从高到低判定。</span></div>
-          <div className={styles.formField}><label htmlFor="pass-score">规则通过线（0-100）</label><input id="pass-score" type="number" min={0} max={100} value={passScore} onChange={(event) => setPassScore(event.target.value)} /></div>
-          <div className={styles.formField}>
-            <label>维度权重（0-100）</label>
+          <Form.Item label="规则通过线（0-100）" required>
+            <Input type="number" min={0} max={100} value={passScore} onChange={(event) => setPassScore(event.target.value)} />
+          </Form.Item>
+          <Form.Item label="维度权重（0-100）">
             <div className={styles.drawerFormGrid}>
               {DIMENSIONS.map((dimension) => (
-                <div key={dimension} className={styles.formField}>
-                  <label htmlFor={`weight-${dimension}`}>{dimension}</label>
-                  <input id={`weight-${dimension}`} type="number" min={0} max={100} value={weights[dimension] ?? '1'}
+                <Form.Item key={dimension} label={dimension}>
+                  <Input type="number" min={0} max={100} value={weights[dimension] ?? '1'}
                     aria-label={`${dimension}权重`}
                     onChange={(event) => setWeights((current) => ({ ...current, [dimension]: event.target.value }))} />
-                </div>
+                </Form.Item>
               ))}
             </div>
-          </div>
-          <div className={styles.formField}>
-            <label>等级表（按最低分从高到低）</label>
+          </Form.Item>
+          <Form.Item label="等级表（按最低分从高到低）">
             {grades.map((grade, index) => (
               <div key={index} className={styles.drawerFormGrid}>
-                <input value={grade.grade} aria-label={`等级 ${index + 1} 名称`}
+                <Input value={grade.grade} aria-label={`等级 ${index + 1} 名称`}
                   onChange={(event) => setGrades((current) => current.map((item, i) => i === index ? { ...item, grade: event.target.value } : item))} />
-                <input type="number" min={0} max={100} value={grade.lowScore} aria-label={`等级 ${index + 1} 最低分`}
+                <Input type="number" min={0} max={100} value={grade.lowScore} aria-label={`等级 ${index + 1} 最低分`}
                   onChange={(event) => setGrades((current) => current.map((item, i) => i === index ? { ...item, lowScore: Number(event.target.value) } : item))} />
               </div>
             ))}
-            <button type="button" className={styles.textButton} onClick={() => setGrades((current) => [...current, { grade: '', lowScore: 0 }])}>添加等级</button>
-          </div>
-        </form>
-      </Drawer> : null}
+            <Button type="text" size="small" onClick={() => setGrades((current) => [...current, { grade: '', lowScore: 0 }])}>添加等级</Button>
+          </Form.Item>
+        </Form> : null}
+      </Drawer>
     </section>
   )
 }

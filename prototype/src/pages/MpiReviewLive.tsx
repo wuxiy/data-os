@@ -1,7 +1,7 @@
 import { CheckCircle2, CircleAlert, GitMerge, GitPullRequestArrow, LoaderCircle, RefreshCw, Search, ShieldCheck, Split, XCircle } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Button, StatusTag } from '../components/ui/Primitives'
-import { Drawer } from '../components/ui/Drawer'
+import { Button, Drawer, Table, Tag } from 'antd'
+import type { ColumnsType } from 'antd/es/table'
 import { useApiResource } from '../hooks/useApiResource'
 import {
   decideMpiTask,
@@ -129,6 +129,14 @@ export function MpiReviewLive({ onNotice }: { onNotice: (message: string) => voi
     ['源系统', selected.identityA.sourceSystem, selected.identityB.sourceSystem],
     ['年龄（仅展示）', selected.identityA.age || '—', selected.identityB.age || '—'],
   ] as Array<[string, string, string]> : []
+  const identityRowObjects = useMemo(() => identityRows.map(([field, valueA, valueB]) => ({ field, valueA, valueB })), [identityRows])
+
+  // 身份对比列：三列纯文本，行高与密度交给 antd Table。
+  const identityColumns: ColumnsType<{ field: string; valueA: string; valueB: string }> = [
+    { title: '身份属性', dataIndex: 'field', key: 'field' },
+    { title: '源身份 A', dataIndex: 'valueA', key: 'valueA' },
+    { title: '源身份 B', dataIndex: 'valueB', key: 'valueB' },
+  ]
 
   return (
     <div className={styles.page}>
@@ -180,20 +188,18 @@ export function MpiReviewLive({ onNotice }: { onNotice: (message: string) => voi
               <>
                 <div className={styles.mpiTop}>
                   <div>
-                    <StatusTag tone="warning">需人工确认</StatusTag>
+                    <Tag color="warning">需人工确认</Tag>
                     <h2>{selected.identityA.name} 与 {selected.identityB.name}</h2>
                     <p>{mpiRuleLabel[selected.ruleId] ?? selected.ruleId} · 候选对 {selected.pairId} · 规则版本 v1</p>
                   </div>
                 </div>
                 <div className={styles.compareWrap}>
-                  <table className={styles.compareTable}>
-                    <thead><tr><th>身份属性</th><th>源身份 A</th><th>源身份 B</th></tr></thead>
-                    <tbody>
-                      {identityRows.map(([field, valueA, valueB]) => (
-                        <tr key={field}><td>{field}</td><td>{valueA}</td><td>{valueB}</td></tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  <Table<{ field: string; valueA: string; valueB: string }>
+                    rowKey="field"
+                    columns={identityColumns}
+                    dataSource={identityRowObjects}
+                    pagination={false}
+                  />
                 </div>
                 <div className={styles.mpiLower}>
                   <section className={styles.panel}>
@@ -224,7 +230,7 @@ export function MpiReviewLive({ onNotice }: { onNotice: (message: string) => voi
                   </label>
                   <div className={styles.actionGroup}>
                     <Button onClick={() => submitDecision('DIFFERENT_PERSON')} disabled={pendingKey !== null}><GitPullRequestArrow size={14} />确认不同人</Button>
-                    <Button variant="primary" disabled={!confirmed || pendingKey !== null} onClick={() => submitDecision('SAME_PERSON')}>{pendingKey !== null ? <LoaderCircle size={14} className={styles.spin} /> : <GitMerge size={14} />}确认同人并合并</Button>
+                    <Button type="primary" disabled={!confirmed || pendingKey !== null} onClick={() => submitDecision('SAME_PERSON')}>{pendingKey !== null ? <LoaderCircle size={14} className={styles.spin} /> : <GitMerge size={14} />}确认同人并合并</Button>
                   </div>
                 </div>
               </>
@@ -260,12 +266,33 @@ function MpiPersonDrawer({ personId, onClose, onNotice, onSplit }: { personId: s
     })
   }
 
+  // 身份链接列：操作列放行内拆分按钮。
+  const linkColumns: ColumnsType<MpiPersonDetail['links'][number]> = [
+    { title: '源身份', dataIndex: 'sourceIdentifier', key: 'sourceIdentifier' },
+    {
+      title: '决策源',
+      key: 'decisionSource',
+      render: (_, link) => link.decisionSource === 'MANUAL' ? '人工' : '规则',
+    },
+    {
+      title: '操作',
+      key: 'actions',
+      render: (_, link) => (
+        <Button
+          size="small"
+          onClick={() => splitIdentity(link.sourceIdentifier)}
+          disabled={pendingKey !== null || (person?.links.filter((item) => item.linkStatus === 'ACTIVE').length ?? 0) <= 1}
+        >拆分</Button>
+      ),
+    },
+  ]
+
   return (
     <Drawer
-      titleId="mpi-person-drawer-title"
-      eyebrow="黄金人详情"
-      title={person?.goldenName ?? '黄金人'}
-      closeLabel="关闭黄金人详情"
+      open
+      destroyOnHidden
+      width="min(540px, 44vw)"
+      title={<><span className={styles.drawerEyebrow}>黄金人详情</span><h2 id="mpi-person-drawer-title" style={{ margin: '4px 0 0', fontSize: 16, fontWeight: 600 }}>{person?.goldenName ?? '黄金人'}</h2></>}
       onClose={onClose}
       footer={<Button onClick={onClose}>关闭</Button>}
     >
@@ -274,18 +301,12 @@ function MpiPersonDrawer({ personId, onClose, onNotice, onSplit }: { personId: s
         <>
           <div className={`${styles.panel} ${local.drawerPanel}`}>
             <div className={styles.panelHeader}><div><h3>身份链接</h3><p>当前有效成员 · 决策源与状态</p></div><Split size={18} /></div>
-            <table className={styles.compareTable}>
-              <thead><tr><th>源身份</th><th>决策源</th><th>操作</th></tr></thead>
-              <tbody>
-                {person.links.filter((link) => link.linkStatus === 'ACTIVE').map((link) => (
-                  <tr key={link.sourceIdentifier}>
-                    <td>{link.sourceIdentifier}</td>
-                    <td>{link.decisionSource === 'MANUAL' ? '人工' : '规则'}</td>
-                    <td><Button onClick={() => splitIdentity(link.sourceIdentifier)} disabled={pendingKey !== null || person.links.filter((item) => item.linkStatus === 'ACTIVE').length <= 1}>拆分</Button></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <Table<MpiPersonDetail['links'][number]>
+              rowKey="sourceIdentifier"
+              columns={linkColumns}
+              dataSource={person.links.filter((link) => link.linkStatus === 'ACTIVE')}
+              pagination={false}
+            />
           </div>
           <div className={`${styles.panel} ${local.drawerPanel}`}>
             <div className={styles.panelHeader}><div><h3>操作历史</h3><p>审计事件 · 最近 20 条</p></div><ShieldCheck size={18} /></div>

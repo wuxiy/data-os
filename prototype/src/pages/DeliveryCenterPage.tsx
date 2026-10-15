@@ -1,9 +1,9 @@
 import { Archive, Ban, CheckCircle2, Download, FileArchive, PackageCheck, Plus, RefreshCw, Search, Trash2 } from 'lucide-react'
 import { useState } from 'react'
+import { Button, Drawer, Form, Input, Select, Table, Tag } from 'antd'
+import type { ColumnsType } from 'antd/es/table'
 import { DemoDataBoundary } from '../components/ui/DemoDataBoundary'
-import { Drawer } from '../components/ui/Drawer'
 import { PageHeader } from '../components/ui/PageHeader'
-import { Button, StatusTag } from '../components/ui/Primitives'
 import {
   acceptDelivery,
   addDeliveryItem,
@@ -30,12 +30,24 @@ import { useAction } from '../hooks/useAction'
 import { useApiResource } from '../hooks/useApiResource'
 import { usePaged } from '../hooks/usePaged'
 import styles from './Pages.module.css'
+import local from './DeliveryCenterPage.module.css'
 
 /**
  * 交付中心（G25）：交付项目全生命周期闭环——项目、交付项（四类引用）、
  * 阻断项（提交逐项检查的 409 阻断面）、证据快照（幂等）、验收与证据包下载。
  * 演示构建保留显式样例；真实构建不回静态数据。
  */
+
+// 状态语义映射：自研 tone → antd Tag 语义色。
+const TONE_COLOR: Record<string, string> = {
+  healthy: 'success',
+  warning: 'warning',
+  danger: 'error',
+  neutral: 'default',
+}
+
+const DRAWER_WIDTH = 'min(540px, 44vw)'
+const PROJECT_PAGE_SIZE = 8
 
 interface Props {
   onNotice: (message: string) => void
@@ -90,7 +102,7 @@ function DeliveryCenterLive({ onNotice }: Props) {
     onUnavailable: () => setDetail(null),
   })
 
-  const paged = usePaged(projects, 8)
+  const paged = usePaged(projects, PROJECT_PAGE_SIZE)
   const action = useAction()
   const current = detail?.project ?? null
 
@@ -118,6 +130,53 @@ function DeliveryCenterLive({ onNotice }: Props) {
     }
     refresh()
   }
+
+  const projectColumns: ColumnsType<DeliveryProjectView> = [
+    { title: '代码', key: 'code', render: (_, project) => <span className={styles.inlineCode}>{project.code}</span> },
+    { title: '名称', key: 'name', render: (_, project) => project.name },
+    { title: '负责人', key: 'owner', render: (_, project) => project.owner || '—' },
+    {
+      title: '状态',
+      key: 'status',
+      render: (_, project) => <Tag color={TONE_COLOR[statusTone(project.status)]}>{STATUS_LABEL[project.status as keyof typeof STATUS_LABEL] ?? project.status}</Tag>,
+    },
+    {
+      title: '目标日期',
+      key: 'targetDate',
+      align: 'right',
+      render: (_, project) => <small>{project.targetDate || '—'}</small>,
+    },
+    {
+      title: '更新时间',
+      key: 'updatedAt',
+      align: 'right',
+      render: (_, project) => <small>{project.updatedAt.slice(0, 10)}</small>,
+    },
+  ]
+
+  const itemColumns: ColumnsType<DeliveryDetailView['items'][number]> = [
+    {
+      title: '类型',
+      key: 'refType',
+      render: (_, item) => REF_TYPE_LABEL[item.refType as DeliveryRefType] ?? item.refType,
+    },
+    {
+      title: '引用',
+      key: 'refId',
+      render: (_, item) => <span className={styles.inlineCode}>{item.refId}</span>,
+    },
+    { title: '备注', key: 'note', render: (_, item) => <small>{item.note || '—'}</small> },
+    {
+      title: '',
+      key: 'actions',
+      render: (_, item) => (current && (current.status === 'DRAFT' || current.status === 'IN_PROGRESS')) ? (
+        <Button size="small" type="link" disabled={action.pendingKey !== null}
+          onClick={() => runAction(`remove-${item.id}`, '交付项移除失败', async () => { await removeDeliveryItem(current.id, item.id); onNotice('交付项已移除'); refresh() })}>
+          <Trash2 size={13} />移除
+        </Button>
+      ) : null,
+    },
+  ]
 
   if (listState === 'unavailable' && projects.length === 0) {
     return (
@@ -150,11 +209,11 @@ function DeliveryCenterLive({ onNotice }: Props) {
             />
           </div>
           <span className={styles.pagerInfo}>共 {projects.length} 个项目</span>
-          <Button variant="quiet" onClick={() => { setQuery(searchInput); paged.setPage(0) }}>查询</Button>
-          <Button variant="primary" onClick={() => { setCreateForm({ code: '', name: '', scope: '', owner: '', targetDate: '' }); setCreateOpen(true) }}>
-            <Plus size={14} />新建交付项目
+          <Button size="small" onClick={() => { setQuery(searchInput); paged.setPage(0) }}>查询</Button>
+          <Button size="small" type="primary" onClick={() => { setCreateForm({ code: '', name: '', scope: '', owner: '', targetDate: '' }); setCreateOpen(true) }}>
+            <Plus size={13} />新建交付项目
           </Button>
-          <Button variant="quiet" onClick={refresh}><RefreshCw size={14} />刷新</Button>
+          <Button size="small" onClick={refresh}><RefreshCw size={13} />刷新</Button>
         </div>
 
         <div className={styles.twoColumns}>
@@ -163,36 +222,27 @@ function DeliveryCenterLive({ onNotice }: Props) {
               <div><h2>交付项目</h2><p>生命周期：草稿 → 进行中 → 待验收 → 已验收 → 已归档</p></div>
               <PackageCheck size={16} aria-hidden="true" />
             </div>
-            <div className={styles.tableScroll}>
-              <table className={styles.table}>
-                <thead><tr><th>代码</th><th>名称</th><th>负责人</th><th>状态</th><th>目标日期</th><th>更新时间</th></tr></thead>
-                <tbody>
-                  {listState === 'loading' ? <tr className={styles.emptyRow}><td colSpan={6}>正在加载交付项目…</td></tr> : null}
-                  {listState !== 'loading' && paged.paged.length === 0 ? <tr className={styles.emptyRow}><td colSpan={6}>暂无交付项目。</td></tr> : null}
-                  {paged.paged.map((project) => (
-                    <tr
-                      key={project.id}
-                      className={selectedId === project.id ? styles.selected : ''}
-                      onClick={() => selectProject(project.id)}
-                    >
-                      <td className={styles.inlineCode}>{project.code}</td>
-                      <td>{project.name}</td>
-                      <td>{project.owner || '—'}</td>
-                      <td><StatusTag tone={statusTone(project.status)}>{STATUS_LABEL[project.status as keyof typeof STATUS_LABEL] ?? project.status}</StatusTag></td>
-                      <td><small>{project.targetDate || '—'}</small></td>
-                      <td><small>{project.updatedAt.slice(0, 10)}</small></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {paged.pageCount > 1 ? (
-              <div className={styles.pagerControls}>
-                <Button variant="quiet" disabled={paged.page === 0} onClick={() => paged.setPage(paged.page - 1)}>上一页</Button>
-                <span className={styles.pagerInfo}>{paged.page + 1} / {paged.pageCount}</span>
-                <Button variant="quiet" disabled={paged.page >= paged.pageCount - 1} onClick={() => paged.setPage(paged.page + 1)}>下一页</Button>
-              </div>
-            ) : null}
+            <Table<DeliveryProjectView>
+              rowKey="id"
+              columns={projectColumns}
+              dataSource={paged.paged}
+              rowClassName={(project) => selectedId === project.id ? 'ant-table-row-selected' : ''}
+              onRow={(project) => ({ onClick: () => selectProject(project.id) })}
+              pagination={{
+                current: paged.page + 1,
+                pageSize: PROJECT_PAGE_SIZE,
+                total: projects.length,
+                showSizeChanger: false,
+                onChange: (page) => paged.setPage(page - 1),
+              }}
+              locale={{
+                emptyText: listState === 'loading'
+                  ? '正在加载交付项目…'
+                  : listState === 'live'
+                    ? '暂无交付项目。'
+                    : '交付服务暂不可用。',
+              }}
+            />
           </section>
 
           <section className={styles.panel}>
@@ -208,76 +258,65 @@ function DeliveryCenterLive({ onNotice }: Props) {
                     <h2>{current.name} <span className={styles.inlineCode}>{current.code}</span></h2>
                     <p>{current.scope || '（未填写交付范围）'} · 负责人 {current.owner || '—'} · 目标 {current.targetDate || '—'}</p>
                   </div>
-                  <StatusTag tone={statusTone(current.status)}>{STATUS_LABEL[current.status as keyof typeof STATUS_LABEL] ?? current.status}</StatusTag>
+                  <Tag color={TONE_COLOR[statusTone(current.status)]}>{STATUS_LABEL[current.status as keyof typeof STATUS_LABEL] ?? current.status}</Tag>
                 </div>
 
                 <div className={styles.listTools}>
                   {current.status === 'DRAFT' ? (
-                    <Button variant="primary" disabled={action.pendingKey !== null}
+                    <Button size="small" type="primary" disabled={action.pendingKey !== null}
                       onClick={() => runAction('start', '启动交付失败', async () => { await startDelivery(current.id); onNotice('交付项目已启动'); refresh() })}>
-                      <CheckCircle2 size={14} />启动
+                      <CheckCircle2 size={13} />启动
                     </Button>
                   ) : null}
                   {(current.status === 'DRAFT' || current.status === 'IN_PROGRESS') ? (
-                    <Button disabled={action.pendingKey !== null} onClick={() => setItemFormOpen(true)}>
-                      <Plus size={14} />交付项
+                    <Button size="small" disabled={action.pendingKey !== null} onClick={() => setItemFormOpen(true)}>
+                      <Plus size={13} />交付项
                     </Button>
                   ) : null}
                   {current.status === 'IN_PROGRESS' || current.status === 'READY_FOR_ACCEPTANCE' ? (
-                    <Button variant="quiet" disabled={action.pendingKey !== null}
+                    <Button size="small" disabled={action.pendingKey !== null}
                       onClick={() => runAction('snapshot', '证据快照生成失败', async () => { await snapshotDelivery(current.id); onNotice('证据快照已生成（不可变，checksum 留痕）'); refresh() })}>
-                      <FileArchive size={14} />证据快照
+                      <FileArchive size={13} />证据快照
                     </Button>
                   ) : null}
                   {current.status === 'IN_PROGRESS' ? (
-                    <Button variant="primary" disabled={action.pendingKey !== null}
+                    <Button size="small" type="primary" disabled={action.pendingKey !== null}
                       onClick={() => runAction('submit', '提交验收失败', async () => { await handleSubmit(current.id) })}>
-                      <CheckCircle2 size={14} />提交验收
+                      <CheckCircle2 size={13} />提交验收
                     </Button>
                   ) : null}
                   {current.status === 'READY_FOR_ACCEPTANCE' ? (
-                    <Button variant="primary" disabled={action.pendingKey !== null}
+                    <Button size="small" type="primary" disabled={action.pendingKey !== null}
                       onClick={() => runAction('accept', '验收失败', async () => { await acceptDelivery(current.id); onNotice('验收通过：证据快照已钉住'); refresh() })}>
-                      <CheckCircle2 size={14} />验收
+                      <CheckCircle2 size={13} />验收
                     </Button>
                   ) : null}
                   {current.status === 'ACCEPTED' ? (
-                    <Button disabled={action.pendingKey !== null}
+                    <Button size="small" disabled={action.pendingKey !== null}
                       onClick={() => runAction('archive', '归档失败', async () => { await archiveDelivery(current.id); onNotice('交付项目已归档'); refresh() })}>
-                      <Archive size={14} />归档
+                      <Archive size={13} />归档
                     </Button>
                   ) : null}
-                  <Button variant="quiet" disabled={action.pendingKey !== null}
+                  <Button size="small" disabled={action.pendingKey !== null}
                     onClick={() => runAction('evidence', '证据包下载失败', async () => { await downloadEvidenceZip(current.id); onNotice('证据包已开始下载') })}>
-                    <Download size={14} />证据包
+                    <Download size={13} />证据包
                   </Button>
                 </div>
                 {action.error ? <p className={styles.emptyState} role="alert">{action.error}</p> : null}
 
-                <div className={styles.tableScroll}>
-                  <table className={styles.table}>
-                    <thead><tr><th>类型</th><th>引用</th><th>备注</th><th aria-label="操作" /></tr></thead>
-                    <tbody>
-                      {detailState === 'loading' ? <tr className={styles.emptyRow}><td colSpan={4}>正在加载交付项…</td></tr> : null}
-                      {detailState !== 'loading' && (detail?.items ?? []).length === 0 ? <tr className={styles.emptyRow}><td colSpan={4}>暂无交付项。</td></tr> : null}
-                      {(detail?.items ?? []).map((item) => (
-                        <tr key={item.id}>
-                          <td>{REF_TYPE_LABEL[item.refType as DeliveryRefType] ?? item.refType}</td>
-                          <td className={styles.inlineCode}>{item.refId}</td>
-                          <td><small>{item.note || '—'}</small></td>
-                          <td>
-                            {(current.status === 'DRAFT' || current.status === 'IN_PROGRESS') ? (
-                              <Button variant="quiet" disabled={action.pendingKey !== null}
-                                onClick={() => runAction(`remove-${item.id}`, '交付项移除失败', async () => { await removeDeliveryItem(current.id, item.id); onNotice('交付项已移除'); refresh() })}>
-                                <Trash2 size={13} />移除
-                              </Button>
-                            ) : null}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <Table<DeliveryDetailView['items'][number]>
+                  rowKey="id"
+                  columns={itemColumns}
+                  dataSource={detail?.items ?? []}
+                  pagination={false}
+                  locale={{
+                    emptyText: detailState === 'loading'
+                      ? '正在加载交付项…'
+                      : detailState === 'live'
+                        ? '暂无交付项。'
+                        : '交付项暂不可用。',
+                  }}
+                />
 
                 {blockers && blockers.length > 0 ? (
                   <div className={styles.panelHeader}>
@@ -304,7 +343,7 @@ function DeliveryCenterLive({ onNotice }: Props) {
                     <li key={snapshot.id}>
                       <div className={styles.timelineTitle}>
                         <strong>{snapshot.createdAt.slice(0, 19).replace('T', ' ')}</strong>
-                        {current.acceptedSnapshotId === snapshot.id ? <StatusTag tone="healthy">验收钉住</StatusTag> : null}
+                        {current.acceptedSnapshotId === snapshot.id ? <Tag color="success">验收钉住</Tag> : null}
                       </div>
                       <p className={styles.inlineCode}>{snapshot.checksum.slice(0, 16)}…</p>
                     </li>
@@ -329,86 +368,100 @@ function DeliveryCenterLive({ onNotice }: Props) {
         </div>
       </div>
 
-      {createOpen ? (
-        <Drawer
-          titleId="delivery-create-title"
-          eyebrow="交付项目"
-          title="新建交付项目"
-          closeLabel="关闭新建交付项目"
-          onClose={() => setCreateOpen(false)}
-          footer={<>
-            <button className={styles.secondaryButton} type="button" onClick={() => setCreateOpen(false)}>取消</button>
-            <button className={styles.primaryButton} type="submit" form="delivery-create-form" disabled={action.pendingKey === 'create'}>
-              {action.pendingKey === 'create' ? '创建中…' : '创建（草稿）'}
-            </button>
-          </>}
-        >
-          <form id="delivery-create-form" className={styles.drawerForm} onSubmit={(event) => {
-            event.preventDefault()
-            void runAction('create', '交付项目创建失败', async () => {
-              const created = await createDeliveryProject({
-                code: createForm.code.trim(),
-                name: createForm.name.trim(),
-                scope: createForm.scope.trim(),
-                owner: createForm.owner.trim(),
-                targetDate: createForm.targetDate || undefined,
-              })
-              setCreateOpen(false)
-              selectProject(created.project.id)
-              onNotice('交付项目已创建（草稿）')
-              refresh()
+      <Drawer
+        open={createOpen}
+        destroyOnHidden
+        width={DRAWER_WIDTH}
+        title={<DrawerTitle eyebrow="交付项目" title="新建交付项目" />}
+        onClose={() => setCreateOpen(false)}
+        footer={<>
+          <Button onClick={() => setCreateOpen(false)}>取消</Button>
+          <Button type="primary" htmlType="submit" form="delivery-create-form" loading={action.pendingKey === 'create'} icon={<Plus size={14} />}>
+            {action.pendingKey === 'create' ? '创建中…' : '创建（草稿）'}
+          </Button>
+        </>}
+      >
+        <Form id="delivery-create-form" layout="vertical" onFinish={() => {
+          void runAction('create', '交付项目创建失败', async () => {
+            const created = await createDeliveryProject({
+              code: createForm.code.trim(),
+              name: createForm.name.trim(),
+              scope: createForm.scope.trim(),
+              owner: createForm.owner.trim(),
+              targetDate: createForm.targetDate || undefined,
             })
-          }}>
-            <div className={styles.drawerFormGrid}>
-              <div className={styles.formField}><label htmlFor="delivery-code">项目代码</label><input id="delivery-code" required value={createForm.code} onChange={(event) => setCreateForm({ ...createForm, code: event.target.value })} placeholder="如 DL-OUTPATIENT-01" /></div>
-              <div className={styles.formField}><label htmlFor="delivery-name">项目名称</label><input id="delivery-name" required value={createForm.name} onChange={(event) => setCreateForm({ ...createForm, name: event.target.value })} placeholder="如：门诊处方数据九月交付" /></div>
-            </div>
-            <div className={styles.drawerFormGrid}>
-              <div className={styles.formField}><label htmlFor="delivery-owner">负责人</label><input id="delivery-owner" value={createForm.owner} onChange={(event) => setCreateForm({ ...createForm, owner: event.target.value })} placeholder="如：data-team" /></div>
-              <div className={styles.formField}><label htmlFor="delivery-target">目标日期</label><input id="delivery-target" type="date" value={createForm.targetDate} onChange={(event) => setCreateForm({ ...createForm, targetDate: event.target.value })} /></div>
-            </div>
-            <div className={styles.formField}><label htmlFor="delivery-scope">交付范围</label><textarea id="delivery-scope" rows={3} value={createForm.scope} onChange={(event) => setCreateForm({ ...createForm, scope: event.target.value })} placeholder="本次交付的内容与验收口径（证据包白名单会拒绝连接串/证件号形态文案）" /></div>
-          </form>
-        </Drawer>
-      ) : null}
+            setCreateOpen(false)
+            selectProject(created.project.id)
+            onNotice('交付项目已创建（草稿）')
+            refresh()
+          })
+        }}>
+          <div className={styles.drawerFormGrid}>
+            <Form.Item label="项目代码" required>
+              <Input required value={createForm.code} onChange={(event) => setCreateForm({ ...createForm, code: event.target.value })} placeholder="如 DL-OUTPATIENT-01" />
+            </Form.Item>
+            <Form.Item label="项目名称" required>
+              <Input required value={createForm.name} onChange={(event) => setCreateForm({ ...createForm, name: event.target.value })} placeholder="如：门诊处方数据九月交付" />
+            </Form.Item>
+          </div>
+          <div className={styles.drawerFormGrid}>
+            <Form.Item label="负责人">
+              <Input value={createForm.owner} onChange={(event) => setCreateForm({ ...createForm, owner: event.target.value })} placeholder="如：data-team" />
+            </Form.Item>
+            <Form.Item label="目标日期">
+              <Input type="date" value={createForm.targetDate} onChange={(event) => setCreateForm({ ...createForm, targetDate: event.target.value })} />
+            </Form.Item>
+          </div>
+          <Form.Item label="交付范围">
+            <Input.TextArea rows={3} value={createForm.scope} onChange={(event) => setCreateForm({ ...createForm, scope: event.target.value })} placeholder="本次交付的内容与验收口径（证据包白名单会拒绝连接串/证件号形态文案）" />
+          </Form.Item>
+        </Form>
+      </Drawer>
 
-      {itemFormOpen && current ? (
-        <Drawer
-          titleId="delivery-item-title"
-          eyebrow={`${current.code} · 追加交付项`}
-          title="引用交付对象"
-          closeLabel="关闭追加交付项"
-          onClose={() => setItemFormOpen(false)}
-          footer={<>
-            <button className={styles.secondaryButton} type="button" onClick={() => setItemFormOpen(false)}>取消</button>
-            <button className={styles.primaryButton} type="submit" form="delivery-item-form" disabled={action.pendingKey === 'add-item'}>
-              {action.pendingKey === 'add-item' ? '追加中…' : '追加交付项'}
-            </button>
-          </>}
-        >
-          <form id="delivery-item-form" className={styles.drawerForm} onSubmit={(event) => {
-            event.preventDefault()
-            void runAction('add-item', '交付项追加失败', async () => {
-              await addDeliveryItem(current.id, {
-                refType: itemForm.refType,
-                refId: itemForm.refId.trim(),
-                note: itemForm.note.trim(),
-              })
-              setItemFormOpen(false)
-              onNotice('交付项已追加')
-              refresh()
+      <Drawer
+        open={itemFormOpen && current !== null}
+        destroyOnHidden
+        width={DRAWER_WIDTH}
+        title={<DrawerTitle eyebrow={current ? `${current.code} · 追加交付项` : ''} title="引用交付对象" />}
+        onClose={() => setItemFormOpen(false)}
+        footer={<>
+          <Button onClick={() => setItemFormOpen(false)}>取消</Button>
+          <Button type="primary" htmlType="submit" form="delivery-item-form" loading={action.pendingKey === 'add-item'} icon={<Plus size={14} />}>
+            {action.pendingKey === 'add-item' ? '追加中…' : '追加交付项'}
+          </Button>
+        </>}
+      >
+        <Form id="delivery-item-form" layout="vertical" onFinish={() => {
+          if (!current) return
+          void runAction('add-item', '交付项追加失败', async () => {
+            await addDeliveryItem(current.id, {
+              refType: itemForm.refType,
+              refId: itemForm.refId.trim(),
+              note: itemForm.note.trim(),
             })
-          }}>
-            <div className={styles.formField}><label htmlFor="delivery-item-type">引用类型</label>
-              <select id="delivery-item-type" value={itemForm.refType} onChange={(event) => setItemForm({ ...itemForm, refType: event.target.value as DeliveryRefType })}>
-                {DELIVERY_REF_TYPES.map((type) => <option key={type} value={type}>{REF_TYPE_LABEL[type]}</option>)}
-              </select>
-            </div>
-            <div className={styles.formField}><label htmlFor="delivery-item-ref">引用标识</label><input id="delivery-item-ref" required value={itemForm.refId} onChange={(event) => setItemForm({ ...itemForm, refId: event.target.value })} placeholder={itemForm.refType === 'ASSET' ? 'OM 四段 fqn，如 doris-dataos.default.ods_ep.ep_mz_cfzb' : itemForm.refType === 'DASHBOARD' ? 'Superset 仪表盘 id（嵌入白名单内）' : '控制面对象 UUID'} /></div>
-            <div className={styles.formField}><label htmlFor="delivery-item-note">备注</label><input id="delivery-item-note" value={itemForm.note} onChange={(event) => setItemForm({ ...itemForm, note: event.target.value })} placeholder="如：月度口径交付物" /></div>
-          </form>
-        </Drawer>
-      ) : null}
+            setItemFormOpen(false)
+            onNotice('交付项已追加')
+            refresh()
+          })
+        }}>
+          <Form.Item label="引用类型">
+            <Select value={itemForm.refType} onChange={(value) => setItemForm({ ...itemForm, refType: value as DeliveryRefType })}
+              options={DELIVERY_REF_TYPES.map((type) => ({ value: type, label: REF_TYPE_LABEL[type] }))} />
+          </Form.Item>
+          <Form.Item label="引用标识" required>
+            <Input required value={itemForm.refId} onChange={(event) => setItemForm({ ...itemForm, refId: event.target.value })}
+              placeholder={itemForm.refType === 'ASSET' ? '元数据四段 fqn，如 doris-dataos.default.ods_ep.ep_mz_cfzb' : itemForm.refType === 'DASHBOARD' ? '分析仪表盘 id（嵌入白名单内）' : '控制面对象 UUID'} />
+          </Form.Item>
+          <Form.Item label="备注">
+            <Input value={itemForm.note} onChange={(event) => setItemForm({ ...itemForm, note: event.target.value })} placeholder="如：月度口径交付物" />
+          </Form.Item>
+        </Form>
+      </Drawer>
     </div>
   )
+}
+
+/** 抽屉标题：眉标 + 主标题，对齐原自研 Drawer 的标题结构。 */
+function DrawerTitle({ eyebrow, title }: { eyebrow: string; title: string }) {
+  return <div><span className={local.drawerEyebrow}>{eyebrow}</span><h2 className={local.drawerTitle}>{title}</h2></div>
 }

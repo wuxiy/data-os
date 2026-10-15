@@ -231,7 +231,6 @@
 
 .catalogList,
 .relatedList,
-.usageList,
 .qualityList,
 .conversationList,
 .promptList {
@@ -453,8 +452,7 @@
   font-size: 12px;
 }
 
-.relatedList li,
-.usageList li {
+.relatedList li {
   display: flex;
   min-height: 40px;
   align-items: center;
@@ -463,8 +461,7 @@
   font-size: 12px;
 }
 
-.relatedList svg,
-.usageList svg {
+.relatedList svg {
   flex: 0 0 auto;
   color: var(--jade);
 }
@@ -568,30 +565,6 @@
 
 .toolbarActions {
   gap: 8px;
-}
-
-.toolbarButton {
-  display: inline-flex;
-  min-height: 32px;
-  align-items: center;
-  gap: 6px;
-  padding: 0 8px;
-  color: var(--muted);
-  background: transparent;
-  border: 0;
-  border-radius: var(--radius-control);
-  cursor: pointer;
-  font-size: 12px;
-  transition: transform 150ms var(--ease-out), background-color 150ms var(--ease-out), color 150ms var(--ease-out);
-}
-
-.toolbarButton:hover {
-  color: var(--ink);
-  background: var(--surface-raised);
-}
-
-.toolbarButton:active {
-  transform: scale(0.96);
 }
 
 .dashboardHeader {
@@ -967,66 +940,9 @@
   line-height: 1.75;
 }
 
-/* 字段表按 DESIGN §9 数据表规格：48px 行高、正文 14px、表头 40px */
-.fieldTable {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 14px;
-}
-
-/* 问答结果表面板内嵌，保持紧凑密度 */
-.resultTable {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 12px;
-}
-
 .horizontalScroll {
   width: 100%;
   overflow-x: auto;
-}
-
-.fieldTable th,
-.fieldTable td {
-  height: 48px;
-  padding: 0 16px;
-  border-top: 1px solid var(--line);
-  text-align: left;
-  white-space: nowrap;
-}
-
-.resultTable th,
-.resultTable td {
-  height: 40px;
-  padding: 0 12px;
-  border-top: 1px solid var(--line);
-  text-align: left;
-  white-space: nowrap;
-}
-
-.fieldTable th {
-  height: 40px;
-  color: var(--muted);
-  background: var(--surface-raised);
-  border-top: 0;
-  font-weight: 600;
-}
-
-.resultTable th {
-  height: 32px;
-  color: var(--muted);
-  background: var(--surface-raised);
-  border-top: 0;
-  font-weight: 600;
-}
-
-.fieldTable td:first-child {
-  color: var(--jade-dark);
-  font-family: var(--font-number);
-}
-
-.usageList {
-  padding: 8px 16px 12px;
 }
 
 .lineageCanvas {
@@ -1501,12 +1417,6 @@
   border-top: 1px solid var(--line);
 }
 
-.technicalFooter .button {
-  min-height: 30px;
-  padding: 0 8px;
-  font-size: 12px;
-}
-
 /* Assistant */
 .assistantWorkspace {
   display: grid;
@@ -1732,13 +1642,6 @@
 
 .answerPanel .barList {
   padding-inline: 16px;
-}
-
-.resultTable th:last-child,
-.resultTable td:last-child {
-  color: var(--red);
-  font-family: var(--font-number);
-  text-align: right;
 }
 
 .sqlPanel {

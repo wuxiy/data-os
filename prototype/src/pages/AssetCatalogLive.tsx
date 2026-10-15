@@ -1,7 +1,8 @@
 import { ChartNoAxesCombined, Database, LayoutDashboard, Search, Shapes, Table2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { Button, Table, Tag } from 'antd'
+import type { ColumnsType } from 'antd/es/table'
 import { PageHeader } from '../components/ui/PageHeader'
-import { Button, StatusTag } from '../components/ui/Primitives'
 import {
   fetchAssetQualityTests,
   fetchLineageAsset,
@@ -13,6 +14,7 @@ import {
   shortNodeName,
   type AssetQualityTest,
   type LineageAssetCatalog,
+  type LineageAssetColumn,
   type LineageAssetDetail,
   type LineageAssetLineage,
   type LineageSummaryView,
@@ -30,6 +32,13 @@ const nodeIcons = {
   dashboard: LayoutDashboard,
   chart: ChartNoAxesCombined,
   unknown: Database,
+} as const
+
+// 状态语义映射：自研 tone → antd Tag 语义色。
+const TAG_COLOR = {
+  healthy: 'success',
+  warning: 'warning',
+  neutral: 'default',
 } as const
 
 /**
@@ -112,16 +121,39 @@ export function AssetCatalogLive({ onNotice }: { onNotice: (message: string) => 
     },
   })
 
-  // 字段结构分页：宽表列数动辄数十，字段表 10 条一页。
+  // 字段结构分页：宽表列数动辄数十，字段表 10 条一页（usePaged 保留数据逻辑，渲染层走 Table 内建分页）。
   const COLUMNS_PAGE_SIZE = 10
   const { page: columnsPage, setPage: setColumnsPage, paged: pagedColumns, pageCount: columnsPageCount } = usePaged(detail?.columns ?? [], COLUMNS_PAGE_SIZE)
+
+  // 字段结构列定义：物理字段等宽文本列，无数字列。
+  const columnColumns: ColumnsType<LineageAssetColumn> = [
+    { title: '物理字段', dataIndex: 'name', key: 'name' },
+    { title: '类型', dataIndex: 'dataType', key: 'dataType' },
+    { title: '说明', key: 'description', render: (_, column) => column.description || '—' },
+  ]
+
+  // 质量测试列定义：结论列用语义色 Tag。
+  const qualityTestColumns: ColumnsType<AssetQualityTest> = [
+    { title: '规则', dataIndex: 'ruleId', key: 'ruleId' },
+    { title: '数据集', dataIndex: 'datasetId', key: 'datasetId' },
+    {
+      title: '最近结论',
+      key: 'result',
+      render: (_, test) => (
+        <Tag color={test.lastRun ? (test.lastRun.passed ? TAG_COLOR.healthy : TAG_COLOR.warning) : TAG_COLOR.neutral}>
+          {test.lastRun ? (test.lastRun.passed ? '通过' : '未通过') : '未运行'}
+        </Tag>
+      ),
+    },
+    { title: '完成时间', key: 'finishedAt', render: (_, test) => formatDateTime(test.lastRun?.finishedAt) },
+  ]
 
   if (catalogState !== 'live' || !catalog) {
     return (
       <div className={styles.integrationPage}>
         <PageHeader title="数据资产" eyebrow="资产目录与影响分析" subtitle="从业务定义进入字段、质量、血缘和消费证据，不暴露底层元数据控制台" compact />
         <section className={styles.technicalNotice} role="status">
-          <StatusTag tone="warning">{catalogState === 'loading' ? '读取中' : '待接入'}</StatusTag>
+          <Tag color={TAG_COLOR.warning}>{catalogState === 'loading' ? '读取中' : '待接入'}</Tag>
           <span>{catalogState === 'loading' ? '正在从血缘服务读取资产目录…' : '血缘服务暂不可用：资产目录需要控制面完成元数据引擎接入配置（详见平台运维）。'}</span>
         </section>
       </div>
@@ -188,7 +220,7 @@ export function AssetCatalogLive({ onNotice }: { onNotice: (message: string) => 
         <section className={styles.workspaceMain} aria-label={`${selected?.name ?? '资产'}详情`}>
           <div className={styles.assetToolbar}>
             <div className={styles.assetIdentity}>
-              <div className={styles.assetIdentityTop}><span className={styles.assetCode}>{catalog.service}</span><StatusTag tone="healthy">元数据已摄取</StatusTag></div>
+              <div className={styles.assetIdentityTop}><span className={styles.assetCode}>{catalog.service}</span><Tag color={TAG_COLOR.healthy}>元数据已摄取</Tag></div>
               <h2>{detail?.displayName || selected?.displayName || selected?.name || '—'}</h2>
               <p>{effectiveFqn || '—'}</p>
             </div>
@@ -198,8 +230,8 @@ export function AssetCatalogLive({ onNotice }: { onNotice: (message: string) => 
           </div>
 
           <div className={styles.assetBody}>
-            {(detailState === 'loading' || detailState === 'idle') ? <div className={styles.technicalNotice}><StatusTag tone="neutral">读取中</StatusTag><span>正在读取资产结构与血缘…</span></div> : null}
-            {detailState === 'error' ? <div className={styles.technicalNotice} role="status"><StatusTag tone="warning">读取失败</StatusTag><span>资产详情或血缘暂时不可读，请稍后重试。</span></div> : null}
+            {(detailState === 'loading' || detailState === 'idle') ? <div className={styles.technicalNotice}><Tag>读取中</Tag><span>正在读取资产结构与血缘…</span></div> : null}
+            {detailState === 'error' ? <div className={styles.technicalNotice} role="status"><Tag color={TAG_COLOR.warning}>读取失败</Tag><span>资产详情或血缘暂时不可读，请稍后重试。</span></div> : null}
             {detail ? (
               <section className={styles.contentPanel}>
                 <div className={styles.contentPanelHeader}>
@@ -207,17 +239,19 @@ export function AssetCatalogLive({ onNotice }: { onNotice: (message: string) => 
                   <span>{detail.columns.length} 列 · 最近更新 {formatDateTime(detail.updatedAt)}</span>
                 </div>
                 <div className={styles.descriptionBlock}><p>{detail.description || '暂无业务描述：结构元数据由元数据中心摄取，业务定义在资产治理流程中补充。'}</p></div>
-                <div className={styles.horizontalScroll}>
-                  <table className={styles.fieldTable}>
-                    <thead><tr><th>物理字段</th><th>类型</th><th>说明</th></tr></thead>
-                    <tbody>
-                      {pagedColumns.map((column) => (
-                        <tr key={column.name}><td>{column.name}</td><td>{column.dataType}</td><td>{column.description || '—'}</td></tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                <Pager label="字段结构分页" page={columnsPage} pageCount={columnsPageCount} pageSize={COLUMNS_PAGE_SIZE} onPageChange={setColumnsPage} />
+                <Table<LineageAssetColumn>
+                  rowKey="name"
+                  columns={columnColumns}
+                  dataSource={pagedColumns}
+                  pagination={{
+                    current: columnsPage + 1,
+                    pageSize: COLUMNS_PAGE_SIZE,
+                    total: detail.columns.length,
+                    showSizeChanger: false,
+                    onChange: (page) => setColumnsPage(page - 1),
+                  }}
+                  locale={{ emptyText: detailState === 'loading' ? '正在读取字段结构…' : detailState === 'error' ? '字段结构暂时不可读，请稍后重试。' : '暂无字段结构。' }}
+                />
               </section>
             ) : null}
             {qualityTests.length > 0 ? (
@@ -226,32 +260,19 @@ export function AssetCatalogLive({ onNotice }: { onNotice: (message: string) => 
                   <h3>质量测试</h3>
                   <span>{qualityTests.length} 条规则 · 来自控制面质量域（规则注册表 + 最近运行）</span>
                 </div>
-                <div className={styles.horizontalScroll}>
-                  <table className={styles.fieldTable}>
-                    <thead><tr><th>规则</th><th>数据集</th><th>最近结论</th><th>完成时间</th></tr></thead>
-                    <tbody>
-                      {qualityTests.map((test) => (
-                        <tr key={test.ruleId}>
-                          <td>{test.ruleId}</td>
-                          <td>{test.datasetId}</td>
-                          <td>
-                            <StatusTag tone={test.lastRun ? (test.lastRun.passed ? 'healthy' : 'warning') : 'neutral'}>
-                              {test.lastRun ? (test.lastRun.passed ? '通过' : '未通过') : '未运行'}
-                            </StatusTag>
-                          </td>
-                          <td>{formatDateTime(test.lastRun?.finishedAt)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <Table<AssetQualityTest>
+                  rowKey="ruleId"
+                  columns={qualityTestColumns}
+                  dataSource={qualityTests}
+                  pagination={false}
+                />
               </section>
             ) : null}
             {lineage ? (
               <section className={styles.lineageCanvas} aria-label="血缘与影响">
                 <div className={styles.lineageSummary}>
                   <div><h3>血缘与消费</h3><span>血缘来自元数据中心：上游为数据来源，下游为产出与消费（数据模型 / 仪表盘）</span></div>
-                  <StatusTag tone="healthy">{lineage.upstreams.length + lineage.downstreams.length} 个关联节点</StatusTag>
+                  <Tag color={TAG_COLOR.healthy}>{lineage.upstreams.length + lineage.downstreams.length} 个关联节点</Tag>
                 </div>
                 <div className={styles.lineageRow}>
                   {lineage.upstreams.map((node) => {
@@ -300,7 +321,7 @@ export function AssetCatalogLive({ onNotice }: { onNotice: (message: string) => 
         </section>
 
         <aside className={styles.evidenceRail} aria-label="资产来源证据">
-          <div className={styles.evidenceHeader}><h2>资产证据</h2><StatusTag tone="healthy">元数据中心</StatusTag></div>
+          <div className={styles.evidenceHeader}><h2>资产证据</h2><Tag color={TAG_COLOR.healthy}>元数据中心</Tag></div>
           <div className={styles.evidenceBody}>
             <dl className={styles.evidenceDefinition}>
               <div><dt>元数据服务</dt><dd>{catalog.service}</dd></div>

@@ -1,8 +1,10 @@
 import { Ban, MessageSquareText, Send, ShieldCheck, ThumbsDown, ThumbsUp } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
+import { Button, DatePicker, Form, Input, Select, Table, Tag } from 'antd'
+import type { ColumnsType } from 'antd/es/table'
+import dayjs from 'dayjs'
 import { PageHeader } from '../components/ui/PageHeader'
-import { Button, StatusTag } from '../components/ui/Primitives'
 import {
   askAssistantQuery,
   fetchAssistantQuestions,
@@ -22,6 +24,9 @@ import localStyles from './AssistantLive.module.css'
  * 不回退演示答案。反馈回写具体审计行。与演示页共用样式骨架。
  * 专业工作区在治理角色内附加问题治理区块（G27，{@link AssistantGovernance}）。
  */
+
+// 状态语义映射：自研 tone → antd Tag 语义色。
+const TONE_COLOR = { healthy: 'success', warning: 'warning', danger: 'error', neutral: 'default' } as const
 
 const DATE_LIKE = /^\d{4}-\d{2}-\d{2}/
 
@@ -173,43 +178,40 @@ export function AssistantLive({ onNotice, professional = false, governance = fal
               <span className={styles.chatIdentityIcon}><MessageSquareText size={17} /></span>
               <div><strong>医疗运营问数助手</strong><span>已验证问题 → 已发布数据服务</span></div>
             </div>
-            <StatusTag tone="healthy">只读模式</StatusTag>
+            <Tag color={TONE_COLOR.healthy}>只读模式</Tag>
           </header>
 
           {selected && (selected.paramSchema ?? []).length > 0 ? (
-            <form
+            <Form
               className={styles.assistantParamBar}
-              onSubmit={(event) => { event.preventDefault(); if (draft.trim()) { setDisplayQuestion(draft.trim()); void ask(draft.trim(), params) } }}
               aria-label="问题参数"
+              onFinish={() => { if (draft.trim()) { setDisplayQuestion(draft.trim()); void ask(draft.trim(), params) } }}
             >
               {selected.paramSchema.map((contract) => (
-                <label key={contract.name} className={styles.assistantParamField}>
-                  <span>{contract.name}{contract.required ? ' *' : ''}</span>
+                <Form.Item key={contract.name} className={styles.assistantParamField}
+                  label={<>{contract.name}{contract.required ? ' *' : ''}</>}>
                   {contract.type === 'date'
-                    ? <input type="date" value={params[contract.name] ?? ''} required={contract.required}
-                        onChange={(event) => setParams({ ...params, [contract.name]: event.target.value })} />
+                    ? <DatePicker value={params[contract.name] ? dayjs(params[contract.name]) : null}
+                        onChange={(date) => setParams({ ...params, [contract.name]: date ? date.format('YYYY-MM-DD') : '' })} />
                     : contract.type === 'boolean'
-                      ? <select value={params[contract.name] ?? ''}
-                          onChange={(event) => setParams({ ...params, [contract.name]: event.target.value })}>
-                          <option value="">未指定</option>
-                          <option value="true">true</option>
-                          <option value="false">false</option>
-                        </select>
+                      ? <Select value={params[contract.name] ?? ''}
+                          onChange={(value) => setParams({ ...params, [contract.name]: value })}
+                          options={[{ value: '', label: '未指定' }, { value: 'true', label: 'true' }, { value: 'false', label: 'false' }]} />
                       : (contract.values ?? []).length > 0
-                        ? <select value={params[contract.name] ?? ''} required={contract.required}
-                            onChange={(event) => setParams({ ...params, [contract.name]: event.target.value })}>
-                            <option value="">请选择</option>
-                            {(contract.values ?? []).map((value) => <option key={value} value={value}>{value}</option>)}
-                          </select>
-                        : <input type={contract.type === 'number' ? 'number' : 'text'} value={params[contract.name] ?? ''}
-                            required={contract.required} placeholder={contract.description ?? contract.name}
+                        ? <Select value={params[contract.name] ?? ''}
+                            onChange={(value) => setParams({ ...params, [contract.name]: value })}
+                            options={[{ value: '', label: '请选择' }, ...(contract.values ?? []).map((value) => ({ value, label: value }))]} />
+                        : <Input type={contract.type === 'number' ? 'number' : 'text'} value={params[contract.name] ?? ''}
+                            placeholder={contract.description ?? contract.name}
                             onChange={(event) => setParams({ ...params, [contract.name]: event.target.value })} />}
-                </label>
+                </Form.Item>
               ))}
-              <Button type="submit" variant="primary" disabled={asking || !draft.trim()}>
-                {asking ? '查询中…' : '按参数执行'}
-              </Button>
-            </form>
+              <Form.Item className={styles.assistantParamField}>
+                <Button type="primary" htmlType="submit" disabled={asking || !draft.trim()}>
+                  {asking ? '查询中…' : '按参数执行'}
+                </Button>
+              </Form.Item>
+            </Form>
           ) : null}
 
           <div className={styles.chatScroll} aria-live="polite">
@@ -264,14 +266,17 @@ export function AssistantLive({ onNotice, professional = false, governance = fal
                   <section className={styles.answerPanel}>
                     <h3>核对明细</h3>
                     <div className={styles.horizontalScroll}>
-                      <table className={styles.resultTable}>
-                        <thead><tr>{(answer.columns ?? []).map((column) => <th key={column}>{column}</th>)}</tr></thead>
-                        <tbody>
-                          {(answer.rows ?? []).map((row, index) => (
-                            <tr key={index}>{row.map((cell, cellIndex) => <td key={cellIndex}>{String(cell ?? '')}</td>)}</tr>
-                          ))}
-                        </tbody>
-                      </table>
+                      <Table
+                        rowKey={(_, index) => index ?? 0}
+                        columns={(answer.columns ?? []).map((column, index) => ({
+                          title: column,
+                          key: column,
+                          render: (_: unknown, row: unknown[]) => String(row[index] ?? ''),
+                        })) as ColumnsType<unknown[]>}
+                        dataSource={answer.rows ?? []}
+                        pagination={false}
+                        size="small"
+                      />
                     </div>
                   </section>
                 </div>
@@ -290,7 +295,7 @@ export function AssistantLive({ onNotice, professional = false, governance = fal
         </section>
 
         <aside className={styles.evidenceRail} aria-label="问数证据">
-          <div className={styles.evidenceHeader}><h2>回答证据</h2><StatusTag tone={answer ? 'healthy' : 'neutral'}>{answer ? '可复核' : '待提问'}</StatusTag></div>
+          <div className={styles.evidenceHeader}><h2>回答证据</h2><Tag color={answer ? TONE_COLOR.healthy : TONE_COLOR.neutral}>{answer ? '可复核' : '待提问'}</Tag></div>
           <div className={styles.evidenceBody}>
             <div className={styles.evidenceStamp}>
               <span className={styles.evidenceStampIcon}><MessageSquareText size={17} /></span>

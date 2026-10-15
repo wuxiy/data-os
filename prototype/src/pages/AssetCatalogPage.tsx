@@ -1,9 +1,10 @@
 import { ChartNoAxesCombined, Database, ExternalLink, FileText, Search, Table2, Waypoints, Workflow } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { Button, Table, Tag } from 'antd'
+import type { ColumnsType } from 'antd/es/table'
 import { DemoDataBoundary } from '../components/ui/DemoDataBoundary'
 import { PageHeader } from '../components/ui/PageHeader'
-import { Button, StatusTag } from '../components/ui/Primitives'
-import { assets, type AssetItem } from '../data/integrations'
+import { assets, type AssetItem, type AssetField } from '../data/integrations'
 import { routePaths } from '../data/routes'
 import { frontendDemoMode } from '../data/runtimeMode'
 import { AssetCatalogLive } from './AssetCatalogLive'
@@ -18,6 +19,13 @@ const lineageIcons = {
   asset: Table2,
   consumer: ChartNoAxesCombined,
 }
+
+// 状态语义映射：自研 tone → antd Tag 语义色。
+const STATUS_COLOR = {
+  healthy: 'success',
+  warning: 'warning',
+  neutral: 'default',
+} as const
 
 export function AssetCatalogPage({ onNotice, onNavigate }: { onNotice: (message: string) => void; onNavigate: (route: 'ingestion' | 'governance' | 'quality') => void }) {
   // 运行模式（CONTEXT.md）：演示构建保留静态样例供交互验收；
@@ -87,7 +95,7 @@ function DemoAssetCatalogPage({ onNotice, onNavigate }: { onNotice: (message: st
         <section className={styles.workspaceMain} aria-label={`${selected.name}资产详情`}>
           <div className={styles.assetToolbar}>
             <div className={styles.assetIdentity}>
-              <div className={styles.assetIdentityTop}><span className={styles.assetCode}>{selected.entityId}</span><StatusTag tone={selected.status === '可信' ? 'healthy' : 'warning'}>{selected.status}</StatusTag></div>
+              <div className={styles.assetIdentityTop}><span className={styles.assetCode}>{selected.entityId}</span><Tag color={selected.status === '可信' ? STATUS_COLOR.healthy : STATUS_COLOR.warning}>{selected.status}</Tag></div>
               <h2>{selected.name}</h2>
               <p>{selected.fqn}</p>
             </div>
@@ -127,7 +135,7 @@ function DemoAssetCatalogPage({ onNotice, onNavigate }: { onNotice: (message: st
         </section>
 
         <aside className={styles.evidenceRail} aria-label="资产来源证据">
-          <div className={styles.evidenceHeader}><h2>资产证据</h2><StatusTag tone="healthy">已同步</StatusTag></div>
+          <div className={styles.evidenceHeader}><h2>资产证据</h2><Tag color={STATUS_COLOR.healthy}>已同步</Tag></div>
           <div className={styles.evidenceBody}>
             <div className={styles.evidenceStamp}>
               <span className={styles.evidenceStampIcon}><Waypoints size={17} /></span>
@@ -154,18 +162,25 @@ function DemoAssetCatalogPage({ onNotice, onNavigate }: { onNotice: (message: st
   )
 }
 
+const fieldColumns: ColumnsType<AssetField> = [
+  { title: '字段', dataIndex: 'name', key: 'name' },
+  { title: '业务名称', dataIndex: 'label', key: 'label' },
+  { title: '类型', dataIndex: 'type', key: 'type' },
+  { title: '绑定标准', dataIndex: 'standard', key: 'standard' },
+]
+
 function AssetOverview({ asset }: { asset: AssetItem }) {
   return (
     <div className={styles.overviewGrid}>
       <section className={styles.contentPanel}>
         <div className={styles.contentPanelHeader}><h3>字段与标准</h3><span>{asset.fields.length} 个关键字段</span></div>
         <div className={styles.descriptionBlock}><p>{asset.description}</p></div>
-        <div className={styles.horizontalScroll}>
-          <table className={styles.fieldTable}>
-            <thead><tr><th>字段</th><th>业务名称</th><th>类型</th><th>绑定标准</th></tr></thead>
-            <tbody>{asset.fields.map((field) => <tr key={field.name}><td>{field.name}</td><td>{field.label}</td><td>{field.type}</td><td>{field.standard}</td></tr>)}</tbody>
-          </table>
-        </div>
+        <Table<AssetField>
+          rowKey="name"
+          columns={fieldColumns}
+          dataSource={asset.fields}
+          pagination={false}
+        />
       </section>
       <section className={styles.contentPanel}>
         <div className={styles.contentPanelHeader}><h3>消费结构</h3><span>{asset.uses.length} 项已登记</span></div>
@@ -178,7 +193,7 @@ function AssetOverview({ asset }: { asset: AssetItem }) {
 function AssetLineage({ asset }: { asset: AssetItem }) {
   return (
     <section className={styles.lineageCanvas} aria-label={`${asset.name}端到端血缘`}>
-      <div className={styles.lineageSummary}><div><h3>端到端血缘</h3><span>当前版本 v2.6 · 字段级血缘完整率 94.1%</span></div><StatusTag tone="healthy">4 层已核验</StatusTag></div>
+      <div className={styles.lineageSummary}><div><h3>端到端血缘</h3><span>当前版本 v2.6 · 字段级血缘完整率 94.1%</span></div><Tag color={STATUS_COLOR.healthy}>4 层已核验</Tag></div>
       <div className={styles.lineageRow}>
         {asset.lineage.map((node) => {
           const Icon = lineageIcons[node.kind]
@@ -205,7 +220,7 @@ function AssetQuality({ asset }: { asset: AssetItem }) {
       {asset.rules.map((rule) => (
         <li key={rule.name}>
           <div className={styles.qualityName}><strong>{rule.name}</strong><span>最近一次执行已形成证据记录</span></div>
-          <StatusTag tone="neutral">{rule.dimension}</StatusTag>
+          <Tag>{rule.dimension}</Tag>
           <span className={styles.qualityResult}>{rule.result}</span>
           <time>{rule.checkedAt}</time>
         </li>

@@ -1,13 +1,14 @@
 import { ChevronRight, Filter, Plus, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { Button, Table, Tag } from 'antd'
+import type { ColumnsType } from 'antd/es/table'
 import { DemoDataBoundary } from '../components/ui/DemoDataBoundary'
 import { frontendDemoMode } from '../data/runtimeMode'
 import { DataStandardsLive } from './DataStandardsLive'
 import { GovernanceTabs } from '../components/ui/GovernanceTabs'
 import { PageHeader } from '../components/ui/PageHeader'
-import { Button, StatusTag } from '../components/ui/Primitives'
 import { standards, standardVersions } from '../data/mock'
-import type { RouteKey, StandardItem } from '../types'
+import type { RouteKey, StandardItem, Tone } from '../types'
 import styles from './Pages.module.css'
 
 interface Props {
@@ -17,6 +18,20 @@ interface Props {
 }
 
 const categories = ['全部标准', '患者基本信息', '门急诊诊疗', '诊断与治疗', '检验检查', '机构与人员']
+
+// 状态语义映射：自研 tone → antd Tag 语义色。
+const TONE_COLOR: Record<Tone, string> = {
+  healthy: 'success',
+  warning: 'warning',
+  danger: 'error',
+  neutral: 'default',
+}
+
+function statusTone(status: string): Tone {
+  if (status === '已发布') return 'healthy'
+  if (status === '修订中') return 'warning'
+  return 'neutral'
+}
 
 export function DataStandardsPage({ onNavigate, onUnavailable, onNotice }: Props) {
   // 真实构建走 G22 标准中心真实链路；演示构建保留静态样例。
@@ -32,6 +47,27 @@ export function DataStandardsPage({ onNavigate, onUnavailable, onNotice }: Props
     const keyword = query.trim().toLowerCase()
     return matchesCategory && (!keyword || `${item.code}${item.name}${item.domain}`.toLowerCase().includes(keyword))
   }), [category, query])
+
+  const columns: ColumnsType<StandardItem> = [
+    {
+      title: '标准编码 / 名称',
+      key: 'name',
+      render: (_, item) => (
+        <button className={styles.tableButton} onClick={() => setSelectedId(item.id)}>
+          <strong>{item.name}</strong>
+          <span>{item.code}</span>
+        </button>
+      ),
+    },
+    { title: '主题域', key: 'domain', render: (_, item) => item.domain },
+    { title: '责任部门', key: 'owner', render: (_, item) => item.owner },
+    {
+      title: '状态',
+      key: 'status',
+      render: (_, item) => <Tag color={TONE_COLOR[statusTone(item.status)]}>{item.status}</Tag>,
+    },
+    { title: '更新时间', key: 'updatedAt', render: (_, item) => item.updatedAt },
+  ]
 
   return (
     <div className={styles.page}>
@@ -54,20 +90,18 @@ export function DataStandardsPage({ onNavigate, onUnavailable, onNotice }: Props
         <section className={styles.workspaceMain}>
           <div className={styles.listTools}>
             <strong>{category} · {visible.length} 项</strong>
-            <div className={styles.listToolsActions}><Button onClick={() => onNotice('已应用当前分类与关键词筛选条件')}><Filter size={14} />筛选</Button><Button variant="primary" onClick={() => onNotice('新建标准流程已进入草稿箱')}><Plus size={14} />新建标准</Button></div>
+            <div className={styles.listToolsActions}><Button size="small" onClick={() => onNotice('已应用当前分类与关键词筛选条件')}><Filter size={14} />筛选</Button><Button type="primary" size="small" onClick={() => onNotice('新建标准流程已进入草稿箱')}><Plus size={14} />新建标准</Button></div>
           </div>
-          <div className={styles.tableScroll}>
-            <table className={styles.table}>
-              <thead><tr><th>标准编码 / 名称</th><th>主题域</th><th>责任部门</th><th>状态</th><th>更新时间</th></tr></thead>
-              <tbody>
-                {visible.map((item) => <StandardRow key={item.id} item={item} active={selected.id === item.id} onSelect={() => setSelectedId(item.id)} />)}
-                {visible.length === 0 ? <tr><td colSpan={5} className={styles.emptyState}>未找到匹配的数据标准，请调整搜索条件。</td></tr> : null}
-              </tbody>
-            </table>
-          </div>
+          <Table<StandardItem>
+            rowKey="id"
+            columns={columns}
+            dataSource={visible}
+            pagination={false}
+            locale={{ emptyText: '未找到匹配的数据标准，请调整搜索条件。' }}
+          />
         </section>
         <aside className={styles.workspaceInspector}>
-          <div className={styles.sectionTitle}><h3>标准详情</h3><StatusTag tone={selected.status === '已发布' ? 'healthy' : 'warning'}>{selected.status}</StatusTag></div>
+          <div className={styles.sectionTitle}><h3>标准详情</h3><Tag color={TONE_COLOR[statusTone(selected.status)]}>{selected.status}</Tag></div>
           <div className={styles.inspectorBody}>
             <span className={styles.inspectorCode}>{selected.code}</span>
             <h2>{selected.name}</h2>
@@ -87,14 +121,5 @@ export function DataStandardsPage({ onNavigate, onUnavailable, onNotice }: Props
         </div>
       </DemoDataBoundary>
     </div>
-  )
-}
-
-function StandardRow({ item, active, onSelect }: { item: StandardItem; active: boolean; onSelect: () => void }) {
-  return (
-    <tr className={active ? styles.activeRow : ''}>
-      <td className={styles.noCellPadding}><button className={styles.tableButton} onClick={onSelect}><strong>{item.name}</strong><span>{item.code}</span></button></td>
-      <td>{item.domain}</td><td>{item.owner}</td><td><StatusTag tone={item.status === '已发布' ? 'healthy' : item.status === '修订中' ? 'warning' : 'neutral'}>{item.status}</StatusTag></td><td>{item.updatedAt}</td>
-    </tr>
   )
 }

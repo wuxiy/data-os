@@ -1,8 +1,8 @@
 import { ChartNoAxesCombined, Search, ShieldCheck } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Tag } from 'antd'
 import { embedDashboard } from '@superset-ui/embedded-sdk'
 import { PageHeader } from '../components/ui/PageHeader'
-import { StatusTag } from '../components/ui/Primitives'
 import { Pager } from '../components/ui/Pager'
 import {
   fetchEmbeddableDashboards,
@@ -82,7 +82,7 @@ export function AnalyticsLive({ onNotice }: { onNotice: (message: string) => voi
         <PageHeader title="分析看板" eyebrow="嵌入式分析" subtitle="业务人员在统一门户查看结果，专业人员按权限进入分析设计器" compact />
         {catalogState === 'loading' ? (
           <section className={styles.technicalNotice} role="status">
-            <StatusTag tone="neutral">读取中</StatusTag>
+            <Tag>读取中</Tag>
             <span>正在从分析服务读取仪表盘清单…</span>
           </section>
         ) : (
@@ -133,9 +133,9 @@ export function AnalyticsLive({ onNotice }: { onNotice: (message: string) => voi
             <div className={styles.assetIdentity}>
               <div className={styles.assetIdentityTop}>
                 <span className={styles.assetCode}>只读嵌入 · 看板 {selected?.id}</span>
-                <StatusTag tone={embedState === 'mounted' ? 'healthy' : embedState === 'error' ? 'warning' : 'neutral'}>
+                <Tag color={embedState === 'mounted' ? 'success' : embedState === 'error' ? 'warning' : 'default'}>
                   {embedState === 'mounted' ? '已嵌入' : embedState === 'error' ? '嵌入失败' : '载入中'}
-                </StatusTag>
+                </Tag>
               </div>
               <h2>{selected?.title}</h2>
               <p>访客令牌由控制面签发（只读、限本仪表盘、短时效）；数据口径与源表见「数据资产 · 血缘」。</p>
@@ -143,13 +143,13 @@ export function AnalyticsLive({ onNotice }: { onNotice: (message: string) => voi
           </div>
           {embedState === 'error' ? (
             <section className={styles.technicalNotice} role="status">
-              <StatusTag tone="warning">嵌入失败</StatusTag>
+              <Tag color="warning">嵌入失败</Tag>
               <span>无法嵌入当前仪表盘：请确认嵌入白名单（allowed_domains 含门户地址）后重试。</span>
             </section>
           ) : null}
           {embedState === 'mounting' ? (
             <section className={styles.technicalNotice} role="status">
-              <StatusTag tone="neutral">载入中</StatusTag>
+              <Tag>载入中</Tag>
               <span>正在装载仪表盘（访客令牌已签发）…</span>
             </section>
           ) : null}
@@ -162,7 +162,7 @@ export function AnalyticsLive({ onNotice }: { onNotice: (message: string) => voi
         </section>
 
         <aside className={styles.evidenceRail} aria-label="分析访问证据">
-          <div className={styles.evidenceHeader}><h2>访问证据</h2><StatusTag tone="healthy">免登录</StatusTag></div>
+          <div className={styles.evidenceHeader}><h2>访问证据</h2><Tag color="success">免登录</Tag></div>
           <div className={styles.evidenceBody}>
             <div className={styles.evidenceStamp}>
               <span className={styles.evidenceStampIcon}><ShieldCheck size={17} /></span>

@@ -1,9 +1,9 @@
 import { Download, FlaskConical, Pencil, Play, Plus, ShieldQuestion, Trash2 } from 'lucide-react'
 import { useState } from 'react'
-import type { FormEvent } from 'react'
-import { Drawer } from '../components/ui/Drawer'
+import { Button, DatePicker, Drawer, Form, Input, Select, Table, Tag } from 'antd'
+import type { ColumnsType } from 'antd/es/table'
+import dayjs from 'dayjs'
 import { Pager } from '../components/ui/Pager'
-import { Button, StatusTag } from '../components/ui/Primitives'
 import {
   assistantQuestionAction,
   AUDIT_OUTCOME_OPTIONS,
@@ -26,6 +26,7 @@ import { useApiResource } from '../hooks/useApiResource'
 import { usePaged } from '../hooks/usePaged'
 import pageStyles from './Pages.module.css'
 import styles from './IntegrationPages.module.css'
+import local from './AssistantGovernance.module.css'
 
 /**
  * 问数治理面（G27）：已验证问题生命周期管理——草稿建/改、试运行（发布前
@@ -40,6 +41,10 @@ type ParamRow = { name: string; type: string; required: boolean; defaultValue: s
 const TABLE_PAGE_SIZE = 6
 const EVENTS_PAGE_SIZE = 6
 const AUDIT_PAGE_SIZE = 10
+const DRAWER_WIDTH = 'min(540px, 44vw)'
+
+// 状态语义映射：自研 tone → antd Tag 语义色。
+const TONE_COLOR = { healthy: 'success', warning: 'warning', danger: 'error', neutral: 'default' } as const
 
 const EMPTY_FORM = {
   code: '',
@@ -62,6 +67,11 @@ function paramRowsOf(question: AssistantAdminQuestionView): ParamRow[] {
     defaultValue: contract.defaultValue ?? '',
     valuesText: (contract.values ?? []).join(','),
   }))
+}
+
+/** 抽屉标题：眉标 + 主标题，对齐原自研 Drawer 的标题结构。 */
+function DrawerTitle({ eyebrow, title }: { eyebrow: string; title: string }) {
+  return <div><span className={local.drawerEyebrow}>{eyebrow}</span><h2 className={local.drawerTitle}>{title}</h2></div>
 }
 
 export function AssistantGovernance({ onNotice, onQuestionsChanged }: {
@@ -154,8 +164,7 @@ export function AssistantGovernance({ onNotice, onQuestionsChanged }: {
     }
   }
 
-  async function submitDraft(event: FormEvent) {
-    event.preventDefault()
+  async function submitDraft() {
     if (saving) return
     setSaving(true)
     try {
@@ -271,14 +280,95 @@ export function AssistantGovernance({ onNotice, onQuestionsChanged }: {
     }
   }
 
+  // 治理表列定义：行内动作按钮 size="small"；状态列 tone → antd 语义色。
+  const questionColumns: ColumnsType<AssistantAdminQuestionView> = [
+    {
+      title: '问题 / 代码',
+      key: 'question',
+      render: (_, question) => (
+        <div>
+          <strong>{question.question}</strong>
+          <div><span className={styles.composerNote}>{question.code}</span></div>
+        </div>
+      ),
+    },
+    {
+      title: '状态',
+      key: 'status',
+      render: (_, question) => (
+        <Tag color={question.status === 'PUBLISHED' ? TONE_COLOR.healthy : question.status === 'DRAFT' ? TONE_COLOR.neutral : TONE_COLOR.warning}>
+          {QUESTION_STATUS_LABEL[question.status] ?? question.status}
+        </Tag>
+      ),
+    },
+    { title: '数据服务', key: 'serviceCode', render: (_, question) => question.serviceCode },
+    {
+      title: '试运行验证',
+      key: 'verified',
+      render: (_, question) => question.verified
+        ? <span className={styles.assistantVerified}>已验证（试运行通过）</span>
+        : <span className={styles.composerNote}>未验证</span>,
+    },
+    {
+      title: '操作',
+      key: 'actions',
+      render: (_, question) => {
+        const key = `${'deprecate'}:${question.code}`
+        const deleteKey = `delete:${question.code}`
+        return (
+          <div className={styles.assistantGovActions}>
+            {question.status === 'DRAFT' ? (
+              <>
+                <Button size="small" onClick={() => openEdit(question)}><Pencil size={13} />编辑</Button>
+                <Button size="small" onClick={() => openTest(question)}><FlaskConical size={13} />试运行</Button>
+                <Button
+                  size="small"
+                  type="primary"
+                  disabled={!question.verified || pending === `publish:${question.code}`}
+                  title={question.verified ? '发布到问数面' : '需最近一次成功试运行晚于最后编辑'}
+                  onClick={() => void runAction(question, 'publish', `${question.code} 已发布`)}
+                >发布</Button>
+                <Button
+                  size="small"
+                  danger={confirmKey === deleteKey}
+                  disabled={pending === deleteKey}
+                  onClick={() => twoStep('delete', question, '删除')}
+                >{confirmKey === deleteKey ? '确认删除' : '删除'}</Button>
+              </>
+            ) : null}
+            {question.status === 'PUBLISHED' ? (
+              <>
+                <Button size="small" onClick={() => openTest(question)}><FlaskConical size={13} />试运行</Button>
+                <Button
+                  size="small"
+                  danger={confirmKey === key}
+                  disabled={pending === key}
+                  onClick={() => twoStep('deprecate', question, '停用')}
+                >{confirmKey === key ? '确认停用' : '停用'}</Button>
+              </>
+            ) : null}
+            {question.status === 'DEPRECATED' ? (
+              <Button
+                size="small"
+                disabled={pending === `reopen:${question.code}`}
+                onClick={() => void runAction(question, 'reopen', `${question.code} 已重新起草（草稿）`)}
+              ><Play size={13} />重新起草</Button>
+            ) : null}
+            <Button size="small" onClick={() => void openEvents(question)}><ShieldQuestion size={13} />事件</Button>
+          </div>
+        )
+      },
+    },
+  ]
+
   return (
     <section className={styles.evidenceSection} aria-label="问数问题治理">
       <div className={styles.evidenceHeader}>
         <h2>问题治理</h2>
         <div className={styles.toolbarActions}>
-          <Button onClick={() => setRefreshTick((tick) => tick + 1)}>刷新</Button>
-          <Button onClick={openAudits}><Download size={14} />问数审计</Button>
-          <Button variant="primary" onClick={openCreate}><Plus size={14} />新建问题（草稿）</Button>
+          <Button size="small" onClick={() => setRefreshTick((tick) => tick + 1)}>刷新</Button>
+          <Button size="small" onClick={openAudits}><Download size={14} />问数审计</Button>
+          <Button size="small" type="primary" onClick={openCreate}><Plus size={14} />新建问题（草稿）</Button>
         </div>
       </div>
       <p className={styles.composerNote}>
@@ -287,321 +377,244 @@ export function AssistantGovernance({ onNotice, onQuestionsChanged }: {
       {governanceState === 'unavailable' && questions.length === 0 ? (
         <p className={styles.composerNote}>治理清单暂不可达（接口不可用或当前角色无治理权限）。</p>
       ) : null}
-      <div className={styles.horizontalScroll}>
-        <table className={styles.resultTable}>
-          <thead>
-            <tr><th>问题 / 代码</th><th>状态</th><th>数据服务</th><th>试运行验证</th><th>操作</th></tr>
-          </thead>
-          <tbody>
-            {pagedQuestions.map((question) => {
-              const key = `${'deprecate'}:${question.code}`
-              const deleteKey = `delete:${question.code}`
-              return (
-                <tr key={question.code}>
-                  <td>
-                    <strong>{question.question}</strong>
-                    <span className={styles.composerNote}>{question.code}</span>
-                  </td>
-                  <td><StatusTag tone={question.status === 'PUBLISHED' ? 'healthy' : question.status === 'DRAFT' ? 'neutral' : 'warning'}>
-                    {QUESTION_STATUS_LABEL[question.status] ?? question.status}
-                  </StatusTag></td>
-                  <td>{question.serviceCode}</td>
-                  <td>{question.verified
-                    ? <span className={styles.assistantVerified}>已验证（试运行通过）</span>
-                    : <span className={styles.composerNote}>未验证</span>}</td>
-                  <td>
-                    <div className={styles.assistantGovActions}>
-                      {question.status === 'DRAFT' ? (
-                        <>
-                          <Button onClick={() => openEdit(question)}><Pencil size={13} />编辑</Button>
-                          <Button onClick={() => openTest(question)}><FlaskConical size={13} />试运行</Button>
-                          <Button
-                            variant="primary"
-                            disabled={!question.verified || pending === `publish:${question.code}`}
-                            title={question.verified ? '发布到问数面' : '需最近一次成功试运行晚于最后编辑'}
-                            onClick={() => void runAction(question, 'publish', `${question.code} 已发布`)}
-                          >发布</Button>
-                          <Button
-                            variant={confirmKey === deleteKey ? 'danger' : 'secondary'}
-                            disabled={pending === deleteKey}
-                            onClick={() => twoStep('delete', question, '删除')}
-                          >{confirmKey === deleteKey ? '确认删除' : '删除'}</Button>
-                        </>
-                      ) : null}
-                      {question.status === 'PUBLISHED' ? (
-                        <>
-                          <Button onClick={() => openTest(question)}><FlaskConical size={13} />试运行</Button>
-                          <Button
-                            variant={confirmKey === key ? 'danger' : 'secondary'}
-                            disabled={pending === key}
-                            onClick={() => twoStep('deprecate', question, '停用')}
-                          >{confirmKey === key ? '确认停用' : '停用'}</Button>
-                        </>
-                      ) : null}
-                      {question.status === 'DEPRECATED' ? (
-                        <Button
-                          disabled={pending === `reopen:${question.code}`}
-                          onClick={() => void runAction(question, 'reopen', `${question.code} 已重新起草（草稿）`)}
-                        ><Play size={13} />重新起草</Button>
-                      ) : null}
-                      <Button onClick={() => void openEvents(question)}><ShieldQuestion size={13} />事件</Button>
-                    </div>
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
-      <Pager label="问题治理分页" page={questionsPage} pageCount={questionsPageCount} pageSize={TABLE_PAGE_SIZE}
-        onPageChange={setQuestionsPage} />
+      <Table<AssistantAdminQuestionView>
+        rowKey="code"
+        columns={questionColumns}
+        dataSource={pagedQuestions}
+        pagination={{
+          current: questionsPage + 1,
+          pageSize: TABLE_PAGE_SIZE,
+          total: questions.length,
+          showSizeChanger: false,
+          onChange: (page) => setQuestionsPage(page - 1),
+        }}
+        locale={{
+          emptyText: governanceState === 'unavailable' ? '治理清单暂不可达（接口不可用或当前角色无治理权限）。' : '',
+        }}
+      />
       {questions.length === 0 && governanceState !== 'loading'
         ? <p className={styles.composerNote}>当前租户暂无已验证问题（含草稿）。</p> : null}
 
-      {editorOpen ? (
-        <Drawer
-          titleId="assistant-question-editor-title"
-          eyebrow="问数治理"
-          title={editingCode ? `编辑问题 ${editingCode}` : '新建已验证问题（草稿）'}
-          closeLabel="关闭问题编辑"
-          onClose={() => setEditorOpen(false)}
-          footer={<>
-            <Button type="button" onClick={() => setEditorOpen(false)}>取消</Button>
-            <button className={pageStyles.primaryButton} type="submit" form="assistant-question-form" disabled={saving}>
-              {saving ? '保存中…' : '保存草稿'}
-            </button>
-          </>}
-        >
-          <form id="assistant-question-form" className={pageStyles.drawerForm} onSubmit={submitDraft}>
-            <div className={pageStyles.drawerFormGrid}>
-              <div className={pageStyles.formField}>
-                <label htmlFor="assistant-question-code">问题代码</label>
-                <input id="assistant-question-code" required pattern="[a-z0-9][a-z0-9-]{2,63}"
-                  value={form.code} disabled={Boolean(editingCode)}
-                  onChange={(event) => setForm({ ...form, code: event.target.value })}
-                  placeholder="如 prescription-daily-summary（创建后不可改）" />
-              </div>
-              <div className={pageStyles.formField}>
-                <label htmlFor="assistant-question-service">数据服务代码</label>
-                <input id="assistant-question-service" required pattern="[a-z0-9][a-z0-9-]{2,63}"
-                  value={form.serviceCode}
-                  onChange={(event) => setForm({ ...form, serviceCode: event.target.value })}
-                  placeholder="已发布的数据服务（Data API registry）" />
-              </div>
-            </div>
-            <div className={pageStyles.formField}>
-              <label htmlFor="assistant-question-text">问题原文</label>
-              <input id="assistant-question-text" required maxLength={256} value={form.question}
-                onChange={(event) => setForm({ ...form, question: event.target.value })}
-                placeholder="用户将以此原文或别名命中该问题" />
-            </div>
-            <div className={pageStyles.formField}>
-              <label htmlFor="assistant-question-aliases">同义别名（每行一个）</label>
-              <textarea id="assistant-question-aliases" rows={4} value={form.aliasesText}
-                onChange={(event) => setForm({ ...form, aliasesText: event.target.value })}
-                placeholder={'每日处方量趋势\n按天统计处方量'} />
-            </div>
-            <div className={pageStyles.formField}>
-              <label>参数 Schema（与数据服务契约一致）</label>
-              {form.paramRows.map((row, index) => (
-                <div key={index} className={styles.assistantParamBar}>
-                  <label className={styles.assistantParamField}>
-                    <span>参数名</span>
-                    <input value={row.name} pattern="[a-z_][a-z0-9_]{0,63}"
-                      onChange={(event) => setForm({ ...form, paramRows: form.paramRows.map((item, itemIndex) => itemIndex === index ? { ...item, name: event.target.value } : item) })} />
-                  </label>
-                  <label className={styles.assistantParamField}>
-                    <span>类型</span>
-                    <select value={row.type} onChange={(event) => setForm({ ...form, paramRows: form.paramRows.map((item, itemIndex) => itemIndex === index ? { ...item, type: event.target.value } : item) })}>
-                      <option value="date">date</option>
-                      <option value="string">string</option>
-                      <option value="number">number</option>
-                      <option value="boolean">boolean</option>
-                    </select>
-                  </label>
-                  <label className={styles.assistantParamField}>
-                    <span>必填</span>
-                    <select value={row.required ? 'true' : 'false'}
-                      onChange={(event) => setForm({ ...form, paramRows: form.paramRows.map((item, itemIndex) => itemIndex === index ? { ...item, required: event.target.value === 'true' } : item) })}>
-                      <option value="false">否</option>
-                      <option value="true">是</option>
-                    </select>
-                  </label>
-                  <label className={styles.assistantParamField}>
-                    <span>默认值（可留空）</span>
-                    <input value={row.defaultValue}
-                      onChange={(event) => setForm({ ...form, paramRows: form.paramRows.map((item, itemIndex) => itemIndex === index ? { ...item, defaultValue: event.target.value } : item) })} />
-                  </label>
-                  <label className={styles.assistantParamField}>
-                    <span>枚举取值（逗号分隔，可留空）</span>
-                    <input value={row.valuesText}
-                      onChange={(event) => setForm({ ...form, paramRows: form.paramRows.map((item, itemIndex) => itemIndex === index ? { ...item, valuesText: event.target.value } : item) })} />
-                  </label>
-                  <Button type="button" aria-label={`移除参数 ${row.name || index + 1}`}
-                    onClick={() => setForm({ ...form, paramRows: form.paramRows.filter((_, itemIndex) => itemIndex !== index) })}>
-                    <Trash2 size={13} />
-                  </Button>
-                </div>
-              ))}
-              <Button type="button"
-                onClick={() => setForm({ ...form, paramRows: [...form.paramRows, { name: '', type: 'date', required: true, defaultValue: '', valuesText: '' }] })}>
-                <Plus size={13} />添加参数
-              </Button>
-            </div>
-            <div className={pageStyles.formField}>
-              <label htmlFor="assistant-question-template">回答模板</label>
-              <textarea id="assistant-question-template" rows={3} maxLength={512} value={form.answerTemplate}
-                onChange={(event) => setForm({ ...form, answerTemplate: event.target.value })}
-                placeholder="支持 {参数名} 与 {row_count}/{service_code}/{service_version}" />
-            </div>
-          </form>
-        </Drawer>
-      ) : null}
-
-      {testTarget ? (
-        <Drawer
-          titleId="assistant-test-title"
-          eyebrow="问数治理 · 发布前验证"
-          title={`试运行 ${testTarget.code}`}
-          closeLabel="关闭试运行"
-          onClose={() => setTestTarget(null)}
-          footer={<>
-            <Button type="button" onClick={() => setTestTarget(null)}>关闭</Button>
-            <button className={pageStyles.primaryButton} type="submit" form="assistant-test-form" disabled={testing}>
-              {testing ? '执行中…' : '执行试运行'}
-            </button>
-          </>}
-        >
-          <form id="assistant-test-form" className={pageStyles.drawerForm} onSubmit={(event) => { event.preventDefault(); void runTest() }}>
-            {paramRowsOf(testTarget).length === 0 ? (
-              <p className={pageStyles.drawerNotice}>该问题无参数，直接执行。</p>
-            ) : (
-              <div className={styles.assistantParamBar}>
-                {paramRowsOf(testTarget).map((contract) => (
-                  <label key={contract.name} className={styles.assistantParamField}>
-                    <span>{contract.name}{contract.required ? ' *' : ''}</span>
-                    <input
-                      type={contract.type === 'date' ? 'date' : contract.type === 'number' ? 'number' : 'text'}
-                      value={testParams[contract.name] ?? ''} required={contract.required}
-                      onChange={(event) => setTestParams({ ...testParams, [contract.name]: event.target.value })} />
-                  </label>
-                ))}
-              </div>
-            )}
-          </form>
-          {testResult ? (
-            <div className={pageStyles.drawerForm}>
-              {testResult.answered ? (
-                <>
-                  <p><strong>试运行通过：</strong>{testResult.answer}</p>
-                  <div className={styles.horizontalScroll}>
-                    <table className={styles.resultTable}>
-                      <thead><tr>{(testResult.columns ?? []).map((column) => <th key={column}>{column}</th>)}</tr></thead>
-                      <tbody>
-                        {(testResult.rows ?? []).slice(0, 5).map((row, index) => (
-                          <tr key={index}>{row.map((cell, cellIndex) => <td key={cellIndex}>{String(cell ?? '')}</td>)}</tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                  <p className={styles.composerNote}>
-                    共 {testResult.rowCount} 行 · {testResult.evidence?.elapsedMs} ms · 审计 {testResult.auditId.slice(0, 13)}…
-                  </p>
-                </>
-              ) : (
-                <>
-                  <p><strong>试运行被拒：</strong>{testResult.reason}</p>
-                  <p className={styles.composerNote}>outcome: {testResult.outcome} · 审计 {testResult.auditId.slice(0, 13)}…（拒答同样留痕）</p>
-                </>
-              )}
-            </div>
-          ) : null}
-        </Drawer>
-      ) : null}
-
-      {eventsTarget ? (
-        <Drawer
-          titleId="assistant-events-title"
-          eyebrow="问数治理 · 生命周期"
-          title={`事件留痕 ${eventsTarget.code}`}
-          closeLabel="关闭事件留痕"
-          onClose={() => setEventsTarget(null)}
-          footer={<Button type="button" onClick={() => setEventsTarget(null)}>关闭</Button>}
-        >
-          <ul className={styles.sourceList}>
-            {pagedEvents.map((event, index) => (
-              <li key={index}>
-                <strong>{QUESTION_STATUS_LABEL[event.action] ?? event.action}</strong>
-                <span>{event.actor || 'system'} · {formatDateTime(event.createdAt)}</span>
-              </li>
-            ))}
-          </ul>
-          {events && events.items.length === 0 ? <p className={styles.composerNote}>暂无事件记录。</p> : null}
-          {events && events.total > events.returned ? (
-            <p className={styles.composerNote}>共 {events.total} 条，仅显示最近 {events.returned} 条。</p>
-          ) : null}
-          <Pager label="事件分页" page={eventsPage} pageCount={eventsPageCount} pageSize={EVENTS_PAGE_SIZE}
-            onPageChange={setEventsPage} />
-        </Drawer>
-      ) : null}
-
-      {auditsOpen ? (
-        <Drawer
-          titleId="assistant-audits-title"
-          eyebrow="问数治理 · 审计"
-          title="问数审计（含拒答与试运行）"
-          closeLabel="关闭问数审计"
-          onClose={() => setAuditsOpen(false)}
-          footer={<>
-            <Button type="button" onClick={() => void loadAudits(auditPage, auditOutcome)}>刷新</Button>
-            <Button type="button" disabled={exporting} onClick={() => void exportAudits()}>
-              <Download size={14} />{exporting ? '导出中…' : '导出 CSV'}
-            </Button>
-            <Button type="button" variant="primary" onClick={() => setAuditsOpen(false)}>关闭</Button>
-          </>}
-        >
-          <div className={styles.assistantParamBar} role="search">
-            <label className={styles.assistantParamField}>
-              <span>结局过滤</span>
-              <select value={auditOutcome} onChange={(event) => changeAuditOutcome(event.target.value)}>
-                {AUDIT_OUTCOME_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-              </select>
-            </label>
-            <span className={styles.composerNote}>共 {auditTotal} 条（每次提问一行，含拒答；不存结果数据）</span>
+      <Drawer
+        open={editorOpen}
+        destroyOnHidden
+        width={DRAWER_WIDTH}
+        title={<DrawerTitle eyebrow="问数治理" title={editingCode ? `编辑问题 ${editingCode}` : '新建已验证问题（草稿）'} />}
+        onClose={() => setEditorOpen(false)}
+        footer={<>
+          <Button onClick={() => setEditorOpen(false)}>取消</Button>
+          <Button type="primary" htmlType="submit" form="assistant-question-form" loading={saving} disabled={saving}>
+            {saving ? '保存中…' : '保存草稿'}
+          </Button>
+        </>}
+      >
+        <Form id="assistant-question-form" layout="vertical" onFinish={() => void submitDraft()}>
+          <div className={pageStyles.drawerFormGrid}>
+            <Form.Item label="问题代码" required>
+              <Input required pattern="[a-z0-9][a-z0-9-]{2,63}"
+                value={form.code} disabled={Boolean(editingCode)}
+                onChange={(event) => setForm({ ...form, code: event.target.value })}
+                placeholder="如 prescription-daily-summary（创建后不可改）" />
+            </Form.Item>
+            <Form.Item label="数据服务代码" required>
+              <Input required pattern="[a-z0-9][a-z0-9-]{2,63}"
+                value={form.serviceCode}
+                onChange={(event) => setForm({ ...form, serviceCode: event.target.value })}
+                placeholder="已发布的数据服务（Data API registry）" />
+            </Form.Item>
           </div>
-          {auditState === 'unavailable' ? (
-            <p className={styles.composerNote}>审计读取失败（接口不可用或无权限）。</p>
-          ) : null}
-          {auditState === 'loading' ? <p className={styles.composerNote}>正在加载审计…</p> : null}
-          {auditState === 'idle' && audits.length === 0 ? <p className={styles.composerNote}>当前过滤口径下暂无审计记录。</p> : null}
-          <ul className={styles.sourceList}>
-            {audits.map((audit) => (
-              <li key={audit.id}>
-                <strong className={styles.assistantAuditHead}>
-                  {formatDateTime(audit.createdAt)}
-                  {audit.outcome === 'ANSWERED'
-                    ? <StatusTag tone="healthy">已回答</StatusTag>
-                    : <StatusTag tone="warning">{audit.outcome.replace('REFUSED_', '拒答·')}</StatusTag>}
-                </strong>
-                <span>{truncate(audit.questionText, 44) || '（未匹配）'}{audit.questionCode ? ` · ${audit.questionCode}` : ''}{audit.detail.startsWith('test-run') ? ' · 试运行' : ''}</span>
-                <span className={styles.composerNote}>
-                  {audit.outcome === 'ANSWERED' ? `${audit.rowCount} 行 · ${audit.elapsedMs} ms` : '未执行'}
-                  {audit.feedbackRating
-                    ? ` · 反馈：${audit.feedbackRating === 'helpful' ? '有帮助' : '待改进'}${audit.feedbackNote ? `（${truncate(audit.feedbackNote, 30)}）` : ''}`
-                    : ''}
-                  {` · ${audit.userId || '—'}`}
-                </span>
-              </li>
+          <Form.Item label="问题原文" required>
+            <Input required maxLength={256} value={form.question}
+              onChange={(event) => setForm({ ...form, question: event.target.value })}
+              placeholder="用户将以此原文或别名命中该问题" />
+          </Form.Item>
+          <Form.Item label="同义别名（每行一个）">
+            <Input.TextArea rows={4} value={form.aliasesText}
+              onChange={(event) => setForm({ ...form, aliasesText: event.target.value })}
+              placeholder={'每日处方量趋势\n按天统计处方量'} />
+          </Form.Item>
+          <Form.Item label="参数 Schema（与数据服务契约一致）">
+            {form.paramRows.map((row, index) => (
+              <div key={index} className={styles.assistantParamBar}>
+                <Form.Item className={styles.assistantParamField} label="参数名">
+                  <Input value={row.name} pattern="[a-z_][a-z0-9_]{0,63}"
+                    onChange={(event) => setForm({ ...form, paramRows: form.paramRows.map((item, itemIndex) => itemIndex === index ? { ...item, name: event.target.value } : item) })} />
+                </Form.Item>
+                <Form.Item className={styles.assistantParamField} label="类型">
+                  <Select value={row.type} onChange={(value) => setForm({ ...form, paramRows: form.paramRows.map((item, itemIndex) => itemIndex === index ? { ...item, type: value } : item) })}
+                    options={[{ value: 'date', label: 'date' }, { value: 'string', label: 'string' }, { value: 'number', label: 'number' }, { value: 'boolean', label: 'boolean' }]} />
+                </Form.Item>
+                <Form.Item className={styles.assistantParamField} label="必填">
+                  <Select value={row.required ? 'true' : 'false'} onChange={(value) => setForm({ ...form, paramRows: form.paramRows.map((item, itemIndex) => itemIndex === index ? { ...item, required: value === 'true' } : item) })}
+                    options={[{ value: 'false', label: '否' }, { value: 'true', label: '是' }]} />
+                </Form.Item>
+                <Form.Item className={styles.assistantParamField} label="默认值（可留空）">
+                  <Input value={row.defaultValue}
+                    onChange={(event) => setForm({ ...form, paramRows: form.paramRows.map((item, itemIndex) => itemIndex === index ? { ...item, defaultValue: event.target.value } : item) })} />
+                </Form.Item>
+                <Form.Item className={styles.assistantParamField} label="枚举取值（逗号分隔，可留空）">
+                  <Input value={row.valuesText}
+                    onChange={(event) => setForm({ ...form, paramRows: form.paramRows.map((item, itemIndex) => itemIndex === index ? { ...item, valuesText: event.target.value } : item) })} />
+                </Form.Item>
+                <Button type="text" size="small" aria-label={`移除参数 ${row.name || index + 1}`}
+                  onClick={() => setForm({ ...form, paramRows: form.paramRows.filter((_, itemIndex) => itemIndex !== index) })}>
+                  <Trash2 size={13} />
+                </Button>
+              </div>
             ))}
-          </ul>
-          <Pager label="问数审计分页" page={auditPage}
-            pageCount={Math.max(1, Math.ceil(auditTotal / AUDIT_PAGE_SIZE))}
-            pageSize={AUDIT_PAGE_SIZE}
-            onPageChange={(page) => { setAuditPage(page); void loadAudits(page, auditOutcome) }} />
-        </Drawer>
-      ) : null}
+            <Button type="text" size="small"
+              onClick={() => setForm({ ...form, paramRows: [...form.paramRows, { name: '', type: 'date', required: true, defaultValue: '', valuesText: '' }] })}>
+              <Plus size={13} />添加参数
+            </Button>
+          </Form.Item>
+          <Form.Item label="回答模板">
+            <Input.TextArea rows={3} maxLength={512} value={form.answerTemplate}
+              onChange={(event) => setForm({ ...form, answerTemplate: event.target.value })}
+              placeholder="支持 {参数名} 与 {row_count}/{service_code}/{service_version}" />
+          </Form.Item>
+        </Form>
+      </Drawer>
+
+      <Drawer
+        open={testTarget !== null}
+        destroyOnHidden
+        width={DRAWER_WIDTH}
+        title={<DrawerTitle eyebrow="问数治理 · 发布前验证" title={testTarget ? `试运行 ${testTarget.code}` : ''} />}
+        onClose={() => setTestTarget(null)}
+        footer={<>
+          <Button onClick={() => setTestTarget(null)}>关闭</Button>
+          <Button type="primary" htmlType="submit" form="assistant-test-form" loading={testing} disabled={testing}>
+            {testing ? '执行中…' : '执行试运行'}
+          </Button>
+        </>}
+      >
+        <Form id="assistant-test-form" layout="vertical" onFinish={() => void runTest()}>
+          {testTarget && paramRowsOf(testTarget).length === 0 ? (
+            <p className={pageStyles.drawerNotice}>该问题无参数，直接执行。</p>
+          ) : (
+            <div className={styles.assistantParamBar}>
+              {testTarget ? paramRowsOf(testTarget).map((contract) => (
+                <Form.Item key={contract.name} className={styles.assistantParamField}
+                  label={<>{contract.name}{contract.required ? ' *' : ''}</>}>
+                  {contract.type === 'date'
+                    ? <DatePicker value={testParams[contract.name] ? dayjs(testParams[contract.name]) : null}
+                        onChange={(date) => setTestParams({ ...testParams, [contract.name]: date ? date.format('YYYY-MM-DD') : '' })} />
+                    : <Input
+                        type={contract.type === 'number' ? 'number' : 'text'}
+                        value={testParams[contract.name] ?? ''}
+                        onChange={(event) => setTestParams({ ...testParams, [contract.name]: event.target.value })} />}
+                </Form.Item>
+              )) : null}
+            </div>
+          )}
+        </Form>
+        {testResult ? (
+          <div className={pageStyles.drawerForm}>
+            {testResult.answered ? (
+              <>
+                <p><strong>试运行通过：</strong>{testResult.answer}</p>
+                <div className={styles.horizontalScroll}>
+                  <Table
+                    rowKey={(_, index) => index ?? 0}
+                    columns={(testResult.columns ?? []).map((column, index) => ({
+                      title: column,
+                      key: column,
+                      render: (_: unknown, row: unknown[]) => String(row[index] ?? ''),
+                    })) as ColumnsType<unknown[]>}
+                    dataSource={(testResult.rows ?? []).slice(0, 5)}
+                    pagination={false}
+                    size="small"
+                  />
+                </div>
+                <p className={styles.composerNote}>
+                  共 {testResult.rowCount} 行 · {testResult.evidence?.elapsedMs} ms · 审计 {testResult.auditId.slice(0, 13)}…
+                </p>
+              </>
+            ) : (
+              <>
+                <p><strong>试运行被拒：</strong>{testResult.reason}</p>
+                <p className={styles.composerNote}>outcome: {testResult.outcome} · 审计 {testResult.auditId.slice(0, 13)}…（拒答同样留痕）</p>
+              </>
+            )}
+          </div>
+        ) : null}
+      </Drawer>
+
+      <Drawer
+        open={eventsTarget !== null}
+        destroyOnHidden
+        width={DRAWER_WIDTH}
+        title={<DrawerTitle eyebrow="问数治理 · 生命周期" title={eventsTarget ? `事件留痕 ${eventsTarget.code}` : ''} />}
+        onClose={() => setEventsTarget(null)}
+        footer={<Button onClick={() => setEventsTarget(null)}>关闭</Button>}
+      >
+        <ul className={styles.sourceList}>
+          {pagedEvents.map((event, index) => (
+            <li key={index}>
+              <strong>{QUESTION_STATUS_LABEL[event.action] ?? event.action}</strong>
+              <span>{event.actor || 'system'} · {formatDateTime(event.createdAt)}</span>
+            </li>
+          ))}
+        </ul>
+        {events && events.items.length === 0 ? <p className={styles.composerNote}>暂无事件记录。</p> : null}
+        {events && events.total > events.returned ? (
+          <p className={styles.composerNote}>共 {events.total} 条，仅显示最近 {events.returned} 条。</p>
+        ) : null}
+        <Pager label="事件分页" page={eventsPage} pageCount={eventsPageCount} pageSize={EVENTS_PAGE_SIZE}
+          onPageChange={setEventsPage} />
+      </Drawer>
+
+      <Drawer
+        open={auditsOpen}
+        destroyOnHidden
+        width={DRAWER_WIDTH}
+        title={<DrawerTitle eyebrow="问数治理 · 审计" title="问数审计（含拒答与试运行）" />}
+        onClose={() => setAuditsOpen(false)}
+        footer={<>
+          <Button onClick={() => void loadAudits(auditPage, auditOutcome)}>刷新</Button>
+          <Button disabled={exporting} onClick={() => void exportAudits()}>
+            <Download size={14} />{exporting ? '导出中…' : '导出 CSV'}
+          </Button>
+          <Button type="primary" onClick={() => setAuditsOpen(false)}>关闭</Button>
+        </>}
+      >
+        <div className={styles.assistantParamBar} role="search">
+          <Form.Item className={styles.assistantParamField} label="结局过滤">
+            <Select value={auditOutcome} onChange={(value) => changeAuditOutcome(value)}
+              options={AUDIT_OUTCOME_OPTIONS.map((option) => ({ value: option.value, label: option.label }))} />
+          </Form.Item>
+          <span className={styles.composerNote}>共 {auditTotal} 条（每次提问一行，含拒答；不存结果数据）</span>
+        </div>
+        {auditState === 'unavailable' ? (
+          <p className={styles.composerNote}>审计读取失败（接口不可用或无权限）。</p>
+        ) : null}
+        {auditState === 'loading' ? <p className={styles.composerNote}>正在加载审计…</p> : null}
+        {auditState === 'idle' && audits.length === 0 ? <p className={styles.composerNote}>当前过滤口径下暂无审计记录。</p> : null}
+        <ul className={styles.sourceList}>
+          {audits.map((audit) => (
+            <li key={audit.id}>
+              <strong className={styles.assistantAuditHead}>
+                {formatDateTime(audit.createdAt)}
+                {audit.outcome === 'ANSWERED'
+                  ? <Tag color={TONE_COLOR.healthy}>已回答</Tag>
+                  : <Tag color={TONE_COLOR.warning}>{audit.outcome.replace('REFUSED_', '拒答·')}</Tag>}
+              </strong>
+              <span>{truncate(audit.questionText, 44) || '（未匹配）'}{audit.questionCode ? ` · ${audit.questionCode}` : ''}{audit.detail.startsWith('test-run') ? ' · 试运行' : ''}</span>
+              <span className={styles.composerNote}>
+                {audit.outcome === 'ANSWERED' ? `${audit.rowCount} 行 · ${audit.elapsedMs} ms` : '未执行'}
+                {audit.feedbackRating
+                  ? ` · 反馈：${audit.feedbackRating === 'helpful' ? '有帮助' : '待改进'}${audit.feedbackNote ? `（${truncate(audit.feedbackNote, 30)}）` : ''}`
+                  : ''}
+                {` · ${audit.userId || '—'}`}
+              </span>
+            </li>
+          ))}
+        </ul>
+        <Pager label="问数审计分页" page={auditPage}
+          pageCount={Math.max(1, Math.ceil(auditTotal / AUDIT_PAGE_SIZE))}
+          pageSize={AUDIT_PAGE_SIZE}
+          onPageChange={(page) => { setAuditPage(page); void loadAudits(page, auditOutcome) }} />
+      </Drawer>
     </section>
   )
 }

@@ -1,8 +1,9 @@
 import { CheckCircle2, GitMerge, RotateCcw, Search, ShieldCheck } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { Button, Select, Table, Tag } from 'antd'
+import type { ColumnsType } from 'antd/es/table'
 import { DemoDataBoundary } from '../components/ui/DemoDataBoundary'
 import { PageHeader } from '../components/ui/PageHeader'
-import { Button, StatusTag } from '../components/ui/Primitives'
 import { mpiCandidates } from '../data/mock'
 import { frontendDemoMode } from '../data/runtimeMode'
 import { MpiReviewLive } from './MpiReviewLive'
@@ -16,6 +17,15 @@ const comparison = [
   ['现住址', '南京市鼓楼区…', '南京市鼓楼区…', '南京市鼓楼区…'],
   ['院内患者号', 'H000183729', 'E00962817', '保留为多标识'],
 ]
+
+interface ComparisonRow {
+  field: string
+  left: string
+  right: string
+  golden: string
+}
+
+const comparisonRows: ComparisonRow[] = comparison.map(([field, left, right, golden]) => ({ field, left, right, golden }))
 
 export function MpiReviewPage({ onNotice, onNavigate }: { onNotice: (message: string) => void; onNavigate: (route: 'ingestion' | 'governance' | 'quality') => void }) {
   // 运行模式（CONTEXT.md）：演示构建保留静态样例供交互验收；
@@ -47,6 +57,27 @@ function DemoMpiReviewPage({ onNotice, onNavigate }: { onNotice: (message: strin
     onNotice('已建立患者身份关联；原始记录保留，可在审计记录中撤销')
   }
 
+  // 身份对比列：黄金记录建议列保留行内下拉选择（默认取建议值）。
+  const comparisonColumns: ColumnsType<ComparisonRow> = [
+    { title: '身份属性', dataIndex: 'field', key: 'field' },
+    { title: 'HIS 患者记录', dataIndex: 'left', key: 'left' },
+    { title: 'EMR 患者记录', dataIndex: 'right', key: 'right' },
+    {
+      title: '黄金记录建议',
+      key: 'golden',
+      className: styles.recommendedValue,
+      render: (_, row) => (
+        <Select
+          size="small"
+          style={{ width: '100%' }}
+          defaultValue={row.golden}
+          aria-label={`${row.field}黄金记录取值`}
+          options={[row.golden, row.left, row.right].map((value) => ({ value, label: value }))}
+        />
+      ),
+    },
+  ]
+
   return (
     <div className={styles.page}>
       <PageHeader title="主索引候选审核" eyebrow="主索引与主数据" compact />
@@ -56,27 +87,27 @@ function DemoMpiReviewPage({ onNotice, onNavigate }: { onNotice: (message: strin
           <div className={styles.sectionTitle}><h2>候选队列</h2><span>36 待审核</span></div>
           <div className={styles.search}><Search size={15} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="患者姓名或候选号" aria-label="搜索主索引候选" /></div>
           <ul className={styles.queue}>
-            {visibleCandidates.map((candidate) => <li key={candidate.id}><button className={selected.id === candidate.id ? styles.selected : ''} onClick={() => { setSelectedId(candidate.id); setMerged(false); setConfirmed(false) }}><span className={styles.queueTop}><span className={styles.queueId}>{candidate.id}</span><StatusTag tone={candidate.score >= 95 ? 'healthy' : 'warning'}>{candidate.score}% 匹配</StatusTag></span><span className={styles.queueTitle}>{candidate.leftName} ↔ {candidate.rightName}</span><span className={styles.queueMeta}>{candidate.system} · {candidate.risk}</span></button></li>)}
+            {visibleCandidates.map((candidate) => <li key={candidate.id}><button className={selected.id === candidate.id ? styles.selected : ''} onClick={() => { setSelectedId(candidate.id); setMerged(false); setConfirmed(false) }}><span className={styles.queueTop}><span className={styles.queueId}>{candidate.id}</span><Tag color={candidate.score >= 95 ? 'success' : 'warning'}>{candidate.score}% 匹配</Tag></span><span className={styles.queueTitle}>{candidate.leftName} ↔ {candidate.rightName}</span><span className={styles.queueMeta}>{candidate.system} · {candidate.risk}</span></button></li>)}
             {visibleCandidates.length === 0 ? <li className={styles.emptyState}>未找到匹配的候选记录</li> : null}
           </ul>
         </aside>
         <section className={styles.mpiMain}>
           <div className={styles.mpiTop}>
-            <div><StatusTag tone={merged ? 'healthy' : 'warning'}>{merged ? '已建立关联' : '需人工确认'}</StatusTag><h2>{selected.leftName} 与 {selected.rightName}</h2><p>{selected.id} · {selected.system} · 匹配模型 v2.4</p></div>
+            <div><Tag color={merged ? 'success' : 'warning'}>{merged ? '已建立关联' : '需人工确认'}</Tag><h2>{selected.leftName} 与 {selected.rightName}</h2><p>{selected.id} · {selected.system} · 匹配模型 v2.4</p></div>
             <div className={styles.score}><strong>{selected.score}%</strong><span>综合匹配置信度</span></div>
           </div>
           <div className={styles.compareWrap}>
-            <table className={styles.compareTable}>
-              <thead><tr><th>身份属性</th><th>HIS 患者记录</th><th>EMR 患者记录</th><th>黄金记录建议</th></tr></thead>
-              <tbody>
-                {comparison.map(([field, left, right, golden]) => <tr key={field}><td>{field}</td><td>{left}</td><td>{right}</td><td className={styles.recommendedValue}><select defaultValue={golden} aria-label={`${field}黄金记录取值`}><option>{golden}</option><option>{left}</option><option>{right}</option></select></td></tr>)}
-              </tbody>
-            </table>
+            <Table<ComparisonRow>
+              rowKey="field"
+              columns={comparisonColumns}
+              dataSource={comparisonRows}
+              pagination={false}
+            />
           </div>
           <div className={styles.mpiLower}>
             <section className={styles.panel}>
               <div className={styles.panelHeader}><div><h3>匹配证据</h3><p>逐项证据可解释、可复核</p></div><ShieldCheck size={18} color="var(--jade)" /></div>
-              <ul className={`${styles.checkList} ${styles.compactCheckList}`}><li><CheckCircle2 size={16} />身份证号完全一致 · 权重 60%</li><li><CheckCircle2 size={16} />姓名与出生日期一致 · 权重 30%</li><li><CheckCircle2 size={16} />地址相似度 92% · 权重 8%</li><li><StatusTag tone="warning">需确认</StatusTag>手机号冲突 · 扣减 2%</li></ul>
+              <ul className={`${styles.checkList} ${styles.compactCheckList}`}><li><CheckCircle2 size={16} />身份证号完全一致 · 权重 60%</li><li><CheckCircle2 size={16} />姓名与出生日期一致 · 权重 30%</li><li><CheckCircle2 size={16} />地址相似度 92% · 权重 8%</li><li><Tag color="warning">需确认</Tag>手机号冲突 · 扣减 2%</li></ul>
             </section>
             <section className={styles.panel}>
               <div className={styles.panelHeader}><div><h3>合并影响</h3><p>建立关联，不覆盖源系统原始数据</p></div><GitMerge size={18} color="var(--jade)" /></div>
@@ -85,7 +116,7 @@ function DemoMpiReviewPage({ onNotice, onNavigate }: { onNotice: (message: strin
           </div>
           <div className={styles.mpiActions}>
             <label className={styles.confirmCheck}><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} disabled={merged} /><span>我已核对关键身份属性与影响范围，确认两条记录属于同一患者。该操作只建立身份关联，不回写覆盖源系统。</span></label>
-            <div className={styles.actionGroup}><Button onClick={() => onNotice('候选已退回规则调整队列')} disabled={merged}><RotateCcw size={14} />退回</Button><Button variant="primary" disabled={!confirmed || merged} onClick={confirmRelation}><GitMerge size={14} />{merged ? '已建立关联' : '确认建立关联'}</Button></div>
+            <div className={styles.actionGroup}><Button onClick={() => onNotice('候选已退回规则调整队列')} disabled={merged}><RotateCcw size={14} />退回</Button><Button type="primary" disabled={!confirmed || merged} onClick={confirmRelation}><GitMerge size={14} />{merged ? '已建立关联' : '确认建立关联'}</Button></div>
           </div>
         </section>
         </div>

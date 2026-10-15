@@ -1,0 +1,12 @@
+/* AssistantGovernance 页面级组合类（antd 迁移后）：抽屉标题区保留原 eyebrow + h2 层级。 */
+.drawerEyebrow {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.drawerTitle {
+  margin: 0;
+  font-size: 16px;
+}
