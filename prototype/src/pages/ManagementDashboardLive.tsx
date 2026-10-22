@@ -1,6 +1,6 @@
 import { Activity, ChevronRight, CloudCog, RefreshCw } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { Button, Table, Tag } from 'antd'
+import { Button, Skeleton, Table, Tag } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { PageHeader } from '../components/ui/PageHeader'
 import { formatDateTime } from '../data/domain'
@@ -127,7 +127,7 @@ export function ManagementDashboardLive(
       key: 'asOf',
       align: 'right',
       width: 110,
-      render: (_, item) => <small style={{ whiteSpace: 'nowrap' }}>{formatDateTime(item.asOf)}</small>,
+      render: (_, item) => <small className={pageStyles.timestamp}>{formatDateTime(item.asOf)}</small>,
     },
     {
       title: '',
@@ -169,10 +169,10 @@ export function ManagementDashboardLive(
         asOf={summary?.asOf}
       />
       <div className={styles.content}>
-        {metrics.length > 0 ? <MetricStrip metrics={metrics} /> : <p className={styles.emptyState}>正在加载运营指标…</p>}
+        {metrics.length > 0 ? <MetricStrip metrics={metrics} /> : <div className={pageStyles.metricLoading} aria-label="正在加载运营指标" role="status"><Skeleton active title={false} paragraph={{ rows: 2 }} /></div>}
 
-        {/* 就绪态用中性带（attentionNeutral），降级/未知才挂琥珀（2026-10-06 对齐收敛）。 */}
-        <section className={`${styles.attention} ${components?.state === 'READY' ? styles.attentionNeutral : ''}`}>
+        {/* 仅明确降级使用风险色；首次加载与未知状态保留中性。 */}
+        <section className={`${styles.attention} ${components?.state === 'DEGRADED' ? '' : styles.attentionNeutral}`}>
           <div className={styles.attentionText}>
             <Activity size={21} />
             <div>
@@ -182,13 +182,13 @@ export function ManagementDashboardLive(
           </div>
           <div className={styles.panelHeaderActions}>
             <Tag color={TONE_COLOR[components?.state === 'READY' ? 'healthy' : components?.state === 'DEGRADED' ? 'warning' : 'neutral']}>
-              {components?.state ?? 'UNKNOWN'}
+              {components?.state === 'READY' ? '全部就绪' : components?.state === 'DEGRADED' ? '存在降级' : '状态未知'}
             </Tag>
             <Button type="text" size="small" onClick={() => setReloadKey((key) => key + 1)}><RefreshCw size={14} />刷新</Button>
           </div>
         </section>
 
-        <div className={styles.twoColumns}>
+        <div className={`${styles.twoColumns} ${pageStyles.workspace}`}>
           <section className={styles.tablePanel}>
             <div className={styles.panelHeader}>
               <div><h2>优先处理</h2><p>共 {workItems.length} 项跨域待办 · 按严重度排序 · 完整清单在运营中心</p></div>
@@ -197,6 +197,7 @@ export function ManagementDashboardLive(
             <Table<OperationsWorkItem>
               rowKey={(item) => `${item.sourceType}-${item.sourceId}`}
               columns={workItemColumns}
+              scroll={{ x: 690 }}
               dataSource={topItems}
               pagination={false}
               loading={workItemsState === 'loading'}
@@ -212,8 +213,9 @@ export function ManagementDashboardLive(
 
           <section className={styles.panel}>
             <div className={styles.panelHeader}><div><h2>最近事件</h2><p>跨域操作留痕</p></div></div>
-            <ul className={styles.timelineBody}>
-              {eventsState === 'loading' ? <li className={styles.emptyState}>正在加载事件…</li> : null}
+            <ul className={`${styles.timelineBody} ${pageStyles.eventList}`} aria-busy={eventsState === 'loading'}>
+              {eventsState === 'loading' ? <li><Skeleton active title={false} paragraph={{ rows: 4 }} /></li> : null}
+              {eventsState === 'unavailable' ? <li className={pageStyles.eventUnavailable}><strong>事件暂不可用</strong><p>无法读取近期事件，可重新加载。</p><Button size="small" onClick={() => setReloadKey((key) => key + 1)}>重新加载</Button></li> : null}
               {events.slice(0, 10).map((event, index) => (
                 <li key={`${event.domain}-${index}`}>
                   <div className={styles.timelineTitle}><strong>{event.domain} · {event.type}</strong><span>{formatDateTime(event.asOf)}</span></div>

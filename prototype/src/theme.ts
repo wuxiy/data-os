@@ -1,7 +1,7 @@
 // v2 视觉方向「云峰中性」的 antd v6 主题映射。
 // token 语义与 DESIGN.md「12. v2 视觉方向：云峰中性（antd 域）」一一对应；
 // antd 组件一律从本文件取 token，页面/组件内不硬编码色值。
-// 未迁移页面仍使用 globals.css 中的 v1 token，两者并行期间以此文件为 antd 域唯一来源。
+// 全站已完成 antd 迁移；globals.css 的语义变量与本文件保持同一色板。
 import type { ThemeConfig } from 'antd'
 
 export const dataOsTheme: ThemeConfig = {
@@ -26,6 +26,8 @@ export const dataOsTheme: ThemeConfig = {
     // 控件高度两档：默认 40 / 密集 32（表格行内、工具条、表单辅助动作用 size="small"）
     controlHeight: 40,
     controlHeightSM: 32,
+    lineHeight: 1.6,
+    motionDurationMid: '0.2s',
   },
   components: {
     Table: {

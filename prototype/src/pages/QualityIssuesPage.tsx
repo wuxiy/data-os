@@ -1,6 +1,6 @@
-import { AlertTriangle, CircleAlert, LoaderCircle, RefreshCw, Search, Send } from 'lucide-react'
+import { AlertTriangle, CircleAlert, RefreshCw, Search, Send } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Button, Drawer, Tag } from 'antd'
+import { Button, Drawer, Skeleton, Tag } from 'antd'
 import { useAction } from '../hooks/useAction'
 import { useApiResource } from '../hooks/useApiResource'
 import { useKeyedResource } from '../hooks/useKeyedResource'
@@ -249,37 +249,42 @@ export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props
 
   return (
     <div className={styles.page}>
-      <PageHeader title="数据质量闭环" compact />
+      <PageHeader title="数据质量闭环" subtitle="按风险定位问题，记录处置结论，再通过复检核对结果" compact />
       <GovernanceTabs route="quality" onNavigate={onNavigate} onUnavailable={onUnavailable} />
       <div className={styles.apiStatus} role="status" aria-live="polite">
         <span className={`${styles.apiDot} ${apiState === 'live' ? styles.apiDotLive : ''}`} />
         {apiState === 'loading' ? '正在连接治理控制面…' : apiState === 'live' ? '控制面已连接 · 问题与处理记录来自治理控制面' : '控制面暂不可用 · 未加载治理问题'}
       </div>
       {apiState === 'unavailable' ? <div className={styles.connectionNotice} role="alert"><CircleAlert size={17} /><div><strong>治理问题控制面不可用</strong><span>当前页面没有展示演示问题；请恢复控制面后重新加载。</span></div><button className={styles.secondaryButton} onClick={() => window.location.reload()}>重新连接</button></div> : null}
-      <div className={styles.workspace}>
+      <div className={`${styles.workspace} ${local.workspace}`}>
         <aside className={styles.workspaceRail}>
-          <div className={styles.sectionTitle}><h2>问题队列</h2><span>{openIssues.length} 待闭环</span></div>
+          <div className={styles.sectionTitle}><h2>问题队列</h2><span>{apiState === 'live' ? `${openIssues.length} 待闭环` : '等待问题数据'}</span></div>
           <div className={styles.search}><Search size={15} /><input value={query} onChange={(event) => { setQuery(event.target.value); setQueuePage(0) }} placeholder="搜索问题或责任部门" aria-label="搜索质量问题" /></div>
-          <div className={styles.queueFilters} role="group" aria-label="队列状态筛选">
+          <div className={`${styles.queueFilters} ${local.queueFilters}`} role="group" aria-label="队列状态筛选">
             {([['open', `待闭环 ${openIssues.length}`], ['closed', `已关闭 ${issues.length - openIssues.length}`], ['all', `全部 ${issues.length}`]] as const).map(([value, label]) => (
               <button key={value} className={styles.queueFilter} aria-pressed={statusFilter === value} onClick={() => { setStatusFilter(value); setQueuePage(0) }}>{label}</button>
             ))}
             {openIssues.length > 0 && apiState === 'live' ? <button className={styles.queueFilter} onClick={() => setBatchRemindOpen(true)}>批量提醒</button> : null}
           </div>
+          {apiState === 'live' ? <p className={local.queueSummary}>当前筛选 {visibleIssues.length} 项 · 按问题选择查看证据</p> : null}
           <ul className={styles.queue}>
             {pagedIssues.map((issue) => <li key={issue.id}><button className={selected?.id === issue.id ? styles.selected : ''} aria-pressed={selected?.id === issue.id} onClick={() => { setSelectedId(issue.id); setActionError(null) }}><span className={styles.queueTop}><span className={styles.queueId}>{issue.id}</span><Tag color={tagColor(severityTone(issue.severity))}>{severityLabel(issue.severity)}风险</Tag></span><span className={styles.queueTitle}>{issue.title}</span><span className={styles.queueMeta}>{issue.ownerDepartment} · {issue.ownerName} · {issueStatusLabel(issue.status)}</span></button></li>)}
-            {apiState === 'loading' ? <li className={styles.emptyState}><LoaderCircle size={18} className={styles.spin} />正在加载治理问题…</li> : null}
-            {apiState === 'live' && visibleIssues.length === 0 ? <li className={styles.emptyState}>当前范围暂无匹配的治理问题</li> : null}
+            {apiState === 'loading' ? <li className={local.queueLoading} role="status" aria-label="正在加载治理问题"><Skeleton active title={false} paragraph={{ rows: 5 }} /></li> : null}
+            {apiState === 'live' && visibleIssues.length === 0 ? <li className={styles.emptyState}>当前范围暂无匹配的治理问题{query || statusFilter !== 'all' ? <Button type="text" size="small" onClick={() => { setQuery(''); setStatusFilter('all'); setQueuePage(0) }}>查看全部问题</Button> : null}</li> : null}
           </ul>
           <Pager label="问题队列分页" page={queuePage} pageCount={queuePageCount} pageSize={QUEUE_PAGE_SIZE} onPageChange={setQueuePage} />
         </aside>
         <section className={styles.workspaceMain}>
           {selected && detail ? <>
-            <div className={styles.detailHero}>
+            <div className={`${styles.detailHero} ${local.detailHero}`}>
               <Tag color={tagColor(issueStatusTone(selected.status))}>{issueStatusLabel(selected.status)}</Tag>
               <h2>{selected.title}</h2><p>{selected.id} · {selected.objectLabel || selected.datasetId}</p>
-              <div className={styles.detailActions}><Button type="primary" onClick={startRetest} disabled={!canRecheck || actionState !== null}>{actionState === 'recheck' ? '提交中…' : selected.status === 'RECHECKING' ? '复检中' : '开始复检'}</Button>{detail.latestRun && !isTerminalRun(detail.latestRun.status) ? <Button onClick={syncRun} disabled={actionState !== null}><RefreshCw size={14} className={actionState === 'sync' ? styles.spin : undefined} />{actionState === 'sync' ? '同步中…' : '同步复检结果'}</Button> : null}<Button onClick={remindOwner} disabled={actionState !== null || selected.status === 'CLOSED'}>{actionState === 'notify' ? '提醒中…' : selected.status === 'CLOSED' ? '问题已关闭' : '提醒责任人'}</Button>{selected.status === 'CLOSED' ? <span className={styles.closedHint}>问题已关闭，主操作停用；如需重新处理请从队列选择未闭环问题</span> : null}</div>
+              <dl className={local.issueFacts}><div><dt>责任人</dt><dd>{selected.ownerDepartment} · {selected.ownerName}</dd></div><div><dt>SLA 截止</dt><dd>{formatDateTime(selected.dueAt)}</dd></div><div><dt>最近更新</dt><dd>{formatDateTime(selected.updatedAt ?? null)}</dd></div></dl>
+              <div className={`${styles.detailActions} ${local.detailActions}`}><Button type="primary" onClick={startRetest} disabled={!canRecheck || actionState !== null}>{actionState === 'recheck' ? '提交中…' : selected.status === 'RECHECKING' ? '复检中' : '开始复检'}</Button>{detail.latestRun && !isTerminalRun(detail.latestRun.status) ? <Button onClick={syncRun} disabled={actionState !== null}><RefreshCw size={14} className={actionState === 'sync' ? styles.spin : undefined} />{actionState === 'sync' ? '同步中…' : '同步复检结果'}</Button> : null}<Button onClick={remindOwner} disabled={actionState !== null || selected.status === 'CLOSED'}>{actionState === 'notify' ? '提醒中…' : selected.status === 'CLOSED' ? '问题已关闭' : '提醒责任人'}</Button>{selected.status === 'CLOSED' ? <span className={styles.closedHint}>问题已关闭，主操作停用；如需重新处理请从队列选择未闭环问题</span> : null}</div>
+              {selected.status === 'RECHECKING' ? <p className={local.workflowHint}>复检请求已登记，正在等待执行器异步回写；本状态尚不代表质量规则通过。</p> : null}
+              {actionError ? <p className={styles.formError} role="alert">{actionError}</p> : null}
             </div>
+            <div className={local.timelineHeader}><h3>处理记录</h3><span>{detail.events.length} 条事件</span></div>
             <ol className={styles.timeline}>
               {groupedTimeline(detail.events).map((group) => group.kind === 'retries' ? (
                 /* 连续复检重试折叠（2026-10-05 复评 P2-4）：N 条等权事件收成一条可展开记录。 */
@@ -313,10 +318,9 @@ export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props
               <label htmlFor="processing-note">处理说明</label>
               {looksLikeExecutorOutput(selected.processingNote) ? <details className={styles.executorLog}><summary>历史执行器输出（仅参考，不作为处理结论）</summary><pre>{selected.processingNote}</pre></details> : null}
               <textarea id="processing-note" value={note} onChange={(event) => setNote(event.target.value)} disabled={!canEdit || actionState !== null} placeholder={canEdit ? '填写人工处理结论（处置动作、原因与复核口径）' : ''} />
-              {actionError ? <p className={styles.formError} role="alert">{actionError}</p> : null}
               <div className={styles.noteActions}><Button type="primary" onClick={saveNote} disabled={!canEdit || !note.trim() || actionState !== null}><Send size={14} />{actionState === 'note' ? '保存中…' : '提交说明'}</Button></div>
             </div>
-          </> : detailState === 'error' ? <div className={styles.connectionNotice} role="alert"><CircleAlert size={17} /><div><strong>治理问题详情不可用</strong><span>问题详情读取失败，请刷新后重试</span></div><button className={styles.secondaryButton} onClick={() => window.location.reload()}>重新读取</button></div> : <div className={styles.emptyState}>{apiState === 'loading' ? '正在读取问题详情…' : apiState === 'unavailable' ? '控制面恢复后可查看治理问题详情' : '请选择一个治理问题'}</div>}
+          </> : detailState === 'loading' ? <div className={local.detailLoading} role="status" aria-label="正在读取问题详情"><Skeleton active paragraph={{ rows: 6 }} /></div> : detailState === 'error' ? <div className={styles.connectionNotice} role="alert"><CircleAlert size={17} /><div><strong>治理问题详情不可用</strong><span>问题详情读取失败，请刷新后重试</span></div><button className={styles.secondaryButton} onClick={() => window.location.reload()}>重新读取</button></div> : <div className={styles.emptyState}>{apiState === 'loading' ? '正在读取问题详情…' : apiState === 'unavailable' ? '控制面恢复后可查看治理问题详情' : '请选择一个治理问题'}</div>}
         </section>
         <aside className={styles.workspaceInspector}>
           {selected && detail ? <>

@@ -25,3 +25,94 @@
   margin: 0;
   font-size: 16px;
 }
+
+.workspace.workspace {
+  min-height: 540px;
+}
+
+.queueFilters {
+  gap: 6px;
+}
+
+.queueFilters > button {
+  min-height: 32px;
+  padding-right: 9px;
+  padding-left: 9px;
+  border-radius: 5px;
+}
+
+.queueSummary {
+  margin: 14px 16px 4px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.queueLoading {
+  padding: 20px 8px;
+}
+
+.detailHero.detailHero {
+  padding: 24px;
+}
+
+.detailHero h2 {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
+.issueFacts {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 20px 0 0;
+  gap: 16px 24px;
+}
+
+.issueFacts dt {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.issueFacts dd {
+  margin: 5px 0 0;
+  color: var(--ink);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.6;
+}
+
+.detailActions.detailActions {
+  flex-wrap: wrap;
+  margin-top: 24px;
+}
+
+.detailHero .workflowHint {
+  margin-top: 12px;
+  font-size: 12px;
+  line-height: 1.8;
+}
+
+.timelineHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 24px 0;
+}
+
+.timelineHeader h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.timelineHeader span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.detailLoading {
+  padding: 24px;
+}

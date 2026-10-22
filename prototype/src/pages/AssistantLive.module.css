@@ -17,3 +17,9 @@
   line-height: 1.6;
   text-align: left;
 }
+
+/* 执行中冻结问题选择，避免结果与当前目录对象错位。 */
+.questionItem:disabled {
+  cursor: wait;
+  opacity: .65;
+}

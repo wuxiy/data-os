@@ -1,6 +1,6 @@
 import { ChevronDown, ChevronRight, Database, Play, Table2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { Button, Form, Input, Table } from 'antd'
+import { Button, Form, Input, Skeleton, Table } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import {
   fetchSourceCatalogs,
@@ -81,6 +81,8 @@ function SourceConnectionForm({ source, onNotice, onSourceUpdated }: Props) {
 
 /** 浏览工作区：目录树 + 字段清单 + SQL 工作台。 */
 function SourceExplorerWorkspace({ source, onNotice }: Omit<Props, 'onSourceUpdated'>) {
+  const [reloadKey, setReloadKey] = useState(0)
+  const [columnsError, setColumnsError] = useState<string | null>(null)
   const [catalogs, setCatalogs] = useState<string[] | null>(null)
   const [catalogsError, setCatalogsError] = useState<string | null>(null)
   const [expandedCatalog, setExpandedCatalog] = useState<string | null>(null)
@@ -96,6 +98,7 @@ function SourceExplorerWorkspace({ source, onNotice }: Omit<Props, 'onSourceUpda
 
   useEffect(() => {
     const controller = new AbortController()
+    setCatalogsError(null)
     fetchSourceCatalogs(source.id, controller.signal)
       .then((response) => {
         setCatalogs(response.catalogs)
@@ -105,7 +108,7 @@ function SourceExplorerWorkspace({ source, onNotice }: Omit<Props, 'onSourceUpda
         if (!controller.signal.aborted) setCatalogsError('库清单读取失败，请确认连接配置后重试')
       })
     return () => controller.abort()
-  }, [source.id])
+  }, [source.id, reloadKey])
 
   async function toggleCatalog(catalog: string) {
     if (expandedCatalog === catalog) {
@@ -128,11 +131,13 @@ function SourceExplorerWorkspace({ source, onNotice }: Omit<Props, 'onSourceUpda
     setSelectedTable({ catalog, table })
     setColumns(null)
     setColumnsLoading(true)
+    setColumnsError(null)
     setSql(`SELECT * FROM ${table} LIMIT 100`)
     try {
       const response = await fetchSourceColumns(source.id, catalog, table)
       setColumns(response.columns)
     } catch {
+      setColumnsError('字段清单读取失败，请稍后重试')
       onNotice('字段清单读取失败，请稍后重试')
     } finally {
       setColumnsLoading(false)
@@ -166,9 +171,9 @@ function SourceExplorerWorkspace({ source, onNotice }: Omit<Props, 'onSourceUpda
 
   return (
     <div className={styles.explorerBody}>
-      {catalogsError ? <p className={styles.formError} role="alert">{catalogsError}</p> : null}
+      {catalogsError ? <div className={local.resourceError} role="alert"><span>{catalogsError}</span>{catalogs === null ? <Button size="small" onClick={() => setReloadKey((key) => key + 1)}>重新读取</Button> : null}</div> : null}
       <div className={styles.explorerTree}>
-        {catalogs === null ? <p className={styles.drawerHint}>正在读取库清单…</p> : null}
+        {catalogs === null && !catalogsError ? <Skeleton active title={false} paragraph={{ rows: 3 }} aria-label="正在读取库清单" /> : null}
         {catalogs !== null && catalogs.length === 0 ? <div className={styles.emptyState}><Database size={18} /><p>该数据源未返回任何库</p><span>请确认连接地址与账号权限。</span></div> : null}
         {catalogs?.map((catalog) => {
           const expanded = expandedCatalog === catalog
@@ -182,7 +187,7 @@ function SourceExplorerWorkspace({ source, onNotice }: Omit<Props, 'onSourceUpda
               </Button>
               {expanded ? (
                 <div className={styles.explorerTableList}>
-                  {tables === undefined ? <p className={styles.drawerHint}>正在读取表清单…</p> : null}
+                  {tables === undefined && !tablesError ? <p className={styles.drawerHint}>正在读取表清单…</p> : null}
                   {tables?.length === 0 ? <p className={styles.drawerHint}>该库没有可浏览的表</p> : null}
                   {tables?.map((table) => (
                     <Button size="small" type="text" key={table.name}
@@ -192,7 +197,7 @@ function SourceExplorerWorkspace({ source, onNotice }: Omit<Props, 'onSourceUpda
                       <Table2 size={12} />{table.name}
                     </Button>
                   ))}
-                  {tablesError && tables ? <p className={styles.formError}>{tablesError}</p> : null}
+                  {tablesError ? <p className={styles.formError} role="alert">{tablesError}</p> : null}
                 </div>
               ) : null}
             </div>
@@ -203,7 +208,8 @@ function SourceExplorerWorkspace({ source, onNotice }: Omit<Props, 'onSourceUpda
       {selectedTable ? (
         <div className={styles.explorerColumnsBlock}>
           <div className={styles.explorerSectionTitle}><Table2 size={14} /><strong>{selectedTable.table}</strong><span>字段清单</span></div>
-          {columnsLoading ? <p className={styles.drawerHint}>正在读取字段清单…</p> : null}
+          {columnsLoading ? <div className={local.columnsLoading} role="status" aria-label="正在读取字段清单"><Skeleton active title={false} paragraph={{ rows: 3 }} /></div> : null}
+          {columnsError ? <div className={local.resourceError} role="alert"><span>{columnsError}</span><Button size="small" onClick={() => void selectTable(selectedTable.catalog, selectedTable.table)}>重试</Button></div> : null}
           {columns ? (
             columns.length === 0 ? <p className={styles.drawerHint}>未读取到字段信息</p> : (
               <Table<SourceColumnApiItem>
@@ -212,6 +218,7 @@ function SourceExplorerWorkspace({ source, onNotice }: Omit<Props, 'onSourceUpda
                 dataSource={columns}
                 pagination={false}
                 size="small"
+                scroll={{ x: true }}
               />
             )
           ) : null}
@@ -223,10 +230,11 @@ function SourceExplorerWorkspace({ source, onNotice }: Omit<Props, 'onSourceUpda
         <textarea id="explorer-sql" className={`${styles.codeInput} ${styles.codeInputLarge}`} value={sql}
           onChange={(event) => setSql(event.target.value)} spellCheck={false}
           placeholder="例如：SELECT * FROM 表名 LIMIT 100" aria-label="SQL 查询语句" />
-        <div className={styles.explorerQueryActions}>
+        <div className={`${styles.explorerQueryActions} ${local.queryActions}`}>
           <Button type="primary" size="small" disabled={querying || !sql.trim()} onClick={() => void executeQuery()}>
             <Play size={13} />{querying ? '查询中…' : '执行查询'}
           </Button>
+          <span>使用只读账号 · 返回结果最多 200 行</span>
         </div>
         {queryError ? <p className={styles.formError} role="alert">{queryError}</p> : null}
         {result ? (
@@ -239,6 +247,7 @@ function SourceExplorerWorkspace({ source, onNotice }: Omit<Props, 'onSourceUpda
                 dataSource={result.rows}
                 pagination={false}
                 size="small"
+                scroll={{ x: true }}
               />
             )}
           </div>

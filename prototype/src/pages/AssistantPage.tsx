@@ -118,7 +118,7 @@ function DemoAssistantPage({ onNotice, onNavigate, professional = false }: { onN
               <header className={styles.answerHeader}>
                 <div className={styles.answerIdentity}>
                   <span className={styles.chatIdentityIcon}><MessageSquareText size={16} /></span>
-                  <div><strong>分析结果</strong><span>演示响应 · 基于 3 项可信数据资产</span></div>
+                  <div><strong>分析结果</strong><span>演示响应 · 基于 {selected.sources.length} 项可信数据资产</span></div>
                 </div>
                 <div className={styles.answerActions}>
                   <button className={styles.iconButton} onClick={() => onNotice('已记录回答有帮助')} aria-label="回答有帮助"><ThumbsUp size={15} /></button>
@@ -146,6 +146,7 @@ function DemoAssistantPage({ onNotice, onNavigate, professional = false }: { onN
                   <h3>核对明细</h3>
                   <div className={styles.horizontalScroll}>
                     <Table<ScenarioTableRow>
+                      scroll={{ x: 'max-content' }}
                       rowKey="department"
                       columns={detailColumns}
                       dataSource={selected.table}
@@ -179,7 +180,7 @@ function DemoAssistantPage({ onNotice, onNavigate, professional = false }: { onN
             <dl className={styles.evidenceDefinition}>
               <div><dt>统计范围</dt><dd>市第一人民医院 · 当前用户授权院区</dd></div>
               <div><dt>执行边界</dt><dd>仅访问 DWS/ADS 脱敏只读视图，最多返回 2,000 行。</dd></div>
-              <div><dt>生成时间</dt><dd>08-03 09:48 · 用时 8.7 秒</dd></div>
+              <div><dt>查询记录</dt><dd>脱敏演示快照 · {selected.time}</dd></div>
             </dl>
             <section className={styles.evidenceSection}>
               <h3>本次使用的数据</h3>

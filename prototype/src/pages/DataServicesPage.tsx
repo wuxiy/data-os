@@ -1,6 +1,6 @@
 import { Boxes, KeyRound, Plus, RefreshCw } from 'lucide-react'
-import { useState } from 'react'
-import { Button, Drawer, Form, Input, Table, Tag } from 'antd'
+import { useMemo, useState } from 'react'
+import { Button, Drawer, Form, Input, Select, Skeleton, Table, Tag } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { useAction } from '../hooks/useAction'
 import { GovernanceTabs } from '../components/ui/GovernanceTabs'
@@ -39,6 +39,7 @@ import styles from './IntegrationPages.module.css'
 // 抽屉表单体系（字段/网格/代码域）与数据接入页同源，保持一处维护。
 import formStyles from './Pages.module.css'
 import local from './DataServicesPage.module.css'
+import workspace from './ConsumptionWorkspace.module.css'
 
 /** 导出任务状态中文口径（P7）。 */
 const exportStatusLabel: Record<string, string> = {
@@ -97,9 +98,9 @@ export function DataServicesPage({ onNotice, onNavigate, onUnavailable }: { onNo
     <div className={styles.integrationPage}>
       <PageHeader title="数据服务" eyebrow="数据服务 · 接口与 Key 治理" subtitle="ToB 数据 API 的定义、Key 与调用审计工作台" compact />
       <GovernanceTabs route="dataServices" onNavigate={onNavigate} onUnavailable={onUnavailable} />
-      <section className={styles.technicalNotice} role="status">
-        <Tag>演示边界</Tag>
-        <span>数据服务工作台仅接入真实控制面 API（G13 起交付）；演示构建未收录静态样例。请以真实模式访问。</span>
+      <section className={workspace.statePanel} role="status">
+        <h2>数据服务仅在真实模式开放</h2>
+        <p>本工作台管理实际服务的定义、发布、授权与审计。演示环境未提供数据服务样例，请切换到真实模式后使用。</p>
       </section>
     </div>
   )
@@ -111,6 +112,8 @@ function DataServicesLive({ onNotice, onNavigate, onUnavailable }: { onNotice: (
   const [selectedId, setSelectedId] = useState('')
   const [refreshTick, setRefreshTick] = useState(0)
   const [createOpen, setCreateOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
   const [form, setForm] = useState({
     code: '',
     name: '',
@@ -143,7 +146,12 @@ function DataServicesLive({ onNotice, onNavigate, onUnavailable }: { onNotice: (
 
   // 目录分页（hook 在 listState 早退分支之前调用）：服务清单增长后侧栏不失控。
   const RAIL_PAGE_SIZE = 8
-  const { page: railPage, setPage: setRailPage, paged: pagedServices, pageCount: railPageCount } = usePaged(services, RAIL_PAGE_SIZE)
+  const visibleServices = useMemo(() => {
+    const keyword = query.trim().toLowerCase()
+    return services.filter((service) => (!statusFilter || service.status === statusFilter)
+      && `${service.name}${service.code}${service.owner}`.toLowerCase().includes(keyword))
+  }, [services, query, statusFilter])
+  const { page: railPage, setPage: setRailPage, paged: pagedServices, pageCount: railPageCount } = usePaged(visibleServices, RAIL_PAGE_SIZE)
 
   function refresh() {
     setRefreshTick((tick) => tick + 1)
@@ -206,9 +214,10 @@ function DataServicesLive({ onNotice, onNavigate, onUnavailable }: { onNotice: (
       <div className={styles.integrationPage}>
         <PageHeader title="数据服务" eyebrow="数据服务 · 接口与 Key 治理" subtitle="ToB 数据 API 的定义、Key 与调用审计工作台" compact />
         <GovernanceTabs route="dataServices" onNavigate={onNavigate} onUnavailable={onUnavailable} />
-        <section className={styles.technicalNotice} role="status">
-          <Tag color={listState === 'loading' ? 'default' : 'warning'}>{listState === 'loading' ? '读取中' : '待接入'}</Tag>
-          <span>{listState === 'loading' ? '正在从控制面读取数据服务…' : '控制面暂不可用：数据服务域需要控制面已配置并可访问。'}</span>
+        <section className={workspace.statePanel} role="status" aria-busy={listState === 'loading'}>
+          <h2>{listState === 'loading' ? '正在读取数据服务' : '数据服务目录暂不可用'}</h2>
+          <p>{listState === 'loading' ? '正在读取服务定义、发布状态与调用概览。' : '暂时无法读取服务目录。请重新读取，持续失败时联系平台运维核对服务连接。'}</p>
+          {listState === 'loading' ? <Skeleton active paragraph={{ rows: 4 }} /> : <Button onClick={refresh}>重新读取</Button>}
         </section>
       </div>
     )
@@ -233,10 +242,14 @@ function DataServicesLive({ onNotice, onNavigate, onUnavailable }: { onNotice: (
         <aside className={styles.catalogRail} aria-label="数据服务目录">
           <div className={styles.railHeader}>
             <h2>数据服务</h2>
-            <span className={styles.railCount}>{services.length} 项</span>
+            <span className={styles.railCount}>{visibleServices.length} / {services.length} 项</span>
           </div>
           <div className={styles.railAction}>
             <Button type="primary" size="small" onClick={() => setCreateOpen(true)}><Plus size={13} aria-hidden="true" />新建服务</Button>
+          </div>
+          <div className={local.directoryFilters}>
+            <Input.Search value={query} onChange={(event) => { setQuery(event.target.value); setRailPage(0) }} allowClear placeholder="搜索名称、代码或负责人" aria-label="搜索数据服务" />
+            <Select value={statusFilter} aria-label="按服务状态筛选" onChange={(value) => { setStatusFilter(value); setRailPage(0) }} options={[{ value: '', label: '全部状态' }, { value: 'DRAFT', label: '草稿' }, { value: 'PUBLISHED', label: '已发布' }, { value: 'DEPRECATED', label: '已下线' }]} />
           </div>
           <div className={styles.schemaTabs}>
             <button className={styles.schemaTab} onClick={refresh}>
@@ -255,13 +268,14 @@ function DataServicesLive({ onNotice, onNavigate, onUnavailable }: { onNotice: (
                   <span>{service.code}</span>
                   <div className={styles.catalogMeta}>
                     <em>{service.versionSn}</em>
-                    <i className={styles.healthMark}>{dataServiceStatusLabel[service.status]}</i>
+                    <i className={service.status === 'PUBLISHED' ? styles.healthMark : service.status === 'DEPRECATED' ? styles.warningMark : local.draftStatus}>{dataServiceStatusLabel[service.status]}</i>
                   </div>
                 </button>
               </li>
             ))}
           </ul>
           {services.length === 0 ? <div className={styles.emptyRail}>暂无数据服务，点击<span className={formStyles.textNowrap}>「新建服务」</span>创建第一个。</div> : null}
+          {services.length > 0 && visibleServices.length === 0 ? <div className={workspace.emptyDirectory}><p>没有符合当前条件的服务。</p><Button size="small" onClick={() => { setQuery(''); setStatusFilter(''); setRailPage(0) }}>清空筛选</Button></div> : null}
           <Pager label="服务目录分页" page={railPage} pageCount={railPageCount} pageSize={RAIL_PAGE_SIZE} onPageChange={setRailPage} />
         </aside>
 
@@ -276,7 +290,7 @@ function DataServicesLive({ onNotice, onNavigate, onUnavailable }: { onNotice: (
               onDeprecate={() => deprecate(selected)}
             />
           ) : (
-            <div className={styles.emptyRail}>左侧选择或创建一个数据服务。</div>
+            <section className={workspace.statePanel}><h2>创建第一个数据服务</h2><p>先登记业务口径、参数和返回列契约。草稿发布后，才能向调用方发放访问 Key。</p><Button type="primary" onClick={() => setCreateOpen(true)}>新建数据服务</Button></section>
           )}
         </section>
       </div>
@@ -343,32 +357,41 @@ function DataServiceDetailPanel({ service, onNotice, onChanged, onPublish, onDep
   const [exports, setExports] = useState<DataServiceExportItem[]>([])
   const [contractEvents, setContractEvents] = useState<DataServiceContractEventItem[]>([])
   const [subscriptions, setSubscriptions] = useState<DataServiceSubscriptionItem[]>([])
+  const [recordsAvailable, setRecordsAvailable] = useState({ calls: true, exports: true, events: true, subscriptions: true })
   const [issuedKey, setIssuedKey] = useState('')
   const [keyForm, setKeyForm] = useState({ callerName: '', quota: '100', hospitals: '*' })
   const [refreshTick, setRefreshTick] = useState(0)
   // 下线是不可逆动作：两步确认，避免与「发布」同级误触。
   const [confirmDeprecate, setConfirmDeprecate] = useState(false)
 
-  useApiResource({
+  const detailState = useApiResource({
     reloadKey: refreshTick,
     load: async (signal) => {
       const [detailResponse, callItems, exportItems, eventItems, subscriptionItems] = await Promise.all([
         fetchDataServiceDetail(service.id, signal),
-        fetchDataServiceCalls(service.id, signal).catch(() => []),
-        fetchDataServiceExports(service.id, signal).catch(() => []),
-        fetchDataServiceContractEvents(service.id, signal).catch(() => []),
-        fetchDataServiceSubscriptions(service.id, signal).catch(() => []),
+        fetchDataServiceCalls(service.id, signal).catch(() => null),
+        fetchDataServiceExports(service.id, signal).catch(() => null),
+        fetchDataServiceContractEvents(service.id, signal).catch(() => null),
+        fetchDataServiceSubscriptions(service.id, signal).catch(() => null),
       ])
       return { detailResponse, callItems, exportItems, eventItems, subscriptionItems }
     },
     onData: ({ detailResponse, callItems, exportItems, eventItems, subscriptionItems }) => {
       setDetail(detailResponse)
-      setCalls(callItems)
-      setExports(exportItems)
-      setContractEvents(eventItems)
-      setSubscriptions(subscriptionItems)
+      setCalls(callItems ?? [])
+      setExports(exportItems ?? [])
+      setContractEvents(eventItems ?? [])
+      setSubscriptions(subscriptionItems ?? [])
+      setRecordsAvailable({ calls: callItems !== null, exports: exportItems !== null, events: eventItems !== null, subscriptions: subscriptionItems !== null })
     },
-    onUnavailable: () => setDetail(null),
+    onUnavailable: () => {
+      setDetail(null)
+      setCalls([])
+      setExports([])
+      setContractEvents([])
+      setSubscriptions([])
+      setRecordsAvailable({ calls: false, exports: false, events: false, subscriptions: false })
+    },
     timeoutMs: 15000,
   })
 
@@ -502,6 +525,8 @@ function DataServiceDetailPanel({ service, onNotice, onChanged, onPublish, onDep
       </div>
 
       <div className={styles.assetBody}>
+        {detailState === 'loading' && !detail ? <section className={workspace.inlineState} role="status" aria-busy="true"><p>正在读取服务授权与运行记录…</p><Skeleton active paragraph={{ rows: 2 }} /></section> : null}
+        {detailState === 'unavailable' ? <section className={workspace.inlineState} role="status"><strong>授权与运行记录暂不可读</strong><p>服务定义仍可查看，当前无法确认 Key 和调用统计。</p><Button size="small" onClick={() => setRefreshTick((tick) => tick + 1)}>重新读取详情</Button></section> : null}
         {/* 事实卡只保留 assetIdentity 未覆盖的执行面字段（代码/版本/状态/负责人见标题区） */}
         <div className={styles.serviceFacts}>
           <div><span>行数上限</span><code>{service.maxRows}</code></div>
@@ -510,6 +535,7 @@ function DataServiceDetailPanel({ service, onNotice, onChanged, onPublish, onDep
 
         <h4 className={styles.railLabel}>参数契约</h4>
         <Table<{ name: string; type: string; required?: boolean; description?: string }>
+          scroll={{ x: 'max-content' }}
           rowKey={(parameter) => parameter.name}
           columns={parameterColumns}
           dataSource={parameters}
@@ -519,6 +545,7 @@ function DataServiceDetailPanel({ service, onNotice, onChanged, onPublish, onDep
 
         <h4 className={styles.railLabel}>返回列契约</h4>
         <Table<{ name: string; type: string; description?: string }>
+          scroll={{ x: 'max-content' }}
           rowKey={(column) => column.name}
           columns={columnColumns}
           dataSource={columns}
@@ -540,7 +567,7 @@ function DataServiceDetailPanel({ service, onNotice, onChanged, onPublish, onDep
           </>
         ) : null}
 
-        <h4 className={styles.railLabel}>API Key（{detail?.keys.length ?? 0}）</h4>
+        <h4 className={styles.railLabel}>API Key{detail ? `（${detail.keys.length}）` : ''}</h4>
         {service.status === 'PUBLISHED' ? (
           <Form className={styles.createForm} onFinish={() => void issueKey()}>
             <Form.Item noStyle><Input value={keyForm.callerName} onChange={(event) => setKeyForm({ ...keyForm, callerName: event.target.value })} placeholder="调用方名称" /></Form.Item>
@@ -558,15 +585,18 @@ function DataServiceDetailPanel({ service, onNotice, onChanged, onPublish, onDep
           </div>
         ) : null}
         <Table
+          scroll={{ x: 'max-content' }}
           rowKey={(key) => key.id}
           columns={keyColumns}
           dataSource={detail?.keys ?? []}
           pagination={false}
-          locale={{ emptyText: '尚未发放 Key' }}
+          loading={detailState === 'loading' && !detail}
+          locale={{ emptyText: detailState === 'unavailable' ? 'Key 清单暂不可读。' : '尚未发放 Key' }}
         />
 
-        <h4 className={styles.railLabel}>最近调用（累计 {detail?.totalCalls ?? 0} 次）</h4>
+        <h4 className={styles.railLabel}>最近调用{detail ? `（累计 ${detail.totalCalls} 次）` : ''}</h4>
         <Table<DataServiceCallItem>
+          scroll={{ x: 'max-content' }}
           rowKey={(call) => call.id}
           columns={callColumns}
           dataSource={pagedCalls}
@@ -577,11 +607,13 @@ function DataServiceDetailPanel({ service, onNotice, onChanged, onPublish, onDep
             showSizeChanger: false,
             onChange: (page) => setCallsPage(page - 1),
           }}
-          locale={{ emptyText: '暂无调用' }}
+          loading={detailState === 'loading' && !detail}
+          locale={{ emptyText: recordsAvailable.calls ? '暂无调用' : '调用记录暂不可读。' }}
         />
 
-        <h4 className={styles.railLabel}>导出任务（P7 异步导出）</h4>
+        <h4 className={styles.railLabel}>异步导出任务</h4>
         <Table<DataServiceExportItem>
+          scroll={{ x: 'max-content' }}
           rowKey={(item) => item.id}
           columns={exportColumns}
           dataSource={pagedExports}
@@ -592,11 +624,13 @@ function DataServiceDetailPanel({ service, onNotice, onChanged, onPublish, onDep
             showSizeChanger: false,
             onChange: (page) => setExportsPage(page - 1),
           }}
-          locale={{ emptyText: '暂无导出任务' }}
+          loading={detailState === 'loading' && !detail}
+          locale={{ emptyText: recordsAvailable.exports ? '暂无导出任务' : '导出记录暂不可读。' }}
         />
 
         <h4 className={styles.railLabel}>合同事件与订阅（变更通知）</h4>
         <Table<DataServiceContractEventItem>
+          scroll={{ x: 'max-content' }}
           rowKey={(event) => event.eventId}
           columns={eventColumns}
           dataSource={pagedEvents}
@@ -607,9 +641,11 @@ function DataServiceDetailPanel({ service, onNotice, onChanged, onPublish, onDep
             showSizeChanger: false,
             onChange: (page) => setEventsPage(page - 1),
           }}
-          locale={{ emptyText: '暂无合同事件' }}
+          loading={detailState === 'loading' && !detail}
+          locale={{ emptyText: recordsAvailable.events ? '暂无合同事件' : '合同事件暂不可读。' }}
         />
         <Table<DataServiceSubscriptionItem>
+          scroll={{ x: 'max-content' }}
           rowKey={(subscription) => subscription.id}
           columns={subscriptionColumns}
           dataSource={pagedSubscriptions}
@@ -620,7 +656,8 @@ function DataServiceDetailPanel({ service, onNotice, onChanged, onPublish, onDep
             showSizeChanger: false,
             onChange: (page) => setSubsPage(page - 1),
           }}
-          locale={{ emptyText: '暂无调用方订阅（调用方经自助 API 订阅）' }}
+          loading={detailState === 'loading' && !detail}
+          locale={{ emptyText: recordsAvailable.subscriptions ? '暂无调用方订阅（调用方经自助 API 订阅）' : '订阅记录暂不可读。' }}
         />
       </div>
     </div>

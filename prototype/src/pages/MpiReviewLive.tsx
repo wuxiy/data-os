@@ -1,6 +1,6 @@
 import { CheckCircle2, CircleAlert, GitMerge, GitPullRequestArrow, LoaderCircle, RefreshCw, Search, ShieldCheck, Split, XCircle } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Button, Drawer, Table, Tag } from 'antd'
+import { Button, Drawer, Skeleton, Table, Tag } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { useApiResource } from '../hooks/useApiResource'
 import {
@@ -135,7 +135,7 @@ export function MpiReviewLive({ onNotice }: { onNotice: (message: string) => voi
   const identityColumns: ColumnsType<{ field: string; valueA: string; valueB: string }> = [
     { title: '身份属性', dataIndex: 'field', key: 'field' },
     { title: '源身份 A', dataIndex: 'valueA', key: 'valueA' },
-    { title: '源身份 B', dataIndex: 'valueB', key: 'valueB' },
+    { title: '源身份 B', key: 'valueB', render: (_, row) => <div>{row.valueB}{row.valueA !== row.valueB ? <small className={local.fieldDifference}>与源身份 A 不同</small> : null}</div> },
   ]
 
   return (
@@ -157,8 +157,9 @@ export function MpiReviewLive({ onNotice }: { onNotice: (message: string) => voi
 
       {apiState === 'unavailable' ? <div className={styles.connectionNotice} role="alert"><CircleAlert size={17} /><div><strong>MPI 服务不可用</strong><span>当前页面不展示演示候选；请恢复 mpi-service 后重新加载。</span></div><button className={styles.secondaryButton} onClick={() => window.location.reload()}>重新连接</button></div> : null}
 
+      {apiState === 'loading' ? <div className={local.loadingWorkspace} role="status" aria-label="正在读取复核队列与身份信息"><Skeleton active title={false} paragraph={{ rows: 6 }} /></div> : null}
       {apiState === 'live' ? (
-        <div className={styles.mpiWorkspace}>
+        <div className={`${styles.mpiWorkspace} ${local.workspace}`}>
           <aside className={styles.workspaceRail}>
             <div className={styles.sectionTitle}><h2>候选队列</h2><span>{metrics?.reviewPending ?? candidates.length} 待复核</span></div>
             <div className={styles.search}><Search size={15} /><input value={query} onChange={(event) => { setQuery(event.target.value); setQueuePage(0) }} placeholder="姓名 / 卡号 / 规则" aria-label="搜索复核候选" /></div>
@@ -174,7 +175,7 @@ export function MpiReviewLive({ onNotice }: { onNotice: (message: string) => voi
                   </button>
                 </li>
               ))}
-              {visibleCandidates.length === 0 ? <li className={styles.emptyState}>当前没有待复核候选</li> : null}
+              {visibleCandidates.length === 0 ? <li className={styles.emptyState}>{query.trim() ? '未找到匹配候选，请调整搜索条件' : '当前没有待复核候选'}</li> : null}
             </ul>
             {candidatesTotal != null && candidatesTotal > candidates.length ? <div className={styles.emptyState}>已加载前 {candidates.length} 条（共 {candidatesTotal} 条待复核，处理后可载入更多）</div> : null}
             <Pager label="复核候选分页" page={queuePage} pageCount={queuePageCount} pageSize={QUEUE_PAGE_SIZE} onPageChange={setQueuePage} />
@@ -188,7 +189,7 @@ export function MpiReviewLive({ onNotice }: { onNotice: (message: string) => voi
               <>
                 <div className={styles.mpiTop}>
                   <div>
-                    <Tag color="warning">需人工确认</Tag>
+                    <Tag color="warning">需人工确认</Tag><span className={local.evidenceSummary}>{evidence.filter((item) => !item.match).length} 项证据不一致 · 请逐项核对</span>
                     <h2>{selected.identityA.name} 与 {selected.identityB.name}</h2>
                     <p>{mpiRuleLabel[selected.ruleId] ?? selected.ruleId} · 候选对 {selected.pairId} · 规则版本 v1</p>
                   </div>
@@ -206,7 +207,7 @@ export function MpiReviewLive({ onNotice }: { onNotice: (message: string) => voi
                     <div className={styles.panelHeader}><div><h3>匹配证据</h3><p>逐字段对比 · 敏感值已掩码</p></div><ShieldCheck size={18} color="var(--jade)" /></div>
                     <ul className={`${styles.checkList} ${styles.compactCheckList}`}>
                       {evidence.map((item) => (
-                        <li key={item.field}>
+                        <li key={item.field} className={item.match ? undefined : local.evidenceConflict}>
                           {item.match ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
                           {mpiEvidenceFieldLabel[item.field] ?? item.field}：{item.valueA ?? '—'} / {item.valueB ?? '—'} {item.match ? '一致' : '不一致'}
                         </li>

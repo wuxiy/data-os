@@ -1,6 +1,6 @@
 import { Archive, Ban, CheckCircle2, Download, FileArchive, PackageCheck, Plus, RefreshCw, Search, Trash2 } from 'lucide-react'
 import { useState } from 'react'
-import { Button, Drawer, Form, Input, Select, Table, Tag } from 'antd'
+import { Alert, Button, Drawer, Form, Input, Select, Skeleton, Table, Tag } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { DemoDataBoundary } from '../components/ui/DemoDataBoundary'
 import { PageHeader } from '../components/ui/PageHeader'
@@ -28,6 +28,7 @@ import {
 import { frontendDemoMode } from '../data/runtimeMode'
 import { useAction } from '../hooks/useAction'
 import { useApiResource } from '../hooks/useApiResource'
+import { useKeyedResource } from '../hooks/useKeyedResource'
 import { usePaged } from '../hooks/usePaged'
 import styles from './Pages.module.css'
 import local from './DeliveryCenterPage.module.css'
@@ -48,6 +49,13 @@ const TONE_COLOR: Record<string, string> = {
 
 const DRAWER_WIDTH = 'min(540px, 44vw)'
 const PROJECT_PAGE_SIZE = 8
+const NEXT_STEP: Record<string, string> = {
+  DRAFT: '核对交付范围并添加交付项，准备完成后启动项目。',
+  IN_PROGRESS: '核查交付项并生成证据快照，通过检查后提交验收。',
+  READY_FOR_ACCEPTANCE: '复核交付项与证据快照，确认后完成验收。',
+  ACCEPTED: '已通过验收，可下载证据包并归档项目。',
+  ARCHIVED: '项目已归档，可查询验收证据与操作留痕。',
+}
 
 interface Props {
   onNotice: (message: string) => void
@@ -94,12 +102,12 @@ function DeliveryCenterLive({ onNotice }: Props) {
     onUnavailable: () => setProjects([]),
   })
   const [detail, setDetail] = useState<DeliveryDetailView | null>(null)
-  const detailState = useApiResource({
-    timeoutMs: 15000,
-    reloadKey: `${selectedId}|${reloadKey}`,
-    load: (signal) => (selectedId ? fetchDeliveryDetail(signal, selectedId) : Promise.resolve(null)),
+  const detailState = useKeyedResource({
+    key: selectedId ? `${selectedId}|${reloadKey}` : null,
+    load: (signal) => fetchDeliveryDetail(signal, selectedId),
     onData: setDetail,
-    onUnavailable: () => setDetail(null),
+    onReset: () => setDetail(null),
+    onError: () => setDetail(null),
   })
 
   const paged = usePaged(projects, PROJECT_PAGE_SIZE)
@@ -132,8 +140,7 @@ function DeliveryCenterLive({ onNotice }: Props) {
   }
 
   const projectColumns: ColumnsType<DeliveryProjectView> = [
-    { title: '代码', key: 'code', render: (_, project) => <span className={styles.inlineCode}>{project.code}</span> },
-    { title: '名称', key: 'name', render: (_, project) => project.name },
+    { title: '交付项目', key: 'name', width: 190, render: (_, project) => <div className={local.projectIdentity}><Button type="link" size="small" className={local.projectSelect} aria-pressed={selectedId === project.id} onClick={(event) => { event.stopPropagation(); selectProject(project.id) }}>{project.name}</Button><small>{project.code}</small></div> },
     { title: '负责人', key: 'owner', render: (_, project) => project.owner || '—' },
     {
       title: '状态',
@@ -216,15 +223,17 @@ function DeliveryCenterLive({ onNotice }: Props) {
           <Button size="small" onClick={refresh}><RefreshCw size={13} />刷新</Button>
         </div>
 
-        <div className={styles.twoColumns}>
+        <div className={`${styles.twoColumns} ${local.workspace}`}>
           <section className={styles.tablePanel}>
             <div className={styles.panelHeader}>
-              <div><h2>交付项目</h2><p>生命周期：草稿 → 进行中 → 待验收 → 已验收 → 已归档</p></div>
+              <div><h2>交付项目</h2><p>选择项目，核查交付项与验收证据</p></div>
               <PackageCheck size={16} aria-hidden="true" />
             </div>
             <Table<DeliveryProjectView>
               rowKey="id"
               columns={projectColumns}
+              loading={listState === 'loading'}
+              scroll={{ x: 600 }}
               dataSource={paged.paged}
               rowClassName={(project) => selectedId === project.id ? 'ant-table-row-selected' : ''}
               onRow={(project) => ({ onClick: () => selectProject(project.id) })}
@@ -245,11 +254,11 @@ function DeliveryCenterLive({ onNotice }: Props) {
             />
           </section>
 
-          <section className={styles.panel}>
+          <section className={`${styles.panel} ${local.detailPanel}`}>
             {!current ? (
               <>
                 <div className={styles.panelHeader}><h2>项目详情</h2><p>选择左侧项目查看交付项与证据</p></div>
-                <p className={styles.emptyState}>尚未选择交付项目。</p>
+                {detailState === 'loading' ? <div className={local.detailLoading} aria-label="正在读取项目详情" role="status"><Skeleton active title={false} paragraph={{ rows: 5 }} /></div> : detailState === 'error' ? <div className={local.detailLoading}><Alert type="error" showIcon title="项目详情读取失败" description="暂时无法读取交付项与验收证据，请重新加载。" /><Button className={local.retryAction} size="small" onClick={refresh}>重新加载</Button></div> : <p className={styles.emptyState}>尚未选择交付项目。请从项目名称进入。</p>}
               </>
             ) : (
               <>
@@ -261,7 +270,9 @@ function DeliveryCenterLive({ onNotice }: Props) {
                   <Tag color={TONE_COLOR[statusTone(current.status)]}>{STATUS_LABEL[current.status as keyof typeof STATUS_LABEL] ?? current.status}</Tag>
                 </div>
 
-                <div className={styles.listTools}>
+                <div className={local.nextStep}><span>下一步</span><p>{NEXT_STEP[current.status] ?? '核查交付项与验收证据。'}</p></div>
+                {blockers && blockers.length > 0 ? <Alert className={local.blockerNotice} type="error" showIcon title={`验收提交被阻断 · ${blockers.length} 项未通过`} description="请查看下方阻断原因，修复后重新提交。" /> : null}
+                <div className={`${styles.listTools} ${local.detailActions}`}>
                   {current.status === 'DRAFT' ? (
                     <Button size="small" type="primary" disabled={action.pendingKey !== null}
                       onClick={() => runAction('start', '启动交付失败', async () => { await startDelivery(current.id); onNotice('交付项目已启动'); refresh() })}>
@@ -302,17 +313,18 @@ function DeliveryCenterLive({ onNotice }: Props) {
                     <Download size={13} />证据包
                   </Button>
                 </div>
-                {action.error ? <p className={styles.emptyState} role="alert">{action.error}</p> : null}
+                {action.error ? <Alert className={local.blockerNotice} type="error" showIcon title="交付操作未完成" description={action.error} /> : null}
 
                 <Table<DeliveryDetailView['items'][number]>
                   rowKey="id"
                   columns={itemColumns}
+                  scroll={{ x: 460 }}
                   dataSource={detail?.items ?? []}
                   pagination={false}
                   locale={{
                     emptyText: detailState === 'loading'
                       ? '正在加载交付项…'
-                      : detailState === 'live'
+                      : detailState === 'ready'
                         ? '暂无交付项。'
                         : '交付项暂不可用。',
                   }}

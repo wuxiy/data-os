@@ -10,3 +10,13 @@
   color: var(--muted);
   font-size: 12px;
 }
+
+.workspace { grid-template-columns: minmax(0, 1.8fr) minmax(260px, 0.7fr); gap: 24px; align-items: start; }
+.workspace > * { min-width: 0; }
+.timestamp { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.metricLoading { padding: 16px 0; }
+.eventList strong, .eventList p { overflow-wrap: anywhere; }
+.eventList > li > div { flex-wrap: wrap; gap: 4px 12px; }
+.eventUnavailable { padding: 16px 0; color: var(--muted); font-size: 12px; }
+.eventUnavailable strong { color: var(--ink); }
+@media (max-width: 1100px) { .workspace { grid-template-columns: minmax(0, 1fr); } }

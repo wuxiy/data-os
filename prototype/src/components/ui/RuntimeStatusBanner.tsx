@@ -21,7 +21,7 @@ export function RuntimeStatusBanner() {
     if (frontendDemoMode) {
       return <div className={`${styles.banner} ${styles.demo}`} role="status"><CloudCog size={14} /><strong>演示运行模式</strong><span>前端已显式启用脱敏演示数据</span><details className={styles.scopeFold}><summary>范围说明</summary><span className={styles.scope}>{SCOPE_SUMMARY}</span></details></div>
     }
-    return <div className={`${styles.banner} ${styles.warning}`} role="status"><CircleAlert size={14} /><span>控制面状态未知 · 页面仅展示已明确标注的本地演示内容</span><details className={styles.scopeFold}><summary>范围说明</summary><span className={styles.scope}>{SCOPE_SUMMARY}</span></details><button onClick={() => window.location.reload()} aria-label="重新读取运行状态"><RefreshCw size={13} /></button></div>
+    return <div className={`${styles.banner} ${styles.warning}`} role="status"><CircleAlert size={14} /><span>控制面状态未知 · 请查看各工作区连接状态</span><details className={styles.scopeFold}><summary>范围说明</summary><span className={styles.scope}>{SCOPE_SUMMARY}</span></details><button onClick={() => window.location.reload()} aria-label="重新读取运行状态"><RefreshCw size={13} /></button></div>
   }
 
   const demo = isDemoRuntime(status?.mode)

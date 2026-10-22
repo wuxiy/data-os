@@ -1,51 +1,60 @@
 .header {
   display: flex;
-  min-height: 84px;
-  align-items: center;
+  min-height: 112px;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 24px;
-  padding: 20px 24px;
-  background: var(--surface-overlay);
+  padding: 24px max(24px, calc((100% - 1480px) / 2 + 24px));
+  background: var(--paper);
   border-bottom: 1px solid var(--line);
 }
 
 .header.compact {
-  min-height: 74px;
+  min-height: 100px;
+}
+
+.identity {
+  min-width: 0;
 }
 
 .header h1 {
   margin: 0;
   font-family: var(--font-title);
-  font-size: 26px;
+  font-size: 24px;
   font-weight: 600;
   letter-spacing: -0.01em;
-  line-height: 1.2;
+  line-height: 1.35;
+  text-wrap: balance;
 }
 
 .header p,
 .eyebrow {
-  margin: 5px 0 0;
+  max-width: 65ch;
+  margin: 8px 0 0;
   color: var(--muted);
   font-size: 12px;
+  line-height: 1.6;
 }
 
 .eyebrow {
-  margin: 0 0 3px;
-  letter-spacing: 0.08em;
+  margin: 0 0 4px;
+  letter-spacing: 0.04em;
 }
 
 .actions {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0;
+  padding-top: 4px;
 }
 
 .scopeSummary {
   display: flex;
   max-width: 360px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 5px;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
 }
 
 .scopeSummary span {
@@ -60,31 +69,10 @@
    去掉胶囊底色避免「看起来能点」的假 affordance。 */
 
 .timestamp {
-  margin: 0 7px;
   color: var(--muted);
   font-family: var(--font-number);
   font-size: 12px;
   white-space: nowrap;
-}
-
-.avatar {
-  display: grid;
-  width: 36px;
-  height: 36px;
-  margin-left: 2px;
-  place-items: center;
-  color: var(--paper);
-  background: var(--jade);
-  border-radius: 50%;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-@media (max-width: 1350px) {
-  .scopeSummary span:nth-child(2),
-  .timestamp {
-    display: none;
-  }
 }
 
 @media (max-width: 767px) {
@@ -97,8 +85,7 @@
     font-size: 24px;
   }
 
-  .scopeSummary,
-  .avatar {
+  .scopeSummary {
     display: none;
   }
 }

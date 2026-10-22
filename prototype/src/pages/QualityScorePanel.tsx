@@ -1,6 +1,6 @@
 import { Gauge, Save, Settings2 } from 'lucide-react'
 import { useState } from 'react'
-import { Button, Drawer, Form, Input, Table, Tag } from 'antd'
+import { Button, Drawer, Form, Input, Skeleton, Table, Tag } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import {
   fetchQualityScore,
@@ -32,7 +32,8 @@ export function QualityScorePanel({ onNotice }: Props) {
   const [passScore, setPassScore] = useState('60')
   const [weights, setWeights] = useState<Record<string, string>>({})
   const [grades, setGrades] = useState<QualityGradeView[]>([])
-  const { pendingKey, run } = useAction(onNotice)
+  const [standardError, setStandardError] = useState<string | null>(null)
+  const { pendingKey, error: saveError, setError, run } = useAction(onNotice)
   const saving = pendingKey === 'save-standard'
 
   const apiState = useApiResource({
@@ -48,10 +49,30 @@ export function QualityScorePanel({ onNotice }: Props) {
   })
 
   function openStandard() {
+    setStandardError(null)
+    setError(null)
     setStandardOpen(true)
   }
 
   function submitStandard() {
+    const validScore = (value: string | number) => String(value).trim() !== '' && Number.isFinite(Number(value)) && Number(value) >= 0 && Number(value) <= 100
+    if (!validScore(passScore)) {
+      setStandardError('请填写 0–100 之间的规则通过线。')
+      return
+    }
+    if (DIMENSIONS.some((dimension) => !validScore(weights[dimension] ?? '') || !Number.isInteger(Number(weights[dimension])))) {
+      setStandardError('每个维度的权重须为 0–100 之间的整数。')
+      return
+    }
+    if (grades.length === 0 || grades.some((grade) => !grade.grade.trim() || !validScore(grade.lowScore))) {
+      setStandardError('请填写等级名称及 0–100 之间的最低分，或移除未使用的等级。')
+      return
+    }
+    if (new Set(grades.map((grade) => grade.grade.trim())).size !== grades.length) {
+      setStandardError('等级名称不能重复。')
+      return
+    }
+    setStandardError(null)
     void run('save-standard', '评分标准保存失败，请稍后重试', async () => {
       const nextWeights: Record<string, number> = {}
       for (const dimension of DIMENSIONS) {
@@ -104,19 +125,19 @@ export function QualityScorePanel({ onNotice }: Props) {
 
   return (
     <section className={styles.panel}>
-      <div className={styles.panelHeader}>
-        <div><h2>质量评分</h2><p>规则级得分按维度聚合为加权总分与等级（无终态运行的规则不进入均值）</p></div>
+      <div className={`${styles.panelHeader} ${local.panelHeader}`}>
+        <div><h2>质量评分</h2><p>按最近一次有效运行评分；未完成运行的规则不计入总分</p></div>
         <div className={styles.panelHeaderActions}>
-          {summary ? <span className={styles.dashboardScope}>标准更新：{formatDateTime(summary.standard.updatedAt)}</span> : null}
+          {summary ? <span className={local.updatedAt}>标准更新：{formatDateTime(summary.standard.updatedAt)}</span> : null}
           {apiState === 'live' ? <Button type="text" size="small" onClick={openStandard}><Settings2 size={13} />评分标准</Button> : null}
         </div>
       </div>
       {apiState === 'unavailable' ? (
-        <div className={styles.emptyRow}>质量评分控制面暂不可用</div>
+        <div className={local.scoreState} role="status"><strong>暂时无法读取质量评分</strong><p>请恢复控制面连接后重试，评分标准与历史结果不会以演示数据补位。</p></div>
       ) : summary && summary.rules.every((rule) => rule.score == null) ? (
         /* 首屏空态收一行（2026-10-05 复评 P1-1）：无带评分规则时不再渲染
            巨号占位 + 六根空条的死面板，一行说明 + 保留头部「评分标准」入口。 */
-        <div className={styles.emptyRow}>六个维度暂无带评分的规则运行 · 完成首轮质量复检后，此处将显示加权总分、维度分与等级</div>
+        <div className={local.scoreState}><Gauge size={22} aria-hidden="true" /><strong>等待首轮质量评分</strong><p>完成质量规则复检后，将显示六个维度的得分、加权总分与等级。可先核对「评分标准」中的通过线与权重。</p></div>
       ) : summary ? (
         <>
           <div className={`${styles.scoreHero} ${local.scoreHeroFlat}`}>
@@ -144,11 +165,12 @@ export function QualityScorePanel({ onNotice }: Props) {
             columns={ruleColumns}
             dataSource={summary.rules}
             pagination={false}
+            scroll={{ x: 480 }}
             locale={{ emptyText: '尚无带评分的规则运行' }}
           />
         </>
       ) : (
-        <div className={styles.emptyRow}>正在读取质量评分…</div>
+        <div className={local.scoreState} role="status" aria-label="正在读取质量评分"><Skeleton active paragraph={{ rows: 3 }} /></div>
       )}
 
       <Drawer
@@ -177,15 +199,17 @@ export function QualityScorePanel({ onNotice }: Props) {
           </Form.Item>
           <Form.Item label="等级表（按最低分从高到低）">
             {grades.map((grade, index) => (
-              <div key={index} className={styles.drawerFormGrid}>
+              <div key={index} className={local.gradeRow}>
                 <Input value={grade.grade} aria-label={`等级 ${index + 1} 名称`}
                   onChange={(event) => setGrades((current) => current.map((item, i) => i === index ? { ...item, grade: event.target.value } : item))} />
                 <Input type="number" min={0} max={100} value={grade.lowScore} aria-label={`等级 ${index + 1} 最低分`}
                   onChange={(event) => setGrades((current) => current.map((item, i) => i === index ? { ...item, lowScore: Number(event.target.value) } : item))} />
+                <Button type="text" size="small" disabled={saving} aria-label={`移除等级 ${index + 1}`} onClick={() => setGrades((current) => current.filter((_, i) => i !== index))}>移除</Button>
               </div>
             ))}
             <Button type="text" size="small" onClick={() => setGrades((current) => [...current, { grade: '', lowScore: 0 }])}>添加等级</Button>
           </Form.Item>
+          {standardError || saveError ? <p className={styles.formError} role="alert">{standardError || saveError}</p> : null}
         </Form> : null}
       </Drawer>
     </section>

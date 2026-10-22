@@ -27,6 +27,7 @@ import { usePaged } from '../hooks/usePaged'
 import pageStyles from './Pages.module.css'
 import styles from './IntegrationPages.module.css'
 import local from './AssistantGovernance.module.css'
+import workspace from './ConsumptionWorkspace.module.css'
 
 /**
  * 问数治理面（G27）：已验证问题生命周期管理——草稿建/改、试运行（发布前
@@ -362,7 +363,7 @@ export function AssistantGovernance({ onNotice, onQuestionsChanged }: {
   ]
 
   return (
-    <section className={styles.evidenceSection} aria-label="问数问题治理">
+    <section className={local.governancePanel} aria-label="问数问题治理">
       <div className={styles.evidenceHeader}>
         <h2>问题治理</h2>
         <div className={styles.toolbarActions}>
@@ -371,16 +372,19 @@ export function AssistantGovernance({ onNotice, onQuestionsChanged }: {
           <Button size="small" type="primary" onClick={openCreate}><Plus size={14} />新建问题（草稿）</Button>
         </div>
       </div>
-      <p className={styles.composerNote}>
+      <p className={local.governanceIntro}>
         发布须最近一次成功试运行晚于最后一次编辑（配置验证过才可上线）；停用问题从问数面消失并可重新起草。
       </p>
+      {governanceState === 'live' && questions.length > 0 ? <dl className={local.statusSummary} aria-label="问题发布概览"><div><dt>已发布</dt><dd>{questions.filter((question) => question.status === 'PUBLISHED').length}</dd></div><div><dt>草稿</dt><dd>{questions.filter((question) => question.status === 'DRAFT').length}</dd></div><div><dt>已停用</dt><dd>{questions.filter((question) => question.status === 'DEPRECATED').length}</dd></div></dl> : null}
       {governanceState === 'unavailable' && questions.length === 0 ? (
-        <p className={styles.composerNote}>治理清单暂不可达（接口不可用或当前角色无治理权限）。</p>
+        <div className={workspace.inlineState} role="status"><p>治理清单暂不可达，请确认当前角色有治理权限后重新读取。</p><Button size="small" onClick={() => setRefreshTick((tick) => tick + 1)}>重新读取治理清单</Button></div>
       ) : null}
       <Table<AssistantAdminQuestionView>
+        scroll={{ x: 'max-content' }}
         rowKey="code"
         columns={questionColumns}
         dataSource={pagedQuestions}
+        loading={governanceState === 'loading'}
         pagination={{
           current: questionsPage + 1,
           pageSize: TABLE_PAGE_SIZE,
@@ -389,11 +393,9 @@ export function AssistantGovernance({ onNotice, onQuestionsChanged }: {
           onChange: (page) => setQuestionsPage(page - 1),
         }}
         locale={{
-          emptyText: governanceState === 'unavailable' ? '治理清单暂不可达（接口不可用或当前角色无治理权限）。' : '',
+          emptyText: governanceState === 'unavailable' ? '治理清单尚未读取成功。' : '当前租户暂无问题，请先创建草稿，完成试运行后发布。',
         }}
       />
-      {questions.length === 0 && governanceState !== 'loading'
-        ? <p className={styles.composerNote}>当前租户暂无已验证问题（含草稿）。</p> : null}
 
       <Drawer
         open={editorOpen}
@@ -515,6 +517,7 @@ export function AssistantGovernance({ onNotice, onQuestionsChanged }: {
                 <p><strong>试运行通过：</strong>{testResult.answer}</p>
                 <div className={styles.horizontalScroll}>
                   <Table
+                    scroll={{ x: 'max-content' }}
                     rowKey={(_, index) => index ?? 0}
                     columns={(testResult.columns ?? []).map((column, index) => ({
                       title: column,

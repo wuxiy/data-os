@@ -1,7 +1,7 @@
 import { Ban, MessageSquareText, Send, ShieldCheck, ThumbsDown, ThumbsUp } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Button, DatePicker, Form, Input, Select, Table, Tag } from 'antd'
+import { Button, DatePicker, Form, Input, Select, Skeleton, Table, Tag } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { PageHeader } from '../components/ui/PageHeader'
@@ -17,6 +17,7 @@ import { useApiResource } from '../hooks/useApiResource'
 import { AssistantGovernance } from './AssistantGovernance'
 import styles from './IntegrationPages.module.css'
 import localStyles from './AssistantLive.module.css'
+import workspace from './ConsumptionWorkspace.module.css'
 
 /**
  * 智能问数真实页（G26）：只回答已验证问题（确定性匹配），执行经 Data API
@@ -67,6 +68,7 @@ export function AssistantLive({ onNotice, professional = false, governance = fal
   const [answer, setAnswer] = useState<AssistantAnswer | null>(null)
   const [feedbackState, setFeedbackState] = useState<'idle' | 'recording' | 'recorded'>('idle')
   const [asking, setAsking] = useState(false)
+  const [askError, setAskError] = useState('')
 
   const selected = useMemo(
     () => questions.find((question) => question.code === selectedCode) ?? null,
@@ -78,11 +80,16 @@ export function AssistantLive({ onNotice, professional = false, governance = fal
     setParams({})
     setDraft(question.question)
     setAnswer(null)
+    setAskError('')
+    setDisplayQuestion('')
     setFeedbackState('idle')
   }
 
   async function ask(text: string, parameters: Record<string, string>) {
+    if (asking) return
     setAsking(true)
+    setAnswer(null)
+    setAskError('')
     try {
       const result = await askAssistantQuery(text, parameters)
       setAnswer(result)
@@ -91,7 +98,9 @@ export function AssistantLive({ onNotice, professional = false, governance = fal
         onNotice(REFUSAL_LABEL[result.outcome ?? ''] ?? '问数已拒答')
       }
     } catch (error) {
-      onNotice(error instanceof Error && error.message ? error.message : '问数提问失败')
+      const message = error instanceof Error && error.message ? error.message : '本次查询未完成，请稍后重试。'
+      setAskError(message)
+      onNotice(message)
     } finally {
       setAsking(false)
     }
@@ -126,10 +135,10 @@ export function AssistantLive({ onNotice, professional = false, governance = fal
           eyebrow={professional ? '受控只读分析 · 专业模式' : '受控只读分析'}
           subtitle="已验证问题 · 受控执行 · 可复核证据" compact
         />
-        <section className={styles.evidenceSection} role="status">
-          <h3>问数服务暂不可用</h3>
-          <p>控制面问数接口不可达；本页不显示演示回退。</p>
-          <Button onClick={() => setReloadKey((key) => key + 1)}>重试</Button>
+        <section className={workspace.statePanel} role="status">
+          <h2>问数服务暂不可用</h2>
+          <p>暂时无法读取已验证问题。可重新读取；持续失败时请联系平台运维核对服务连接。</p>
+          <Button onClick={() => setReloadKey((key) => key + 1)}>重新读取问题</Button>
         </section>
       </div>
     )
@@ -148,14 +157,15 @@ export function AssistantLive({ onNotice, professional = false, governance = fal
       <div className={styles.assistantWorkspace}>
         <aside className={styles.conversationRail} aria-label="支持的问题">
           <div className={styles.railHeader}><h2>已验证问题</h2><span className={styles.railCount}>{questions.length}</span></div>
-          {questionsState === 'loading' && questions.length === 0 ? <p className={localStyles.railNote}>正在加载问题清单…</p> : null}
+          {questionsState === 'loading' && questions.length === 0 ? <div className={workspace.railLoading} role="status" aria-busy="true"><p className={workspace.notice}>正在加载问题清单…</p><Skeleton active title={false} paragraph={{ rows: 4 }} /></div> : null}
           <ul className={styles.conversationList}>
             {questions.map((question) => (
               <li key={question.code}>
                 <button
-                  className={`${styles.conversationItem} ${question.code === selectedCode ? styles.conversationItemSelected : ''}`}
+                  className={`${styles.conversationItem} ${localStyles.questionItem} ${question.code === selectedCode ? styles.conversationItemSelected : ''}`}
                   onClick={() => selectQuestion(question)}
                   aria-pressed={question.code === selectedCode}
+                  disabled={asking}
                 >
                   <strong>{question.question}</strong><span>{paramLabel(question)}</span>
                 </button>
@@ -214,12 +224,19 @@ export function AssistantLive({ onNotice, professional = false, governance = fal
             </Form>
           ) : null}
 
-          <div className={styles.chatScroll} aria-live="polite">
+          <div className={styles.chatScroll} aria-live="polite" aria-busy={asking}>
             {displayQuestion ? (
               <div className={styles.userBubbleRow}><div className={styles.userBubble}>{displayQuestion}</div></div>
             ) : (
-              <p className={styles.composerNote}>从左侧选择一个已验证问题（可改参数），或直接在下方输入问题原文/别名。</p>
+              <section className={workspace.intro}>
+                <h2>{questions.length === 0 && questionsState === 'live' ? '还没有可执行的问题' : '从一个已验证问题开始'}</h2>
+                <p>{questions.length === 0 && questionsState === 'live' ? '当前租户暂无已发布问题。请联系治理人员完成配置、试运行和发布后再查询。' : '选择左侧问题，再按业务范围调整参数。结果和执行证据会在同一工作区展示。'}</p>
+                <ol><li><strong>选问题</strong>，确认业务口径与受控数据服务。</li><li><strong>定范围</strong>，填写时间等必需参数后执行。</li><li><strong>核对结果</strong>，查看明细、统计窗口与审计号。</li></ol>
+              </section>
             )}
+
+            {asking ? <section className={workspace.inlineState} role="status"><p>正在执行受控查询，完成后展示结果与本次证据。</p><Skeleton active paragraph={{ rows: 3 }} /></section> : null}
+            {askError ? <section className={workspace.inlineState} role="alert"><strong>本次查询未完成</strong><p>{askError}</p><p>请核对问题与参数后重新发送。</p></section> : null}
 
             {answer && !answer.answered ? (
               <article className={styles.assistantAnswer}>
@@ -250,7 +267,7 @@ export function AssistantLive({ onNotice, professional = false, governance = fal
                   </div>
                   <div className={styles.answerActions}>
                     <button className={styles.iconButton} onClick={() => void sendFeedback('helpful')}
-                      disabled={feedbackState !== 'idle'} aria-label="回答有帮助"><ThumbsUp size={15} /></button>
+                      disabled={feedbackState !== 'idle'} aria-label={feedbackState === 'recorded' ? '反馈已记录' : '回答有帮助'}><ThumbsUp size={15} /></button>
                     <button className={styles.iconButton} onClick={() => void sendFeedback('not_helpful')}
                       disabled={feedbackState !== 'idle'} aria-label="回答需要改进"><ThumbsDown size={15} /></button>
                   </div>
@@ -267,6 +284,7 @@ export function AssistantLive({ onNotice, professional = false, governance = fal
                     <h3>核对明细</h3>
                     <div className={styles.horizontalScroll}>
                       <Table
+                        scroll={{ x: 'max-content' }}
                         rowKey={(_, index) => index ?? 0}
                         columns={(answer.columns ?? []).map((column, index) => ({
                           title: column,
@@ -276,6 +294,7 @@ export function AssistantLive({ onNotice, professional = false, governance = fal
                         dataSource={answer.rows ?? []}
                         pagination={false}
                         size="small"
+                        locale={{ emptyText: '查询已完成，当前范围内没有数据。可调整统计参数后重试。' }}
                       />
                     </div>
                   </section>
@@ -295,7 +314,7 @@ export function AssistantLive({ onNotice, professional = false, governance = fal
         </section>
 
         <aside className={styles.evidenceRail} aria-label="问数证据">
-          <div className={styles.evidenceHeader}><h2>回答证据</h2><Tag color={answer ? TONE_COLOR.healthy : TONE_COLOR.neutral}>{answer ? '可复核' : '待提问'}</Tag></div>
+          <div className={styles.evidenceHeader}><h2>回答证据</h2><Tag color={answer?.answered ? TONE_COLOR.healthy : answer ? TONE_COLOR.warning : TONE_COLOR.neutral}>{answer?.answered ? '可复核' : answer ? '拒答留痕' : asking ? '执行中' : askError ? '查询未完成' : '待提问'}</Tag></div>
           <div className={styles.evidenceBody}>
             <div className={styles.evidenceStamp}>
               <span className={styles.evidenceStampIcon}><MessageSquareText size={17} /></span>

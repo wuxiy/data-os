@@ -1,6 +1,6 @@
 import { ArrowRightLeft, Download, FileSearch, GitCompareArrows, RefreshCw, Search, Send, Archive, ShieldCheck, UploadCloud } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { Button, Form, Input, Select, Table, Tag } from 'antd'
+import { Button, Form, Input, Select, Skeleton, Table, Tag } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { GovernanceTabs } from '../components/ui/GovernanceTabs'
 import { PageHeader } from '../components/ui/PageHeader'
@@ -25,9 +25,11 @@ import {
 } from '../data/standardsApi'
 import { actorLabel, formatDateTime, sensitivityLabel, standardEventLabel } from '../data/domain'
 import { useApiResource } from '../hooks/useApiResource'
+import { useAction } from '../hooks/useAction'
 import { usePaged } from '../hooks/usePaged'
 import type { RouteKey, Tone } from '../types'
 import styles from './Pages.module.css'
+import local from './DataStandardsPage.module.css'
 
 /**
  * 数据标准中心（G22 真实链路）：标准集合 → 不可变版本 → 评审/发布/停用生命周期，
@@ -80,7 +82,8 @@ export function DataStandardsLive({ onNotice, onNavigate, onUnavailable }: { onN
   const [importReport, setImportReport] = useState<ImportReport | null>(null)
   const [metaDraft, setMetaDraft] = useState({ standardName: '', description: '', owner: '' })
   const [elementsDraft, setElementsDraft] = useState('')
-  const [busy, setBusy] = useState(false)
+  const { pendingKey, error: operationError, run: runOperation } = useAction(onNotice)
+  const busy = pendingKey !== null
   const [reloadKey, setReloadKey] = useState(0)
 
   const listState = useApiResource({
@@ -113,22 +116,17 @@ export function DataStandardsLive({ onNotice, onNavigate, onUnavailable }: { onN
   })
 
   const paged = usePaged(items, 8)
-  const version = detail?.version
+  const version = detail?.standard.id === selectedId && (!detailVersionId || detail.version.id === detailVersionId) ? detail.version : undefined
   const selectedVersionMeta = useMemo(
     () => detail?.versions.find((item) => item.id === version?.id) ?? null,
     [detail, version])
 
   async function run(label: string, action: () => Promise<unknown>) {
-    setBusy(true)
-    try {
+    await runOperation(label, `${label}失败，请稍后重试`, async () => {
       await action()
       setReloadKey((key) => key + 1)
       onNotice(`${label}成功`)
-    } catch (error) {
-      onNotice(error instanceof Error ? error.message : `${label}失败`)
-    } finally {
-      setBusy(false)
-    }
+    })
   }
 
   async function downloadFhir() {
@@ -174,9 +172,9 @@ export function DataStandardsLive({ onNotice, onNavigate, onUnavailable }: { onN
         <PageHeader title="数据标准中心" eyebrow="数据标准" subtitle="标准集合、版本评审与发布" />
         <GovernanceTabs route="standards" onNavigate={onNavigate} onUnavailable={onUnavailable} />
         <div className={styles.content}>
-          <section className={styles.panel} role="status">
+          <section className={`${styles.panel} ${local.unavailablePanel}`} role="alert">
             <div className={styles.panelHeader}><h2>控制面暂不可用</h2></div>
-            <p className={styles.emptyState}>数据标准服务不可达，暂无法加载标准清单。请稍后重试；本页不显示静态样例。</p>
+            <p>暂时无法读取标准清单。恢复连接后，可继续查看版本、评审记录与影响范围。</p>
             <Button size="small" onClick={() => setReloadKey((key) => key + 1)}><RefreshCw size={14} />重试</Button>
           </section>
         </div>
@@ -186,31 +184,33 @@ export function DataStandardsLive({ onNotice, onNavigate, onUnavailable }: { onN
 
   return (
     <div className={styles.page}>
-      <PageHeader title="数据标准中心" eyebrow="数据标准" subtitle="标准集合、不可变版本、评审发布与影响范围" asOf={detail ? formatDateTime(detail.standard.updatedAt) : undefined} />
+      <PageHeader title="数据标准中心" subtitle="维护院级业务定义与值域，通过评审发布可追溯的标准版本" asOf={detail ? formatDateTime(detail.standard.updatedAt) : undefined} />
       <GovernanceTabs route="standards" onNavigate={onNavigate} onUnavailable={onUnavailable} />
       <div className={styles.content}>
-        <div className={styles.listTools}>
+        <section className={styles.tablePanel}>
+          <div className={styles.panelHeader}>
+            <div><h2>标准清单</h2><p>{items.length} 项 · 选择标准后查看版本与数据元</p></div>
+            <span className={local.processHint}>草稿 → 评审 → 发布</span>
+          </div>
+        <div className={`${styles.listTools} ${local.toolbar}`}>
           <label className={styles.search}>
             <Search size={15} aria-hidden="true" />
             <input value={query} onChange={(event) => { setQuery(event.target.value); paged.setPage(0) }} placeholder="搜索标准代码或名称" aria-label="搜索数据标准" />
           </label>
-          <Select
+          <div className={local.filterActions}><Select
+            className={local.statusSelect}
             value={statusFilter}
             onChange={(value) => { setStatusFilter(value); paged.setPage(0) }}
             aria-label="按最新版本状态筛选"
             options={STATUS_OPTIONS.map((option) => ({ value: option, label: option === '' ? '全部状态' : STATUS_LABEL[option] }))}
-          />
+          /><Button type="text" size="small" disabled={!query && !statusFilter} onClick={() => { setQuery(''); setStatusFilter(''); paged.setPage(0) }}>清除筛选</Button></div>
         </div>
-
-        <div className={styles.tablePanel}>
-          <div className={styles.panelHeader}>
-            <div><h2>标准清单</h2><p>{items.length} 项 · 版本不可变，发布需经评审</p></div>
-          </div>
           <Table<StandardListItem>
             rowKey="id"
             columns={listColumns}
             dataSource={paged.paged}
             loading={listState === 'loading'}
+            scroll={{ x: 620 }}
             pagination={{
               current: paged.page + 1,
               pageSize: 8,
@@ -222,7 +222,7 @@ export function DataStandardsLive({ onNotice, onNavigate, onUnavailable }: { onN
               emptyText: listState === 'loading'
                 ? '正在加载标准清单…'
                 : listState === 'live'
-                  ? '暂无数据标准。可在下方导入区新建（先预检后落库）。'
+                  ? query || statusFilter ? '没有匹配的标准，请调整关键词或清除筛选。' : '还没有数据标准，可在下方导入内容，预检通过后创建草稿。'
                   : '',
             }}
             onRow={(item) => ({
@@ -239,10 +239,15 @@ export function DataStandardsLive({ onNotice, onNavigate, onUnavailable }: { onN
               },
             })}
           />
-        </div>
+        </section>
+
+        {operationError ? <p className={local.operationError} role="alert">{operationError}</p> : null}
+        {selectedId && (!detail || !version) ? <section className={`${styles.panel} ${local.detailState}`} role={detailState === 'unavailable' ? 'alert' : 'status'}>
+          {detailState === 'unavailable' ? <><strong>标准详情读取失败</strong><p>标准清单仍可使用。请重试读取所选标准的版本与数据元。</p><Button size="small" onClick={() => setReloadKey((key) => key + 1)} icon={<RefreshCw size={14} />}>重试详情</Button></> : <><strong>正在读取标准详情</strong><Skeleton active paragraph={{ rows: 3 }} /></>}
+        </section> : null}
 
         {detail && version ? (
-          <div className={styles.twoColumns}>
+          <div className={local.detailGrid}>
             <section className={styles.tablePanel}>
               <div className={styles.panelHeader}>
                 <div>
@@ -253,6 +258,7 @@ export function DataStandardsLive({ onNotice, onNavigate, onUnavailable }: { onN
                   <Button size="small" disabled={busy} onClick={() => run('创建新版本', async () => { await createStandardVersion(detail.standard.id) })}><GitCompareArrows size={14} />基于当前发布版新建草稿</Button>
                 </div>
               </div>
+              <div className={local.versionContext}><strong>当前查看 v{version.versionNo}</strong><Tag color={TONE_COLOR[statusTone(version.status)]}>{STATUS_LABEL[version.status]}</Tag><span>{version.elements.length} 个数据元 · {version.status === 'DRAFT' ? '修改后提交评审，发布后供资产与映射引用' : version.status === 'IN_REVIEW' ? '评审通过后由管理员发布' : version.status === 'PUBLISHED' ? '已发布版本只读，变更请新建草稿' : '该版本已停用，保留历史追溯'}</span></div>
               <div className={styles.versionChips}>
                 {detail.versions.map((item) => (
                   <button
@@ -381,8 +387,8 @@ export function DataStandardsLive({ onNotice, onNavigate, onUnavailable }: { onN
               ) : null}
             </section>
 
-            <section className={styles.panel}>
-              <div className={styles.panelHeader}><h2>审计事件</h2><p>最近 20 条</p></div>
+            <aside className={`${styles.panel} ${local.auditRail}`}>
+              <div className={styles.panelHeader}><div><h2>审计事件</h2><p>当前标准 · 最近 20 条</p></div></div>
               <ul className={styles.timelineBody}>
                 {detail.events.map((event) => (
                   <li key={event.id}>
@@ -395,13 +401,13 @@ export function DataStandardsLive({ onNotice, onNavigate, onUnavailable }: { onN
               </ul>
               {detailState === 'loading' ? <p className={styles.emptyState}>正在加载详情…</p> : null}
               {selectedVersionMeta ? <p className={styles.emptyState}>当前查看 v{selectedVersionMeta.versionNo} · {STATUS_LABEL[selectedVersionMeta.status]}</p> : null}
-            </section>
+            </aside>
           </div>
         ) : null}
 
         <section className={styles.tablePanel}>
           <div className={styles.panelHeader}>
-            <div><h2>导入标准</h2><p>平台 CSV 模板或内部 JSON；先预检（dry-run）再落库</p></div>
+            <div><h2>导入标准</h2><p>粘贴 CSV 或 JSON → 预检内容 → 确认创建草稿</p></div>
           </div>
           <div className={styles.drawerForm}>
             <Form layout="vertical">
@@ -418,11 +424,11 @@ export function DataStandardsLive({ onNotice, onNavigate, onUnavailable }: { onN
             </div>
             {importReport ? (
               <div className={styles.evidenceBox}>
-                <h3>预检报告 · {importReport.standardCode || '（空代码）'}</h3>
+                <h3>{importReport.created ? '导入结果' : '预检报告'} · {importReport.standardCode || '（空代码）'}</h3>
                 <p>数据元 {importReport.elementCount} 个 · 值域 {importReport.valueCount} 条 · 问题 {importReport.problems.length} 项</p>
                 {importReport.problems.length > 0 ? (
                   <ul className={styles.checkList}>{importReport.problems.map((problem) => <li key={problem} className={styles.textWarning}>{problem}</li>)}</ul>
-                ) : <p className={styles.textHealthy}>校验通过，可确认导入。</p>}
+                ) : <p className={styles.textHealthy}>{importReport.created ? '导入已完成，可在标准清单中继续维护草稿。' : '校验通过，可确认导入。'}</p>}
                 {importReport.created ? <p>已创建：{importReport.created.standard.code}（草稿 v{importReport.created.version.versionNo}）</p> : null}
               </div>
             ) : null}

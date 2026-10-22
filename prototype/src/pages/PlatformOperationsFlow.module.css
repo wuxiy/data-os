@@ -1,7 +1,2 @@
-/* 平台运维页局部样式（收敛第二波）：块流节奏。 */
-
-/* .pageBody 为块流容器：.content 改 grid 后 EdgeNodesPanel 等子级失去顶距，
-   按间距刻度补 24px 子级节奏（与 sectionHeader 自带 margin 折叠取大者）。 */
-.pageFlow > * + * {
-  margin-top: 24px;
-}
+/* 以单一网格收口页面节奏，组件内部不叠加块间顶距。 */
+.pageFlow { display: grid; gap: 24px; align-content: start; }

@@ -1,5 +1,10 @@
 .shell {
-  min-height: 100vh;
+  --sidebar-width: 232px;
+  min-height: 100dvh;
+}
+
+.shellCollapsed {
+  --sidebar-width: 68px;
 }
 
 .skipLink {
@@ -24,11 +29,12 @@
   inset: 0 auto 0 0;
   z-index: 40;
   display: flex;
-  width: 232px;
+  width: var(--sidebar-width);
   flex-direction: column;
-  padding: 24px 12px 16px;
+  padding: 20px 12px 12px;
   color: var(--ink);
   background: var(--sidebar);
+  border-right: 1px solid var(--line);
 }
 
 .sidebarTop {
@@ -36,7 +42,7 @@
   align-items: center;
   justify-content: space-between;
   min-height: 48px;
-  padding: 0 10px 18px;
+  padding: 0 10px 16px;
 }
 
 .brand {
@@ -57,16 +63,58 @@
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 5px;
-  padding-top: 14px;
+  min-height: 0;
+  gap: 16px;
+  padding-top: 20px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.navGroup {
+  display: grid;
+  gap: 2px;
+}
+
+.groupLabel {
+  padding: 0 14px 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.commandButton {
+  display: flex;
+  min-height: 40px;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  color: var(--muted);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.commandButton kbd {
+  margin-left: auto;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+}
+
+.commandButton:hover {
+  border-color: var(--jade);
+  color: var(--jade-dark);
 }
 
 .navItem,
-.settings {
+.collapseButton {
   position: relative;
   display: flex;
   width: 100%;
-  min-height: 48px;
+  min-height: 44px;
   align-items: center;
   gap: 13px;
   padding: 0 14px;
@@ -80,7 +128,7 @@
 }
 
 .navItem:focus-visible,
-.settings:focus-visible,
+.collapseButton:focus-visible,
 .mobileMenu:focus-visible,
 .closeMobile:focus-visible,
 .logoutButton:focus-visible {
@@ -98,7 +146,7 @@
 }
 
 .navItem:hover,
-.settings:hover {
+.collapseButton:hover {
   color: var(--ink);
   background: rgba(31, 41, 55, 0.05);
 }
@@ -129,7 +177,7 @@
 }
 
 .navItem span,
-.settings span {
+.collapseButton span {
   overflow: hidden;
   font-size: 13px;
   font-weight: 500;
@@ -138,12 +186,26 @@
   white-space: nowrap;
 }
 
-.settings {
+.collapseButton {
   margin-top: 0;
 }
 
+.navItem svg,
+.commandButton svg,
+.collapseButton svg {
+  flex-shrink: 0;
+}
+
+.navItem:active,
+.commandButton:active,
+.collapseButton:active {
+  transform: translateY(1px);
+}
+
 .sidebarBottom {
-  margin-top: auto;
+  padding-top: 12px;
+  margin-top: 12px;
+  border-top: 1px solid var(--line);
 }
 
 .authPanel {
@@ -180,8 +242,8 @@
 }
 
 .main {
-  min-height: 100vh;
-  margin-left: 232px;
+  min-height: 100dvh;
+  margin-left: var(--sidebar-width);
   background: var(--canvas);
 }
 
@@ -191,38 +253,54 @@
   display: none;
 }
 
-@media (max-width: 1180px) and (min-width: 768px) {
-  .sidebar {
-    width: 72px;
-    padding-inline: 8px;
-  }
+.shellCollapsed .sidebar {
+  padding-inline: 8px;
+}
 
-  .sidebarTop {
-    justify-content: center;
-    padding-inline: 0;
-  }
+.shellCollapsed .sidebarTop {
+  justify-content: center;
+  padding-inline: 0;
+}
 
-  .brand span,
-  .navItem span,
-  .plannedLabel,
-  .settings span,
-  .authPanel {
-    display: none;
-  }
+.shellCollapsed .brand span,
+.shellCollapsed .navItem span,
+.shellCollapsed .commandButton span,
+.shellCollapsed .collapseButton span,
+.shellCollapsed .groupLabel,
+.shellCollapsed .authName,
+.shellCollapsed .logoutButton span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
 
-  .navItem,
-  .settings {
-    justify-content: center;
-    padding: 0;
-  }
+.shellCollapsed .commandButton kbd {
+  display: none;
+}
 
-  .main {
-    margin-left: 72px;
-  }
+.shellCollapsed .navItem,
+.shellCollapsed .commandButton,
+.shellCollapsed .collapseButton,
+.shellCollapsed .logoutButton {
+  min-height: 44px;
+  justify-content: center;
+  padding-inline: 0;
+}
 
-  .skipLink {
-    left: 88px;
-  }
+.shellCollapsed .navGroup + .navGroup {
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.shellCollapsed .authPanel {
+  padding-inline: 0;
+}
+
+.shellCollapsed .skipLink {
+  left: 84px;
 }
 
 @media (max-width: 767px) {
@@ -265,6 +343,10 @@
     width: min(82vw, 300px);
     transform: translateX(-105%);
     transition: transform 180ms var(--ease-out);
+  }
+
+  .collapseButton {
+    display: none;
   }
 
   .sidebarOpen {

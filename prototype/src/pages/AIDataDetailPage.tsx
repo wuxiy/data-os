@@ -1,7 +1,7 @@
 import { CircleAlert } from 'lucide-react'
 import { useState } from 'react'
 import type { ReactNode } from 'react'
-import { Button, Drawer, Form, Input, Table, Tag } from 'antd'
+import { Button, Drawer, Form, Input, Skeleton, Table, Tag } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { PageHeader } from '../components/ui/PageHeader'
 import {
@@ -50,6 +50,7 @@ interface Props {
 
 /** AI Data Product 详情（G8/G9）：版本历史 + 生命周期操作 + build 守护提示。 */
 export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, onDemote, onBuild, onChanged }: Props) {
+  const [reloadKey, setReloadKey] = useState(0)
   const [detail, setDetail] = useState<AIDataProductDetail | null>(null)
   const [certifications, setCertifications] = useState<AICertificationRequest[]>([])
   const [feedback, setFeedback] = useState<AIEvaluationFeedbackItem[]>([])
@@ -62,7 +63,7 @@ export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, 
   const [confirmDemote, setConfirmDemote] = useState(false)
   // 键控加载（按产品）；认证历史/反馈/构建任务是次级资源，失败不塌详情。
   const state = useKeyedResource({
-    key: productId,
+    key: `${productId}|${reloadKey}`,
     load: (signal) => Promise.all([
       fetchAIDataProduct(productId, signal),
       fetchCertificationRequests(productId, signal).catch(() => []),
@@ -161,7 +162,7 @@ export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, 
       key: 'certification',
       render: (_, version) => version.readiness?.certification
         ? (
-          <Tag color={version.readiness.certification === 'BLOCKED' ? 'error' : version.readiness.certification === 'CANDIDATE' ? 'success' : 'warning'}>
+          <Tag color={version.readiness.certification === 'BLOCKED' ? 'error' : version.readiness.certification === 'CANDIDATE' ? undefined : 'warning'}>
             {aiCertificationLabel[version.readiness.certification] ?? version.readiness.certification}
           </Tag>
         )
@@ -265,11 +266,12 @@ export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, 
 
   if (state === 'loading' || state === 'error' || !detail) {
     return (
-      <div className={styles.technicalNotice} role="status">
+      <div className={`${styles.technicalNotice} ${localStyles.resourceState}`} role="status">
         <Tag color={state === 'loading' ? undefined : 'warning'}>
           {state === 'loading' ? '读取中' : '读取失败'}
         </Tag>
         <span>{state === 'loading' ? '正在读取产品详情与版本历史…' : '产品详情暂时不可读，请稍后重试。'}</span>
+        {state === 'loading' ? <Skeleton active title={false} paragraph={{ rows: 5 }} /> : <Button size="small" onClick={() => setReloadKey((key) => key + 1)}>重新加载</Button>}
       </div>
     )
   }
@@ -298,11 +300,11 @@ export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, 
 
   return (
     <>
-      <div className={styles.assetToolbar}>
+      <div className={`${styles.assetToolbar} ${localStyles.productToolbar}`}>
         <div className={styles.assetIdentity}>
           <div className={styles.assetIdentityTop}>
             <span className={styles.assetCode}>{productTypeLabel[product.productType]}</span>
-            <Tag color={product.lifecycle === 'DEPRECATED' ? 'warning' : 'success'}>
+            <Tag color={product.lifecycle === 'DEPRECATED' ? 'warning' : product.lifecycle === 'CERTIFIED' || product.lifecycle === 'SERVING' ? 'success' : undefined}>
               {lifecycleLabel[product.lifecycle]}
             </Tag>
           </div>
@@ -341,8 +343,8 @@ export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, 
         </div>
       </div>
 
-      <div className={styles.assetBody}>
-        <section className={styles.contentPanel}>
+      <div className={`${styles.assetBody} ${localStyles.detailBody}`}>
+        <section className={`${styles.contentPanel} ${localStyles.panel}`}>
           <div className={styles.contentPanelHeader}>
             <h3>数据来源</h3>
             <span>登记口径（G8 域基础）</span>
@@ -352,7 +354,7 @@ export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, 
           </div>
         </section>
 
-        <section className={styles.contentPanel}>
+        <section className={`${styles.contentPanel} ${localStyles.panel}`}>
           <div className={styles.contentPanelHeader}>
             <h3>版本历史</h3>
             <span>{versions.length} 个版本 · 按创建时间升序</span>
@@ -360,6 +362,7 @@ export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, 
           <Table<AIDataProductDetail['versions'][number]>
             rowKey="id"
             columns={versionColumns}
+            scroll={{ x: 780 }}
             dataSource={versions}
             pagination={{
               current: versionsPage + 1,
@@ -377,24 +380,24 @@ export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, 
           const evaluation = version?.readiness?.evaluation ?? null
           if (!evaluation) return null
           return (
-            <section className={styles.contentPanel}>
+            <section className={`${styles.contentPanel} ${localStyles.panel}`}>
               <div className={styles.contentPanelHeader}>
                 <h3>评测指标（RAG Eval · 合成评测集）</h3>
                 <span>评测集 {evaluation.evalSetSize ?? '—'} 问</span>
               </div>
-              <div className={styles.lineageImpact}>
-                <div className={styles.impactItem}><span>Recall@5</span><strong>{Number(evaluation.retrievalRecallAt5 ?? 0).toFixed(2)}</strong></div>
-                <div className={styles.impactItem}><span>Precision@5</span><strong>{Number(evaluation.precisionAt5 ?? 0).toFixed(2)}</strong></div>
-                <div className={styles.impactItem}><span>MRR</span><strong>{Number(evaluation.mrr ?? 0).toFixed(2)}</strong></div>
-                <div className={styles.impactItem}><span>引用正确率</span><strong>{Number(evaluation.citationCorrectness ?? 0).toFixed(2)}</strong></div>
-                <div className={styles.impactItem}><span>忠实度</span><strong>{Number(evaluation.faithfulness ?? 0).toFixed(2)}</strong></div>
+              <div className={`${styles.lineageImpact} ${localStyles.evaluationMetrics}`}>
+                <div className={styles.impactItem}><span>Recall@5</span><strong>{evaluation.retrievalRecallAt5?.toFixed(2) ?? '—'}</strong></div>
+                <div className={styles.impactItem}><span>Precision@5</span><strong>{evaluation.precisionAt5?.toFixed(2) ?? '—'}</strong></div>
+                <div className={styles.impactItem}><span>MRR</span><strong>{evaluation.mrr?.toFixed(2) ?? '—'}</strong></div>
+                <div className={styles.impactItem}><span>引用正确率</span><strong>{evaluation.citationCorrectness?.toFixed(2) ?? '—'}</strong></div>
+                <div className={styles.impactItem}><span>忠实度</span><strong>{evaluation.faithfulness?.toFixed(2) ?? '—'}</strong></div>
               </div>
             </section>
           )
         })()}
 
         {comparisonRows.length >= 2 ? (
-          <section className={styles.contentPanel}>
+          <section className={`${styles.contentPanel} ${localStyles.panel}`}>
             <div className={styles.contentPanelHeader}>
               <h3>版本对比（数据飞轮）</h3>
               <span>就绪度与评测指标随版本演进</span>
@@ -410,7 +413,7 @@ export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, 
         ) : null}
 
         {feedback.length > 0 ? (
-          <section className={styles.contentPanel}>
+          <section className={`${styles.contentPanel} ${localStyles.panel}`}>
             <div className={styles.contentPanelHeader}>
               <h3>评测反馈（数据飞轮 · Learning Plane）</h3>
               <span>失败样本驱动版本改进；处置只改状态，候选不自动上线</span>
@@ -432,7 +435,7 @@ export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, 
         ) : null}
 
         {certifications.length > 0 ? (
-          <section className={styles.contentPanel}>
+          <section className={`${styles.contentPanel} ${localStyles.panel}`}>
             <div className={styles.contentPanelHeader}>
               <h3>认证审批</h3>
               <span>{certifications.length} 条记录 · CERTIFIED 仅可经审批流转</span>
@@ -454,7 +457,7 @@ export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, 
         ) : null}
 
         {buildJobs.length > 0 ? (
-          <section className={styles.contentPanel}>
+          <section className={`${styles.contentPanel} ${localStyles.panel}`}>
             <div className={styles.contentPanelHeader}>
               <h3>构建任务</h3>
               <span>{buildJobs.length} 条记录 · 最近在前（G20 任务态异步化：排队 → 执行 → 终态）</span>
@@ -462,6 +465,7 @@ export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, 
             <Table<AIBuildJob>
               rowKey="id"
               columns={buildJobColumns}
+              scroll={{ x: 780 }}
               dataSource={buildJobs}
               pagination={{
                 current: jobsPage + 1,
@@ -476,8 +480,8 @@ export function AIDataDetailPage({ productId, onNotice, onAdvance, onDeprecate, 
         ) : null}
 
         <section className={styles.technicalNotice} role="status">
-          <Tag color="warning">评估引擎</Tag>
-          <span>构建/评估委托 AI Ready 引擎（G9）执行，任务态异步推进（G20）：结论回写当前版本的就绪度列，进度经「构建任务」追读；引擎未配置时投递返回明确的 503 而不伪造成功。</span>
+          <Tag>构建与评估</Tag>
+          <span>任务提交后依次进入排队、执行和完成状态；请在「构建任务」查看进度，在对应版本核查评估结论。评估结果与认证审批分别留痕。</span>
         </section>
       </div>
 

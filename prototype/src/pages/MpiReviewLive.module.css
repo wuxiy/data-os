@@ -8,3 +8,11 @@
 .drawerPanel + .drawerPanel {
   border-top: 1px solid var(--line);
 }
+
+.workspace { min-width: 0; }
+.workspace p, .workspace dd { overflow-wrap: anywhere; }
+.workspace h2 { font-weight: 600; }
+.loadingWorkspace { max-width: 1480px; margin: 24px auto; padding: 24px; background: var(--paper); }
+.evidenceSummary { display: inline-block; color: var(--muted); font-size: 12px; }
+.fieldDifference { display: block; margin-top: 4px; color: var(--amber-dark); font-size: 12px; }
+.evidenceConflict > svg { color: var(--red); }

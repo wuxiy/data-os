@@ -1,0 +1,11 @@
+/* 产品目录与版本工作区共用一条事实带，避免同构指标卡抢占注意。 */
+.overview { max-width: 1480px; margin: 0 auto; padding: 24px; gap: 0; grid-template-columns: repeat(5, minmax(0, 1fr)); background: var(--paper); border-bottom: 1px solid var(--line); }
+.overview > div { min-width: 0; padding: 0 20px; border-radius: 0; background: transparent; border-right: 1px solid var(--line); }
+.overview > div:first-child { padding-left: 0; }
+.overview > div:last-child { padding-right: 0; border-right: 0; }
+.overview strong { font-size: 24px; font-variant-numeric: tabular-nums; }
+.workspace { max-width: 1480px; margin: 0 auto; grid-template-columns: 224px minmax(0, 1fr); }
+.productMain { min-width: 0; }
+.statusNotice { max-width: 1432px; margin: 24px auto; }
+.loadingWorkspace { max-width: 1480px; margin: 0 auto; padding: 24px; background: var(--paper); }
+@media (max-width: 1100px) { .overview > div { padding-inline: 12px; } .workspace { grid-template-columns: 202px minmax(0, 1fr); } }

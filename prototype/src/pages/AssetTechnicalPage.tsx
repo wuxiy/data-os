@@ -89,6 +89,7 @@ function DemoAssetTechnicalPage({ onNotice }: { onNotice: (message: string) => v
           <section className={styles.technicalPanel}>
             <div className={styles.technicalPanelHeader}><div><h3>字段结构</h3><span>技术字段与医疗数据标准绑定关系</span></div><Rows3 size={17} /></div>
             <Table<AssetField>
+              scroll={{ x: 'max-content' }}
               rowKey="name"
               columns={fieldColumns}
               dataSource={asset.fields}
@@ -104,7 +105,7 @@ function DemoAssetTechnicalPage({ onNotice }: { onNotice: (message: string) => v
               <div><dt><KeyRound size={13} />资产编号</dt><dd>{asset.entityId}</dd></div>
               <div><dt><ShieldCheck size={13} />责任人</dt><dd>{asset.owner}</dd></div>
             </dl>
-            <div className={styles.technicalNotice}><Link2 size={15} /><span>血缘、质量和责任人由统一门户聚合，当前页面不要求直接登录 OpenMetadata。</span></div>
+            <div className={styles.technicalNotice}><Link2 size={15} /><span>血缘、质量和责任人由统一门户聚合，可返回资产详情复核业务口径。</span></div>
           </aside>
         </div>
 

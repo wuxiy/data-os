@@ -1,6 +1,6 @@
 import { Boxes, History, MoreHorizontal, Network, Pencil, Plus, Radar, Save, Trash2 } from 'lucide-react'
 import { useState } from 'react'
-import { Button, Drawer, Form, Input, Table, Tag } from 'antd'
+import { Alert, Button, Drawer, Form, Input, Skeleton, Table, Tag } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import {
   deleteEdgeNode,
@@ -18,8 +18,10 @@ import type { Tone } from '../types'
 import { formatDateTime } from '../data/domain'
 import { useAction } from '../hooks/useAction'
 import { useApiResource } from '../hooks/useApiResource'
+import { useKeyedResource } from '../hooks/useKeyedResource'
 import { rowMoreToggle } from './rowMoreToggle'
 import styles from './Pages.module.css'
+import local from './EdgeNodesPanel.module.css'
 
 // 状态语义映射：自研 tone → antd Tag 语义色。
 const TONE_COLOR: Record<Tone, string> = {
@@ -37,6 +39,7 @@ const DRAWER_WIDTH = 'min(540px, 44vw)'
  */
 export function EdgeNodesPanel() {
   const [nodes, setNodes] = useState<EdgeNodeApiItem[]>([])
+  const [reloadKey, setReloadKey] = useState(0)
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<EdgeNodeApiItem | null>(null)
   const [form, setForm] = useState({ name: '', groupName: '', site: '', host: '', port: '8443', version: '', relayPrefix: '' })
@@ -46,14 +49,22 @@ export function EdgeNodesPanel() {
   const [deployments, setDeployments] = useState<EdgeDeploymentApiItem[]>([])
   const [deployForm, setDeployForm] = useState({ version: '', artifactRef: '', note: '' })
   const [deployError, setDeployError] = useState<string | null>(null)
-  const { pendingKey, run } = useAction()
+  const { pendingKey, error, run } = useAction()
   const probing = pendingKey?.startsWith('probe-')
   const saving = pendingKey === 'save-node'
 
   const apiState = useApiResource({
+    reloadKey,
     load: (signal) => fetchEdgeNodes(signal),
     onData: (response) => setNodes(response.items),
     onUnavailable: () => setNodes([]),
+  })
+
+  const deploymentState = useKeyedResource({
+    key: deployNode?.id,
+    load: (signal) => fetchEdgeDeployments(deployNode!.id, signal),
+    onData: setDeployments,
+    onReset: () => setDeployments([]),
   })
 
   // 采集水位为从属资源：台账 live 后加载，失败静默（水位缺失不塌节点面）
@@ -122,16 +133,11 @@ export function EdgeNodesPanel() {
     })
   }
 
-  async function openDeployments(node: EdgeNodeApiItem) {
+  function openDeployments(node: EdgeNodeApiItem) {
     setDeployNode(node)
     setDeployForm({ version: '', artifactRef: '', note: '' })
     setDeployError(null)
     setDeployments([])
-    try {
-      setDeployments(await fetchEdgeDeployments(node.id))
-    } catch {
-      setDeployError('发布记录读取失败，请稍后重试')
-    }
   }
 
   function submitDeployment() {
@@ -221,12 +227,13 @@ export function EdgeNodesPanel() {
   return (
     <section className={styles.tablePanel}>
       <div className={styles.panelHeader}>
-        <div><h2>前置机节点</h2><p>医院边缘侧 MiNiFi 节点台账；状态由中心 TCP 探活衍生</p></div>
+        <div><h2>前置机节点</h2><p>按节点检查中心网络可达性，再核查采集水位与发布记录</p></div>
         <div className={styles.panelHeaderActions}>
-          <span className={styles.dashboardScope}>{onlineCount}/{nodes.length} 在线</span>
+          <span className={styles.dashboardScope}>{apiState === 'live' ? `${onlineCount}/${nodes.length} 在线` : apiState === 'loading' ? '台账读取中' : '台账暂不可用'}</span><Button size="small" onClick={() => setReloadKey((key) => key + 1)}>刷新台账</Button>
           {apiState === 'live' ? <Button type="primary" size="small" onClick={openCreate} icon={<Plus size={14} />}>登记节点</Button> : null}
         </div>
       </div>
+      {error ? <Alert className={local.actionError} type="error" showIcon title="节点操作未完成" description={error} /> : null}
       {watermarks.length > 0 ? (
         <div className={styles.watermarkGrid} aria-label="边缘表采集水位">
           {watermarks.map((table) => {
@@ -259,9 +266,13 @@ export function EdgeNodesPanel() {
         rowKey="id"
         columns={nodeColumns}
         dataSource={nodes}
+        loading={apiState === 'loading'}
+        scroll={{ x: 850 }}
         pagination={false}
         locale={{
-          emptyText: apiState === 'live'
+          emptyText: apiState === 'loading'
+            ? '正在读取前置机台账…'
+            : apiState === 'live'
             ? '暂未登记前置机节点；登记后可从中心发起可达性探测。'
             : '前置机台账控制面暂不可用。',
         }}
@@ -291,6 +302,8 @@ export function EdgeNodesPanel() {
             {deployError ? <p className={styles.formError} role="alert">{deployError}</p> : null}
             <Button type="primary" htmlType="submit" loading={pendingKey === 'record-deployment'} icon={<Plus size={14} />}>{pendingKey === 'record-deployment' ? '登记中…' : '登记发布'}</Button>
           </Form>
+          {deploymentState === 'loading' ? <div className={local.deploymentLoading} aria-label="正在读取发布记录" role="status"><Skeleton active title={false} paragraph={{ rows: 3 }} /></div> : null}
+          {deploymentState === 'error' ? <Alert className={local.actionError} type="error" showIcon title="发布记录读取失败" description="关闭后重新打开发布记录以重试。" /> : null}
           <ol className={styles.runTimeline}>
             {deployments.map((deployment) => (
               <li key={deployment.id}>
@@ -302,7 +315,7 @@ export function EdgeNodesPanel() {
                 </div>
               </li>
             ))}
-            {deployments.length === 0 ? <li><div className={styles.timelineBody}><p>暂无发布记录。</p></div></li> : null}
+            {deploymentState === 'ready' && deployments.length === 0 ? <li><div className={styles.timelineBody}><p>暂无发布记录。</p></div></li> : null}
           </ol>
         </> : null}
       </Drawer>
@@ -316,7 +329,7 @@ export function EdgeNodesPanel() {
         footer={<><Button onClick={() => setFormOpen(false)}>取消</Button><Button type="primary" htmlType="submit" form="edge-node-form" loading={saving} icon={<Save size={14} />}>{saving ? '保存中…' : '保存节点'}</Button></>}
       >
         <Form id="edge-node-form" layout="vertical" onFinish={submit}>
-          <div className={styles.drawerNotice}><Network size={16} /><span>登记的是医院边缘侧采集节点（MiNiFi 路线）。状态由控制面从中心发起 TCP 探活判定；参数只保存中转前缀等非敏感描述，凭据一律走凭据服务。</span></div>
+          <div className={styles.drawerNotice}><Network size={16} /><span>登记医院边缘侧采集节点。状态由控制面从中心发起 TCP 探活判定；参数只保存中转前缀等非敏感描述，凭据一律走凭据服务。</span></div>
           <div className={styles.drawerFormGrid}>
             <Form.Item label="节点名称" required>
               <Input id="edge-name" required value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} placeholder="例如：市一院本部前置机" />

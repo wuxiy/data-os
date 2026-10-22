@@ -15,3 +15,43 @@
   margin: 0;
   font-size: 16px;
 }
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.search {
+  max-width: 360px;
+  min-width: 220px;
+}
+
+.statusSelect {
+  min-width: 132px;
+}
+
+.ruleCount {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.rowActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  min-width: 160px;
+}
+
+.operationError {
+  margin: 0;
+  padding: 12px 16px;
+  color: var(--red);
+  background: var(--red-soft);
+  font-size: 13px;
+}

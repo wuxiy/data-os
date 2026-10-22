@@ -1,7 +1,7 @@
 import { BrainCircuit, Plus, RefreshCw, Sparkles } from 'lucide-react'
 import { useState } from 'react'
 import type { ReactNode } from 'react'
-import { Button, Drawer, Form, Input, Select, Tag } from 'antd'
+import { Button, Drawer, Form, Input, Select, Skeleton, Tag } from 'antd'
 import { PageHeader } from '../components/ui/PageHeader'
 import {
   aiCertificationLabel,
@@ -29,6 +29,7 @@ import { Pager } from '../components/ui/Pager'
 import type { AIOverview } from '../data/aiDataApi'
 import { AIDataDetailPage } from './AIDataDetailPage'
 import styles from './IntegrationPages.module.css'
+import local from './AIDataPage.module.css'
 // 抽屉表单体系与数据接入/数据服务页同源，保持一处维护。
 import formStyles from './Pages.module.css'
 
@@ -46,8 +47,8 @@ export function AIDataPage({ onNotice }: { onNotice: (message: string) => void }
   }
   return (
     <div className={styles.integrationPage}>
-      <PageHeader title="AI Data" eyebrow="AI 数据产品" subtitle="AI 数据产品的清单、版本与生命周期工作台" compact />
-      <section className={styles.technicalNotice} role="status">
+      <PageHeader title="AI 数据产品" eyebrow="AI 数据产品" subtitle="AI 数据产品的清单、版本与生命周期工作台" compact />
+      <section className={`${styles.technicalNotice} ${local.statusNotice}`} role="status">
         <Tag>演示边界</Tag>
         <span>AI Data 工作台仅接入真实控制面 API（G8 起交付）；演示构建未收录静态样例。请以真实模式访问。</span>
       </section>
@@ -208,11 +209,13 @@ function AIDataLive({ onNotice }: { onNotice: (message: string) => void }) {
   if (listState !== 'live') {
     return (
       <div className={styles.integrationPage}>
-        <PageHeader title="AI Data" eyebrow="AI 数据产品" subtitle="AI 数据产品的清单、版本与生命周期工作台" compact />
-        <section className={styles.technicalNotice} role="status">
+        <PageHeader title="AI 数据产品" eyebrow="AI 数据产品" subtitle="AI 数据产品的清单、版本与生命周期工作台" compact />
+        <section className={`${styles.technicalNotice} ${local.statusNotice}`} role="status">
           <Tag color={listState === 'loading' ? undefined : 'warning'}>{listState === 'loading' ? '读取中' : '待接入'}</Tag>
-          <span>{listState === 'loading' ? '正在从控制面读取 AI Data 产品…' : '控制面暂不可用：AI Data 域需要控制面已配置并可访问。'}</span>
+          <span>{listState === 'loading' ? '正在读取 AI 数据产品目录与就绪度…' : '暂时无法读取产品目录，请检查控制面连接后重试。'}</span>
+          {listState === 'unavailable' ? <Button size="small" onClick={refresh}>重新加载</Button> : null}
         </section>
+        {listState === 'loading' ? <div className={local.loadingWorkspace} role="status" aria-label="正在读取产品目录"><Skeleton active paragraph={{ rows: 6 }} /></div> : null}
       </div>
     )
   }
@@ -221,9 +224,9 @@ function AIDataLive({ onNotice }: { onNotice: (message: string) => void }) {
 
   return (
     <div className={styles.integrationPage}>
-      <PageHeader title="AI Data" eyebrow="AI 数据产品" subtitle="AI 数据产品的清单、版本与生命周期工作台" compact />
+      <PageHeader title="AI 数据产品" eyebrow="AI 数据产品" subtitle="AI 数据产品的清单、版本与生命周期工作台" compact />
       {overview ? (
-        <div className={styles.lineageImpact} role="status" aria-label="AI Ready 概览">
+        <div className={`${styles.lineageImpact} ${local.overview}`} role="status" aria-label="AI Ready 概览">
           <div className={styles.impactItem}><span>AI Data 产品</span><strong>{overview.products}</strong></div>
           <div className={styles.impactItem}><span>已认证 / 服务中</span><strong>{overview.certified} / {overview.serving}</strong></div>
           <div className={styles.impactItem}><span>平均就绪度</span><strong>{overview.averageOverall.toFixed(2)}</strong></div>
@@ -231,7 +234,7 @@ function AIDataLive({ onNotice }: { onNotice: (message: string) => void }) {
           <div className={styles.impactItem}><span>待处理反馈</span><strong>{overview.openFeedback}</strong></div>
         </div>
       ) : null}
-      <div className={`${styles.integrationWorkspace} ${styles.integrationWorkspaceDuo}`}>
+      <div className={`${styles.integrationWorkspace} ${styles.integrationWorkspaceDuo} ${local.workspace}`}>
         <aside className={styles.catalogRail} aria-label="AI Data 产品目录">
           <div className={styles.railHeader}>
             <h2>AI 数据产品</h2>
@@ -267,7 +270,7 @@ function AIDataLive({ onNotice }: { onNotice: (message: string) => void }) {
           <Pager label="产品目录分页" page={railPage} pageCount={railPageCount} pageSize={RAIL_PAGE_SIZE} onPageChange={setRailPage} />
         </aside>
 
-        <section className={styles.workspaceMain} aria-label="AI Data 产品详情">
+        <section className={`${styles.workspaceMain} ${local.productMain}`} aria-label="AI Data 产品详情">
           {selected ? (
             <AIDataDetailPage
               key={selected.id}
@@ -292,7 +295,7 @@ function AIDataLive({ onNotice }: { onNotice: (message: string) => void }) {
         open={createOpen}
         destroyOnHidden
         width={DRAWER_WIDTH}
-        title={<DrawerTitle eyebrow="AI 数据产品登记" title="新建 AI Data Product" />}
+        title={<DrawerTitle eyebrow="AI 数据产品登记" title="新建 AI 数据产品" />}
         onClose={() => setCreateOpen(false)}
         footer={<><Button onClick={() => setCreateOpen(false)}>取消</Button><Button type="primary" htmlType="submit" form="ai-product-create-form" loading={pendingKey === 'create'} icon={<Plus size={14} />}>{pendingKey === 'create' ? '创建中…' : `创建（${lifecycleLabel.DRAFT} + v0.1.0）`}</Button></>}
       >

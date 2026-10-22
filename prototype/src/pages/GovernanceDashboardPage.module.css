@@ -18,3 +18,86 @@
   outline: 2px solid var(--focus-ring);
   outline-offset: -2px;
 }
+
+.metricLoading,
+.chainBody {
+  padding: 24px;
+  background: var(--paper);
+}
+
+.chainBody {
+  display: grid;
+  gap: 20px;
+}
+
+.chainLead {
+  display: grid;
+  gap: 5px;
+}
+
+.chainLead > span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.chainLead > strong {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.chainFacts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0;
+  gap: 24px;
+}
+
+.chainFacts > div + div {
+  padding-left: 20px;
+  border-left: 1px solid var(--line);
+}
+
+.chainFacts dt {
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.chainFacts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.quietState {
+  margin: 0;
+  padding: 24px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.75;
+}
+
+.overviewColumns {
+  display: grid;
+  grid-template-columns: minmax(240px, .8fr) minmax(0, 1.5fr);
+  align-items: start;
+  gap: 24px;
+}
+
+@media (max-width: 1280px) {
+  .chainFacts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .chainFacts > div:nth-child(3) {
+    padding-left: 0;
+    border-left: 0;
+  }
+}
+
+@media (max-width: 1100px) {
+  .overviewColumns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

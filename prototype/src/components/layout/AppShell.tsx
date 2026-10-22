@@ -10,7 +10,9 @@ import {
   Menu,
   MessageSquareText,
   PackageCheck,
-  Settings,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Search,
   ServerCog,
   Waypoints,
   Workflow,
@@ -19,7 +21,8 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { Tooltip } from 'antd'
 import type { RouteKey } from '../../types'
 import { RuntimeStatusBanner } from '../ui/RuntimeStatusBanner'
 import styles from './AppShell.module.css'
@@ -29,21 +32,22 @@ interface NavItem {
   icon: LucideIcon
   route?: RouteKey
   governanceGroup?: boolean
+  group: string
 }
 
 const navItems: NavItem[] = [
-  { label: '首页', icon: House, route: 'management' },
-  { label: '数据接入', icon: Cable, route: 'ingestion' },
-  { label: '数据资产', icon: Database, route: 'assets' },
-  { label: '数据治理', icon: Landmark, route: 'governance', governanceGroup: true },
-  { label: '主索引与主数据', icon: Fingerprint, route: 'mpi' },
-  { label: '数据服务', icon: Boxes, route: 'dataServices' },
-  { label: '分析看板', icon: ChartNoAxesCombined, route: 'analytics' },
-  { label: 'AI Data', icon: BrainCircuit, route: 'aiData' },
-  { label: '智能问数', icon: MessageSquareText, route: 'assistant' },
-  { label: '运营中心', icon: Workflow, route: 'operationsCenter' },
-  { label: '交付中心', icon: PackageCheck, route: 'deliveryCenter' },
-  { label: '平台运维', icon: ServerCog, route: 'operations' },
+  { label: '首页', icon: House, route: 'management', group: '工作概览' },
+  { label: '运营中心', icon: Workflow, route: 'operationsCenter', group: '工作概览' },
+  { label: '交付中心', icon: PackageCheck, route: 'deliveryCenter', group: '工作概览' },
+  { label: '数据接入', icon: Cable, route: 'ingestion', group: '数据管理' },
+  { label: '数据资产', icon: Database, route: 'assets', group: '数据管理' },
+  { label: '数据治理', icon: Landmark, route: 'governance', governanceGroup: true, group: '数据管理' },
+  { label: '主索引与主数据', icon: Fingerprint, route: 'mpi', group: '数据管理' },
+  { label: '数据服务', icon: Boxes, route: 'dataServices', group: '数据应用' },
+  { label: '分析看板', icon: ChartNoAxesCombined, route: 'analytics', group: '数据应用' },
+  { label: 'AI Data', icon: BrainCircuit, route: 'aiData', group: '数据应用' },
+  { label: '智能问数', icon: MessageSquareText, route: 'assistant', group: '数据应用' },
+  { label: '平台运维', icon: ServerCog, route: 'operations', group: '平台管理' },
 ]
 
 interface AppShellProps {
@@ -54,11 +58,30 @@ interface AppShellProps {
   authDisplayName?: string
   onLogout?: () => void
   technicalAccess?: boolean
+  onOpenCommand: () => void
 }
 
-export function AppShell({ route, children, onNavigate, onUnavailable, authDisplayName, onLogout, technicalAccess = false }: AppShellProps) {
+export function AppShell({ route, children, onNavigate, onUnavailable, authDisplayName, onLogout, technicalAccess = false, onOpenCommand }: AppShellProps) {
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [collapsed, setCollapsed] = useState(false)
+  const [narrow, setNarrow] = useState(() => window.matchMedia('(max-width: 767px)').matches)
   const governanceActive = ['governance', 'standards', 'mapping', 'quality'].includes(route)
+  const visibleItems = navItems.filter(item => item.route !== 'operations' || technicalAccess)
+  const groups = [...new Set(visibleItems.map(item => item.group))]
+
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 767px)')
+    const update = () => setNarrow(media.matches)
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMobileOpen(false)
+    }
+    media.addEventListener('change', update)
+    window.addEventListener('keydown', closeOnEscape)
+    return () => {
+      media.removeEventListener('change', update)
+      window.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [])
 
   function selectItem(item: NavItem) {
     setMobileOpen(false)
@@ -70,7 +93,7 @@ export function AppShell({ route, children, onNavigate, onUnavailable, authDispl
   }
 
   return (
-    <div className={styles.shell}>
+    <div className={`${styles.shell} ${collapsed && !narrow ? styles.shellCollapsed : ''}`}>
       <a className={styles.skipLink} href="#main-content">跳到主要内容</a>
       <header className={styles.mobileHeader}>
         <button className={styles.mobileMenu} onClick={() => setMobileOpen(true)} aria-label="打开主导航">
@@ -84,15 +107,23 @@ export function AppShell({ route, children, onNavigate, onUnavailable, authDispl
         onClick={() => setMobileOpen(false)}
         aria-hidden="true"
       />
-      <aside className={`${styles.sidebar} ${mobileOpen ? styles.sidebarOpen : ''}`} aria-label="主导航">
+      <aside className={`${styles.sidebar} ${mobileOpen ? styles.sidebarOpen : ''}`} aria-label="主导航" inert={narrow && !mobileOpen}>
         <div className={styles.sidebarTop}>
           <Brand />
           <button className={styles.closeMobile} onClick={() => setMobileOpen(false)} aria-label="关闭主导航">
             <X size={20} />
           </button>
         </div>
-        <nav className={styles.nav}>
-          {navItems.filter(item => item.route !== 'operations' || technicalAccess).map((item) => {
+        <Tooltip title={collapsed && !narrow ? '搜索页面' : undefined} placement="right" trigger={['hover', 'focus']}>
+          <button className={styles.commandButton} onClick={onOpenCommand} aria-label="搜索页面">
+            <Search size={17} strokeWidth={1.7} />
+            <span>搜索页面</span><kbd>⌘ / Ctrl K</kbd>
+          </button>
+        </Tooltip>
+        <nav className={styles.nav} aria-label="工作区">
+          {groups.map(group => <div className={styles.navGroup} key={group}>
+          <div className={styles.groupLabel}>{group}</div>
+          {visibleItems.filter(item => item.group === group).map((item) => {
             const Icon = item.icon
             const isActive = item.governanceGroup
               ? governanceActive
@@ -103,8 +134,8 @@ export function AppShell({ route, children, onNavigate, onUnavailable, authDispl
                   : item.route === route
             const content = <><Icon size={19} strokeWidth={1.7} /><span>{item.label}</span>{!item.route ? <em className={styles.plannedLabel}>规划中</em> : null}</>
             return item.route ? (
+              <Tooltip key={item.label} title={collapsed && !narrow ? item.label : undefined} placement="right" trigger={['hover', 'focus']}>
               <button
-                key={item.label}
                 className={`${styles.navItem} ${isActive ? styles.navItemActive : ''}`}
                 onClick={() => selectItem(item)}
                 aria-current={isActive ? 'page' : undefined}
@@ -112,6 +143,7 @@ export function AppShell({ route, children, onNavigate, onUnavailable, authDispl
               >
                 {content}
               </button>
+              </Tooltip>
             ) : (
               <div
                 key={item.label}
@@ -123,6 +155,7 @@ export function AppShell({ route, children, onNavigate, onUnavailable, authDispl
               </div>
             )
           })}
+          </div>)}
         </nav>
         <div className={styles.sidebarBottom}>
           {authDisplayName && onLogout ? <div className={styles.authPanel}>
@@ -132,9 +165,9 @@ export function AppShell({ route, children, onNavigate, onUnavailable, authDispl
               <span>退出登录</span>
             </button>
           </div> : null}
-          <button className={styles.settings} onClick={() => onUnavailable('系统设置')} title="系统设置">
-            <Settings size={19} strokeWidth={1.7} />
-            <span>系统设置</span>
+          <button className={styles.collapseButton} onClick={() => setCollapsed(value => !value)} aria-label={collapsed ? '展开主导航' : '收起主导航'} aria-expanded={!collapsed}>
+            {collapsed ? <PanelLeftOpen size={19} strokeWidth={1.7} /> : <PanelLeftClose size={19} strokeWidth={1.7} />}
+            <span>收起导航</span>
           </button>
         </div>
       </aside>

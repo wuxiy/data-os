@@ -35,6 +35,8 @@ const paletteCommands: PaletteCommand[] = [
   { label: '数据接入', route: 'ingestion' },
   { label: '数据资产', route: 'assets' },
   { label: '数据治理 · 驾驶舱', route: 'governance' },
+  { label: '数据治理 · 数据标准', route: 'standards', hint: '/governance/standards' },
+  { label: '数据治理 · 标准映射', route: 'mapping', hint: '/governance/mapping' },
   { label: '数据治理 · 质量闭环', route: 'quality', hint: '/governance/quality' },
   { label: '主索引与主数据', route: 'mpi' },
   { label: '数据服务', route: 'dataServices' },
@@ -52,6 +54,12 @@ export function App() {
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [notice, setNotice] = useState('')
   const [auth, setAuth] = useState<AuthSnapshot>(() => oidcIsConfigured() ? { status: 'loading' } : { status: 'disabled' })
+
+  useEffect(() => {
+    const label = paletteCommands.find(command => command.route === route)?.label
+      ?? (route === 'assetTechnical' ? '资产技术视图' : '专业问数工作区')
+    document.title = `${label} · 医数中枢`
+  }, [route])
 
   useEffect(() => {
     let active = true
@@ -173,7 +181,7 @@ export function App() {
   return (
     <AppShell route={route} onNavigate={navigate} onUnavailable={showUnavailable}
       authDisplayName={auth.displayName} onLogout={oidcIsConfigured() ? logoutOidc : undefined}
-      technicalAccess={technicalAccess}>
+      technicalAccess={technicalAccess} onOpenCommand={() => setPaletteOpen(true)}>
       {page}
       <ResponsibilityDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} onAction={setNotice} />
       <CommandPalette

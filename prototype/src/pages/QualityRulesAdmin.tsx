@@ -1,7 +1,7 @@
-import { AlertTriangle, Plus, Save, ShieldCheck, Trash2 } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { AlertTriangle, Plus, Save, Search, ShieldCheck, Trash2 } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Button, Drawer, Table, Tag } from 'antd'
+import { Button, Drawer, Input, Select, Table, Tag } from 'antd'
 import type { TableProps } from 'antd'
 import {
   deleteQualityRule,
@@ -124,10 +124,13 @@ export function QualityRulesAdmin({ onNotice }: Props) {
   const [form, setForm] = useState<RuleFormState>(newForm())
   const [formOpen, setFormOpen] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
+  const [query, setQuery] = useState('')
+  const [enabledFilter, setEnabledFilter] = useState('all')
+  const [page, setPage] = useState(1)
   // 删除确认（2026-10-05 复评 P1）：删除不可逆且会同步摘除执行器里的规则，
   // 必须显式确认；不再从表格行直接调 API。
   const [pendingDelete, setPendingDelete] = useState<QualityRuleDefinitionApiItem | null>(null)
-  const { pendingKey, run } = useAction(onNotice)
+  const { pendingKey, error: operationError, run } = useAction(onNotice)
   const saving = pendingKey === 'save-rule'
 
   const apiState = useApiResource({
@@ -143,6 +146,11 @@ export function QualityRulesAdmin({ onNotice }: Props) {
 
   const dimensionOf = (type: QualityRuleType) =>
     types.find((item) => item.type === type)?.dimension ?? ''
+  const visibleRules = useMemo(() => {
+    const keyword = query.trim().toLowerCase()
+    return rules.filter((rule) => (enabledFilter === 'all' || (enabledFilter === 'enabled' ? rule.enabled : !rule.enabled))
+      && (!keyword || `${rule.ruleId} ${PARAM_LABELS[rule.ruleType] ?? rule.ruleType} ${rule.datasetId} ${rule.targetColumn}`.toLowerCase().includes(keyword)))
+  }, [rules, query, enabledFilter])
 
   // 资产选择器（2026-10-05 复评）：目标/参照「库.表」从 OM 资产目录出选项，
   // 命中资产时带出列建议；值域校验的标准数据元从已发布标准出选项。
@@ -352,7 +360,7 @@ export function QualityRulesAdmin({ onNotice }: Props) {
     {
       title: '操作',
       key: 'actions',
-      render: (_, rule) => <div className={styles.tableActions}>
+      render: (_, rule) => <div className={local.rowActions}>
         <Button size="small" type="link" onClick={() => openEdit(rule)}>编辑</Button>
         <Button size="small" type="link" disabled={pendingKey !== null} onClick={() => toggleEnabled(rule)}>{rule.enabled ? '停用' : '启用'}</Button>
         <Button size="small" type="link" danger disabled={pendingKey !== null} onClick={() => setPendingDelete(rule)}><Trash2 size={13} />删除</Button>
@@ -363,19 +371,27 @@ export function QualityRulesAdmin({ onNotice }: Props) {
   return (
     <section className={styles.tablePanel}>
       <div className={styles.panelHeader}>
-        <div><h2>质量规则（动态）</h2><p>面向业务库表配置规则；保存即由质量执行器编译生效，复检链自动可用</p></div>
+        <div><h2>质量规则台账</h2><p>维护检查范围与失败证据；保存后由质量执行器校验并生效</p></div>
         <div className={styles.panelHeaderActions}>
-          <span className={styles.dashboardScope}>{rules.length} 条规则</span>
+          {apiState === 'live' ? <span className={local.ruleCount}>{rules.length} 条 · {rules.filter((rule) => rule.enabled).length} 条启用</span> : null}
           {apiState === 'live' ? <Button type="primary" onClick={openCreate}><Plus size={14} />新建规则</Button> : null}
         </div>
       </div>
+      <div className={local.toolbar}>
+        <Input className={local.search} prefix={<Search size={15} />} allowClear value={query} onChange={(event) => { setQuery(event.target.value); setPage(1) }} placeholder="搜索规则、数据集或目标列" aria-label="搜索质量规则" />
+        <Select className={local.statusSelect} value={enabledFilter} onChange={(value) => { setEnabledFilter(value); setPage(1) }} aria-label="筛选质量规则启用状态" options={[{ value: 'all', label: '全部状态' }, { value: 'enabled', label: '启用中' }, { value: 'disabled', label: '已停用' }]} />
+        {query || enabledFilter !== 'all' ? <Button type="text" size="small" onClick={() => { setQuery(''); setEnabledFilter('all'); setPage(1) }}>清除筛选</Button> : null}
+      </div>
+      {operationError && !formOpen && !pendingDelete ? <p className={local.operationError} role="alert">{operationError}</p> : null}
       <Table<QualityRuleDefinitionApiItem>
         columns={ruleColumns}
-        dataSource={rules}
+        dataSource={visibleRules}
         rowKey={(rule) => rule.ruleId}
-        pagination={false}
+        loading={apiState === 'loading'}
+        scroll={{ x: 1000 }}
+        pagination={{ current: page, pageSize: 8, showSizeChanger: false, total: visibleRules.length, onChange: setPage, hideOnSinglePage: true }}
         locale={{
-          emptyText: apiState === 'unavailable' ? '质量规则控制面暂不可用。' : apiState === 'live' ? '暂无动态规则；新建后经质量执行器编译即可参与复检。' : '',
+          emptyText: apiState === 'unavailable' ? '质量规则控制面暂不可用，请恢复连接后重新读取。' : apiState === 'live' ? query || enabledFilter !== 'all' ? '没有匹配的质量规则，请调整关键词或清除筛选。' : '还没有质量规则。新建规则并通过校验后，即可用于质量复检。' : '正在加载质量规则…',
         }}
       />
 
@@ -528,6 +544,7 @@ export function QualityRulesAdmin({ onNotice }: Props) {
             <p>此操作不可撤销；如需暂停执行请使用「停用」。</p>
           </div>
         </div> : null}
+        {operationError && pendingDelete ? <p className={styles.formError} role="alert">{operationError}</p> : null}
       </Drawer>
     </section>
   )

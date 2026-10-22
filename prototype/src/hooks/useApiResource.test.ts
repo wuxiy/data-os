@@ -52,6 +52,40 @@ describe('useApiResource', () => {
     }
   })
 
+  it('失败后重试显示加载反馈，再恢复真实数据', async () => {
+    const first = deferred<number>()
+    const retry = deferred<number>()
+    const onData = vi.fn()
+    const { result, rerender } = renderHook(({ reloadKey }) => useApiResource({
+      load: () => reloadKey === 0 ? first.promise : retry.promise,
+      onData,
+      reloadKey,
+    }), { initialProps: { reloadKey: 0 } })
+    await act(async () => { first.reject(new Error('down')) })
+    expect(result.current).toBe('unavailable')
+    rerender({ reloadKey: 1 })
+    expect(result.current).toBe('loading')
+    await act(async () => { retry.resolve(42) })
+    expect(result.current).toBe('live')
+    expect(onData).toHaveBeenCalledWith(42)
+  })
+
+  it('已有数据的刷新保留工作区，避免轮询时退回骨架', async () => {
+    const first = deferred<number>()
+    const refresh = deferred<number>()
+    const { result, rerender } = renderHook(({ reloadKey }) => useApiResource({
+      load: () => reloadKey === 0 ? first.promise : refresh.promise,
+      onData: () => {},
+      reloadKey,
+    }), { initialProps: { reloadKey: 0 } })
+    await act(async () => { first.resolve(1) })
+    expect(result.current).toBe('live')
+    rerender({ reloadKey: 1 })
+    expect(result.current).toBe('live')
+    await act(async () => { refresh.resolve(2) })
+    expect(result.current).toBe('live')
+  })
+
   it('卸载时中止在途请求且不进入 unavailable', async () => {
     const gate = deferred<never>()
     const { result, unmount } = renderHook(() => useApiResource({

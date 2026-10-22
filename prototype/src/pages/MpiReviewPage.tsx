@@ -80,14 +80,14 @@ function DemoMpiReviewPage({ onNotice, onNavigate }: { onNotice: (message: strin
 
   return (
     <div className={styles.page}>
-      <PageHeader title="主索引候选审核" eyebrow="主索引与主数据" compact />
+      <PageHeader title="主索引复核" eyebrow="主索引与主数据" subtitle="先核对身份差异与匹配证据，再确认患者关联。" compact />
       <DemoDataBoundary moduleName="主索引候选审核" onNavigate={onNavigate}>
         <div className={styles.mpiWorkspace}>
         <aside className={styles.workspaceRail}>
           <div className={styles.sectionTitle}><h2>候选队列</h2><span>36 待审核</span></div>
           <div className={styles.search}><Search size={15} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="患者姓名或候选号" aria-label="搜索主索引候选" /></div>
           <ul className={styles.queue}>
-            {visibleCandidates.map((candidate) => <li key={candidate.id}><button className={selected.id === candidate.id ? styles.selected : ''} onClick={() => { setSelectedId(candidate.id); setMerged(false); setConfirmed(false) }}><span className={styles.queueTop}><span className={styles.queueId}>{candidate.id}</span><Tag color={candidate.score >= 95 ? 'success' : 'warning'}>{candidate.score}% 匹配</Tag></span><span className={styles.queueTitle}>{candidate.leftName} ↔ {candidate.rightName}</span><span className={styles.queueMeta}>{candidate.system} · {candidate.risk}</span></button></li>)}
+            {visibleCandidates.map((candidate) => <li key={candidate.id}><button className={selected.id === candidate.id ? styles.selected : ''} aria-pressed={selected.id === candidate.id} onClick={() => { setSelectedId(candidate.id); setMerged(false); setConfirmed(false) }}><span className={styles.queueTop}><span className={styles.queueId}>{candidate.id}</span><Tag color={candidate.score >= 95 ? 'success' : 'warning'}>{candidate.score}% 匹配</Tag></span><span className={styles.queueTitle}>{candidate.leftName} ↔ {candidate.rightName}</span><span className={styles.queueMeta}>{candidate.system} · {candidate.risk}</span></button></li>)}
             {visibleCandidates.length === 0 ? <li className={styles.emptyState}>未找到匹配的候选记录</li> : null}
           </ul>
         </aside>

@@ -25,6 +25,7 @@ export function CommandPalette({ commands, open, onClose, onNavigate }: CommandP
   const [activeIndex, setActiveIndex] = useState(0)
   const restoreRef = useRef<HTMLElement | null>(null)
   const inputRef = useRef<HTMLInputElement | null>(null)
+  const panelRef = useRef<HTMLDivElement | null>(null)
 
   const matches = useMemo(() => {
     const keyword = query.trim().toLowerCase()
@@ -50,6 +51,20 @@ export function CommandPalette({ commands, open, onClose, onNavigate }: CommandP
   useEffect(() => {
     if (!open) return
     function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Tab') {
+        const controls = panelRef.current?.querySelectorAll<HTMLElement>('input, button:not([disabled])')
+        if (!controls?.length) return
+        const first = controls[0]
+        const last = controls[controls.length - 1]
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault()
+          last.focus()
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault()
+          first.focus()
+        }
+        return
+      }
       if (event.key === 'Escape') {
         event.preventDefault()
         onClose()
@@ -93,6 +108,7 @@ export function CommandPalette({ commands, open, onClose, onNavigate }: CommandP
               aria-selected={index === activeIndex}
               className={`${styles.paletteItem} ${index === activeIndex ? styles.paletteItemActive : ''}`}
               onMouseEnter={() => setActiveIndex(index)}
+              onFocus={() => setActiveIndex(index)}
               onClick={() => { onNavigate(command.route); onClose() }}
             >
               <span>{command.label}</span>
@@ -108,7 +124,7 @@ export function CommandPalette({ commands, open, onClose, onNavigate }: CommandP
   return (
     <>
       <button className={styles.paletteBackdrop} aria-label="关闭命令面板" onClick={onClose} />
-      <div className={styles.palettePanel} role="dialog" aria-modal="true" aria-label="全局导航">
+      <div ref={panelRef} className={styles.palettePanel} role="dialog" aria-modal="true" aria-label="全局导航">
         <div className={styles.paletteSearchRow}>
           <Search size={15} aria-hidden="true" />
           <input

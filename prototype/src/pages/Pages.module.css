@@ -1,5 +1,5 @@
 .page {
-  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 .content {
@@ -669,7 +669,7 @@ ul.timelineBody > li + li {
   overflow: hidden;
   background: var(--paper);
   border-radius: var(--radius-panel);
-  box-shadow: var(--shadow-card);
+  border: 1px solid var(--line);
 }
 
 .panelHeader {
@@ -1059,8 +1059,10 @@ ul.timelineBody > li + li {
 
 .workspace {
   display: grid;
-  min-height: calc(100vh - 134px);
-  grid-template-columns: 232px minmax(480px, 1fr) 340px;
+  min-height: calc(100dvh - 180px);
+  grid-template-columns: 216px minmax(0, 1fr) 300px;
+  max-width: 1480px;
+  margin-inline: auto;
   background: var(--paper);
 }
 

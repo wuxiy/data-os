@@ -1,19 +1,21 @@
 .integrationPage {
-  min-height: 100vh;
+  min-height: 100dvh;
   background: var(--canvas);
 }
 
 .integrationWorkspace {
   display: grid;
-  min-height: calc(100vh - 75px);
-  grid-template-columns: 202px minmax(520px, 1fr) 292px;
+  min-height: calc(100dvh - 144px);
+  grid-template-columns: 202px minmax(0, 1fr) 292px;
+  max-width: 1480px;
+  margin-inline: auto;
   background: var(--paper);
   border-top: 1px solid var(--line);
 }
 
 /* 两栏工作区（数据服务 / AI Data）：无证据轨的页面不再空置第三列 */
 .integrationWorkspaceDuo {
-  grid-template-columns: 202px minmax(520px, 1fr);
+  grid-template-columns: 202px minmax(0, 1fr);
 }
 
 .catalogRail,
@@ -271,7 +273,12 @@
 .conversationItemSelected,
 .promptButton:hover {
   background: var(--paper);
-  box-shadow: var(--shadow-card);
+}
+
+.catalogItemSelected,
+.conversationItemSelected {
+  color: var(--jade-dark);
+  box-shadow: inset 2px 0 var(--selection-mark);
 }
 
 .catalogItem:active,
@@ -288,11 +295,13 @@
 }
 
 .catalogItem strong {
+  overflow-wrap: anywhere;
   font-size: 12px;
   line-height: 1.5;
 }
 
 .catalogItem span {
+  overflow-wrap: anywhere;
   margin-top: 4px;
   color: var(--muted);
   font-size: 12px;
@@ -582,6 +591,7 @@
   font-size: 24px;
   font-weight: 600;
   letter-spacing: -0.012em;
+  overflow-wrap: anywhere;
 }
 
 .dashboardTitleBlock p,
@@ -1420,8 +1430,10 @@
 /* Assistant */
 .assistantWorkspace {
   display: grid;
-  min-height: calc(100vh - 75px);
-  grid-template-columns: 202px minmax(520px, 1fr) 300px;
+  min-height: calc(100dvh - 144px);
+  grid-template-columns: 202px minmax(0, 1fr) 300px;
+  max-width: 1480px;
+  margin-inline: auto;
   background: var(--paper);
   border-top: 1px solid var(--line);
 }
@@ -1786,15 +1798,15 @@
 
 @media (max-width: 1320px) {
   .integrationWorkspace {
-    grid-template-columns: 184px minmax(500px, 1fr) 264px;
+    grid-template-columns: 184px minmax(0, 1fr) 264px;
   }
 
   .integrationWorkspaceDuo {
-    grid-template-columns: 184px minmax(500px, 1fr);
+    grid-template-columns: 184px minmax(0, 1fr);
   }
 
   .assistantWorkspace {
-    grid-template-columns: 184px minmax(500px, 1fr) 270px;
+    grid-template-columns: 184px minmax(0, 1fr) 270px;
   }
 
   .dashboardGrid,

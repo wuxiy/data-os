@@ -24,7 +24,7 @@ import {
 } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Button, Drawer, Form, Input, Select, Table, Tag } from 'antd'
+import { Button, Drawer, Form, Input, Select, Skeleton, Table, Tag } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { JobScheduleDrawer } from './JobScheduleDrawer'
 import { PageHeader } from '../components/ui/PageHeader'
@@ -751,30 +751,30 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
 
   return (
     <div className={styles.page}>
-      <PageHeader title="数据接入" />
+      <PageHeader title="数据接入" subtitle="登记数据源、配置采集任务，沿运行记录追踪异常与重试。" />
       <div className={styles.apiStatus} role="status" aria-live="polite">
         <span className={`${styles.apiDot} ${state === 'live' ? styles.apiDotLive : ''}`} />
         {state === 'loading' ? '正在连接采集控制面…' : state === 'live' ? '控制面已连接 · 数据来自治理控制面' : '控制面暂不可用 · 未加载业务数据'}
       </div>
       {state === 'unavailable' ? <div className={styles.connectionNotice} role="alert"><CircleAlert size={17} /><div><strong>采集控制面不可用</strong><span>当前页面没有展示演示状态；请恢复控制面后重新加载。</span></div><Button onClick={() => window.location.reload()}><RefreshCw size={13} />重新连接</Button></div> : null}
       <div className={styles.content}>
-        <section className={`${styles.attention} ${styles.attentionNeutral}`}>
+        <section className={`${styles.attention} ${styles.attentionNeutral} ${local.workflowGuide}`}>
           <div className={styles.attentionText}>
             <Cable size={21} />
-            <div><h2>把院内系统接入到可治理的数据链路</h2><p>先登记来源，再配置任务；运行、异常和重试都回到同一条责任链。</p></div>
+            <div><h2>从来源登记到运行核查</h2><p><span>01 登记来源</span><span>02 配置任务</span><span>03 检查运行与治理结果</span></p></div>
           </div>
         </section>
 
-        <div className={styles.twoColumns}>
+        <div className={`${styles.twoColumns} ${local.sourceWorkspace}`}>
           <section className={styles.panel}>
-            <div className={styles.panelHeader}><div><h2>已登记数据源</h2><p>前置机、院内系统与区域交换入口</p></div><div className={styles.panelHeaderActions}><Button type="text" size="small" onClick={() => window.location.reload()}><RefreshCw size={13} />刷新</Button><Button type="primary" size="small" onClick={() => {
+            <div className={styles.panelHeader}><div><h2>已登记数据源</h2><p>前置机、院内系统与区域交换入口</p></div><div className={styles.panelHeaderActions}><Button type="text" size="small" onClick={() => window.location.reload()}><RefreshCw size={13} />刷新</Button><Button type="primary" size="small" disabled={state !== 'live'} onClick={() => {
               if (state !== 'live') { onUnavailable('接入向导'); return }
               setJobFormOpen(false)
               setSourceFormOpen(true)
             }}><Plus size={14} />新增数据源</Button></div></div>
             <ul className={styles.ranking}>
               {pagedSources.map((source) => { const health = sourceStatusLabel(source.status); return <li key={source.id}><span className={styles.rank}><Server size={16} /></span><div className={styles.rankBody}><strong>{source.name}</strong><span>{source.systemType} · {source.protocol} · {source.institutionId}</span>{source.lastCheckMessage ? <small className={styles.statusDetail}>{source.lastCheckMessage} · {formatDateTime(source.lastCheckedAt)}</small> : null}</div><div className={styles.sourceRowActions}><Tag color={TONE_COLOR[health.tone]}>{health.label}</Tag>{state === 'live' ? <Button type="text" size="small" onClick={() => openSourceCheck(source)}><CheckCircle2 size={13} />检查</Button> : null}{state === 'live' && source.protocol.toUpperCase() === 'JDBC' ? <Button type="text" size="small" onClick={() => openSourceExplorer(source)}><Database size={13} />浏览</Button> : null}</div></li> })}
-              {visibleSources.length === 0 ? <li className={styles.emptyState}>暂无已登记数据源</li> : null}
+              {state === 'loading' ? <li className={local.sourceLoading} role="status" aria-label="正在读取数据源"><Skeleton active title={false} paragraph={{ rows: 3 }} /></li> : visibleSources.length === 0 ? <li className={styles.emptyState}>{state === 'live' ? '暂无已登记数据源，点击「新增数据源」开始接入。' : '数据源暂不可用，请重新连接控制面。'}</li> : null}
             </ul>
             <Pager inset label="数据源分页" page={sourcesCurrentPage} pageCount={sourcesPageCount} pageSize={SOURCES_PAGE_SIZE} onPageChange={setSourcesPage} />
           </section>
@@ -783,7 +783,7 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
             <div className={styles.panelHeader}><div><h2>采集链路摘要</h2><p>以运行记录作为统一事实</p></div><Activity size={18} color="var(--jade)" /></div>
             <div className={styles.summaryGrid}>
               <Summary label="已配置率" value={visibleJobs.length === 0 ? '—' : `${Math.round((visibleJobs.filter((job) => job.configured).length / visibleJobs.length) * 100)}%`} icon={<FileCog size={15} />} />
-              <Summary label="待执行" value={String(visibleJobs.filter((job) => {
+              <Summary label="待执行" value={state !== 'live' ? '—' : String(visibleJobs.filter((job) => {
                 const runStatus = latestRuns[job.id]?.status ?? job.latestRunStatus
                 return runStatus ? !ACTIVE_RUN_STATUSES.includes(runStatus) : job.status !== 'RUNNING'
               }).length)} icon={<CircleAlert size={15} />} />
@@ -795,7 +795,7 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
         </div>
 
         <section className={styles.tablePanel}>
-          <div className={styles.panelHeader}><div><h2>采集任务</h2><p>配置模板可复用；运行状态由控制面统一回写</p></div><div className={styles.panelHeaderActions}><span className={styles.dashboardScope}>{visibleJobs.length} 个任务</span><Button type="primary" size="small" onClick={() => {
+          <div className={styles.panelHeader}><div><h2>采集任务</h2><p>配置模板可复用；运行状态由控制面统一回写</p></div><div className={styles.panelHeaderActions}><span className={styles.dashboardScope}>{state === 'live' ? `${visibleJobs.length} 个任务` : '等待任务数据'}</span><Button type="primary" size="small" disabled={state !== 'live'} onClick={() => {
             if (state !== 'live') { onUnavailable('新建采集任务'); return }
             if (sources.length === 0) { onNotice('请先登记至少一个数据源'); return }
             setJobForm((current) => current.sourceId ? current : newJobForm(sources[0].id))
@@ -806,6 +806,8 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
             rowKey="id"
             columns={jobColumns}
             dataSource={visibleJobs}
+            loading={state === 'loading'}
+            scroll={{ x: 950 }}
             pagination={{
               current: jobsCurrentPage + 1,
               pageSize: JOBS_PAGE_SIZE,
@@ -813,7 +815,7 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
               showSizeChanger: false,
               onChange: (page) => setJobsPage(page - 1),
             }}
-            locale={{ emptyText: '暂无采集任务，先登记数据源再新建任务。' }}
+            locale={{ emptyText: state === 'loading' ? '正在读取采集任务…' : state === 'live' ? '暂无采集任务，先登记数据源再新建任务。' : '采集任务暂不可用，请重新连接控制面。' }}
           />
         </section>
       </div>

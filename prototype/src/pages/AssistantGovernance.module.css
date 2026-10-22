@@ -10,3 +10,49 @@
   margin: 0;
   font-size: 16px;
 }
+
+.governancePanel {
+  min-width: 0;
+  margin: 24px;
+  overflow: hidden;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.governanceIntro {
+  max-width: 70ch;
+  margin: 0;
+  padding: 16px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.75;
+  text-wrap: pretty;
+}
+
+.statusSummary {
+  display: flex;
+  gap: 24px;
+  margin: 0;
+  padding: 0 16px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.statusSummary div {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.statusSummary dt {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.statusSummary dd {
+  margin: 0;
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}

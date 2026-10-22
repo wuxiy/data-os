@@ -80,13 +80,13 @@ export function PlatformOperationsPage({ canAccess }: { canAccess: boolean }) {
       <PageHeader
         title="平台运维舱"
         eyebrow="技术域 · 平台组件"
-        subtitle="把底层组件留在技术域，把业务结果留在业务域。这里集中查看执行器运行态，并进入受控的组件管理界面。"
+        subtitle="检查组件可达性、定位运行异常，并进入受控技术入口处理。"
         compact
       />
       <div className={`${styles.pageBody} ${flowStyles.pageFlow}`}>
         <section className={styles.probeBar} aria-label="平台探针摘要">
           <div className={styles.probeStatus}>
-            <span className={styles.probeDot} data-ready={payload?.operational.state === 'READY'} />
+            <span className={styles.probeDot} data-state={payload?.operational.state ?? 'UNKNOWN'} aria-hidden="true" />
             <div>
               <strong>{payload ? operationalLabel : firstProbePending ? '正在执行首次探针…' : '等待首次检查'}</strong>
               <span>30 秒自动刷新 · 状态由控制面服务端探针汇总</span>
@@ -98,23 +98,23 @@ export function PlatformOperationsPage({ canAccess }: { canAccess: boolean }) {
             <div><dt>最后检查</dt><dd>{checkedAt}</dd></div>
           </dl>
           <div className={styles.probeActions}>
-            <Button onClick={() => void load()} icon={<RefreshCw size={13} />}>刷新</Button>
+            <Button loading={state === 'loading'} onClick={() => void load()} icon={<RefreshCw size={13} />}>刷新</Button>
           </div>
         </section>
 
         {state === 'error' ? (
           <section className={styles.alert} role="alert">
-            <div><strong>平台状态暂时不可用</strong><span>{error}</span></div>
+            <div><strong>平台状态暂时不可用{payload ? ' · 保留上次检查结果' : ''}</strong><span>{error}</span></div>
             <Button onClick={() => void load()}>重新检查</Button>
           </section>
         ) : null}
 
         <section className={styles.sectionHeader}>
-          <div><h2>组件运行态</h2></div>
+          <div><h2>组件运行态</h2><p>探针只反映组件可达性，业务处理结果请进入对应工作台核查。</p></div>
         </section>
 
         <section className={styles.serviceGrid} aria-label="平台组件状态">
-          {(payload?.services ?? placeholderServices).map(service => <ServiceCard key={service.key} service={service} pending={firstProbePending} />)}
+          {(payload?.services ?? placeholderServices).map(service => <ServiceCard key={service.key} service={service} pending={firstProbePending} unavailable={!payload && state === 'error'} />)}
         </section>
 
         <EdgeNodesPanel />
@@ -141,15 +141,15 @@ export function PlatformOperationsPage({ canAccess }: { canAccess: boolean }) {
   )
 }
 
-function ServiceCard({ service, pending = false }: { service: PlatformServiceApiItem; pending?: boolean }) {
+function ServiceCard({ service, pending = false, unavailable = false }: { service: PlatformServiceApiItem; pending?: boolean; unavailable?: boolean }) {
   const Icon = iconByService[service.key]
   const isUp = service.status === 'UP'
   const isConfigured = service.status !== 'NOT_CONFIGURED'
-  const tone: Tone = isUp ? 'healthy' : isConfigured ? 'warning' : 'neutral'
+  const tone: Tone = pending || unavailable ? 'neutral' : isUp ? 'healthy' : isConfigured ? 'warning' : 'neutral'
   // 状态由图标色调承载：健康=玉绿（基类默认）、异常（已配置但未通过）=琥珀、未配置=中性。
   const iconTone = isUp ? '' : isConfigured ? styles.serviceIconWarn : styles.serviceIconOff
   // 探针未返回前是「检查中」，不得把加载态说成「未配置」。
-  const statusLabel = pending ? '检查中' : isUp ? '运行正常' : isConfigured ? '检查失败' : '未配置'
+  const statusLabel = unavailable ? '暂不可用' : pending ? '检查中' : isUp ? '运行正常' : isConfigured ? '检查失败' : '未配置'
   return (
     <article className={styles.serviceCard}>
       <div className={styles.serviceTopline}>
@@ -163,8 +163,8 @@ function ServiceCard({ service, pending = false }: { service: PlatformServiceApi
         <div><dt>最近检查</dt><dd>{formatTime(service.checkedAt)}</dd></div>
       </dl>
       <div className={styles.serviceFoot}>
-        <span className={`${styles.signal} ${isUp ? styles.signalUp : ''}`}><i />{service.detail}</span>
-        {service.uiUrl ? <a className={styles.externalLink} href={service.uiUrl} target="_blank" rel="noreferrer">打开技术入口<ArrowUpRight size={14} /></a> : <span className={styles.noEntry}>无独立 UI · 使用门户编排</span>}
+        <span className={`${styles.signal} ${isUp ? styles.signalUp : !isConfigured ? styles.signalNeutral : ''}`}><i aria-hidden="true" />{service.detail}</span>
+        {service.uiUrl ? <a className={styles.externalLink} href={service.uiUrl} target="_blank" rel="noreferrer">打开技术入口<ArrowUpRight size={14} /></a> : <span className={styles.noEntry}>{pending || unavailable ? '读取状态后显示技术入口' : '无独立 UI · 使用门户编排'}</span>}
       </div>
     </article>
   )

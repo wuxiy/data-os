@@ -4,3 +4,11 @@
 .summaryFoot {
   padding: 12px 16px 16px;
 }
+
+.sourceWorkspace { gap: 24px; align-items: start; }
+.sourceWorkspace > * { min-width: 0; }
+.workflowGuide { padding-block: 16px; background: transparent; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; }
+.workflowGuide h2 { font-size: 14px; }
+.workflowGuide p { display: flex; flex-wrap: wrap; gap: 8px 24px; }
+.workflowGuide p > span { font-variant-numeric: tabular-nums; }
+.sourceLoading { padding: 16px; }

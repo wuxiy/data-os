@@ -16,3 +16,159 @@
 .rowPad.rowPad {
   padding: 0 8px;
 }
+
+.toolbar.toolbar {
+  min-height: 72px;
+  padding: 12px 20px;
+  gap: 12px;
+}
+
+.filterActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.processHint {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.coverage {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  padding: 20px 24px;
+  background: var(--paper);
+  border-bottom: 1px solid var(--line);
+}
+
+.coverage h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.coverage p {
+  margin: 6px 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.75;
+}
+
+.coverageTime {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.objectLabel {
+  display: grid;
+  gap: 4px;
+}
+
+.objectLabel strong {
+  font-weight: 600;
+}
+
+.objectLabel > span:last-child,
+.objectLabel > small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.assetName {
+  display: block;
+  max-width: 28em;
+  overflow-wrap: anywhere;
+}
+
+.detailGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, .38fr);
+  align-items: start;
+  gap: 24px;
+}
+
+.detailGrid > * {
+  min-width: 0;
+}
+
+.auditRail.auditRail {
+  border-left: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.versionContext {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+}
+
+.versionContext > span:last-child {
+  flex-basis: 100%;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.statePanel.statePanel {
+  padding: 24px;
+}
+
+.statePanel > strong {
+  display: block;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+.statePanel > p {
+  margin: 8px 0 16px;
+  max-width: 54em;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.75;
+}
+
+.operationError {
+  margin: 0;
+  padding: 12px 16px;
+  color: var(--red);
+  background: var(--red-soft);
+  border-left: 2px solid var(--red);
+  font-size: 13px;
+}
+
+.quietState {
+  margin: 0;
+  padding: 16px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.75;
+}
+
+.standardSelect {
+  width: 100%;
+}
+
+.pendingCheck {
+  color: var(--amber);
+}
+
+@media (max-width: 1360px) {
+  .detailGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .auditRail.auditRail {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+}

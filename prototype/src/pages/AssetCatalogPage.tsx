@@ -10,6 +10,7 @@ import { frontendDemoMode } from '../data/runtimeMode'
 import { AssetCatalogLive } from './AssetCatalogLive'
 import styles from './IntegrationPages.module.css'
 import local from './AssetCatalogPage.module.css'
+import workspace from './ConsumptionWorkspace.module.css'
 
 type AssetTab = 'overview' | 'lineage' | 'quality'
 
@@ -60,7 +61,7 @@ function DemoAssetCatalogPage({ onNotice, onNavigate }: { onNotice: (message: st
       <PageHeader
         title="数据资产"
         eyebrow="资产目录与影响分析"
-        subtitle="从业务定义进入字段、质量、血缘和消费证据，不暴露底层元数据控制台"
+        subtitle="围绕同一资产查看业务定义、字段结构、质量结果与消费影响。"
         compact
       />
       <DemoDataBoundary moduleName="数据资产目录" onNavigate={onNavigate}>
@@ -89,7 +90,7 @@ function DemoAssetCatalogPage({ onNotice, onNavigate }: { onNotice: (message: st
               </li>
             ))}
           </ul>
-          {visible.length === 0 ? <div className={styles.emptyRail}>没有匹配的数据资产，请调整搜索条件。</div> : null}
+          {visible.length === 0 ? <div className={workspace.emptyDirectory}><p>没有匹配的数据资产。</p><Button size="small" onClick={() => setQuery('')}>清空搜索</Button></div> : null}
         </aside>
 
         <section className={styles.workspaceMain} aria-label={`${selected.name}资产详情`}>
@@ -176,6 +177,7 @@ function AssetOverview({ asset }: { asset: AssetItem }) {
         <div className={styles.contentPanelHeader}><h3>字段与标准</h3><span>{asset.fields.length} 个关键字段</span></div>
         <div className={styles.descriptionBlock}><p>{asset.description}</p></div>
         <Table<AssetField>
+          scroll={{ x: 'max-content' }}
           rowKey="name"
           columns={fieldColumns}
           dataSource={asset.fields}

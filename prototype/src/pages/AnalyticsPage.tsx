@@ -8,6 +8,7 @@ import { dashboards } from '../data/integrations'
 import { frontendDemoMode } from '../data/runtimeMode'
 import { AnalyticsLive } from './AnalyticsLive'
 import styles from './IntegrationPages.module.css'
+import local from './ConsumptionWorkspace.module.css'
 
 /** 状态语义映射：自研 tone → antd Tag 语义色。 */
 const STATUS_COLOR: Record<'healthy' | 'warning', string> = {
@@ -69,7 +70,7 @@ function DemoAnalyticsPage({ onNotice, onNavigate }: { onNotice: (message: strin
               </li>
             ))}
           </ul>
-          {visible.length === 0 ? <div className={styles.emptyRail}>没有匹配的分析看板，请调整关键词。</div> : null}
+          {visible.length === 0 ? <div className={local.emptyDirectory}><p>没有匹配的分析看板。</p><Button size="small" onClick={() => setQuery('')}>清空搜索</Button></div> : null}
         </aside>
 
         <section className={styles.workspaceMain} aria-label={`${selected.title}嵌入视图`}>

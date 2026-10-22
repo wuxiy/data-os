@@ -4,3 +4,8 @@
 .sectionMeta {
   margin-left: auto;
 }
+
+.resourceError { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 0; color: var(--red); font-size: 12px; }
+.columnsLoading { padding: 16px; }
+.queryActions { align-items: center; justify-content: flex-start; gap: 12px; }
+.queryActions > span { color: var(--muted); font-size: 12px; }

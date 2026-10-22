@@ -28,6 +28,8 @@ export function useApiResource<T>(options: ApiResourceOptions<T>): ApiState {
 
   useEffect(() => {
     const controller = new AbortController()
+    // 失败后的主动重试恢复加载反馈；已有数据的刷新继续保留工作区，避免轮询闪烁。
+    setState(current => current === 'unavailable' ? 'loading' : current)
     // 区分两种中止：自身超时按不可用处理；组件卸载/重取的中止静默忽略。
     let timedOut = false
     const timeoutMs = latest.current.timeoutMs

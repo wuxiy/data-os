@@ -1,5 +1,5 @@
 .page {
-  min-height: 100vh;
+  min-height: 100dvh;
   background: var(--canvas);
 }
 
@@ -14,12 +14,11 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 22px;
+  gap: 24px;
   padding: 16px 24px;
   background: var(--paper);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-panel);
-  box-shadow: var(--shadow-card);
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
 }
 
 .probeStatus {
@@ -33,13 +32,12 @@
   width: 9px;
   height: 9px;
   flex: 0 0 9px;
-  background: var(--amber);
+  background: var(--muted);
   border-radius: 50%;
 }
 
-.probeDot[data-ready='true'] {
-  background: var(--jade);
-}
+.probeDot[data-state='READY'] { background: var(--jade); }
+.probeDot[data-state='DEGRADED'] { background: var(--amber); }
 
 .probeStatus strong {
   display: block;
@@ -103,51 +101,56 @@
   align-items: flex-end;
   justify-content: space-between;
   gap: 16px;
-  margin: 32px 0 16px;
+  margin: 0;
 }
 
-.sectionHeader h2 { margin: 0; font-family: var(--font-title); font-size: 24px; font-weight: 600; letter-spacing: -0.012em; }
+.sectionHeader p { margin: 6px 0 0; color: var(--muted); font-size: 12px; }
+.sectionHeader h2 { margin: 0; font-family: var(--font-title); font-size: 16px; font-weight: 600; letter-spacing: -0.012em; }
 
 .serviceGrid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  background: var(--paper);
+  border-top: 1px solid var(--line);
 }
 
 .serviceCard {
-  display: flex;
-  min-height: 268px;
-  flex-direction: column;
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(180px, 1fr) minmax(200px, 1fr) minmax(180px, 1fr);
+  align-items: start;
+  gap: 12px 24px;
   padding: 24px;
-  background: var(--paper);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-panel);
+  border-bottom: 1px solid var(--line);
 }
 
 .serviceIconWarn { color: var(--amber); background: var(--amber-soft); }
 .serviceIconOff { color: var(--muted); background: var(--surface-raised); }
-.serviceTopline { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.serviceTopline { display: flex; grid-column: 1; flex-direction: column; align-items: flex-start; gap: 10px; }
 .serviceIdentity { min-width: 0; display: flex; align-items: center; gap: 12px; }
-.serviceIcon { display: grid; width: 38px; height: 38px; flex: 0 0 38px; place-items: center; color: var(--jade-dark); background: var(--jade-soft); border-radius: 8px; }
+.serviceIcon { display: grid; width: 38px; height: 38px; flex: 0 0 38px; place-items: center; color: var(--muted); background: var(--surface-raised); border-radius: 6px; }
 .serviceIdentity h3 { margin: 0; font-size: 16px; font-weight: 600; }
 .serviceIdentity span:not(.serviceIcon) { display: block; margin-top: 4px; color: var(--muted); font-size: 12px; }
-.serviceDescription { min-height: 42px; margin: 16px 0 0; color: var(--muted); font-size: 12px; line-height: 1.7; }
-.serviceRule { height: 1px; margin: 16px 0 12px; background: var(--line); }
-.metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 16px; margin: 0; }
+.serviceDescription { grid-column: 1; margin: 0; color: var(--muted); font-size: 12px; line-height: 1.7; }
+.serviceRule { display: none; }
+.metrics { display: grid; grid-column: 2; grid-row: 1 / span 2; padding-left: 24px; border-left: 1px solid var(--line); grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 16px; margin: 0; }
 .metrics div { min-width: 0; }
 .metrics dt { color: var(--muted); font-size: 12px; }
 .metrics dd { overflow: hidden; margin: 3px 0 0; color: var(--ink); font-family: var(--font-number); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
-.serviceFoot { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; margin-top: auto; padding-top: 16px; }
-.signal { display: inline-flex; min-width: 0; align-items: center; gap: 6px; overflow: hidden; color: var(--amber-dark); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.serviceFoot { display: flex; grid-column: 3; grid-row: 1 / span 2; flex-direction: column; align-items: flex-start; justify-content: space-between; gap: 16px; height: 100%; padding-left: 24px; border-left: 1px solid var(--line); }
+.signal { display: inline-flex; min-width: 0; align-items: center; gap: 6px; color: var(--amber-dark); font-size: 12px; line-height: 1.7; overflow-wrap: anywhere; }
 .signal i { width: 6px; height: 6px; flex: 0 0 6px; background: var(--amber); border-radius: 50%; }
 .signalUp { color: var(--jade-dark); }
 .signalUp i { background: var(--jade); }
+.signalNeutral { color: var(--muted); }
+.signalNeutral i { background: var(--muted); }
 .externalLink { display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto; color: var(--jade-dark); font-size: 12px; font-weight: 600; text-decoration: none; }
 .externalLink:hover { color: var(--jade); text-decoration: underline; text-underline-offset: 3px; }
-.noEntry { flex: 0 0 auto; color: var(--muted); font-size: 12px; }
+.noEntry { color: var(--muted); font-size: 12px; }
 
-.bottomGrid { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 16px; margin-top: 16px; }
-.boundaryPanel, .guidePanel { padding: 24px; background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius-panel); box-shadow: var(--shadow-card); }
+.bottomGrid { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 24px; }
+.boundaryPanel, .guidePanel { min-width: 0; padding: 24px 0; border-top: 1px solid var(--line); }
 .panelTitle { display: flex; align-items: center; gap: 8px; }
 .panelTitle svg { color: var(--jade); }
 .panelTitle h2 { margin: 0; font-size: 14px; font-weight: 600; }
@@ -155,25 +158,26 @@
 .boundaryPanel p { max-width: 720px; margin: 12px 0 16px; color: var(--muted); font-size: 12px; line-height: 1.7; }
 .roleLine { display: flex; align-items: baseline; gap: 16px; padding-top: 8px; color: var(--muted); font-size: 12px; }
 .roleLine + .roleLine { margin-top: 4px; border-top: 1px solid var(--line); }
-.roleLine code { color: var(--ink); font-family: var(--font-number); font-size: 12px; }
+.roleLine code { min-width: 0; overflow-wrap: anywhere; color: var(--ink); font-family: var(--font-number); font-size: 12px; }
 .guidePanel ul { display: grid; gap: 10px; margin: 16px 0 0; padding: 0 0 0 16px; color: var(--muted); font-size: 12px; line-height: 1.6; }
 .guidePanel li::marker { color: var(--jade); }
 
-.alert { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 16px; padding: 12px 16px; color: var(--red); background: var(--red-soft); border: 1px solid rgba(180, 35, 24, 0.2); }
+.alert { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 16px; color: var(--red); background: var(--red-soft); border: 1px solid rgba(180, 35, 24, 0.2); }
 .alert div { display: grid; gap: 3px; }
 .alert strong { font-size: 12px; }
 .alert span { color: var(--muted); font-size: 12px; }
 
-.deniedPage { display: grid; min-height: calc(100vh - 80px); align-content: center; justify-items: start; max-width: 680px; margin: auto; padding: 48px; }
+.deniedPage { display: grid; min-height: calc(100dvh - 80px); align-content: center; justify-items: start; max-width: 680px; margin: auto; padding: 48px; }
 .deniedIcon { display: grid; width: 52px; height: 52px; place-items: center; color: var(--amber-dark); background: var(--amber-soft); border: 1px solid rgba(180, 83, 9, 0.24); border-radius: 8px; }
-.deniedPage h1 { margin: 24px 0 8px; font-family: var(--font-title); font-size: 26px; font-weight: 600; letter-spacing: -0.012em; }
+.deniedPage h1 { margin: 24px 0 8px; font-family: var(--font-title); font-size: 24px; font-weight: 600; letter-spacing: -0.012em; }
 .deniedPage p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.85; }
 .deniedPage code { color: var(--ink); font-family: var(--font-number); font-size: 12px; }
 
 @media (max-width: 1120px) {
   .pageBody { padding-inline: 22px; }
   .serviceGrid { grid-template-columns: 1fr; }
-  .serviceCard { min-height: 230px; }
+  .serviceCard { grid-template-columns: minmax(180px, 1fr) minmax(200px, 1fr); }
+  .serviceFoot { grid-column: 1 / -1; grid-row: auto; flex-direction: row; align-items: center; padding: 16px 0 0; border-left: 0; border-top: 1px solid var(--line); }
 }
 
 @media (max-width: 760px) {

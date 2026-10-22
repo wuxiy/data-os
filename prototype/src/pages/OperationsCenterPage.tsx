@@ -1,6 +1,6 @@
 import { ChevronRight, ClipboardList, RefreshCw } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { Button, Select, Table, Tag } from 'antd'
+import { Button, Select, Skeleton, Table, Tag } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { DemoDataBoundary } from '../components/ui/DemoDataBoundary'
 import { PageHeader } from '../components/ui/PageHeader'
@@ -18,6 +18,7 @@ import { frontendDemoMode } from '../data/runtimeMode'
 import { useApiResource } from '../hooks/useApiResource'
 import { usePaged } from '../hooks/usePaged'
 import styles from './Pages.module.css'
+import local from './OperationsCenterPage.module.css'
 
 /**
  * 运营中心（G24）：面向治理负责人的跨域待办与事件流，与管理驾驶舱共用
@@ -77,6 +78,7 @@ const SOURCE_TYPE_LABEL: Record<string, string> = {
 }
 
 const WORK_ITEM_PAGE_SIZE = 12
+const SEVERITY_ORDER: Record<string, number> = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 }
 
 export function OperationsCenterPage(
   { onNotice, onNavigate }: { onNotice: (message: string) => void; onNavigate: (route: 'ingestion' | 'governance' | 'mpi' | 'aiData' | 'dataServices') => void },
@@ -122,7 +124,7 @@ function OperationsCenterLive(
     onData: setWorkItems,
     onUnavailable: () => setWorkItems([]),
   })
-  useApiResource({
+  const eventsState = useApiResource({
     timeoutMs: 15000,
     reloadKey,
     load: (signal) => fetchOperationsEvents(signal),
@@ -130,7 +132,10 @@ function OperationsCenterLive(
     onUnavailable: () => setEvents([]),
   })
 
-  const paged = usePaged(workItems, WORK_ITEM_PAGE_SIZE)
+  const sortedWorkItems = useMemo(() => [...workItems].sort((left, right) =>
+    (SEVERITY_ORDER[left.severity] ?? 9) - (SEVERITY_ORDER[right.severity] ?? 9)), [workItems])
+  const paged = usePaged(sortedWorkItems, WORK_ITEM_PAGE_SIZE)
+  const urgentCount = workItems.filter((item) => item.severity === 'CRITICAL' || item.severity === 'HIGH').length
   const presentTypes = useMemo(
     () => WORK_ITEM_TYPES.filter((type) => workItems.some((item) => item.type === type)),
     [workItems])
@@ -150,7 +155,7 @@ function OperationsCenterLive(
       key: 'asOf',
       align: 'right',
       width: 104,
-      render: (_, item) => <small style={{ whiteSpace: 'nowrap' }}>{formatDateTime(item.asOf)}</small>,
+      render: (_, item) => <small className={local.timestamp}>{formatDateTime(item.asOf)}</small>,
     },
     {
       title: '',
@@ -195,7 +200,7 @@ function OperationsCenterLive(
             类型筛选
             <Select
               size="small"
-              style={{ minWidth: 160 }}
+              className={local.typeFilter}
               value={typeFilter}
               onChange={(value) => { setTypeFilter(value); paged.setPage(0) }}
               aria-label="按待办类型筛选"
@@ -209,15 +214,21 @@ function OperationsCenterLive(
           <Button size="small" onClick={() => setReloadKey((key) => key + 1)}><RefreshCw size={13} />刷新</Button>
         </div>
 
-        <div className={styles.twoColumns}>
+        <div className={local.prioritySummary} aria-label="当前筛选待办摘要">
+          <div><span>当前待办</span><strong>{workItemsState !== 'live' ? '—' : workItems.length}<small>项</small></strong></div>
+          <div><span>阻断与高优先级</span><strong className={urgentCount > 0 ? local.urgent : undefined}>{workItemsState !== 'live' ? '—' : urgentCount}<small>项</small></strong></div>
+          <p>先处理阻断与高优先级事项，再进入对应工作台核查来源与处置结果。</p>
+        </div>
+        <div className={`${styles.twoColumns} ${local.workspace}`}>
           <section className={styles.tablePanel}>
             <div className={styles.panelHeader}>
-              <div><h2>跨域待办</h2><p>每项可下钻到责任工作台 · 与管理驾驶舱同源</p></div>
+              <div><h2>跨域待办</h2><p>按严重度排序 · 每项可进入责任工作台</p></div>
               <ClipboardList size={16} aria-hidden="true" />
             </div>
             <Table<OperationsWorkItem>
               rowKey={(item) => `${item.sourceType}-${item.sourceId}`}
               columns={workItemColumns}
+              scroll={{ x: 700 }}
               dataSource={paged.paged}
               loading={workItemsState === 'loading'}
               pagination={{
@@ -239,8 +250,10 @@ function OperationsCenterLive(
 
           <section className={styles.panel}>
             <div className={styles.panelHeader}><h2>事件流</h2><p>标准/合同/AI 构建/通知留痕</p></div>
-            <ul className={styles.timelineBody}>
-              {events.length === 0 ? <li className={styles.emptyState}>近 48 小时无跨域事件。</li> : null}
+            <ul className={`${styles.timelineBody} ${local.eventList}`} aria-busy={eventsState === 'loading'}>
+              {eventsState === 'loading' ? <li><Skeleton active title={false} paragraph={{ rows: 4 }} /></li> : null}
+              {eventsState === 'unavailable' ? <li className={local.eventUnavailable}><strong>事件暂不可用</strong><p>暂时无法读取操作留痕，恢复后可重新加载。</p><Button size="small" onClick={() => setReloadKey((key) => key + 1)}>重新加载</Button></li> : null}
+              {eventsState === 'live' && events.length === 0 ? <li className={styles.emptyState}>近 48 小时无跨域事件。</li> : null}
               {events.map((event, index) => (
                 <li key={`${event.domain}-${index}`}>
                   <div className={styles.timelineTitle}><strong>{event.domain} · {event.type}</strong><span>{formatDateTime(event.asOf)}</span></div>

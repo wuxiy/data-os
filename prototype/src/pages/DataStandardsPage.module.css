@@ -1,0 +1,105 @@
+.toolbar.toolbar {
+  min-height: 72px;
+  gap: 12px;
+  padding: 12px 20px;
+}
+
+.filterActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.statusSelect {
+  min-width: 136px;
+}
+
+.processHint {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.detailGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, .38fr);
+  align-items: start;
+  gap: 24px;
+}
+
+.detailGrid > * {
+  min-width: 0;
+}
+
+.auditRail.auditRail {
+  border-left: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.versionContext {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+}
+
+.versionContext > span:last-child {
+  flex-basis: 100%;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.detailState.detailState,
+.unavailablePanel.unavailablePanel {
+  padding: 24px;
+}
+
+.detailState p,
+.unavailablePanel > p {
+  max-width: 54em;
+  margin: 8px 0 16px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.75;
+}
+
+.detailState > strong {
+  display: block;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+.operationError {
+  margin: 0;
+  padding: 12px 16px;
+  color: var(--red);
+  background: var(--red-soft);
+  border-left: 2px solid var(--red);
+  font-size: 13px;
+}
+
+.demoSelection {
+  margin: 0;
+  padding: 12px 16px;
+  color: var(--muted);
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+@media (max-width: 1360px) {
+  .detailGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .auditRail.auditRail {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+}
