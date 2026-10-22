@@ -1,3 +1,4 @@
+import { Surface } from '../components/ui/Surface'
 import { Boxes, History, MoreHorizontal, Network, Pencil, Plus, Radar, Save, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { Alert, Button, Drawer, Form, Input, Skeleton, Table, Tag } from 'antd'
@@ -225,7 +226,7 @@ export function EdgeNodesPanel() {
   ]
 
   return (
-    <section className={styles.tablePanel}>
+    <Surface><section className={styles.tablePanel}>
       <div className={styles.panelHeader}>
         <div><h2>前置机节点</h2><p>按节点检查中心网络可达性，再核查采集水位与发布记录</p></div>
         <div className={styles.panelHeaderActions}>
@@ -356,6 +357,6 @@ export function EdgeNodesPanel() {
           {formError ? <p className={styles.formError} role="alert">{formError}</p> : null}
         </Form>
       </Drawer>
-    </section>
+    </section></Surface>
   )
 }

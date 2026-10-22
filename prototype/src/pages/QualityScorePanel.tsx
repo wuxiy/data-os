@@ -1,3 +1,4 @@
+import { Surface } from '../components/ui/Surface'
 import { Gauge, Save, Settings2 } from 'lucide-react'
 import { useState } from 'react'
 import { Button, Drawer, Form, Input, Skeleton, Table, Tag } from 'antd'
@@ -124,7 +125,7 @@ export function QualityScorePanel({ onNotice }: Props) {
   ]
 
   return (
-    <section className={styles.panel}>
+    <Surface><section className={styles.panel}>
       <div className={`${styles.panelHeader} ${local.panelHeader}`}>
         <div><h2>质量评分</h2><p>按最近一次有效运行评分；未完成运行的规则不计入总分</p></div>
         <div className={styles.panelHeaderActions}>
@@ -212,6 +213,6 @@ export function QualityScorePanel({ onNotice }: Props) {
           {standardError || saveError ? <p className={styles.formError} role="alert">{standardError || saveError}</p> : null}
         </Form> : null}
       </Drawer>
-    </section>
+    </section></Surface>
   )
 }

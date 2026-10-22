@@ -1,3 +1,4 @@
+import { Surface } from '../ui/Surface'
 import {
   AlertCircle,
   CheckCircle2,
@@ -61,7 +62,7 @@ interface ResponsibilityChainProps {
 
 export function ResponsibilityChain({ onOpen }: ResponsibilityChainProps) {
   return (
-    <section className={styles.chainPanel} aria-labelledby="responsibility-chain-title">
+    <Surface><section className={styles.chainPanel} aria-labelledby="responsibility-chain-title">
       <div className={styles.chainHeader}>
         <div>
           <h2 id="responsibility-chain-title">治理责任链</h2>
@@ -85,7 +86,7 @@ export function ResponsibilityChain({ onOpen }: ResponsibilityChainProps) {
           )
         })}
       </button>
-    </section>
+    </section></Surface>
   )
 }
 

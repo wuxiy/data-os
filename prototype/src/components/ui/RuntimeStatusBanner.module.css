@@ -4,10 +4,13 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
-  padding: 8px max(24px, calc((100% - 1480px) / 2 + 24px));
+  padding: 9px 16px;
+  max-width: 1416px;
+  margin: 0 max(32px, calc((100% - 1416px) / 2));
+  border-radius: 12px;
   color: var(--muted);
-  border-bottom: 1px solid var(--line);
-  font-size: 12px;
+  border: 0;
+  font-size: 11px;
   line-height: 1.4;
 }
 
@@ -98,3 +101,6 @@
     display: none;
   }
 }
+
+@media (max-width: 1320px) { .banner { margin-inline: 24px; } }
+@media (max-width: 767px) { .banner { margin-inline: 16px; } }

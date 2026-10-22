@@ -1,3 +1,5 @@
+import { ActionIcon } from '../components/ui/ActionIcon'
+import { Surface } from '../components/ui/Surface'
 import { ChevronRight, ClipboardList, RefreshCw } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Button, Select, Skeleton, Table, Tag } from 'antd'
@@ -89,10 +91,10 @@ export function OperationsCenterPage(
         <PageHeader title="运营中心" eyebrow="跨域运营" subtitle="治理负责人的跨域待办与事件流" />
         <div className={styles.content}>
           <DemoDataBoundary moduleName="运营中心">
-            <section className={styles.panel}>
+            <Surface><section className={styles.panel}>
               <div className={styles.panelHeader}><h2>演示样例</h2><p>真实构建将展示采集/治理/通知/合同/MPI/数据服务/AI 构建的跨域待办</p></div>
               <p className={styles.emptyState}>接入运营投影后，此处按类型筛选展示全部待办并支持深链下钻。</p>
-            </section>
+            </section></Surface>
           </DemoDataBoundary>
         </div>
       </div>
@@ -168,7 +170,7 @@ function OperationsCenterLive(
           } else {
             onNotice(`暂无门户路由对应 ${item.deepLink}`)
           }
-        }}>下钻 <ChevronRight size={13} /></Button>
+        }}>下钻 <ActionIcon><ChevronRight size={13} /></ActionIcon></Button>
       ),
     },
   ]
@@ -178,11 +180,11 @@ function OperationsCenterLive(
       <div className={styles.page}>
         <PageHeader title="运营中心" eyebrow="跨域运营" subtitle="治理负责人的跨域待办与事件流" />
         <div className={styles.content}>
-          <section className={styles.panel} role="status">
+          <Surface><section className={styles.panel} role="status">
             <div className={styles.panelHeader}><h2>运营投影暂不可用</h2></div>
             <p className={styles.emptyState}>控制面运营待办不可达；本页不显示静态回退。</p>
             <Button onClick={() => setReloadKey((key) => key + 1)}><RefreshCw size={14} />重试</Button>
-          </section>
+          </section></Surface>
         </div>
       </div>
     )
@@ -220,7 +222,7 @@ function OperationsCenterLive(
           <p>先处理阻断与高优先级事项，再进入对应工作台核查来源与处置结果。</p>
         </div>
         <div className={`${styles.twoColumns} ${local.workspace}`}>
-          <section className={styles.tablePanel}>
+          <Surface><section className={styles.tablePanel}>
             <div className={styles.panelHeader}>
               <div><h2>跨域待办</h2><p>按严重度排序 · 每项可进入责任工作台</p></div>
               <ClipboardList size={16} aria-hidden="true" />
@@ -246,9 +248,9 @@ function OperationsCenterLive(
                     : '运营待办暂不可用。',
               }}
             />
-          </section>
+          </section></Surface>
 
-          <section className={styles.panel}>
+          <Surface><section className={styles.panel}>
             <div className={styles.panelHeader}><h2>事件流</h2><p>标准/合同/AI 构建/通知留痕</p></div>
             <ul className={`${styles.timelineBody} ${local.eventList}`} aria-busy={eventsState === 'loading'}>
               {eventsState === 'loading' ? <li><Skeleton active title={false} paragraph={{ rows: 4 }} /></li> : null}
@@ -261,7 +263,7 @@ function OperationsCenterLive(
                 </li>
               ))}
             </ul>
-          </section>
+          </section></Surface>
         </div>
       </div>
     </div>

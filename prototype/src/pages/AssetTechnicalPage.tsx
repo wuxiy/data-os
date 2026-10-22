@@ -1,3 +1,5 @@
+import { ActionIcon } from '../components/ui/ActionIcon'
+import { Surface } from '../components/ui/Surface'
 import { ArrowLeft, Braces, Database, ExternalLink, KeyRound, Link2, Rows3, ShieldCheck, TableProperties } from 'lucide-react'
 import { useMemo } from 'react'
 import { Button, Table, Tag } from 'antd'
@@ -86,7 +88,7 @@ function DemoAssetTechnicalPage({ onNotice }: { onNotice: (message: string) => v
         </div>
 
         <div className={styles.technicalGrid}>
-          <section className={styles.technicalPanel}>
+          <Surface><section className={styles.technicalPanel}>
             <div className={styles.technicalPanelHeader}><div><h3>字段结构</h3><span>技术字段与医疗数据标准绑定关系</span></div><Rows3 size={17} /></div>
             <Table<AssetField>
               scroll={{ x: 'max-content' }}
@@ -95,9 +97,9 @@ function DemoAssetTechnicalPage({ onNotice }: { onNotice: (message: string) => v
               dataSource={asset.fields}
               pagination={false}
             />
-          </section>
+          </section></Surface>
 
-          <aside className={styles.technicalPanel}>
+          <Surface><aside className={styles.technicalPanel}>
             <div className={styles.technicalPanelHeader}><div><h3>连接与归属</h3><span>由平台适配器维护的绑定证据</span></div><Database size={17} /></div>
             <dl className={styles.technicalDefinition}>
               <div><dt><Database size={13} />数据平台</dt><dd>Doris · clinical</dd></div>
@@ -106,13 +108,13 @@ function DemoAssetTechnicalPage({ onNotice }: { onNotice: (message: string) => v
               <div><dt><ShieldCheck size={13} />责任人</dt><dd>{asset.owner}</dd></div>
             </dl>
             <div className={styles.technicalNotice}><Link2 size={15} /><span>血缘、质量和责任人由统一门户聚合，可返回资产详情复核业务口径。</span></div>
-          </aside>
+          </aside></Surface>
         </div>
 
         <section className={styles.technicalLineage}>
           <div className={styles.technicalPanelHeader}><div><h3>技术链路</h3><span>从源系统到消费对象的已登记节点</span></div><Link2 size={17} /></div>
           <div className={styles.technicalLineageRow}>{asset.lineage.map((node) => <div className={styles.technicalLineageNode} key={`${node.stage}-${node.name}`}><span>{node.stage}</span><strong>{node.name}</strong><small>{node.detail}</small></div>)}</div>
-          <div className={styles.technicalFooter}><span>技术视图是资产详情的深链，不复制底层元数据控制台。</span><Button type="text" onClick={() => void copyTechnicalId()}>复制技术编号 <ExternalLink size={13} /></Button></div>
+          <div className={styles.technicalFooter}><span>技术视图是资产详情的深链，不复制底层元数据控制台。</span><Button type="text" onClick={() => void copyTechnicalId()}>复制技术编号 <ActionIcon><ExternalLink size={13} /></ActionIcon></Button></div>
         </section>
         </div>
       </DemoDataBoundary>

@@ -1,91 +1,24 @@
 .header {
   display: flex;
-  min-height: 112px;
-  align-items: flex-start;
+  min-height: 180px;
+  align-items: center;
   justify-content: space-between;
-  gap: 24px;
-  padding: 24px max(24px, calc((100% - 1480px) / 2 + 24px));
-  background: var(--paper);
-  border-bottom: 1px solid var(--line);
+  gap: 32px;
+  max-width: 1480px;
+  margin-inline: auto;
+  padding: 38px 32px 32px;
+  background: transparent;
+  animation: workspaceEnter 800ms var(--ease-out) both;
 }
-
-.header.compact {
-  min-height: 100px;
-}
-
-.identity {
-  min-width: 0;
-}
-
-.header h1 {
-  margin: 0;
-  font-family: var(--font-title);
-  font-size: 24px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  line-height: 1.35;
-  text-wrap: balance;
-}
-
-.header p,
-.eyebrow {
-  max-width: 65ch;
-  margin: 8px 0 0;
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.6;
-}
-
-.eyebrow {
-  margin: 0 0 4px;
-  letter-spacing: 0.04em;
-}
-
-.actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-  padding-top: 4px;
-}
-
-.scopeSummary {
-  display: flex;
-  max-width: 360px;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 8px;
-}
-
-.scopeSummary span {
-  display: inline-flex;
-  align-items: center;
-  color: var(--muted);
-  font-size: 12px;
-  white-space: nowrap;
-}
-
-/* 2026-10-05 复评 P2-5：范围值是静态展示文本（暂无真实筛选），
-   去掉胶囊底色避免「看起来能点」的假 affordance。 */
-
-.timestamp {
-  color: var(--muted);
-  font-family: var(--font-number);
-  font-size: 12px;
-  white-space: nowrap;
-}
-
-@media (max-width: 767px) {
-  .header {
-    align-items: flex-start;
-    padding: 18px 16px;
-  }
-
-  .header h1 {
-    font-size: 24px;
-  }
-
-  .scopeSummary {
-    display: none;
-  }
-}
+.header.compact { min-height: 160px; }
+.identity { min-width: 0; }
+.header h1 { margin: 14px 0 0; font-family: var(--font-title); font-size: clamp(30px, 2.7vw, 40px); font-weight: 600; letter-spacing: -.045em; line-height: 1.25; text-wrap: balance; }
+.header p { max-width: 65ch; margin: 12px 0 0; color: var(--muted); font-size: 13px; line-height: 1.75; }
+.eyebrow { display: inline-flex; align-items: center; gap: 7px; padding: 5px 10px; color: var(--muted); background: rgba(255,255,255,.65); border-radius: 999px; font-size: 10px; font-weight: 600; letter-spacing: .12em; }
+.identityMark { width: 5px; height: 5px; background: var(--jade); border-radius: 50%; }
+.actions { display: flex; flex: 0 0 auto; align-items: center; gap: 8px; }
+.scopeSummary { display: flex; max-width: 300px; flex-direction: column; align-items: flex-end; gap: 8px; padding-left: 24px; border-left: 1px solid var(--line-strong); }
+.scopeSummary span { display: inline-flex; color: var(--muted); font-size: 11px; white-space: nowrap; }
+.timestamp { font-family: var(--font-number); }
+@media (max-width: 1320px) { .header { padding-inline: 24px; } .scopeSummary { max-width: 220px; } }
+@media (max-width: 767px) { .header { min-height: 160px; padding: 32px 16px; } .header h1 { font-size: 30px; } .actions { display: none; } }

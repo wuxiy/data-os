@@ -1,3 +1,4 @@
+import { Surface } from '../components/ui/Surface'
 import {
   Activity,
   ArrowUpRight,
@@ -84,7 +85,7 @@ export function PlatformOperationsPage({ canAccess }: { canAccess: boolean }) {
         compact
       />
       <div className={`${styles.pageBody} ${flowStyles.pageFlow}`}>
-        <section className={styles.probeBar} aria-label="平台探针摘要">
+        <Surface><section className={styles.probeBar} aria-label="平台探针摘要">
           <div className={styles.probeStatus}>
             <span className={styles.probeDot} data-state={payload?.operational.state ?? 'UNKNOWN'} aria-hidden="true" />
             <div>
@@ -100,7 +101,7 @@ export function PlatformOperationsPage({ canAccess }: { canAccess: boolean }) {
           <div className={styles.probeActions}>
             <Button loading={state === 'loading'} onClick={() => void load()} icon={<RefreshCw size={13} />}>刷新</Button>
           </div>
-        </section>
+        </section></Surface>
 
         {state === 'error' ? (
           <section className={styles.alert} role="alert">
@@ -151,7 +152,7 @@ function ServiceCard({ service, pending = false, unavailable = false }: { servic
   // 探针未返回前是「检查中」，不得把加载态说成「未配置」。
   const statusLabel = unavailable ? '暂不可用' : pending ? '检查中' : isUp ? '运行正常' : isConfigured ? '检查失败' : '未配置'
   return (
-    <article className={styles.serviceCard}>
+    <Surface><article className={styles.serviceCard}>
       <div className={styles.serviceTopline}>
         <div className={styles.serviceIdentity}><span className={`${styles.serviceIcon} ${iconTone}`}><Icon size={19} /></span><div><h3>{service.name}</h3><span>{service.role}</span></div></div>
         <Tag color={TONE_COLOR[tone]}>{statusLabel}</Tag>
@@ -166,7 +167,7 @@ function ServiceCard({ service, pending = false, unavailable = false }: { servic
         <span className={`${styles.signal} ${isUp ? styles.signalUp : !isConfigured ? styles.signalNeutral : ''}`}><i aria-hidden="true" />{service.detail}</span>
         {service.uiUrl ? <a className={styles.externalLink} href={service.uiUrl} target="_blank" rel="noreferrer">打开技术入口<ArrowUpRight size={14} /></a> : <span className={styles.noEntry}>{pending || unavailable ? '读取状态后显示技术入口' : '无独立 UI · 使用门户编排'}</span>}
       </div>
-    </article>
+    </article></Surface>
   )
 }
 

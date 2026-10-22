@@ -6,7 +6,7 @@
 .pageBody {
   max-width: 1480px;
   margin: 0 auto;
-  padding: 24px 24px 48px;
+  padding: 0 32px 48px;
 }
 
 /* 探针摘要条：纸面白卡替代原深色 hero（DESIGN.md 不做装饰性大屏） */
@@ -188,3 +188,14 @@
   .sectionHeader { align-items: flex-start; flex-direction: column; gap: 6px; }
   .bottomGrid { grid-template-columns: 1fr; }
 }
+
+.probeBar { padding: 28px; border: 0; border-radius: 22px; box-shadow: none; }
+.probeStatus strong { font-size: 20px; }
+.probeFacts dd { font-size: 24px; }
+.serviceGrid { gap: 16px; background: transparent; border: 0; }
+.serviceCard { padding: 28px; background: var(--paper); border: 0; border-radius: 22px; box-shadow: none; }
+.serviceIcon { width: 44px; height: 44px; flex-basis: 44px; border-radius: 15px; }
+.sectionHeader { margin-block: 32px 20px; }
+.sectionHeader h2 { font-size: 20px; }
+@media (max-width: 1320px) { .pageBody { padding-inline: 24px; } }
+@media (max-width: 767px) { .pageBody { padding-inline: 16px; } }

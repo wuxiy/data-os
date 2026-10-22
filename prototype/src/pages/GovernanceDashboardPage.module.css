@@ -101,3 +101,12 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+.chainBody { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); align-items: center; gap: 36px; padding: 32px; }
+.chainLead { gap: 12px; }
+.chainLead > strong { font-size: 24px; letter-spacing: -.025em; line-height: 1.5; }
+.chainFacts { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 20px; }
+.chainFacts > div { padding: 16px; background: var(--surface-raised); border-radius: 14px; }
+.chainFacts > div + div { padding-left: 16px; border: 0; }
+@media (max-width: 1280px) { .chainBody { gap: 24px; padding: 24px; } .chainFacts > div:nth-child(3) { padding-left: 16px; } }
+@media (max-width: 767px) { .chainBody { grid-template-columns: minmax(0,1fr); } }

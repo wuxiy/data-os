@@ -13,7 +13,7 @@ export function PageHeader({ title, eyebrow, subtitle, compact = false, asOf = n
   return (
     <header className={`${styles.header} ${compact ? styles.compact : ''}`}>
       <div className={styles.identity}>
-        {eyebrow ? <div className={styles.eyebrow}>{eyebrow}</div> : null}
+        <div className={styles.eyebrow}><span className={styles.identityMark} aria-hidden="true" />{eyebrow || '医数中枢 · 工作空间'}</div>
         <h1>{title}</h1>
         {subtitle ? <p>{subtitle}</p> : null}
       </div>

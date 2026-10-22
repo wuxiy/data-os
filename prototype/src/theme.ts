@@ -1,43 +1,39 @@
-// v2 视觉方向「云峰中性」的 antd v6 主题映射。
-// token 语义与 DESIGN.md「12. v2 视觉方向：云峰中性（antd 域）」一一对应；
-// antd 组件一律从本文件取 token，页面/组件内不硬编码色值。
-// 全站已完成 antd 迁移；globals.css 的语义变量与本文件保持同一色板。
+// v3「银雾 · 精密工作台」：antd 与 CSS 语义色共用本文件的设计令牌。
 import type { ThemeConfig } from 'antd'
 
+export const visualTokens = {
+  canvas: '#f1f3f3', paper: '#ffffff', ink: '#202d31', muted: '#5c6c72',
+  jade: '#216b68', jadeDark: '#185653', jadeSoft: '#e6f0ee',
+  sidebar: '#202f34', bezel: '#e7ebeb',
+  line: 'rgba(32, 57, 61, 0.09)', lineStrong: 'rgba(32, 57, 61, 0.17)',
+  font: '"Avenir Next", "PingFang SC", "Microsoft YaHei", sans-serif',
+  ease: 'cubic-bezier(0.32, 0.72, 0, 1)',
+} as const
+
 export const dataOsTheme: ThemeConfig = {
-  // v6 默认纯 CSS Variables 模式，无需 cssVar 开关
   token: {
-    // 主色：青蓝（teal-blue），主动作/链接/选中态
-    colorPrimary: '#0e7490',
-    colorInfo: '#0e7490',
-    // 状态色：健康 / 风险 / 阻断
-    colorSuccess: '#15803d',
-    colorWarning: '#b45309',
-    colorError: '#b42318',
-    // 中性阶：zinc 系画布与文字
-    colorTextBase: '#1f2937',
-    colorBgLayout: '#f6f7f8',
-    colorBgContainer: '#ffffff',
-    colorBorder: '#e3e6e8',
-    colorBorderSecondary: '#eceef0',
-    borderRadius: 6,
-    fontFamily: '"Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif',
-    fontSize: 14,
-    // 控件高度两档：默认 40 / 密集 32（表格行内、工具条、表单辅助动作用 size="small"）
-    controlHeight: 40,
-    controlHeightSM: 32,
-    lineHeight: 1.6,
-    motionDurationMid: '0.2s',
+    colorPrimary: visualTokens.jade,
+    colorInfo: visualTokens.jade,
+    colorSuccess: '#287653', colorWarning: '#a56926', colorError: '#b0443b',
+    colorTextBase: visualTokens.ink,
+    colorTextSecondary: visualTokens.muted,
+    colorBgLayout: visualTokens.canvas, colorBgContainer: visualTokens.paper,
+    colorBorder: visualTokens.lineStrong, colorBorderSecondary: visualTokens.line,
+    borderRadius: 12, borderRadiusLG: 24, borderRadiusSM: 8,
+    fontFamily: visualTokens.font, fontSize: 14,
+    controlHeight: 42, controlHeightSM: 32, lineHeight: 1.65,
+    motionDurationMid: '0.28s', motionDurationSlow: '0.4s',
+    motionEaseInOut: visualTokens.ease, motionEaseOut: visualTokens.ease,
+    motionEaseInOutCirc: visualTokens.ease, motionEaseOutCirc: visualTokens.ease,
+    boxShadow: '0 16px 64px -20px rgba(32,57,61,0.16)',
+    boxShadowSecondary: '0 24px 72px -20px rgba(32,57,61,0.18)',
   },
   components: {
-    Table: {
-      headerBg: '#f9fafb',
-      headerColor: '#4b5563',
-      rowHoverBg: '#f3f6f7',
-      // 行高约 48px、表头约 40px，与 v1 表格密度一致
-      cellPaddingBlock: 13,
-      cellPaddingBlockMD: 12,
-      headerSplitColor: 'transparent',
-    },
+    Button: { borderRadius: 999, borderRadiusSM: 999, fontWeight: 500, paddingInline: 20, paddingInlineSM: 12, primaryShadow: 'inset 0 1px 0 rgba(255,255,255,0.16)', defaultShadow: 'inset 0 1px 0 rgba(255,255,255,0.8)' },
+    Table: { headerBg: '#f6f8f7', headerColor: visualTokens.muted, rowHoverBg: '#f0f6f4', cellPaddingBlock: 15, cellPaddingBlockMD: 13, headerSplitColor: 'transparent' },
+    Tabs: { horizontalItemGutter: 28, inkBarColor: visualTokens.jade, titleFontSize: 13 },
+    Input: { paddingInline: 14, activeShadow: '0 0 0 4px rgba(33,107,104,0.08)' },
+    Tag: { borderRadiusSM: 6 },
+    Drawer: { footerPaddingBlock: 20, footerPaddingInline: 24 },
   },
 }

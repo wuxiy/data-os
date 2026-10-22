@@ -1,3 +1,4 @@
+import { Surface } from '../components/ui/Surface'
 import { Boxes, KeyRound, Plus, RefreshCw } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Button, Drawer, Form, Input, Select, Skeleton, Table, Tag } from 'antd'
@@ -239,7 +240,7 @@ function DataServicesLive({ onNotice, onNavigate, onUnavailable }: { onNotice: (
         </div>
       ) : null}
       <div className={`${styles.integrationWorkspace} ${styles.integrationWorkspaceDuo}`}>
-        <aside className={styles.catalogRail} aria-label="数据服务目录">
+        <Surface><aside className={styles.catalogRail} aria-label="数据服务目录">
           <div className={styles.railHeader}>
             <h2>数据服务</h2>
             <span className={styles.railCount}>{visibleServices.length} / {services.length} 项</span>
@@ -277,7 +278,7 @@ function DataServicesLive({ onNotice, onNavigate, onUnavailable }: { onNotice: (
           {services.length === 0 ? <div className={styles.emptyRail}>暂无数据服务，点击<span className={formStyles.textNowrap}>「新建服务」</span>创建第一个。</div> : null}
           {services.length > 0 && visibleServices.length === 0 ? <div className={workspace.emptyDirectory}><p>没有符合当前条件的服务。</p><Button size="small" onClick={() => { setQuery(''); setStatusFilter(''); setRailPage(0) }}>清空筛选</Button></div> : null}
           <Pager label="服务目录分页" page={railPage} pageCount={railPageCount} pageSize={RAIL_PAGE_SIZE} onPageChange={setRailPage} />
-        </aside>
+        </aside></Surface>
 
         <section className={styles.workspaceMain} aria-label="数据服务详情">
           {selected ? (

@@ -1,3 +1,5 @@
+import { ActionIcon } from '../components/ui/ActionIcon'
+import { Surface } from '../components/ui/Surface'
 import {
   Activity,
   ArrowUpRight,
@@ -766,7 +768,7 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
         </section>
 
         <div className={`${styles.twoColumns} ${local.sourceWorkspace}`}>
-          <section className={styles.panel}>
+          <Surface><section className={styles.panel}>
             <div className={styles.panelHeader}><div><h2>已登记数据源</h2><p>前置机、院内系统与区域交换入口</p></div><div className={styles.panelHeaderActions}><Button type="text" size="small" onClick={() => window.location.reload()}><RefreshCw size={13} />刷新</Button><Button type="primary" size="small" disabled={state !== 'live'} onClick={() => {
               if (state !== 'live') { onUnavailable('接入向导'); return }
               setJobFormOpen(false)
@@ -777,9 +779,9 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
               {state === 'loading' ? <li className={local.sourceLoading} role="status" aria-label="正在读取数据源"><Skeleton active title={false} paragraph={{ rows: 3 }} /></li> : visibleSources.length === 0 ? <li className={styles.emptyState}>{state === 'live' ? '暂无已登记数据源，点击「新增数据源」开始接入。' : '数据源暂不可用，请重新连接控制面。'}</li> : null}
             </ul>
             <Pager inset label="数据源分页" page={sourcesCurrentPage} pageCount={sourcesPageCount} pageSize={SOURCES_PAGE_SIZE} onPageChange={setSourcesPage} />
-          </section>
+          </section></Surface>
 
-          <section className={styles.panel}>
+          <Surface><section className={styles.panel}>
             <div className={styles.panelHeader}><div><h2>采集链路摘要</h2><p>以运行记录作为统一事实</p></div><Activity size={18} color="var(--jade)" /></div>
             <div className={styles.summaryGrid}>
               <Summary label="已配置率" value={visibleJobs.length === 0 ? '—' : `${Math.round((visibleJobs.filter((job) => job.configured).length / visibleJobs.length) * 100)}%`} icon={<FileCog size={15} />} />
@@ -789,12 +791,12 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
               }).length)} icon={<CircleAlert size={15} />} />
             </div>
             <div className={local.summaryFoot}>
-              <Button type="text" size="small" onClick={() => onNavigate('governance')}>查看治理结果 <ArrowUpRight size={13} /></Button>
+              <Button type="text" size="small" onClick={() => onNavigate('governance')}>查看治理结果 <ActionIcon><ArrowUpRight size={13} /></ActionIcon></Button>
             </div>
-          </section>
+          </section></Surface>
         </div>
 
-        <section className={styles.tablePanel}>
+        <Surface><section className={styles.tablePanel}>
           <div className={styles.panelHeader}><div><h2>采集任务</h2><p>配置模板可复用；运行状态由控制面统一回写</p></div><div className={styles.panelHeaderActions}><span className={styles.dashboardScope}>{state === 'live' ? `${visibleJobs.length} 个任务` : '等待任务数据'}</span><Button type="primary" size="small" disabled={state !== 'live'} onClick={() => {
             if (state !== 'live') { onUnavailable('新建采集任务'); return }
             if (sources.length === 0) { onNotice('请先登记至少一个数据源'); return }
@@ -817,7 +819,7 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
             }}
             locale={{ emptyText: state === 'loading' ? '正在读取采集任务…' : state === 'live' ? '暂无采集任务，先登记数据源再新建任务。' : '采集任务暂不可用，请重新连接控制面。' }}
           />
-        </section>
+        </section></Surface>
       </div>
 
       <Drawer

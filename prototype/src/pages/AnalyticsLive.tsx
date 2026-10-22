@@ -1,3 +1,4 @@
+import { Surface } from '../components/ui/Surface'
 import { ChartNoAxesCombined, Search, ShieldCheck } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button, Skeleton, Tag } from 'antd'
@@ -111,7 +112,7 @@ export function AnalyticsLive({ onNotice }: { onNotice: (message: string) => voi
     <div className={styles.integrationPage}>
       <PageHeader title="分析看板" eyebrow="嵌入式分析" subtitle="业务人员在统一门户查看结果，专业人员按权限进入分析设计器" compact />
       <div className={styles.integrationWorkspace}>
-        <aside className={styles.catalogRail} aria-label="分析看板目录">
+        <Surface><aside className={styles.catalogRail} aria-label="分析看板目录">
           <div className={styles.railHeader}>
             <h2>已授权看板</h2>
             <span className={styles.railCount}>{visibleDashboards.length} 项</span>
@@ -137,7 +138,7 @@ export function AnalyticsLive({ onNotice }: { onNotice: (message: string) => voi
           </ul>
           {visibleDashboards.length === 0 ? <div className={local.emptyDirectory}><p>没有匹配的看板。</p><Button size="small" onClick={() => { setQuery(''); setRailPage(0) }}>清空搜索</Button></div> : null}
           <Pager label="分析看板目录分页" page={railPage} pageCount={railPageCount} pageSize={RAIL_PAGE_SIZE} onPageChange={setRailPage} />
-        </aside>
+        </aside></Surface>
 
         <section className={styles.workspaceMain} aria-label={`${selected?.title ?? '分析看板'}嵌入视图`}>
           <div className={styles.assetToolbar}>
@@ -174,7 +175,7 @@ export function AnalyticsLive({ onNotice }: { onNotice: (message: string) => voi
           />
         </section>
 
-        <aside className={styles.evidenceRail} aria-label="分析访问证据">
+        <Surface><aside className={styles.evidenceRail} aria-label="分析访问证据">
           <div className={styles.evidenceHeader}><h2>访问证据</h2><Tag>受控只读</Tag></div>
           <div className={styles.evidenceBody}>
             <div className={styles.evidenceStamp}>
@@ -189,7 +190,7 @@ export function AnalyticsLive({ onNotice }: { onNotice: (message: string) => voi
             </dl>
             <a className={`${styles.externalLinkButton} ${styles.evidenceAction}`} href={routePaths.assets}>查看数据资产与血缘</a>
           </div>
-        </aside>
+        </aside></Surface>
       </div>
     </div>
   )

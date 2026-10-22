@@ -1,8 +1,8 @@
 /* 跨域运营以待办为主，事件轨仅用于核查上下文。 */
-.prioritySummary { display: flex; align-items: center; gap: 32px; padding: 0 0 24px; border-bottom: 1px solid var(--line); }
+.prioritySummary { display: flex; align-items: center; gap: 32px; padding: 28px; background: var(--paper); border: 6px solid var(--bezel); border-radius: 28px; box-shadow: var(--shadow-bezel); }
 .prioritySummary > div { display: grid; gap: 6px; min-width: 120px; }
 .prioritySummary span, .prioritySummary p { color: var(--muted); font-size: 12px; }
-.prioritySummary strong { font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.prioritySummary strong { font-size: 34px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.2; }
 .prioritySummary small { margin-left: 6px; color: var(--muted); font-size: 12px; font-weight: 400; }
 .prioritySummary p { max-width: 35em; margin: 0 0 0 auto; line-height: 1.7; }
 .urgent { color: var(--red); }

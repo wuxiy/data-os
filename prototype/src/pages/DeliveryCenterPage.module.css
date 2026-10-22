@@ -12,11 +12,8 @@
 }
 
 /* 目录与验收工作区并列，证据与阻断信息拥有更大阅读宽度。 */
-.workspace { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 24px; align-items: start; }
+.workspace { grid-template-columns: 320px minmax(0, 1fr); gap: 24px; align-items: start; }
 .workspace > * { min-width: 0; }
-.projectIdentity { display: grid; gap: 4px; justify-items: start; }
-.projectIdentity small { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
-.projectSelect { max-width: 100%; height: auto; padding: 0; text-align: left; white-space: normal; }
 .detailPanel h2, .detailPanel p { overflow-wrap: anywhere; }
 .nextStep { display: flex; align-items: baseline; gap: 12px; margin: 0 16px; padding: 16px 0; border-bottom: 1px solid var(--line); }
 .nextStep span { flex-shrink: 0; color: var(--ink); font-size: 12px; font-weight: 600; }
@@ -26,3 +23,22 @@
 .retryAction { margin-top: 16px; }
 .blockerNotice { margin: 16px; }
 @media (max-width: 1100px) { .workspace { grid-template-columns: minmax(0, 1fr); } }
+
+.projectList { list-style: none; margin: 0; padding: 10px; display: grid; gap: 8px; }
+.projectCard { display: block; width: 100%; padding: 18px; color: var(--ink); background: var(--surface-raised); border: 0; border-radius: 16px; text-align: left; cursor: pointer; }
+.projectCard:hover { background: var(--surface-hover); }
+.projectCardSelected { background: var(--jade-soft); box-shadow: inset 3px 0 0 var(--jade); }
+.projectHeading { display: flex; align-items: flex-start; flex-wrap: wrap; gap: 10px; }
+.projectHeading strong { font-size: 15px; line-height: 1.7; overflow-wrap: anywhere; }
+.projectCode, .projectUpdated { display: block; margin-top: 6px; color: var(--muted); font-size: 11px; overflow-wrap: anywhere; }
+.projectFacts { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-block: 20px 10px; color: var(--muted); font-size: 11px; }
+.projectFacts b { display: block; margin-top: 5px; color: var(--ink); font-size: 12px; font-weight: 500; }
+.projectPager { padding: 16px; }
+.detailPanel h2 { font-size: 23px; }
+.nextStep { margin: 22px; padding: 18px; background: var(--jade-soft); border: 0; border-radius: 16px; }
+@media (max-width: 1320px) { .workspace { grid-template-columns: 280px minmax(0,1fr); } }
+@media (max-width: 1100px) { .workspace { grid-template-columns: minmax(0,1fr); } }
+
+.projectList { max-height: min(600px, 54dvh); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+.detailPanel { scroll-margin-top: 24px; }
+@media (min-width: 1101px) { .workspace > :first-child { position: sticky; top: 24px; } }

@@ -171,7 +171,7 @@ export function AppShell({ route, children, onNavigate, onUnavailable, authDispl
           </button>
         </div>
       </aside>
-      <main id="main-content" className={styles.main} tabIndex={-1}>
+      <main id="main-content" className={styles.main} tabIndex={-1} data-workspace={route}>
         <RuntimeStatusBanner />
         {children}
       </main>
@@ -182,8 +182,8 @@ export function AppShell({ route, children, onNavigate, onUnavailable, authDispl
 function Brand() {
   return (
     <div className={styles.brand} aria-label="医数中枢">
-      <Waypoints size={30} strokeWidth={1.7} aria-hidden="true" />
-      <span>医数中枢</span>
+      <div className={styles.brandSymbol}><Waypoints size={24} strokeWidth={1.35} aria-hidden="true" /></div>
+      <div className={styles.brandWords}><span>医数中枢</span><small>DATA OS / 医疗数据平台</small></div>
     </div>
   )
 }

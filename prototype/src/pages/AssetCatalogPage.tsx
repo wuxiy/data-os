@@ -1,3 +1,4 @@
+import { Surface } from '../components/ui/Surface'
 import { ChartNoAxesCombined, Database, ExternalLink, FileText, Search, Table2, Waypoints, Workflow } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Button, Table, Tag } from 'antd'
@@ -66,7 +67,7 @@ function DemoAssetCatalogPage({ onNotice, onNavigate }: { onNotice: (message: st
       />
       <DemoDataBoundary moduleName="数据资产目录" onNavigate={onNavigate}>
         <div className={styles.integrationWorkspace}>
-        <aside className={styles.catalogRail} aria-label="数据资产目录">
+        <Surface><aside className={styles.catalogRail} aria-label="数据资产目录">
           <div className={styles.railHeader}><h2>资产目录</h2><span className={styles.railCount}>{visible.length} 项</span></div>
           <label className={styles.railSearch}>
             <Search size={15} aria-hidden="true" />
@@ -91,7 +92,7 @@ function DemoAssetCatalogPage({ onNotice, onNavigate }: { onNotice: (message: st
             ))}
           </ul>
           {visible.length === 0 ? <div className={workspace.emptyDirectory}><p>没有匹配的数据资产。</p><Button size="small" onClick={() => setQuery('')}>清空搜索</Button></div> : null}
-        </aside>
+        </aside></Surface>
 
         <section className={styles.workspaceMain} aria-label={`${selected.name}资产详情`}>
           <div className={styles.assetToolbar}>
@@ -135,7 +136,7 @@ function DemoAssetCatalogPage({ onNotice, onNavigate }: { onNotice: (message: st
           </div>
         </section>
 
-        <aside className={styles.evidenceRail} aria-label="资产来源证据">
+        <Surface><aside className={styles.evidenceRail} aria-label="资产来源证据">
           <div className={styles.evidenceHeader}><h2>资产证据</h2><Tag color={STATUS_COLOR.healthy}>已同步</Tag></div>
           <div className={styles.evidenceBody}>
             <div className={styles.evidenceStamp}>
@@ -156,7 +157,7 @@ function DemoAssetCatalogPage({ onNotice, onNavigate }: { onNotice: (message: st
             </section>
             <Button className={styles.evidenceAction} onClick={() => onNotice('已生成当前资产的变更影响清单')}>生成影响清单</Button>
           </div>
-        </aside>
+        </aside></Surface>
         </div>
       </DemoDataBoundary>
     </div>
@@ -173,7 +174,7 @@ const fieldColumns: ColumnsType<AssetField> = [
 function AssetOverview({ asset }: { asset: AssetItem }) {
   return (
     <div className={styles.overviewGrid}>
-      <section className={styles.contentPanel}>
+      <Surface><section className={styles.contentPanel}>
         <div className={styles.contentPanelHeader}><h3>字段与标准</h3><span>{asset.fields.length} 个关键字段</span></div>
         <div className={styles.descriptionBlock}><p>{asset.description}</p></div>
         <Table<AssetField>
@@ -183,18 +184,18 @@ function AssetOverview({ asset }: { asset: AssetItem }) {
           dataSource={asset.fields}
           pagination={false}
         />
-      </section>
-      <section className={styles.contentPanel}>
+      </section></Surface>
+      <Surface><section className={styles.contentPanel}>
         <div className={styles.contentPanelHeader}><h3>消费结构</h3><span>{asset.uses.length} 项已登记</span></div>
         <div className={styles.descriptionBlock}><p>消费覆盖分析专题、数据服务与监管上报三类用途；消费明细与登记来源统一在右侧资产证据轨维护，变更影响以证据轨为准。</p></div>
-      </section>
+      </section></Surface>
     </div>
   )
 }
 
 function AssetLineage({ asset }: { asset: AssetItem }) {
   return (
-    <section className={styles.lineageCanvas} aria-label={`${asset.name}端到端血缘`}>
+    <Surface><section className={styles.lineageCanvas} aria-label={`${asset.name}端到端血缘`}>
       <div className={styles.lineageSummary}><div><h3>端到端血缘</h3><span>当前版本 v2.6 · 字段级血缘完整率 94.1%</span></div><Tag color={STATUS_COLOR.healthy}>4 层已核验</Tag></div>
       <div className={styles.lineageRow}>
         {asset.lineage.map((node) => {
@@ -212,7 +213,7 @@ function AssetLineage({ asset }: { asset: AssetItem }) {
         <div className={styles.impactItem}><span>下游影响</span><strong>{asset.uses.length} 项</strong></div>
         <div className={styles.impactItem}><span>最近结构变化</span><strong>07-29 新增 2 个标准字段</strong></div>
       </div>
-    </section>
+    </section></Surface>
   )
 }
 

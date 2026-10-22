@@ -1,3 +1,4 @@
+import { Surface } from '../components/ui/Surface'
 import { AlertTriangle, Plus, Save, Search, ShieldCheck, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
@@ -369,7 +370,7 @@ export function QualityRulesAdmin({ onNotice }: Props) {
   ]
 
   return (
-    <section className={styles.tablePanel}>
+    <Surface><section className={styles.tablePanel}>
       <div className={styles.panelHeader}>
         <div><h2>质量规则台账</h2><p>维护检查范围与失败证据；保存后由质量执行器校验并生效</p></div>
         <div className={styles.panelHeaderActions}>
@@ -546,6 +547,6 @@ export function QualityRulesAdmin({ onNotice }: Props) {
         </div> : null}
         {operationError && pendingDelete ? <p className={styles.formError} role="alert">{operationError}</p> : null}
       </Drawer>
-    </section>
+    </section></Surface>
   )
 }

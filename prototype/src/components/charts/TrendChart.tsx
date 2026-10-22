@@ -1,4 +1,5 @@
 import styles from './TrendChart.module.css'
+import { Surface } from '../ui/Surface'
 
 interface TrendChartProps {
   title?: string
@@ -21,7 +22,7 @@ export function TrendChart({
 }: TrendChartProps) {
   const accessibleTitle = title || `${primaryLabel}与${secondaryLabel}趋势`
 
-  return (
+  const chart = (
     <section className={`${styles.panel} ${compact ? styles.compact : ''} ${flat ? styles.flat : ''}`} aria-label={accessibleTitle}>
       <div className={styles.header}>
         {title ? <h2>{title}</h2> : null}
@@ -49,4 +50,5 @@ export function TrendChart({
       </div>
     </section>
   )
+  return flat ? chart : <Surface>{chart}</Surface>
 }

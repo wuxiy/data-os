@@ -5,7 +5,8 @@
   z-index: 90;
   padding: 0;
   border: 0;
-  background: rgba(31, 41, 55, 0.32);
+  background: rgba(32, 47, 52, 0.28);
+  backdrop-filter: blur(10px);
   cursor: pointer;
 }
 
@@ -18,9 +19,9 @@
   width: min(520px, calc(100vw - 40px));
   overflow: hidden;
   background: var(--paper);
-  border: 1px solid var(--line-strong);
-  border-radius: 10px;
-  box-shadow: 0 8px 28px rgba(31, 41, 55, 0.16);
+  border: 6px solid var(--bezel);
+  border-radius: 28px;
+  box-shadow: var(--shadow-raise);
   transform: translateX(-50%);
   text-align: left;
 }
@@ -29,7 +30,7 @@
   display: flex;
   align-items: center;
   gap: 9px;
-  padding: 12px 14px;
+  padding: 20px;
   color: var(--muted);
   border-bottom: 1px solid var(--line);
 }
@@ -59,7 +60,7 @@
 
 .paletteList {
   margin: 0;
-  padding: 6px;
+  padding: 10px;
   list-style: none;
   max-height: 46vh;
   overflow-y: auto;
@@ -75,7 +76,7 @@
   color: var(--ink);
   background: transparent;
   border: 0;
-  border-radius: 6px;
+  border-radius: 12px;
   cursor: pointer;
   font-size: 13px;
   text-align: left;
@@ -90,7 +91,7 @@
 .paletteItemActive,
 .paletteItemActive:hover {
   background: var(--jade-soft);
-  transition: background 120ms var(--ease-out);
+  transition: transform 280ms var(--ease-standard), opacity 280ms var(--ease-standard);
 }
 
 .paletteItem:focus-visible {

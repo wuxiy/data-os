@@ -1,3 +1,4 @@
+import { Surface } from '../components/ui/Surface'
 import { ArrowRightLeft, Download, FileSearch, GitCompareArrows, RefreshCw, Search, Send, Archive, ShieldCheck, UploadCloud } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Button, Form, Input, Select, Skeleton, Table, Tag } from 'antd'
@@ -187,7 +188,7 @@ export function DataStandardsLive({ onNotice, onNavigate, onUnavailable }: { onN
       <PageHeader title="数据标准中心" subtitle="维护院级业务定义与值域，通过评审发布可追溯的标准版本" asOf={detail ? formatDateTime(detail.standard.updatedAt) : undefined} />
       <GovernanceTabs route="standards" onNavigate={onNavigate} onUnavailable={onUnavailable} />
       <div className={styles.content}>
-        <section className={styles.tablePanel}>
+        <Surface><section className={styles.tablePanel}>
           <div className={styles.panelHeader}>
             <div><h2>标准清单</h2><p>{items.length} 项 · 选择标准后查看版本与数据元</p></div>
             <span className={local.processHint}>草稿 → 评审 → 发布</span>
@@ -239,7 +240,7 @@ export function DataStandardsLive({ onNotice, onNavigate, onUnavailable }: { onN
               },
             })}
           />
-        </section>
+        </section></Surface>
 
         {operationError ? <p className={local.operationError} role="alert">{operationError}</p> : null}
         {selectedId && (!detail || !version) ? <section className={`${styles.panel} ${local.detailState}`} role={detailState === 'unavailable' ? 'alert' : 'status'}>
@@ -248,7 +249,7 @@ export function DataStandardsLive({ onNotice, onNavigate, onUnavailable }: { onN
 
         {detail && version ? (
           <div className={local.detailGrid}>
-            <section className={styles.tablePanel}>
+            <Surface><section className={styles.tablePanel}>
               <div className={styles.panelHeader}>
                 <div>
                   <h2>{detail.standard.name}</h2>
@@ -385,7 +386,7 @@ export function DataStandardsLive({ onNotice, onNavigate, onUnavailable }: { onN
                   </ul>
                 </div>
               ) : null}
-            </section>
+            </section></Surface>
 
             <aside className={`${styles.panel} ${local.auditRail}`}>
               <div className={styles.panelHeader}><div><h2>审计事件</h2><p>当前标准 · 最近 20 条</p></div></div>
@@ -405,7 +406,7 @@ export function DataStandardsLive({ onNotice, onNavigate, onUnavailable }: { onN
           </div>
         ) : null}
 
-        <section className={styles.tablePanel}>
+        <Surface><section className={styles.tablePanel}>
           <div className={styles.panelHeader}>
             <div><h2>导入标准</h2><p>粘贴 CSV 或 JSON → 预检内容 → 确认创建草稿</p></div>
           </div>
@@ -433,7 +434,7 @@ export function DataStandardsLive({ onNotice, onNavigate, onUnavailable }: { onN
               </div>
             ) : null}
           </div>
-        </section>
+        </section></Surface>
       </div>
     </div>
   )

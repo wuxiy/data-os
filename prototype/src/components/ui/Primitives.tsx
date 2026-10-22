@@ -3,6 +3,7 @@ import { Check, ChevronRight, CircleAlert, Info, X } from 'lucide-react'
 import type { ButtonHTMLAttributes, ReactNode } from 'react'
 import type { Metric, Tone } from '../../types'
 import styles from './Primitives.module.css'
+import { Surface } from './Surface'
 
 export function StatusTag({ children, tone = 'neutral' }: { children: ReactNode; tone?: Tone }) {
   return <span className={`${styles.tag} ${styles[tone]}`}>{children}</span>
@@ -23,7 +24,7 @@ export function Button({ variant = 'secondary', size = 'md', className = '', chi
 
 export function MetricStrip({ metrics, onSelect }: { metrics: Metric[]; onSelect?: (metric: Metric) => void }) {
   return (
-    <section className={styles.metrics} aria-label="关键指标">
+    <Surface><section className={styles.metrics} aria-label="关键指标">
       {metrics.map((metric) => (
         <button
           className={`${styles.metric} ${onSelect ? styles.metricInteractive : ''}`}
@@ -39,7 +40,7 @@ export function MetricStrip({ metrics, onSelect }: { metrics: Metric[]; onSelect
           {onSelect ? <ChevronRight className={styles.metricArrow} size={15} /> : null}
         </button>
       ))}
-    </section>
+    </section></Surface>
   )
 }
 

@@ -1,3 +1,4 @@
+import { Surface } from '../components/ui/Surface'
 import { CheckCircle2, GitMerge, RotateCcw, Search, ShieldCheck } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Button, Select, Table, Tag } from 'antd'
@@ -83,14 +84,14 @@ function DemoMpiReviewPage({ onNotice, onNavigate }: { onNotice: (message: strin
       <PageHeader title="主索引复核" eyebrow="主索引与主数据" subtitle="先核对身份差异与匹配证据，再确认患者关联。" compact />
       <DemoDataBoundary moduleName="主索引候选审核" onNavigate={onNavigate}>
         <div className={styles.mpiWorkspace}>
-        <aside className={styles.workspaceRail}>
+        <Surface><aside className={styles.workspaceRail}>
           <div className={styles.sectionTitle}><h2>候选队列</h2><span>36 待审核</span></div>
           <div className={styles.search}><Search size={15} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="患者姓名或候选号" aria-label="搜索主索引候选" /></div>
           <ul className={styles.queue}>
             {visibleCandidates.map((candidate) => <li key={candidate.id}><button className={selected.id === candidate.id ? styles.selected : ''} aria-pressed={selected.id === candidate.id} onClick={() => { setSelectedId(candidate.id); setMerged(false); setConfirmed(false) }}><span className={styles.queueTop}><span className={styles.queueId}>{candidate.id}</span><Tag color={candidate.score >= 95 ? 'success' : 'warning'}>{candidate.score}% 匹配</Tag></span><span className={styles.queueTitle}>{candidate.leftName} ↔ {candidate.rightName}</span><span className={styles.queueMeta}>{candidate.system} · {candidate.risk}</span></button></li>)}
             {visibleCandidates.length === 0 ? <li className={styles.emptyState}>未找到匹配的候选记录</li> : null}
           </ul>
-        </aside>
+        </aside></Surface>
         <section className={styles.mpiMain}>
           <div className={styles.mpiTop}>
             <div><Tag color={merged ? 'success' : 'warning'}>{merged ? '已建立关联' : '需人工确认'}</Tag><h2>{selected.leftName} 与 {selected.rightName}</h2><p>{selected.id} · {selected.system} · 匹配模型 v2.4</p></div>
@@ -105,14 +106,14 @@ function DemoMpiReviewPage({ onNotice, onNavigate }: { onNotice: (message: strin
             />
           </div>
           <div className={styles.mpiLower}>
-            <section className={styles.panel}>
+            <Surface><section className={styles.panel}>
               <div className={styles.panelHeader}><div><h3>匹配证据</h3><p>逐项证据可解释、可复核</p></div><ShieldCheck size={18} color="var(--jade)" /></div>
               <ul className={`${styles.checkList} ${styles.compactCheckList}`}><li><CheckCircle2 size={16} />身份证号完全一致 · 权重 60%</li><li><CheckCircle2 size={16} />姓名与出生日期一致 · 权重 30%</li><li><CheckCircle2 size={16} />地址相似度 92% · 权重 8%</li><li><Tag color="warning">需确认</Tag>手机号冲突 · 扣减 2%</li></ul>
-            </section>
-            <section className={styles.panel}>
+            </section></Surface>
+            <Surface><section className={styles.panel}>
               <div className={styles.panelHeader}><div><h3>合并影响</h3><p>建立关联，不覆盖源系统原始数据</p></div><GitMerge size={18} color="var(--jade)" /></div>
               <dl className={`${styles.definitionList} ${styles.paddedDefinitionList}`}><div><dt>关联记录</dt><dd>2 条患者记录、5 个院内就诊标识</dd></div><div><dt>下游影响</dt><dd>患者 360 视图、3 个数据服务、2 项随访任务</dd></div><div><dt>回滚能力</dt><dd>保留原始记录与字段级来源，可撤销本次关联</dd></div></dl>
-            </section>
+            </section></Surface>
           </div>
           <div className={styles.mpiActions}>
             <label className={styles.confirmCheck}><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} disabled={merged} /><span>我已核对关键身份属性与影响范围，确认两条记录属于同一患者。该操作只建立身份关联，不回写覆盖源系统。</span></label>

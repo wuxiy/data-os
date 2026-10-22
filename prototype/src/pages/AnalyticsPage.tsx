@@ -1,3 +1,5 @@
+import { ActionIcon } from '../components/ui/ActionIcon'
+import { Surface } from '../components/ui/Surface'
 import { ChartNoAxesCombined, ExternalLink, FileText, Maximize2, Pencil, RefreshCw, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Button, Tag } from 'antd'
@@ -45,7 +47,7 @@ function DemoAnalyticsPage({ onNotice, onNavigate }: { onNotice: (message: strin
       />
       <DemoDataBoundary moduleName="分析看板" onNavigate={onNavigate}>
         <div className={styles.integrationWorkspace}>
-        <aside className={styles.catalogRail} aria-label="分析看板目录">
+        <Surface><aside className={styles.catalogRail} aria-label="分析看板目录">
           <div className={styles.railHeader}><h2>看板目录</h2><span className={styles.railCount}>{visible.length} 项</span></div>
           <label className={styles.railSearch}>
             <Search size={15} aria-hidden="true" />
@@ -71,7 +73,7 @@ function DemoAnalyticsPage({ onNotice, onNavigate }: { onNotice: (message: strin
             ))}
           </ul>
           {visible.length === 0 ? <div className={local.emptyDirectory}><p>没有匹配的分析看板。</p><Button size="small" onClick={() => setQuery('')}>清空搜索</Button></div> : null}
-        </aside>
+        </aside></Surface>
 
         <section className={styles.workspaceMain} aria-label={`${selected.title}嵌入视图`}>
           <section className={styles.embeddedShell}>
@@ -123,7 +125,7 @@ function DemoAnalyticsPage({ onNotice, onNavigate }: { onNotice: (message: strin
           </section>
         </section>
 
-        <aside className={styles.evidenceRail} aria-label="分析证据">
+        <Surface><aside className={styles.evidenceRail} aria-label="分析证据">
           <div className={styles.evidenceHeader}><h2>分析证据</h2><Tag color={STATUS_COLOR[selected.status === '运行正常' ? 'healthy' : 'warning']}>{selected.status}</Tag></div>
           <div className={styles.evidenceBody}>
             <div className={styles.evidenceStamp}>
@@ -143,9 +145,9 @@ function DemoAnalyticsPage({ onNotice, onNavigate }: { onNotice: (message: strin
               </ul>
             </section>
             <Button className={styles.evidenceAction} onClick={() => onNotice('已打开指标口径与数据血缘详情')}>查看口径与血缘</Button>
-            <Button className={styles.evidenceAction} type="text" onClick={() => onNotice('专业分析设计器将在新标签页打开，并沿用统一登录')}><Pencil size={14} />进入专业编辑 <ExternalLink size={13} /></Button>
+            <Button className={styles.evidenceAction} type="text" onClick={() => onNotice('专业分析设计器将在新标签页打开，并沿用统一登录')}><Pencil size={14} />进入专业编辑 <ActionIcon><ExternalLink size={13} /></ActionIcon></Button>
           </div>
-        </aside>
+        </aside></Surface>
         </div>
       </DemoDataBoundary>
     </div>

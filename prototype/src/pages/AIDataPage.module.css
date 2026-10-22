@@ -9,3 +9,13 @@
 .statusNotice { max-width: 1432px; margin: 24px auto; }
 .loadingWorkspace { max-width: 1480px; margin: 0 auto; padding: 24px; background: var(--paper); }
 @media (max-width: 1100px) { .overview > div { padding-inline: 12px; } .workspace { grid-template-columns: 202px minmax(0, 1fr); } }
+
+.overview { max-width: 1416px; margin: 0 max(32px, calc((100% - 1416px) / 2)) 28px; padding: 24px; border: 6px solid var(--bezel); border-radius: 28px; box-shadow: var(--shadow-bezel); }
+.overview strong { font-size: 32px; }
+.workspace { gap: 20px; }
+.productMain { background: var(--paper); border-radius: 22px; overflow: hidden; }
+@media (max-width: 1320px) { .overview { margin-inline: 24px; } }
+@media (max-width: 767px) { .overview { margin-inline: 16px; grid-template-columns: 1fr 1fr; gap: 20px; } .overview > div { border: 0; padding: 0; } }
+
+.neutralState.neutralState { color: var(--muted); }
+.neutralState.neutralState::before { background: var(--muted); }

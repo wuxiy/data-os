@@ -1,3 +1,4 @@
+import { Surface } from '../components/ui/Surface'
 import { ChevronRight, Plus, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Button, Table, Tag } from 'antd'
@@ -81,13 +82,13 @@ export function DataStandardsPage({ onNavigate, onUnavailable, onNotice }: Props
       <GovernanceTabs route="standards" onNavigate={onNavigate} onUnavailable={onUnavailable} />
       <DemoDataBoundary moduleName="数据标准" onNavigate={onNavigate}>
         <div className={styles.workspace}>
-        <aside className={styles.workspaceRail}>
+        <Surface><aside className={styles.workspaceRail}>
           <div className={styles.sectionTitle}><h2>标准分类</h2><span>{categories.length - 1} 个主题</span></div>
           <div className={styles.search}><Search size={15} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索标准名称或编码" aria-label="搜索数据标准" /></div>
           <ul className={styles.tree}>
             {categories.map((item) => <li key={item}><button className={category === item ? styles.selected : ''} aria-pressed={category === item} onClick={() => setCategory(item)}><span>{item}</span><ChevronRight size={14} /></button></li>)}
           </ul>
-        </aside>
+        </aside></Surface>
         <section className={styles.workspaceMain}>
           <div className={styles.listTools}>
             <strong>{category} · {visible.length} 项</strong>
@@ -103,7 +104,7 @@ export function DataStandardsPage({ onNavigate, onUnavailable, onNotice }: Props
             locale={{ emptyText: '未找到匹配的数据标准，请调整搜索条件。' }}
           />
         </section>
-        <aside className={styles.workspaceInspector}>
+        <Surface><aside className={styles.workspaceInspector}>
           {selected ? <>
           <div className={styles.sectionTitle}><h3>标准详情</h3><Tag color={TONE_COLOR[statusTone(selected.status)]}>{selected.status}</Tag></div>
           <div className={styles.inspectorBody}>
@@ -122,7 +123,7 @@ export function DataStandardsPage({ onNavigate, onUnavailable, onNotice }: Props
             </ol>
           </div>
           </> : <><div className={styles.sectionTitle}><h3>标准详情</h3></div><p className={local.demoSelection}>当前筛选没有匹配标准。清除关键词或切换主题后继续查看。</p></>}
-        </aside>
+        </aside></Surface>
         </div>
       </DemoDataBoundary>
     </div>

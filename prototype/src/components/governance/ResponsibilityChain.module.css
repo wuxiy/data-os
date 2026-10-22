@@ -1,5 +1,5 @@
 .chainPanel {
-  padding: 16px 24px 24px;
+  padding: 28px;
   background: var(--paper);
   border-radius: var(--radius-panel);
   box-shadow: var(--shadow-raise);
@@ -129,7 +129,7 @@
   background: rgba(31, 41, 55, 0.26);
   opacity: 0;
   pointer-events: none;
-  transition: opacity 180ms var(--ease-out);
+  transition: transform 280ms var(--ease-standard), opacity 280ms var(--ease-standard);
 }
 
 .drawerBackdropOpen {
@@ -148,7 +148,7 @@
   box-shadow: var(--shadow-raise);
   transform: translateX(104%);
   visibility: hidden;
-  transition: transform 200ms var(--ease-out), visibility 200ms;
+  transition: transform 280ms var(--ease-standard), opacity 280ms var(--ease-standard);
 }
 
 .drawerOpen {

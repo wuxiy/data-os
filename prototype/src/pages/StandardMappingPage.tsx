@@ -1,3 +1,4 @@
+import { Surface } from '../components/ui/Surface'
 import { ArrowRight, CheckCircle2, CircleHelp, Filter, Link2, Search } from 'lucide-react'
 import { useState } from 'react'
 import { Button, Tag } from 'antd'
@@ -53,14 +54,14 @@ export function StandardMappingPage({ onNavigate, onUnavailable, onNotice }: Pro
       <GovernanceTabs route="mapping" onNavigate={onNavigate} onUnavailable={onUnavailable} />
       <DemoDataBoundary moduleName="标准映射" onNavigate={onNavigate}>
         <div className={styles.workspace}>
-        <aside className={styles.workspaceRail}>
+        <Surface><aside className={styles.workspaceRail}>
           <div className={styles.sectionTitle}><h2>源数据结构</h2><span>HIS / 门诊诊断</span></div>
           <div className={styles.search}><Search size={15} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索源字段" aria-label="搜索源字段" /></div>
           <ul className={styles.fieldList}>
             {visibleFields.map(([field, description]) => <li key={field}><button className={current?.[0] === field ? styles.selected : ''} aria-pressed={current?.[0] === field} onClick={() => setSelectedField(field)}><strong>{field}</strong><span>{description}</span></button></li>)}
             {visibleFields.length === 0 ? <li className={local.quietState}>没有匹配的源字段</li> : null}
           </ul>
-        </aside>
+        </aside></Surface>
         <section className={styles.workspaceMain}>
           <div className={styles.listTools}><strong>映射矩阵 · {visibleMappings.length} 项</strong><div className={styles.listToolsActions}><Button size="small" aria-pressed={onlyPending} className={onlyPending ? local.filterActive : ''} onClick={togglePending}><Filter size={14} />仅看待确认</Button><Button size="small" disabled title="演示模式仅供查看，真实模式可维护映射草稿"><Link2 size={14} />保存此映射</Button></div></div>
           <div className={styles.mappingRows}>
@@ -74,7 +75,7 @@ export function StandardMappingPage({ onNavigate, onUnavailable, onNotice }: Pro
             {visibleMappings.length === 0 ? <div className={local.quietState}>没有匹配的映射。<Button type="link" size="small" onClick={() => { setQuery(''); setOnlyPending(false) }}>清除筛选</Button></div> : null}
           </div>
         </section>
-        <aside className={styles.workspaceInspector}>
+        <Surface><aside className={styles.workspaceInspector}>
           {current ? <>
           <div className={styles.sectionTitle}><h3>映射校验</h3><Tag color={current[3] === '已校验' ? 'success' : 'warning'}>{current[3]}</Tag></div>
           <div className={styles.inspectorBody}>
@@ -92,7 +93,7 @@ export function StandardMappingPage({ onNavigate, onUnavailable, onNotice }: Pro
             </dl>
           </div>
           </> : <><div className={styles.sectionTitle}><h3>映射校验</h3></div><p className={local.quietState}>选择一个匹配字段后查看标准与校验依据。</p></>}
-        </aside>
+        </aside></Surface>
         </div>
       </DemoDataBoundary>
     </div>

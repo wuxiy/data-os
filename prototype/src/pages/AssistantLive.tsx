@@ -1,3 +1,4 @@
+import { Surface } from '../components/ui/Surface'
 import { Ban, MessageSquareText, Send, ShieldCheck, ThumbsDown, ThumbsUp } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
@@ -155,7 +156,7 @@ export function AssistantLive({ onNotice, professional = false, governance = fal
         compact
       />
       <div className={styles.assistantWorkspace}>
-        <aside className={styles.conversationRail} aria-label="支持的问题">
+        <Surface><aside className={styles.conversationRail} aria-label="支持的问题">
           <div className={styles.railHeader}><h2>已验证问题</h2><span className={styles.railCount}>{questions.length}</span></div>
           {questionsState === 'loading' && questions.length === 0 ? <div className={workspace.railLoading} role="status" aria-busy="true"><p className={workspace.notice}>正在加载问题清单…</p><Skeleton active title={false} paragraph={{ rows: 4 }} /></div> : null}
           <ul className={styles.conversationList}>
@@ -180,7 +181,7 @@ export function AssistantLive({ onNotice, professional = false, governance = fal
               <li className={localStyles.promptNote}>同义表达命中同一问题代码；未知问题明确拒答，不生成任意 SQL。</li>
             </ul>
           </section>
-        </aside>
+        </aside></Surface>
 
         <section className={styles.chatMain} aria-label="智能问数对话">
           <header className={styles.chatHeader}>
@@ -313,7 +314,7 @@ export function AssistantLive({ onNotice, professional = false, governance = fal
           </form>
         </section>
 
-        <aside className={styles.evidenceRail} aria-label="问数证据">
+        <Surface><aside className={styles.evidenceRail} aria-label="问数证据">
           <div className={styles.evidenceHeader}><h2>回答证据</h2><Tag color={answer?.answered ? TONE_COLOR.healthy : answer ? TONE_COLOR.warning : TONE_COLOR.neutral}>{answer?.answered ? '可复核' : answer ? '拒答留痕' : asking ? '执行中' : askError ? '查询未完成' : '待提问'}</Tag></div>
           <div className={styles.evidenceBody}>
             <div className={styles.evidenceStamp}>
@@ -330,7 +331,7 @@ export function AssistantLive({ onNotice, professional = false, governance = fal
             </dl>
             <div className={styles.safeBoundary}><ShieldCheck size={15} /><span>查询由受控服务执行；助手不能修改标准、质量规则、主数据或源系统。</span></div>
           </div>
-        </aside>
+        </aside></Surface>
       </div>
       {professional && governance ? (
         <AssistantGovernance onNotice={onNotice} onQuestionsChanged={() => setReloadKey((key) => key + 1)} />

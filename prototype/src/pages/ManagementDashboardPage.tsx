@@ -1,3 +1,5 @@
+import { ActionIcon } from '../components/ui/ActionIcon'
+import { Surface } from '../components/ui/Surface'
 import { AlertTriangle, ChevronRight } from 'lucide-react'
 import { Button, Table, Tag } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
@@ -68,7 +70,7 @@ export function ManagementDashboardPage({ onOpenChain, onNotice, onNavigate }: {
             <AlertTriangle size={21} />
             <div><h2>今日 3 类事项需要关注</h2><p>核心数据可用率未达标、治理问题逾期、主索引候选积压，均需今日认领处理——沿责任链定位责任部门。</p></div>
           </div>
-          <Button onClick={onOpenChain}>查看治理责任链 <ChevronRight size={15} /></Button>
+          <Button onClick={onOpenChain}>查看治理责任链 <ActionIcon><ChevronRight size={15} /></ActionIcon></Button>
         </section>
         <div className={styles.twoColumns}>
           <TrendChart title="近 30 天核心数据健康趋势" primaryLabel="可用率" secondaryLabel="标准覆盖率" />
@@ -84,7 +86,7 @@ export function ManagementDashboardPage({ onOpenChain, onNotice, onNavigate }: {
             ].map(([name, value]) => <div className={styles.flowStep} key={name}><strong>{name}</strong><span>{value}</span></div>)}
           </div>
         </section>
-        <section className={styles.tablePanel}>
+        <Surface><section className={styles.tablePanel}>
           <div className={styles.panelHeader}><div><h2>重点交付进展</h2><p>面向院内经营、临床与上报场景 · 完整清单在交付中心</p></div></div>
           <Table<DeliveryRow>
             rowKey="key"
@@ -92,7 +94,7 @@ export function ManagementDashboardPage({ onOpenChain, onNotice, onNavigate }: {
             dataSource={DELIVERY_ROWS}
             pagination={false}
           />
-        </section>
+        </section></Surface>
         </DemoDataBoundary>
       </div>
     </div>
@@ -101,11 +103,11 @@ export function ManagementDashboardPage({ onOpenChain, onNotice, onNavigate }: {
 
 function RiskRanking({ onSelect }: { onSelect: () => void }) {
   return (
-    <section className={styles.panel}>
-      <div className={styles.panelHeader}><div><h2>高风险系统排行</h2><p>按逾期与高危问题综合排序</p></div><Button type="text" size="small" onClick={onSelect}>查看全部 <ChevronRight size={13} /></Button></div>
+    <Surface><section className={styles.panel}>
+      <div className={styles.panelHeader}><div><h2>高风险系统排行</h2><p>按逾期与高危问题综合排序</p></div><Button type="text" size="small" onClick={onSelect}>查看全部 <ActionIcon><ChevronRight size={13} /></ActionIcon></Button></div>
       <ol className={styles.ranking}>
         {riskRanking.map(({ system, owner, value }, index) => <li key={system}><span className={styles.rank}>{String(index + 1).padStart(2, '0')}</span><div className={styles.rankBody}><strong>{system}</strong><span>{owner}</span></div><span className={styles.rankValue}>{value}</span></li>)}
       </ol>
-    </section>
+    </section></Surface>
   )
 }

@@ -1,3 +1,4 @@
+import { Surface } from '../components/ui/Surface'
 import { BrainCircuit, Plus, RefreshCw, Sparkles } from 'lucide-react'
 import { useState } from 'react'
 import type { ReactNode } from 'react'
@@ -235,7 +236,7 @@ function AIDataLive({ onNotice }: { onNotice: (message: string) => void }) {
         </div>
       ) : null}
       <div className={`${styles.integrationWorkspace} ${styles.integrationWorkspaceDuo} ${local.workspace}`}>
-        <aside className={styles.catalogRail} aria-label="AI Data 产品目录">
+        <Surface><aside className={styles.catalogRail} aria-label="AI Data 产品目录">
           <div className={styles.railHeader}>
             <h2>AI 数据产品</h2>
             <span className={styles.railCount}>{products.length} 项</span>
@@ -260,7 +261,7 @@ function AIDataLive({ onNotice }: { onNotice: (message: string) => void }) {
                   <span>{productTypeLabel[product.productType]}</span>
                   <div className={styles.catalogMeta}>
                     <em>{product.currentVersion}</em>
-                    <i className={styles.healthMark}>{lifecycleLabel[product.lifecycle]}</i>
+                    <i className={`${styles.healthMark} ${product.lifecycle === 'CERTIFIED' || product.lifecycle === 'SERVING' ? '' : local.neutralState}`}>{lifecycleLabel[product.lifecycle]}</i>
                   </div>
                 </button>
               </li>
@@ -268,7 +269,7 @@ function AIDataLive({ onNotice }: { onNotice: (message: string) => void }) {
           </ul>
           {products.length === 0 ? <div className={styles.emptyRail}>暂无 AI Data Product，点击「新建产品」创建第一个。</div> : null}
           <Pager label="产品目录分页" page={railPage} pageCount={railPageCount} pageSize={RAIL_PAGE_SIZE} onPageChange={setRailPage} />
-        </aside>
+        </aside></Surface>
 
         <section className={`${styles.workspaceMain} ${local.productMain}`} aria-label="AI Data 产品详情">
           {selected ? (

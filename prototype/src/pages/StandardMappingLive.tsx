@@ -1,3 +1,4 @@
+import { Surface } from '../components/ui/Surface'
 import { ArrowRightLeft, ClipboardCheck, GitCompareArrows, History, RefreshCw, Search, Archive, ShieldCheck, UploadCloud } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Button, Form, Input, Select, Skeleton, Table, Tag } from 'antd'
@@ -198,7 +199,7 @@ export function StandardMappingLive({ onNotice, onNavigate, onUnavailable }: { o
           </section>
         ) : coverageState === 'unavailable' ? <p className={local.quietState} role="status">覆盖统计暂不可用，映射集仍可独立查看与维护。</p> : null}
 
-        <section className={styles.tablePanel}>
+        <Surface><section className={styles.tablePanel}>
         <div className={`${styles.listTools} ${local.toolbar}`}>
           <label className={styles.search}>
             <Search size={15} aria-hidden="true" />
@@ -229,12 +230,12 @@ export function StandardMappingLive({ onNotice, onNavigate, onUnavailable }: { o
             },
           })}
         />
-        </section>
+        </section></Surface>
 
         {operationError ? <p className={local.operationError} role="alert">{operationError}</p> : null}
 
         {createOpen ? (
-          <section className={styles.tablePanel}>
+          <Surface><section className={styles.tablePanel}>
             <div className={styles.panelHeader}><div><h2>新建映射集</h2><p>目标标准须为已发布；映射项可用 CSV/JSON 导入补齐</p></div></div>
             <div className={styles.drawerForm}>
               <Form layout="vertical">
@@ -280,7 +281,7 @@ export function StandardMappingLive({ onNotice, onNavigate, onUnavailable }: { o
                 })}
               >创建（空草稿，随后导入映射项）</Button>
             </div>
-          </section>
+          </section></Surface>
         ) : null}
 
         {selectedId && (!detail || !version) ? <section className={`${styles.panel} ${local.statePanel}`} role={detailState === 'unavailable' ? 'alert' : 'status'}>
@@ -289,7 +290,7 @@ export function StandardMappingLive({ onNotice, onNavigate, onUnavailable }: { o
 
         {detail && version ? (
           <div className={local.detailGrid}>
-            <section className={styles.tablePanel}>
+            <Surface><section className={styles.tablePanel}>
               <div className={styles.panelHeader}>
                 <div><h2>{detail.set.name}</h2><p>{detail.set.code} · {detail.set.sourceAsset} → {detail.set.standard.code}（验证数据集 {detail.set.dataset}）</p></div>
                 <div className={styles.panelHeaderActions}>
@@ -379,7 +380,7 @@ export function StandardMappingLive({ onNotice, onNavigate, onUnavailable }: { o
                   <Button size="small" disabled={!rollbackTo || busy} onClick={() => run('回退', () => rollbackMapping(detail.set.id, rollbackTo))}><History size={14} />回退（管理员）</Button>
                 </div>
               ) : null}
-            </section>
+            </section></Surface>
 
             <aside className={`${styles.panel} ${local.auditRail}`}>
               <div className={styles.panelHeader}><div><h2>审计事件</h2><p>当前映射集 · 最近 20 条</p></div></div>
@@ -406,7 +407,7 @@ export function StandardMappingLive({ onNotice, onNavigate, onUnavailable }: { o
         ) : null}
 
         {detail && version && version.status === 'DRAFT' ? (
-          <section className={styles.tablePanel}>
+          <Surface><section className={styles.tablePanel}>
             <div className={styles.panelHeader}>
               <div><h2>草稿维护（仅 DRAFT）</h2><p>导入映射项（CSV/JSON，先预检）或整体替换（JSON）</p></div>
             </div>
@@ -443,7 +444,7 @@ export function StandardMappingLive({ onNotice, onNavigate, onUnavailable }: { o
                 await updateMappingVersion(version.id, { items: JSON.parse(itemsDraft) })
               })}>整体替换并重算 checksum</Button>
             </div>
-          </section>
+          </section></Surface>
         ) : null}
       </div>
     </div>

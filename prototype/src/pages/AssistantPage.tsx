@@ -1,3 +1,4 @@
+import { Surface } from '../components/ui/Surface'
 import { AlertTriangle, Code2, ExternalLink, FileText, MessageSquareText, Send, ShieldCheck, ThumbsDown, ThumbsUp } from 'lucide-react'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
@@ -80,7 +81,7 @@ function DemoAssistantPage({ onNotice, onNavigate, professional = false }: { onN
       />
       <DemoDataBoundary moduleName={professional ? '专业问数工作区' : '智能问数'} onNavigate={onNavigate}>
         <div className={styles.assistantWorkspace}>
-        <aside className={styles.conversationRail} aria-label="问数会话">
+        <Surface><aside className={styles.conversationRail} aria-label="问数会话">
           <div className={styles.railHeader}><h2>最近会话</h2><span className={styles.railCount}>{assistantScenarios.length}</span></div>
           <ul className={styles.conversationList}>
             {assistantScenarios.map((scenario) => (
@@ -102,7 +103,7 @@ function DemoAssistantPage({ onNotice, onNavigate, professional = false }: { onN
               {suggestedPrompts.map((prompt) => <li key={prompt.scenarioId}><button className={styles.promptButton} onClick={() => selectScenario(prompt.scenarioId)}>{prompt.text}</button></li>)}
             </ul>
           </section>
-        </aside>
+        </aside></Surface>
 
         <section className={styles.chatMain} aria-label="智能问数对话">
           <header className={styles.chatHeader}>
@@ -170,7 +171,7 @@ function DemoAssistantPage({ onNotice, onNavigate, professional = false }: { onN
           </form>
         </section>
 
-        <aside className={styles.evidenceRail} aria-label="问数证据">
+        <Surface><aside className={styles.evidenceRail} aria-label="问数证据">
           <div className={styles.evidenceHeader}><h2>回答证据</h2><Tag color={TONE_COLOR.healthy}>可复核</Tag></div>
           <div className={styles.evidenceBody}>
             <div className={styles.evidenceStamp}>
@@ -195,7 +196,7 @@ function DemoAssistantPage({ onNotice, onNavigate, professional = false }: { onN
               rel="noreferrer"
             >进入专业工作区 <ExternalLink size={13} /></a>
           </div>
-        </aside>
+        </aside></Surface>
         </div>
       </DemoDataBoundary>
     </div>

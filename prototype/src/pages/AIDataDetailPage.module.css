@@ -28,7 +28,7 @@ td.num {
 }
 
 .productToolbar { flex-direction: column; align-items: stretch; gap: 20px; padding: 24px; }
-.productToolbar h2 { font-size: 24px; font-weight: 600; overflow-wrap: anywhere; }
+.productToolbar h2 { font-size: 28px; font-weight: 600; overflow-wrap: anywhere; }
 .productToolbar .actionBar { justify-content: flex-start; }
 .detailBody { display: grid; gap: 24px; padding: 24px; }
 .panel { border-radius: 0; box-shadow: none; border-top: 1px solid var(--line); }
@@ -39,3 +39,6 @@ td.num {
 .evaluationMetrics { margin-top: 0; gap: 0; border-bottom: 1px solid var(--line); }
 .evaluationMetrics > div { padding: 16px 12px; background: transparent; border-radius: 0; }
 .evaluationMetrics strong { font-variant-numeric: tabular-nums; }
+
+.productToolbar { padding: 32px; }
+.detailBody { padding: 28px; gap: 32px; }

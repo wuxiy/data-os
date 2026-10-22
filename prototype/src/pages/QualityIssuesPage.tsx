@@ -1,3 +1,4 @@
+import { Surface } from '../components/ui/Surface'
 import { AlertTriangle, CircleAlert, RefreshCw, Search, Send } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button, Drawer, Skeleton, Tag } from 'antd'
@@ -257,7 +258,7 @@ export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props
       </div>
       {apiState === 'unavailable' ? <div className={styles.connectionNotice} role="alert"><CircleAlert size={17} /><div><strong>治理问题控制面不可用</strong><span>当前页面没有展示演示问题；请恢复控制面后重新加载。</span></div><button className={styles.secondaryButton} onClick={() => window.location.reload()}>重新连接</button></div> : null}
       <div className={`${styles.workspace} ${local.workspace}`}>
-        <aside className={styles.workspaceRail}>
+        <Surface><aside className={styles.workspaceRail}>
           <div className={styles.sectionTitle}><h2>问题队列</h2><span>{apiState === 'live' ? `${openIssues.length} 待闭环` : '等待问题数据'}</span></div>
           <div className={styles.search}><Search size={15} /><input value={query} onChange={(event) => { setQuery(event.target.value); setQueuePage(0) }} placeholder="搜索问题或责任部门" aria-label="搜索质量问题" /></div>
           <div className={`${styles.queueFilters} ${local.queueFilters}`} role="group" aria-label="队列状态筛选">
@@ -273,7 +274,7 @@ export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props
             {apiState === 'live' && visibleIssues.length === 0 ? <li className={styles.emptyState}>当前范围暂无匹配的治理问题{query || statusFilter !== 'all' ? <Button type="text" size="small" onClick={() => { setQuery(''); setStatusFilter('all'); setQueuePage(0) }}>查看全部问题</Button> : null}</li> : null}
           </ul>
           <Pager label="问题队列分页" page={queuePage} pageCount={queuePageCount} pageSize={QUEUE_PAGE_SIZE} onPageChange={setQueuePage} />
-        </aside>
+        </aside></Surface>
         <section className={styles.workspaceMain}>
           {selected && detail ? <>
             <div className={`${styles.detailHero} ${local.detailHero}`}>
@@ -322,7 +323,7 @@ export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props
             </div>
           </> : detailState === 'loading' ? <div className={local.detailLoading} role="status" aria-label="正在读取问题详情"><Skeleton active paragraph={{ rows: 6 }} /></div> : detailState === 'error' ? <div className={styles.connectionNotice} role="alert"><CircleAlert size={17} /><div><strong>治理问题详情不可用</strong><span>问题详情读取失败，请刷新后重试</span></div><button className={styles.secondaryButton} onClick={() => window.location.reload()}>重新读取</button></div> : <div className={styles.emptyState}>{apiState === 'loading' ? '正在读取问题详情…' : apiState === 'unavailable' ? '控制面恢复后可查看治理问题详情' : '请选择一个治理问题'}</div>}
         </section>
-        <aside className={styles.workspaceInspector}>
+        <Surface><aside className={styles.workspaceInspector}>
           {selected && detail ? <>
             <div className={styles.sectionTitle}><h3>影响与证据</h3><Tag color={tagColor(severityTone(selected.severity))}>{severityLabel(selected.severity)}风险</Tag></div>
             <div className={`${styles.evidenceBox} ${local.flatEvidence} ${local.flatEvidenceFirst}`}><h3>影响范围</h3><p>{selected.impact}</p></div>
@@ -343,7 +344,7 @@ export function QualityIssuesPage({ onNavigate, onUnavailable, onNotice }: Props
             <div className={`${styles.evidenceBox} ${local.flatEvidence}`}><h3>责任人通知</h3>{detail.notifications.length > 0 ? detail.notifications.slice(0, 3).map((notification) => <p key={notification.id}><Tag color={tagColor(notificationStatusTone(notification.status))}>{notificationStatusLabel(notification.status)}</Tag> {notification.channel} · {notification.recipient}<br />{notification.subject}{notification.lastError ? <><br /><span className={styles.evidenceMessage}>{notification.lastError}</span></> : null}</p>) : <p>当前没有通知记录。</p>}</div>
             <div className={`${styles.evidenceBox} ${local.flatEvidence}`}><h3>责任归属</h3><p>{selected.ownerDepartment} · {selected.ownerName}<br />来源：资产责任人与组织主数据</p></div>
           </> : null}
-        </aside>
+        </aside></Surface>
       </div>
       <div className={styles.content}>
         <QualityRulesAdmin onNotice={onNotice} />

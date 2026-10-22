@@ -1,3 +1,4 @@
+import { Surface } from '../components/ui/Surface'
 import { ChartNoAxesCombined, Database, LayoutDashboard, Search, Shapes, Table2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Button, Skeleton, Table, Tag } from 'antd'
@@ -171,7 +172,7 @@ export function AssetCatalogLive({ onNotice }: { onNotice: (message: string) => 
     <div className={styles.integrationPage}>
       <PageHeader title="数据资产" eyebrow="资产目录与影响分析" subtitle="围绕同一资产查看业务定义、字段结构、质量结果与消费影响。" compact />
       <div className={styles.integrationWorkspace}>
-        <aside className={styles.catalogRail} aria-label="数据资产目录">
+        <Surface><aside className={styles.catalogRail} aria-label="数据资产目录">
           {schemas.length > 1 ? (
             <div className={styles.schemaTabs} role="tablist" aria-label="资产库切换">
               {schemas.map((schema) => (
@@ -222,7 +223,7 @@ export function AssetCatalogLive({ onNotice }: { onNotice: (message: string) => 
               <i>{summary.dashboards.length} 个仪表盘消费</i>
             </div>
           ) : null}
-        </aside>
+        </aside></Surface>
 
         <section className={styles.workspaceMain} aria-label={`${selected?.name ?? '资产'}详情`}>
           {!selected ? <section className={local.statePanel}><h2>当前库暂无资产</h2><p>资产完成结构元数据摄取后，会在这里显示字段、质量与血缘证据。</p><Button onClick={() => setReloadTick((tick) => tick + 1)}>刷新资产目录</Button></section> : <>
@@ -241,7 +242,7 @@ export function AssetCatalogLive({ onNotice }: { onNotice: (message: string) => 
             {(detailState === 'loading' || detailState === 'idle') ? <section className={local.inlineState} role="status" aria-busy="true"><p>正在读取资产结构与血缘…</p><Skeleton active paragraph={{ rows: 3 }} /></section> : null}
             {detailState === 'error' ? <section className={local.inlineState} role="status"><Tag color={TAG_COLOR.warning}>读取失败</Tag><p>当前资产详情或血缘暂不可读。目录仍可切换，也可以重新读取。</p><Button size="small" onClick={() => setDetailReload((tick) => tick + 1)}>重新读取当前资产</Button></section> : null}
             {detail ? (
-              <section className={styles.contentPanel}>
+              <Surface><section className={styles.contentPanel}>
                 <div className={styles.contentPanelHeader}>
                   <h3>字段结构</h3>
                   <span>{detail.columns.length} 列 · 最近更新 {formatDateTime(detail.updatedAt)}</span>
@@ -262,10 +263,10 @@ export function AssetCatalogLive({ onNotice }: { onNotice: (message: string) => 
                   }}
                   locale={{ emptyText: detailState === 'loading' ? '正在读取字段结构…' : detailState === 'error' ? '字段结构暂时不可读，请稍后重试。' : '暂无字段结构。' }}
                 />
-              </section>
+              </section></Surface>
             ) : null}
             {qualityTests.length > 0 ? (
-              <section className={styles.contentPanel}>
+              <Surface><section className={styles.contentPanel}>
                 <div className={styles.contentPanelHeader}>
                   <h3>质量测试</h3>
                   <span>{qualityTests.length} 条规则 · 来自控制面质量域（规则注册表 + 最近运行）</span>
@@ -277,11 +278,11 @@ export function AssetCatalogLive({ onNotice }: { onNotice: (message: string) => 
                   dataSource={qualityTests}
                   pagination={false}
                 />
-              </section>
+              </section></Surface>
             ) : null}
             {detailState === 'ready' && qualityTests.length === 0 ? <section className={local.inlineState}><strong>质量结果</strong><p>{qualityTestsAvailable ? '当前资产尚未关联质量规则，暂无可核对的质量结论。' : '质量结果暂不可读，不能据此判断当前资产的质量状态。'}</p>{!qualityTestsAvailable ? <Button size="small" onClick={() => setDetailReload((tick) => tick + 1)}>重新读取质量证据</Button> : null}</section> : null}
             {lineage ? (
-              <section className={styles.lineageCanvas} aria-label="血缘与影响">
+              <Surface><section className={styles.lineageCanvas} aria-label="血缘与影响">
                 <div className={styles.lineageSummary}>
                   <div><h3>血缘与消费</h3><span>血缘来自元数据中心：上游为数据来源，下游为产出与消费（数据模型 / 仪表盘）</span></div>
                   <Tag color={TAG_COLOR.healthy}>{lineage.upstreams.length + lineage.downstreams.length} 个关联节点</Tag>
@@ -327,13 +328,13 @@ export function AssetCatalogLive({ onNotice }: { onNotice: (message: string) => 
                     <div className={styles.impactItem}><span>消费仪表盘</span><strong>{lineage.downstreams.filter((node) => node.type === 'dashboard' || node.type === 'dataModel').length} 个关联</strong></div>
                   </div>
                 )}
-              </section>
+              </section></Surface>
             ) : null}
           </div>
           </>}
         </section>
 
-        <aside className={styles.evidenceRail} aria-label="资产来源证据">
+        <Surface><aside className={styles.evidenceRail} aria-label="资产来源证据">
           <div className={styles.evidenceHeader}><h2>资产证据</h2><Tag color={TAG_COLOR.healthy}>元数据中心</Tag></div>
           <div className={styles.evidenceBody}>
             <dl className={styles.evidenceDefinition}>
@@ -351,7 +352,7 @@ export function AssetCatalogLive({ onNotice }: { onNotice: (message: string) => 
               </section>
             ) : null}
           </div>
-        </aside>
+        </aside></Surface>
       </div>
     </div>
   )

@@ -1,3 +1,4 @@
+import { Surface } from '../components/ui/Surface'
 import { CheckCircle2, CircleAlert, GitMerge, GitPullRequestArrow, LoaderCircle, RefreshCw, Search, ShieldCheck, Split, XCircle } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Button, Drawer, Skeleton, Table, Tag } from 'antd'
@@ -160,7 +161,7 @@ export function MpiReviewLive({ onNotice }: { onNotice: (message: string) => voi
       {apiState === 'loading' ? <div className={local.loadingWorkspace} role="status" aria-label="正在读取复核队列与身份信息"><Skeleton active title={false} paragraph={{ rows: 6 }} /></div> : null}
       {apiState === 'live' ? (
         <div className={`${styles.mpiWorkspace} ${local.workspace}`}>
-          <aside className={styles.workspaceRail}>
+          <Surface><aside className={styles.workspaceRail}>
             <div className={styles.sectionTitle}><h2>候选队列</h2><span>{metrics?.reviewPending ?? candidates.length} 待复核</span></div>
             <div className={styles.search}><Search size={15} /><input value={query} onChange={(event) => { setQuery(event.target.value); setQueuePage(0) }} placeholder="姓名 / 卡号 / 规则" aria-label="搜索复核候选" /></div>
             <ul className={styles.queue}>
@@ -182,7 +183,7 @@ export function MpiReviewLive({ onNotice }: { onNotice: (message: string) => voi
             <div className={styles.railActions}>
               <Button onClick={triggerRebuild} disabled={pendingKey !== null}><RefreshCw size={14} className={pendingKey === 'rebuild' ? styles.spin : undefined} />{pendingKey === 'rebuild' ? '重算中…' : '重算主索引'}</Button>
             </div>
-          </aside>
+          </aside></Surface>
 
           <section className={styles.mpiMain}>
             {selected ? (
@@ -203,7 +204,7 @@ export function MpiReviewLive({ onNotice }: { onNotice: (message: string) => voi
                   />
                 </div>
                 <div className={styles.mpiLower}>
-                  <section className={styles.panel}>
+                  <Surface><section className={styles.panel}>
                     <div className={styles.panelHeader}><div><h3>匹配证据</h3><p>逐字段对比 · 敏感值已掩码</p></div><ShieldCheck size={18} color="var(--jade)" /></div>
                     <ul className={`${styles.checkList} ${styles.compactCheckList}`}>
                       {evidence.map((item) => (
@@ -213,15 +214,15 @@ export function MpiReviewLive({ onNotice }: { onNotice: (message: string) => voi
                         </li>
                       ))}
                     </ul>
-                  </section>
-                  <section className={styles.panel}>
+                  </section></Surface>
+                  <Surface><section className={styles.panel}>
                     <div className={styles.panelHeader}><div><h3>操作影响</h3><p>决策即审计，人工否决高于规则</p></div><GitMerge size={18} color="var(--jade)" /></div>
                     <dl className={`${styles.definitionList} ${styles.paddedDefinitionList}`}>
                       <div><dt>确认同人</dt><dd>两身份并入黄金人（决策源=人工），可在详情中拆分撤销</dd></div>
                       <div><dt>确认不同人</dt><dd>终态否决：该对永不再自动候选或自动合并</dd></div>
                       <div><dt>误合并防护</dt><dd>卡号复用等弱证据冲突一律进入本队列，不自动合并</dd></div>
                     </dl>
-                  </section>
+                  </section></Surface>
                 </div>
                 {decisionError ? <div className={styles.connectionNotice} role="alert"><CircleAlert size={17} /><div><strong>操作失败</strong><span>{decisionError}</span></div></div> : null}
                 <div className={styles.mpiActions}>

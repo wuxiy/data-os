@@ -1,0 +1,16 @@
+.island {
+  display: inline-grid;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  margin-right: -4px;
+  place-items: center;
+  background: color-mix(in srgb, currentColor 8%, transparent);
+  border-radius: 50%;
+  transition: transform 280ms var(--ease-standard), opacity 280ms var(--ease-standard);
+}
+
+:global(button):hover:not(:disabled) > .island,
+:global(a):hover > .island {
+  transform: translate(2px, -1px) scale(1.04);
+}

@@ -1,3 +1,5 @@
+import { ActionIcon } from '../components/ui/ActionIcon'
+import { Surface } from '../components/ui/Surface'
 import { Activity, ChevronRight, CloudCog, RefreshCw } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Button, Skeleton, Table, Tag } from 'antd'
@@ -140,7 +142,7 @@ export function ManagementDashboardLive(
           } else {
             onNotice(`暂无门户路由对应 ${item.deepLink}`)
           }
-        }}>进入工作台 <ChevronRight size={13} /></Button>
+        }}>进入工作台 <ActionIcon><ChevronRight size={13} /></ActionIcon></Button>
       ),
     },
   ]
@@ -150,11 +152,11 @@ export function ManagementDashboardLive(
       <div className={styles.page}>
         <PageHeader title="医院数据运营总览" eyebrow="管理驾驶舱" subtitle="以结果、风险和交付进展为中心" />
         <div className={styles.content}>
-          <section className={styles.panel} role="status">
+          <Surface><section className={styles.panel} role="status">
             <div className={styles.panelHeader}><h2>运营投影暂不可用</h2></div>
             <p className={styles.emptyState}>控制面运营摘要不可达，暂无法展示真实指标；本页不显示静态回退。</p>
             <Button onClick={() => setReloadKey((key) => key + 1)}><RefreshCw size={14} />重试</Button>
-          </section>
+          </section></Surface>
         </div>
       </div>
     )
@@ -189,10 +191,10 @@ export function ManagementDashboardLive(
         </section>
 
         <div className={`${styles.twoColumns} ${pageStyles.workspace}`}>
-          <section className={styles.tablePanel}>
+          <Surface><section className={styles.tablePanel}>
             <div className={styles.panelHeader}>
               <div><h2>优先处理</h2><p>共 {workItems.length} 项跨域待办 · 按严重度排序 · 完整清单在运营中心</p></div>
-              <Button type="text" size="small" onClick={() => onNavigate('operationsCenter')}>查看全部 <ChevronRight size={13} /></Button>
+              <Button type="text" size="small" onClick={() => onNavigate('operationsCenter')}>查看全部 <ActionIcon><ChevronRight size={13} /></ActionIcon></Button>
             </div>
             <Table<OperationsWorkItem>
               rowKey={(item) => `${item.sourceType}-${item.sourceId}`}
@@ -209,9 +211,9 @@ export function ManagementDashboardLive(
                     : '运营待办投影暂不可用。',
               }}
             />
-          </section>
+          </section></Surface>
 
-          <section className={styles.panel}>
+          <Surface><section className={styles.panel}>
             <div className={styles.panelHeader}><div><h2>最近事件</h2><p>跨域操作留痕</p></div></div>
             <ul className={`${styles.timelineBody} ${pageStyles.eventList}`} aria-busy={eventsState === 'loading'}>
               {eventsState === 'loading' ? <li><Skeleton active title={false} paragraph={{ rows: 4 }} /></li> : null}
@@ -226,7 +228,7 @@ export function ManagementDashboardLive(
             </ul>
             {/* 脚注左对齐（2026-10-06 对齐收敛）：原借用 emptyState 居中灰字，语义不符。 */}
             <p className={pageStyles.panelFootnote}><CloudCog size={13} /> 事件与待办同源于运营投影，两处口径一致。</p>
-          </section>
+          </section></Surface>
         </div>
       </div>
     </div>

@@ -1,6 +1,7 @@
+import { Surface } from '../components/ui/Surface'
 import { Archive, Ban, CheckCircle2, Download, FileArchive, PackageCheck, Plus, RefreshCw, Search, Trash2 } from 'lucide-react'
-import { useState } from 'react'
-import { Alert, Button, Drawer, Form, Input, Select, Skeleton, Table, Tag } from 'antd'
+import { useRef, useState } from 'react'
+import { Alert, Button, Drawer, Form, Input, Select, Skeleton, Table, Tag, Pagination } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { DemoDataBoundary } from '../components/ui/DemoDataBoundary'
 import { PageHeader } from '../components/ui/PageHeader'
@@ -68,10 +69,10 @@ export function DeliveryCenterPage({ onNotice }: Props) {
         <PageHeader title="交付中心" eyebrow="交付治理" subtitle="交付项目、验收证据包与交付闭环" />
         <div className={styles.content}>
           <DemoDataBoundary moduleName="交付中心">
-            <section className={styles.panel}>
+            <Surface><section className={styles.panel}>
               <div className={styles.panelHeader}><h2>演示样例</h2><p>真实构建将展示交付项目、阻断项、证据快照与验收闭环</p></div>
               <p className={styles.emptyState}>接入控制面交付模块后，此处按项目展示四类交付项引用、逐项可交付性检查结果与不可变验收证据包。</p>
-            </section>
+            </section></Surface>
           </DemoDataBoundary>
         </div>
       </div>
@@ -81,6 +82,7 @@ export function DeliveryCenterPage({ onNotice }: Props) {
 }
 
 function DeliveryCenterLive({ onNotice }: Props) {
+  const detailRef = useRef<HTMLElement>(null)
   const [query, setQuery] = useState('')
   const [searchInput, setSearchInput] = useState('')
   const [selectedId, setSelectedId] = useState('')
@@ -121,6 +123,10 @@ function DeliveryCenterLive({ onNotice }: Props) {
   function selectProject(id: string) {
     setSelectedId(id)
     setBlockers(null)
+    const bounds = detailRef.current?.getBoundingClientRect()
+    if (bounds && (bounds.top < 16 || bounds.top > window.innerHeight - 180)) {
+      detailRef.current?.scrollIntoView({ block: 'start', behavior: 'auto' })
+    }
   }
 
   function runAction(key: string, fallback: string, task: () => Promise<void>) {
@@ -138,28 +144,6 @@ function DeliveryCenterLive({ onNotice }: Props) {
     }
     refresh()
   }
-
-  const projectColumns: ColumnsType<DeliveryProjectView> = [
-    { title: '交付项目', key: 'name', width: 190, render: (_, project) => <div className={local.projectIdentity}><Button type="link" size="small" className={local.projectSelect} aria-pressed={selectedId === project.id} onClick={(event) => { event.stopPropagation(); selectProject(project.id) }}>{project.name}</Button><small>{project.code}</small></div> },
-    { title: '负责人', key: 'owner', render: (_, project) => project.owner || '—' },
-    {
-      title: '状态',
-      key: 'status',
-      render: (_, project) => <Tag color={TONE_COLOR[statusTone(project.status)]}>{STATUS_LABEL[project.status as keyof typeof STATUS_LABEL] ?? project.status}</Tag>,
-    },
-    {
-      title: '目标日期',
-      key: 'targetDate',
-      align: 'right',
-      render: (_, project) => <small>{project.targetDate || '—'}</small>,
-    },
-    {
-      title: '更新时间',
-      key: 'updatedAt',
-      align: 'right',
-      render: (_, project) => <small>{project.updatedAt.slice(0, 10)}</small>,
-    },
-  ]
 
   const itemColumns: ColumnsType<DeliveryDetailView['items'][number]> = [
     {
@@ -190,11 +174,11 @@ function DeliveryCenterLive({ onNotice }: Props) {
       <div className={styles.page}>
         <PageHeader title="交付中心" eyebrow="交付治理" subtitle="交付项目、验收证据包与交付闭环" />
         <div className={styles.content}>
-          <section className={styles.panel} role="status">
+          <Surface><section className={styles.panel} role="status">
             <div className={styles.panelHeader}><h2>交付服务暂不可用</h2></div>
             <p className={styles.emptyState}>控制面交付模块不可达；本页不显示静态回退。</p>
             <Button onClick={refresh}><RefreshCw size={14} />重试</Button>
-          </section>
+          </section></Surface>
         </div>
       </div>
     )
@@ -224,37 +208,27 @@ function DeliveryCenterLive({ onNotice }: Props) {
         </div>
 
         <div className={`${styles.twoColumns} ${local.workspace}`}>
-          <section className={styles.tablePanel}>
+          <Surface><section className={styles.tablePanel}>
             <div className={styles.panelHeader}>
               <div><h2>交付项目</h2><p>选择项目，核查交付项与验收证据</p></div>
               <PackageCheck size={16} aria-hidden="true" />
             </div>
-            <Table<DeliveryProjectView>
-              rowKey="id"
-              columns={projectColumns}
-              loading={listState === 'loading'}
-              scroll={{ x: 600 }}
-              dataSource={paged.paged}
-              rowClassName={(project) => selectedId === project.id ? 'ant-table-row-selected' : ''}
-              onRow={(project) => ({ onClick: () => selectProject(project.id) })}
-              pagination={{
-                current: paged.page + 1,
-                pageSize: PROJECT_PAGE_SIZE,
-                total: projects.length,
-                showSizeChanger: false,
-                onChange: (page) => paged.setPage(page - 1),
-              }}
-              locale={{
-                emptyText: listState === 'loading'
-                  ? '正在加载交付项目…'
-                  : listState === 'live'
-                    ? '暂无交付项目。'
-                    : '交付服务暂不可用。',
-              }}
-            />
-          </section>
+            {listState === 'loading' ? <div className={local.detailLoading} role="status" aria-label="正在加载交付项目"><Skeleton active paragraph={{ rows: 5 }} /></div> : <>
+              <ul className={local.projectList} aria-label="交付项目">
+                {paged.paged.map(project => <li key={project.id}>
+                  <button className={`${local.projectCard} ${selectedId === project.id ? local.projectCardSelected : ''}`} aria-label={project.name} aria-pressed={selectedId === project.id} onClick={() => selectProject(project.id)}>
+                    <span className={local.projectHeading}><strong>{project.name}</strong><Tag color={TONE_COLOR[statusTone(project.status)]}>{STATUS_LABEL[project.status as keyof typeof STATUS_LABEL] ?? project.status}</Tag></span>
+                    <span className={local.projectCode}>{project.code}</span>
+                    <span className={local.projectFacts}><span>负责人 <b>{project.owner || '—'}</b></span><span>目标日期 <b>{project.targetDate || '—'}</b></span></span>
+                    <span className={local.projectUpdated}>更新于 {project.updatedAt.slice(0, 10)}</span>
+                  </button>
+                </li>)}
+              </ul>
+              {projects.length === 0 ? <p className={styles.emptyState}>暂无交付项目。</p> : <div className={local.projectPager}><Pagination simple size="small" current={paged.page + 1} pageSize={PROJECT_PAGE_SIZE} total={projects.length} showSizeChanger={false} onChange={page => paged.setPage(page - 1)} /></div>}
+            </>}
+          </section></Surface>
 
-          <section className={`${styles.panel} ${local.detailPanel}`}>
+          <Surface><section ref={detailRef} className={`${styles.panel} ${local.detailPanel}`}>
             {!current ? (
               <>
                 <div className={styles.panelHeader}><h2>项目详情</h2><p>选择左侧项目查看交付项与证据</p></div>
@@ -376,7 +350,7 @@ function DeliveryCenterLive({ onNotice }: Props) {
                 </ul>
               </>
             )}
-          </section>
+          </section></Surface>
         </div>
       </div>
 

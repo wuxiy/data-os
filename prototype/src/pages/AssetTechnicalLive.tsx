@@ -1,3 +1,4 @@
+import { Surface } from '../components/ui/Surface'
 import { ArrowLeft, Database, Link2, Rows3, TableProperties } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Button, Input, Skeleton, Table, Tag } from 'antd'
@@ -108,7 +109,7 @@ export function AssetTechnicalLive({ onNotice }: { onNotice: (message: string) =
           </div>
 
           <div className={styles.technicalGrid}>
-            <section className={styles.technicalPanel}>
+            <Surface><section className={styles.technicalPanel}>
               <div className={styles.technicalPanelHeader}><div><h3>字段结构</h3><span>物理字段、类型与业务说明</span></div><Rows3 size={17} /></div>
               <Table<LineageAssetColumn>
                 scroll={{ x: 'max-content' }}
@@ -118,9 +119,9 @@ export function AssetTechnicalLive({ onNotice }: { onNotice: (message: string) =
                 pagination={{ pageSize: 10, showSizeChanger: false, hideOnSinglePage: true }}
                 locale={{ emptyText: '当前资产尚无字段结构。' }}
               />
-            </section>
+            </section></Surface>
 
-            <aside className={styles.technicalPanel}>
+            <Surface><aside className={styles.technicalPanel}>
               <div className={styles.technicalPanelHeader}><div><h3>连接与归属</h3><span>由平台适配器维护的绑定证据</span></div><Database size={17} /></div>
               <dl className={styles.technicalDefinition}>
                 <div><dt><Database size={13} />数据平台</dt><dd>Doris · {detail.fullyQualifiedName.split('.').slice(-2)[0]}</dd></div>
@@ -129,7 +130,7 @@ export function AssetTechnicalLive({ onNotice }: { onNotice: (message: string) =
                 <div><dt>消费链</dt><dd>{lineage ? `${lineage.upstreams.length} 上游 · ${lineage.downstreams.length} 下游` : '—'}</dd></div>
               </dl>
               <div className={styles.technicalNotice}><Link2 size={15} /><span>当前只展示结构元数据与已登记血缘；字段内容未做数据采样。</span></div>
-            </aside>
+            </aside></Surface>
           </div>
 
           <section className={styles.technicalLineage}>
