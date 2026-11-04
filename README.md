@@ -23,7 +23,7 @@
 
 | 子工程 | 职责 | 技术栈 |
 | --- | --- | --- |
-| `prototype/` | 统一中文门户（13 个桌面路由页面 + 2 条深链） | React 19 + Vite |
+| `prototype/` | 统一中文门户（15 个桌面路由页面 + 2 条深链） | React 19 + Vite |
 | `services/control-plane/` | 控制面：接入、治理闭环、资产血缘 BFF、分析令牌、AI Data、数据服务 | Java 21 / Spring Boot |
 | `services/mpi-service/` | 患者主索引：源身份、黄金人、候选审核与合并/拆分 | Java 21 / Spring Boot |
 | `services/quality-runner/` | 质量规则执行器：dbt test 引擎与失败证据投影 | Python 3.12 / FastAPI |
@@ -72,7 +72,7 @@ npm run dev
 ## 项目现状
 
 - 架构蓝图与技术架构已定稿为实施基线（见下「文档地图」）。
-- 门户已完成 13 个桌面路由页面与 2 条深链（资产技术视图、问数工作区）；数据接入、治理驾驶舱、质量闭环、主索引、资产血缘、分析看板、AI Data 与数据服务均已接真实链路。
+- 门户已完成 15 个桌面路由页面与 2 条深链（资产技术视图、问数工作区）；数据接入、治理驾驶舱、质量闭环、主索引、资产血缘、分析看板、AI Data、数据服务、运营中心与交付中心均已接真实链路。
 - 控制面在首条采集切片（数据源、任务、运行、治理闭环、通知发件箱）之外已扩展多个域：凭据服务、OM 资产与血缘只读 BFF、嵌入式分析访客令牌、AI Data Product、ToB 数据服务管理与临床工作流模板；API 面覆盖 `/api/v1/{sources, jobs, governance, credentials, assets, lineage, analytics, ai-data-products, data-services, workflow-templates}`，患者主索引经独立 `mpi-service` 以 `/api/v1/mpi/` 直路由。
 - AI Data 域已交付至 G20 验收：6C 检查 17 项、真实 EP 语料全链 SERVING、构建 API 异步任务化（提交返回 202 + 作业轮询）、SERVING 支持撤回再认证。
 - 已部署到隔离开发机：门户 `18081`、SeaTunnel `18082`、DolphinScheduler `18083`、Superset 嵌入端口 `18084`、RustFS `19000/19001`；入口与账号查询见 `docs/environment-access-reference.md`。
