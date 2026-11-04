@@ -92,7 +92,7 @@ npm run dev
 - `docs/architecture/ai-ready-data.md`：AI Ready Data 架构方案 v1.0（G8 评审通过，已转为实施基线）；实施节奏见 `docs/ai-ready-iteration-plan-20260826.md`。
 - `docs/validation/`：各 Gate 的验收证据归档。
 - `deploy/dev/`：不含密钥的开发环境 Compose 覆盖；生产基线见 `deploy/production/README.md`。
-- `prototype/README.md`：门户路由与数据说明；`DESIGN.md`：第一版原型的视觉设计系统。
+- `prototype/README.md`：门户路由与数据说明；`DESIGN.md`：门户视觉设计系统（现行 §14 v3「银雾 · 精密工作台」，§1–§13 为历史与归档约定）。
 - `tasks/`：执行计划与结果复盘（`todo.md`）、经验教训（`lessons.md`）。
 
 ## 许可证
