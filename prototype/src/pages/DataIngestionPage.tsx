@@ -875,7 +875,7 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
         <Form id="job-form" layout="vertical" onFinish={() => void submitJob()}>
           <div className={styles.drawerNotice}><FileCog size={16} /><span>{jobForm.configMode === 'json'
             ? (offersDemoTemplate() ? '仅保存结构配置；密码、密钥请使用后续凭据引用，不写入任务 JSON。' : workflowTemplates.length > 0 ? '临床模板来自控制面目录；请替换端点和 credentialRef 后再保存，密码、密钥不会写入任务 JSON。' : '真实模式请填写院内连接器 JSON；密码、密钥请使用凭据引用，不写入任务 JSON。')
-            : '表单只收集采集意图；连接、库表、字段在保存前经控制面对源实校验后编译为作业配置，明文凭据不落库。'}</span></div>
+            : '表单只收集采集意图；连接、库表、字段在保存前经控制面对数据源实际校验，编译为作业配置；明文凭据不落库。'}</span></div>
           <div className={styles.drawerFormGrid}>
             <Form.Item label="数据源" required>
               <Select value={jobForm.sourceId} onChange={(value) => setJobForm((current) => ({ ...current, sourceId: value }))}

@@ -62,6 +62,17 @@ function countTone(value: number, warnAt: number, dangerAt = Number.POSITIVE_INF
   return undefined
 }
 
+/** 指标卡下钻路由（2026-11-09 走查 P2：与治理驾驶舱的卡可点口径对齐）。 */
+const METRIC_ROUTES: Record<string, 'ingestion' | 'governance' | 'mpi' | 'aiData' | 'dataServices' | 'operationsCenter'> = {
+  '采集失败（24h）': 'ingestion',
+  '治理待办': 'governance',
+  '通知积压': 'operationsCenter',
+  '合同投递积压': 'dataServices',
+  'MPI 待复核': 'mpi',
+  '数据服务调用失败（24h）': 'dataServices',
+  'AI 构建任务': 'aiData',
+}
+
 export function ManagementDashboardLive(
   { onNotice, onNavigate }: { onNotice: (message: string) => void; onNavigate: (route: 'ingestion' | 'governance' | 'mpi' | 'aiData' | 'dataServices' | 'operationsCenter') => void },
 ) {
@@ -174,7 +185,7 @@ export function ManagementDashboardLive(
         asOf={summary?.asOf}
       />
       <div className={styles.content}>
-        {metrics.length > 0 ? <MetricStrip metrics={metrics} /> : <div className={pageStyles.metricLoading} aria-label="正在加载运营指标" role="status"><Skeleton active title={false} paragraph={{ rows: 2 }} /></div>}
+        {metrics.length > 0 ? <MetricStrip metrics={metrics} onSelect={summaryState === 'live' ? (metric) => onNavigate(METRIC_ROUTES[metric.label] ?? 'ingestion') : undefined} /> : <div className={pageStyles.metricLoading} aria-label="正在加载运营指标" role="status"><Skeleton active title={false} paragraph={{ rows: 2 }} /></div>}
 
         {/* 仅明确降级使用风险色；首次加载与未知状态保留中性。 */}
         <section className={`${styles.attention} ${components?.state === 'DEGRADED' ? '' : styles.attentionNeutral}`}>

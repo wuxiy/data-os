@@ -46,5 +46,7 @@ export function timestampPlaceholder(asOf: string | null): string {
   // 仅当 asOf 是 ISO 时间戳（后端裸值，可能带纳秒）时才格式化；
   // 已是「MM-DD HH:mm」或演示快照文案的透传——「09-21 12:52」会被 Date 误解析为 2001 年
   if (asOf) return `截至 ${/\d{4}-\d{2}-\d{2}T/.test(asOf) ? formatDateTime(asOf) : asOf}`
-  return frontendDemoMode ? '演示数据快照' : '等待首次数据汇总'
+  // 无 asOf 的页面（接入/质量/MPI 等）不是「等待汇总」——此前误导性占位
+  // 在满数据页也会出现（2026-11-09 走查 P3），改为无主张的中性占位。
+  return frontendDemoMode ? '演示数据快照' : '—'
 }
