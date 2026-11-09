@@ -2,9 +2,8 @@ import { Surface } from '../components/ui/Surface'
 import { Ban, MessageSquareText, Send, ShieldCheck, ThumbsDown, ThumbsUp } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Button, DatePicker, Form, Input, Select, Skeleton, Table, Tag } from 'antd'
+import { Button, Form, Input, Select, Skeleton, Table, Tag } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import dayjs from 'dayjs'
 import { PageHeader } from '../components/ui/PageHeader'
 import {
   askAssistantQuery,
@@ -200,10 +199,13 @@ export function AssistantLive({ onNotice, professional = false, governance = fal
             >
               {selected.paramSchema.map((contract) => (
                 <Form.Item key={contract.name} className={styles.assistantParamField}
-                  label={<>{contract.name}{contract.required ? ' *' : ''}</>}>
+                  label={<>{contract.description || contract.name}{contract.required ? ' *' : ''}</>}>
+                  {/* 日期参数用受控原生日期输入：输入即提交值，避免日期选择器
+                      「已输入未确认」时点执行导致参数丢失被判必填（2026-11-09 走查 P1）。 */}
                   {contract.type === 'date'
-                    ? <DatePicker value={params[contract.name] ? dayjs(params[contract.name]) : null}
-                        onChange={(date) => setParams({ ...params, [contract.name]: date ? date.format('YYYY-MM-DD') : '' })} />
+                    ? <Input type="date" value={params[contract.name] ?? ''}
+                        aria-label={contract.description || contract.name}
+                        onChange={(event) => setParams({ ...params, [contract.name]: event.target.value })} />
                     : contract.type === 'boolean'
                       ? <Select value={params[contract.name] ?? ''}
                           onChange={(value) => setParams({ ...params, [contract.name]: value })}
@@ -214,6 +216,7 @@ export function AssistantLive({ onNotice, professional = false, governance = fal
                             options={[{ value: '', label: '请选择' }, ...(contract.values ?? []).map((value) => ({ value, label: value }))]} />
                         : <Input type={contract.type === 'number' ? 'number' : 'text'} value={params[contract.name] ?? ''}
                             placeholder={contract.description ?? contract.name}
+                            aria-label={contract.description || contract.name}
                             onChange={(event) => setParams({ ...params, [contract.name]: event.target.value })} />}
                 </Form.Item>
               ))}

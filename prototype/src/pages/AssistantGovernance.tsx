@@ -1,8 +1,7 @@
 import { Download, FlaskConical, Pencil, Play, Plus, ShieldQuestion, Trash2 } from 'lucide-react'
 import { useState } from 'react'
-import { Button, DatePicker, Drawer, Form, Input, Select, Table, Tag } from 'antd'
+import { Button, Drawer, Form, Input, Select, Table, Tag } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import dayjs from 'dayjs'
 import { Pager } from '../components/ui/Pager'
 import {
   assistantQuestionAction,
@@ -498,12 +497,15 @@ export function AssistantGovernance({ onNotice, onQuestionsChanged }: {
               {testTarget ? paramRowsOf(testTarget).map((contract) => (
                 <Form.Item key={contract.name} className={styles.assistantParamField}
                   label={<>{contract.name}{contract.required ? ' *' : ''}</>}>
+                  {/* 与问数页同源修复：受控原生日期输入，输入即提交值（2026-11-09 走查 P1）。 */}
                   {contract.type === 'date'
-                    ? <DatePicker value={testParams[contract.name] ? dayjs(testParams[contract.name]) : null}
-                        onChange={(date) => setTestParams({ ...testParams, [contract.name]: date ? date.format('YYYY-MM-DD') : '' })} />
+                    ? <Input type="date" value={testParams[contract.name] ?? ''}
+                        aria-label={contract.name}
+                        onChange={(event) => setTestParams({ ...testParams, [contract.name]: event.target.value })} />
                     : <Input
                         type={contract.type === 'number' ? 'number' : 'text'}
                         value={testParams[contract.name] ?? ''}
+                        aria-label={contract.name}
                         onChange={(event) => setTestParams({ ...testParams, [contract.name]: event.target.value })} />}
                 </Form.Item>
               )) : null}
