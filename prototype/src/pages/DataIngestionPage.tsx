@@ -154,6 +154,18 @@ function newJobForm(sourceId = ''): JobFormState {
   }
 }
 
+/** 展示名兜底：无名数据源不直出裸 UUID（2026-11-09 走查 P2）。 */
+function sourceDisplayName(source: SourceApiItem): string {
+  const name = source.name?.trim()
+  return name ? name : `未命名数据源（${source.id.slice(0, 8)}）`
+}
+
+/** 新建任务默认源：优先选已登记连接的源，避免表单一打开就是死路（2026-11-09 走查 P2）。 */
+function preferredSourceId(list: SourceApiItem[]): string {
+  const connected = list.find((source) => source.connection)
+  return (connected ?? list[0])?.id ?? ''
+}
+
 export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props) {
   const [sources, setSources] = useState<SourceApiItem[]>([])
   const [jobs, setJobs] = useState<IngestionJobApiItem[]>([])
@@ -775,7 +787,7 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
               setSourceFormOpen(true)
             }}><Plus size={14} />新增数据源</Button></div></div>
             <ul className={styles.ranking}>
-              {pagedSources.map((source) => { const health = sourceStatusLabel(source.status); return <li key={source.id}><span className={styles.rank}><Server size={16} /></span><div className={styles.rankBody}><strong>{source.name}</strong><span>{source.systemType} · {source.protocol} · {source.institutionId}</span>{source.lastCheckMessage ? <small className={styles.statusDetail}>{source.lastCheckMessage} · {formatDateTime(source.lastCheckedAt)}</small> : null}</div><div className={styles.sourceRowActions}><Tag color={TONE_COLOR[health.tone]}>{health.label}</Tag>{state === 'live' ? <Button type="text" size="small" onClick={() => openSourceCheck(source)}><CheckCircle2 size={13} />检查</Button> : null}{state === 'live' && source.protocol.toUpperCase() === 'JDBC' ? <Button type="text" size="small" onClick={() => openSourceExplorer(source)}><Database size={13} />浏览</Button> : null}</div></li> })}
+              {pagedSources.map((source) => { const health = sourceStatusLabel(source.status); return <li key={source.id}><span className={styles.rank}><Server size={16} /></span><div className={styles.rankBody}><strong>{sourceDisplayName(source)}</strong><span>{source.systemType} · {source.protocol} · {source.institutionId}</span>{source.lastCheckMessage ? <small className={styles.statusDetail}>{source.lastCheckMessage} · {formatDateTime(source.lastCheckedAt)}</small> : null}</div><div className={styles.sourceRowActions}><Tag color={TONE_COLOR[health.tone]}>{health.label}</Tag>{state === 'live' ? <Button type="text" size="small" onClick={() => openSourceCheck(source)}><CheckCircle2 size={13} />检查</Button> : null}{state === 'live' && source.protocol.toUpperCase() === 'JDBC' ? <Button type="text" size="small" onClick={() => openSourceExplorer(source)}><Database size={13} />浏览</Button> : null}</div></li> })}
               {state === 'loading' ? <li className={local.sourceLoading} role="status" aria-label="正在读取数据源"><Skeleton active title={false} paragraph={{ rows: 3 }} /></li> : visibleSources.length === 0 ? <li className={styles.emptyState}>{state === 'live' ? '暂无已登记数据源，点击「新增数据源」开始接入。' : '数据源暂不可用，请重新连接控制面。'}</li> : null}
             </ul>
             <Pager inset label="数据源分页" page={sourcesCurrentPage} pageCount={sourcesPageCount} pageSize={SOURCES_PAGE_SIZE} onPageChange={setSourcesPage} />
@@ -800,7 +812,7 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
           <div className={styles.panelHeader}><div><h2>采集任务</h2><p>配置模板可复用；运行状态由控制面统一回写</p></div><div className={styles.panelHeaderActions}><span className={styles.dashboardScope}>{state === 'live' ? `${visibleJobs.length} 个任务` : '等待任务数据'}</span><Button type="primary" size="small" disabled={state !== 'live'} onClick={() => {
             if (state !== 'live') { onUnavailable('新建采集任务'); return }
             if (sources.length === 0) { onNotice('请先登记至少一个数据源'); return }
-            setJobForm((current) => current.sourceId ? current : newJobForm(sources[0].id))
+            setJobForm((current) => current.sourceId ? current : newJobForm(preferredSourceId(sources)))
             setSourceFormOpen(false)
             setJobFormOpen(true)
           }}><Plus size={14} />新建采集任务</Button></div></div>
@@ -867,7 +879,7 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
           <div className={styles.drawerFormGrid}>
             <Form.Item label="数据源" required>
               <Select value={jobForm.sourceId} onChange={(value) => setJobForm((current) => ({ ...current, sourceId: value }))}
-                options={sources.map((source) => ({ value: source.id, label: `${source.name} · ${source.systemType}${source.connection ? '' : ' · 未登记连接'}` }))} />
+                options={sources.map((source) => ({ value: source.id, label: `${sourceDisplayName(source)} · ${source.systemType}${source.connection ? '' : ' · 未登记连接'}` }))} />
             </Form.Item>
             <Form.Item label="任务名称" required>
               <Input required value={jobForm.name} onChange={(event) => setJobForm((current) => ({ ...current, name: event.target.value }))} placeholder="例如：LIS 检验结果批量同步" />
@@ -914,7 +926,10 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
             onSubmit={(spec) => void submitStructuredJob(spec)}
           />
         ) : (
-          <p className={styles.drawerHint}>结构化配置要求所选数据源已登记连接配置——在数据源列表点「浏览」完成连接登记后即可使用表单。</p>
+          <div className={styles.drawerHint}>
+            <p>结构化配置要求所选数据源已登记连接配置；登记保存后回到本表单继续，已填写的任务名称会保留。</p>
+            {jobFormSource ? <Button size="small" icon={<KeyRound size={14} />} onClick={() => { setJobFormOpen(false); openSourceExplorer(jobFormSource) }}>登记「{sourceDisplayName(jobFormSource)}」连接</Button> : null}
+          </div>
         )}
       </Drawer>
 
@@ -1005,7 +1020,7 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
           <div className={styles.drawerNotice}><Copy size={16} /><span>结构化任务复制后会对目标源重新校验库表字段（跨源复用采集口径）；副本以草稿落库，不继承运行历史。</span></div>
           <div className={styles.drawerFormGrid}>
             <div className={styles.formField}><label htmlFor="copy-source">目标数据源</label><Select id="copy-source" value={copyForm.sourceId} onChange={(value) => setCopyForm((current) => ({ ...current, sourceId: value }))}
-              options={sources.map((source) => ({ value: source.id, label: `${source.name} · ${source.systemType}${source.connection ? '' : ' · 未登记连接'}` }))} /></div>
+              options={sources.map((source) => ({ value: source.id, label: `${sourceDisplayName(source)} · ${source.systemType}${source.connection ? '' : ' · 未登记连接'}` }))} /></div>
             <div className={styles.formField}><label htmlFor="copy-name">副本名称</label><Input id="copy-name" value={copyForm.name} onChange={(event) => setCopyForm((current) => ({ ...current, name: event.target.value }))} /></div>
           </div>
         </> : null}
