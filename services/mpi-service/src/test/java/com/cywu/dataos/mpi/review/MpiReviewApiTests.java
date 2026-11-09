@@ -114,6 +114,27 @@ class MpiReviewApiTests {
         assertThat((String) first.get("evidence")).contains("cardNo");
     }
 
+    /** 关键词服务端过滤（2026-11-09 走查 P1）：姓名/规则编号可命中，不再依赖客户端装载窗口。 */
+    @Test
+    @SuppressWarnings("unchecked")
+    void candidatesKeywordSearchFiltersServerSide() {
+        seed();
+        rebuild();
+        // 姓名命中 OPEN 候选（模板由 RestTemplate 单次编码，勿预编码 %）。
+        var byName = rest.getForEntity("/api/v1/mpi/candidates?status=OPEN&q=张三", Map.class);
+        assertThat(byName.getStatusCode().value()).isEqualTo(200);
+        assertThat(((Number) byName.getBody().get("total")).intValue()).isEqualTo(1);
+        assertThat((List<Map<String, Object>>) byName.getBody().get("items")).hasSize(1);
+        // 规则编号命中同一对（存活 OPEN 任务由 P-ep2 复核规则产生）。
+        var byRule = rest.getForEntity("/api/v1/mpi/candidates?status=OPEN&q=P-ep2", Map.class);
+        assertThat(((Number) byRule.getBody().get("total")).intValue()).isEqualTo(1);
+        // 无关关键词：0 条且不报错（空 IN 集不落库查询）。
+        var none = rest.getForEntity("/api/v1/mpi/candidates?status=OPEN&q=不存在的名字", Map.class);
+        assertThat(none.getStatusCode().value()).isEqualTo(200);
+        assertThat(((Number) none.getBody().get("total")).intValue()).isEqualTo(0);
+        assertThat((List<Map<String, Object>>) none.getBody().get("items")).isEmpty();
+    }
+
     @Test
     @SuppressWarnings("unchecked")
     void explainReturnsRuleAndFieldEvidence() {

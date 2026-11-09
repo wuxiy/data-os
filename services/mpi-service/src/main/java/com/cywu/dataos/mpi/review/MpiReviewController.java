@@ -41,12 +41,13 @@ public class MpiReviewController {
     @GetMapping("/candidates")
     public ResponseEntity<Map<String, Object>> candidates(
             @RequestParam(name = "status", required = false) String status,
+            @RequestParam(name = "q", required = false) String q,
             @RequestParam(name = "page", defaultValue = "1") int page,
             @RequestParam(name = "size", defaultValue = "20") int size) {
         var query = queries.getIfAvailable();
         if (query == null) throw unavailable();
         var scope = tenantScope.current();
-        return ResponseEntity.ok(query.candidates(scope.tenantId(), status,
+        return ResponseEntity.ok(query.candidates(scope.tenantId(), status, q,
                 Math.max(1, page), Math.min(Math.max(1, size), 100)));
     }
 

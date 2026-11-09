@@ -1,6 +1,6 @@
 import { Surface } from '../components/ui/Surface'
 import { CheckCircle2, CircleAlert, GitMerge, GitPullRequestArrow, LoaderCircle, RefreshCw, Search, ShieldCheck, Split, XCircle } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Button, Drawer, Skeleton, Table, Tag } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { useApiResource } from '../hooks/useApiResource'
@@ -74,27 +74,64 @@ export function MpiReviewLive({ onNotice }: { onNotice: (message: string) => voi
     timeoutMs: 15000,
   })
 
+  // 队列搜索走服务端（2026-11-09 走查 P1）：队列按 size=100 截断装载，
+  // 客户端过滤会对窗口外候选假阴性；关键词防抖 300ms 后由 mpi-service
+  // 在双侧姓名/卡号与规则编号上过滤。
+  const [searchResults, setSearchResults] = useState<{ items: MpiCandidateItem[]; total: number } | null>(null)
+  const [searchError, setSearchError] = useState('')
+  const searchAbortRef = useRef<AbortController | null>(null)
+  const runSearch = useCallback(async (keyword: string) => {
+    searchAbortRef.current?.abort()
+    const controller = new AbortController()
+    searchAbortRef.current = controller
+    try {
+      const data = await fetchMpiCandidates({ status: 'OPEN', size: 100, query: keyword }, controller.signal)
+      if (controller.signal.aborted) return
+      setSearchResults({ items: data.items, total: data.total })
+      setSearchError('')
+    } catch (error) {
+      if (controller.signal.aborted) return
+      setSearchError(error instanceof Error && error.message ? error.message : '候选搜索失败')
+    }
+  }, [])
+  useEffect(() => {
+    const keyword = query.trim()
+    if (!keyword) {
+      searchAbortRef.current?.abort()
+      setSearchResults(null)
+      setSearchError('')
+      return
+    }
+    const timer = window.setTimeout(() => { void runSearch(keyword) }, 300)
+    return () => window.clearTimeout(timer)
+  }, [query, runSearch])
+  const visibleCandidates = searchResults ? searchResults.items : candidates
+  const queueTotal = searchResults ? searchResults.total : candidatesTotal
+
   const selected = useMemo(
-    () => candidates.find((item) => item.taskId === selectedTaskId) ?? candidates[0] ?? null,
-    [candidates, selectedTaskId],
+    () => visibleCandidates.find((item) => item.taskId === selectedTaskId) ?? visibleCandidates[0] ?? null,
+    [visibleCandidates, selectedTaskId],
   )
   const evidence = selected?.evidence ?? []
-  const visibleCandidates = useMemo(() => {
-    const keyword = query.trim().toLowerCase()
-    if (!keyword) return candidates
-    return candidates.filter((item) =>
-      `${item.taskId}${item.identityA.name}${item.identityB.name}${item.ruleId}${item.identityA.cardNo}`.toLowerCase().includes(keyword))
-  }, [candidates, query])
   // 候选队列分页：复核是逐条深读操作，8 条一页足够定位。
   const QUEUE_PAGE_SIZE = 8
   const { page: queuePage, setPage: setQueuePage, paged: pagedCandidates, pageCount: queuePageCount } = usePaged(visibleCandidates, QUEUE_PAGE_SIZE)
 
   async function refreshAfterAction() {
-    const [metricsData, candidatesData] = await reload()
-    setMetrics(metricsData)
-    setCandidates(candidatesData.items)
-    setCandidatesTotal(candidatesData.total)
-    setSelectedTaskId(candidatesData.items[0]?.taskId ?? null)
+    const keyword = query.trim()
+    const [base, searched] = await Promise.all([
+      reload(),
+      keyword ? fetchMpiCandidates({ status: 'OPEN', size: 100, query: keyword }) : Promise.resolve(null),
+    ])
+    setMetrics(base[0])
+    setCandidates(base[1].items)
+    setCandidatesTotal(base[1].total)
+    if (searched) {
+      setSearchResults({ items: searched.items, total: searched.total })
+    }
+    // 决策后队列前进：选中态跟随当前可见列表（搜索态或全量装载）。
+    const nextVisible = searched ? searched.items : base[1].items
+    setSelectedTaskId(nextVisible[0]?.taskId ?? null)
     setConfirmed(false)
   }
 
@@ -163,7 +200,8 @@ export function MpiReviewLive({ onNotice }: { onNotice: (message: string) => voi
         <div className={`${styles.mpiWorkspace} ${local.workspace}`}>
           <Surface><aside className={styles.workspaceRail}>
             <div className={styles.sectionTitle}><h2>候选队列</h2><span>{metrics?.reviewPending ?? candidates.length} 待复核</span></div>
-            <div className={styles.search}><Search size={15} /><input value={query} onChange={(event) => { setQuery(event.target.value); setQueuePage(0) }} placeholder="姓名 / 卡号 / 规则" aria-label="搜索复核候选" /></div>
+            <div className={styles.search}><Search size={15} /><input value={query} onChange={(event) => { setQuery(event.target.value); setQueuePage(0) }} placeholder="姓名 / 卡号 / 规则（全队列检索）" aria-label="搜索复核候选" /></div>
+            {searchError ? <p className={styles.formError} role="alert">{searchError}</p> : null}
             <ul className={styles.queue}>
               {pagedCandidates.map((candidate) => (
                 <li key={candidate.taskId}>
@@ -176,9 +214,10 @@ export function MpiReviewLive({ onNotice }: { onNotice: (message: string) => voi
                   </button>
                 </li>
               ))}
-              {visibleCandidates.length === 0 ? <li className={styles.emptyState}>{query.trim() ? '未找到匹配候选，请调整搜索条件' : '当前没有待复核候选'}</li> : null}
+              {visibleCandidates.length === 0 ? <li className={styles.emptyState}>{query.trim() ? '全队列未找到匹配候选，请调整姓名 / 卡号 / 规则关键词' : '当前没有待复核候选'}</li> : null}
             </ul>
-            {candidatesTotal != null && candidatesTotal > candidates.length ? <div className={styles.emptyState}>已加载前 {candidates.length} 条（共 {candidatesTotal} 条待复核，处理后可载入更多）</div> : null}
+            {!query.trim() && queueTotal != null && queueTotal > visibleCandidates.length ? <div className={styles.emptyState}>已加载前 {visibleCandidates.length} 条（共 {queueTotal} 条待复核，处理后可载入更多；可用上方搜索定位）</div> : null}
+            {query.trim() && searchResults && searchResults.total > searchResults.items.length ? <div className={styles.emptyState}>命中 {searchResults.total} 条，已加载前 {searchResults.items.length} 条</div> : null}
             <Pager label="复核候选分页" page={queuePage} pageCount={queuePageCount} pageSize={QUEUE_PAGE_SIZE} onPageChange={setQueuePage} />
             <div className={styles.railActions}>
               <Button onClick={triggerRebuild} disabled={pendingKey !== null}><RefreshCw size={14} className={pendingKey === 'rebuild' ? styles.spin : undefined} />{pendingKey === 'rebuild' ? '重算中…' : '重算主索引'}</Button>

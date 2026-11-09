@@ -31,20 +31,35 @@ public class MpiReviewQueryService {
         this.doris = doris;
     }
 
-    /** 复核任务分页列表（status 默认 OPEN）。 */
-    public Map<String, Object> candidates(String tenantId, String status, int page, int size) {
+    /**
+     * 复核任务分页列表（status 默认 OPEN）。
+     * q 非空时按姓名/卡号/规则编号在双侧身份与匹配结果上服务端过滤——
+     * 队列按 size 截断装载，客户端过滤会对窗口外的候选给出假阴性
+     * （2026-11-09 走查 P1）。
+     */
+    public Map<String, Object> candidates(String tenantId, String status, String q, int page, int size) {
         var effectiveStatus = status == null || status.isBlank() ? "OPEN" : status.toUpperCase();
-        var total = pg.queryForObject("""
-                SELECT COUNT(*) FROM data_os_mpi.mpi_review_task
-                WHERE tenant_id = ? AND status = ?
-                """, Integer.class, tenantId, effectiveStatus);
+        var keyword = q == null ? "" : q.trim();
+        var matchedPairIds = keyword.isEmpty() ? null : matchingPairIds(tenantId, keyword);
+
+        var total = matchedPairIds == null
+                ? pg.queryForObject("""
+                        SELECT COUNT(*) FROM data_os_mpi.mpi_review_task
+                        WHERE tenant_id = ? AND status = ?
+                        """, Integer.class, tenantId, effectiveStatus)
+                : matchedPairIds.isEmpty() ? 0
+                : pg.queryForObject(countTasksInPairsSql(matchedPairIds.size()), totalArgs(tenantId, effectiveStatus, matchedPairIds), Integer.class);
         var offset = Math.max(0, page - 1) * size;
-        var tasks = pg.queryForList("""
-                SELECT id, pair_id, status, resolution, created_at, resolved_by, resolved_at
-                FROM data_os_mpi.mpi_review_task
-                WHERE tenant_id = ? AND status = ?
-                ORDER BY created_at ASC LIMIT ? OFFSET ?
-                """, tenantId, effectiveStatus, size, offset);
+        var tasks = matchedPairIds == null
+                ? pg.queryForList("""
+                        SELECT id, pair_id, status, resolution, created_at, resolved_by, resolved_at
+                        FROM data_os_mpi.mpi_review_task
+                        WHERE tenant_id = ? AND status = ?
+                        ORDER BY created_at ASC LIMIT ? OFFSET ?
+                        """, tenantId, effectiveStatus, size, offset)
+                : matchedPairIds.isEmpty()
+                        ? List.<Map<String, Object>>of()
+                        : pg.queryForList(pageTasksInPairsSql(matchedPairIds.size(), size, offset), pageArgs(tenantId, effectiveStatus, matchedPairIds));
 
         List<Map<String, Object>> items = new ArrayList<>();
         for (var task : tasks) {
@@ -67,7 +82,59 @@ public class MpiReviewQueryService {
                     "identityB", identityView(tenantId, String.valueOf(match.get("IDENTITY_B"))),
                     "evidence", String.valueOf(match.get("EVIDENCE"))));
         }
-        return Map.of("total", total == null ? 0 : total, "page", page, "size", size, "items", items);
+        return Map.of("total", total, "page", page, "size", size, "items", items);
+    }
+
+    /** 关键词在 Doris 侧命中的 pair（双侧姓名/卡号或规则编号包含匹配）。 */
+    private List<Long> matchingPairIds(String tenantId, String keyword) {
+        var like = "%" + keyword + "%";
+        var rows = doris.queryForList("""
+                SELECT DISTINCT p.pair_id
+                FROM dataos_mpi.mpi_candidate_pair p
+                JOIN dataos_mpi.mpi_match_result r
+                  ON r.tenant_id = p.tenant_id AND r.pair_id = p.pair_id
+                LEFT JOIN dataos_mpi.mpi_source_identity a
+                  ON a.tenant_id = p.tenant_id AND %s = p.identity_a
+                LEFT JOIN dataos_mpi.mpi_source_identity b
+                  ON b.tenant_id = p.tenant_id AND %s = p.identity_b
+                WHERE p.tenant_id = ?
+                  AND (r.rule_id LIKE ? OR a.name_norm LIKE ? OR a.card_no_norm LIKE ?
+                       OR b.name_norm LIKE ? OR b.card_no_norm LIKE ?)
+                """.formatted(SourceIdentity.sqlProjection("a"), SourceIdentity.sqlProjection("b")),
+                tenantId, like, like, like, like, like);
+        return rows.stream().map(row -> ((Number) row.get("PAIR_ID")).longValue()).toList();
+    }
+
+    private static String countTasksInPairsSql(int pairCount) {
+        return """
+                SELECT COUNT(*) FROM data_os_mpi.mpi_review_task
+                WHERE tenant_id = ? AND status = ? AND pair_id IN (%s)
+                """.formatted(placeholders(pairCount));
+    }
+
+    private static String pageTasksInPairsSql(int pairCount, int limit, int offset) {
+        return """
+                SELECT id, pair_id, status, resolution, created_at, resolved_by, resolved_at
+                FROM data_os_mpi.mpi_review_task
+                WHERE tenant_id = ? AND status = ? AND pair_id IN (%s)
+                ORDER BY created_at ASC LIMIT %d OFFSET %d
+                """.formatted(placeholders(pairCount), limit, offset);
+    }
+
+    private static Object[] totalArgs(String tenantId, String status, List<Long> pairIds) {
+        var args = new ArrayList<Object>();
+        args.add(tenantId);
+        args.add(status);
+        args.addAll(pairIds);
+        return args.toArray();
+    }
+
+    private static Object[] pageArgs(String tenantId, String status, List<Long> pairIds) {
+        return totalArgs(tenantId, status, pairIds);
+    }
+
+    private static String placeholders(int count) {
+        return String.join(",", java.util.Collections.nCopies(count, "?"));
     }
 
     /** Explain：任一 pair 的命中规则与逐字段证据（验收 #7）。 */

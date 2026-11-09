@@ -134,9 +134,10 @@ export async function fetchMpiMetrics(signal?: AbortSignal): Promise<MpiMetrics>
   return parseJsonOrThrow(await mpiFetch('/metrics', { signal }), 'MPI 指标读取失败') as Promise<MpiMetrics>
 }
 
-export async function fetchMpiCandidates(options: { status?: string; page?: number; size?: number } = {}, signal?: AbortSignal): Promise<MpiCandidatesResponse> {
+export async function fetchMpiCandidates(options: { status?: string; query?: string; page?: number; size?: number } = {}, signal?: AbortSignal): Promise<MpiCandidatesResponse> {
   const params = new URLSearchParams()
   params.set('status', options.status ?? 'OPEN')
+  if (options.query?.trim()) params.set('q', options.query.trim())
   params.set('page', String(options.page ?? 1))
   params.set('size', String(options.size ?? 50))
   const payload = await parseJsonOrThrow(

@@ -1,5 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { installBrowserApiStubs } from '../test-support/browser-apis'
 
 // 2026-11-09 走查 P1 回归锁：日期参数必须「输入即提交值」。
 // 旧实现用 DatePicker，手输日期未确认就点「按参数执行」时末字段值不随请求
@@ -41,40 +42,7 @@ import { AssistantLive } from './AssistantLive'
 afterEach(cleanup)
 
 beforeEach(() => {
-  if (!window.matchMedia) {
-    Object.defineProperty(window, 'matchMedia', {
-      writable: true,
-      value: (query: string) => ({ matches: false, media: query, addListener: () => {}, removeListener: () => {}, addEventListener: () => {}, removeEventListener: () => {}, dispatchEvent: () => false }),
-    })
-  }
-  if (!('ResizeObserver' in globalThis)) {
-    class ResizeObserverStub {
-      observe() {}
-      unobserve() {}
-      disconnect() {}
-    }
-    Object.defineProperty(globalThis, 'ResizeObserver', { writable: true, value: ResizeObserverStub })
-  }
-  if (!('IntersectionObserver' in globalThis)) {
-    class IntersectionObserverStub {
-      root = null
-      rootMargin = ''
-      thresholds = []
-      observe() {}
-      unobserve() {}
-      disconnect() {}
-      takeRecords() {
-        return []
-      }
-    }
-    Object.defineProperty(globalThis, 'IntersectionObserver', { writable: true, value: IntersectionObserverStub })
-  }
-  if (!HTMLElement.prototype.animate) {
-    Object.defineProperty(HTMLElement.prototype, 'animate', {
-      writable: true,
-      value: () => ({ finished: Promise.resolve(), cancel: () => {}, commit: () => {} }),
-    })
-  }
+  installBrowserApiStubs()
   vi.mocked(fetchAssistantQuestions).mockClear()
   vi.mocked(askAssistantQuery).mockClear()
 })
