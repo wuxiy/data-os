@@ -10,6 +10,7 @@ import {
   fetchLineageCatalog,
   fetchLineageGraph,
   fetchLineageSummary,
+  instanceServiceLabel,
   lineageNodeKindLabel,
   lineageSchemaLabel,
   shortNodeName,
@@ -189,7 +190,7 @@ export function AssetCatalogLive({ onNotice }: { onNotice: (message: string) => 
             </div>
           ) : null}
           <div className={styles.railHeader}>
-            <h2>{catalog.service} · {lineageSchemaLabel(catalog.schema)}</h2>
+            <h2>{instanceServiceLabel(catalog.service)} · {lineageSchemaLabel(catalog.schema)}</h2>
             <span className={styles.railCount}>{visible.length} 项</span>
           </div>
           <label className={styles.railSearch}>
@@ -229,7 +230,7 @@ export function AssetCatalogLive({ onNotice }: { onNotice: (message: string) => 
           {!selected ? <section className={local.statePanel}><h2>当前库暂无资产</h2><p>资产完成结构元数据摄取后，会在这里显示字段、质量与血缘证据。</p><Button onClick={() => setReloadTick((tick) => tick + 1)}>刷新资产目录</Button></section> : <>
           <div className={styles.assetToolbar}>
             <div className={styles.assetIdentity}>
-              <div className={styles.assetIdentityTop}><span className={styles.assetCode}>{catalog.service}</span><Tag color={TAG_COLOR.healthy}>元数据已摄取</Tag></div>
+              <div className={styles.assetIdentityTop}><span className={styles.assetCode}>{instanceServiceLabel(catalog.service)}</span><Tag color={TAG_COLOR.healthy}>元数据已摄取</Tag></div>
               <h2>{detail?.displayName || selected?.displayName || selected?.name || '—'}</h2>
               <p>{effectiveFqn || '—'}</p>
             </div>
@@ -304,7 +305,7 @@ export function AssetCatalogLive({ onNotice }: { onNotice: (message: string) => 
                     <span className={styles.lineageNodeIcon}><Table2 size={16} /></span>
                     <span>当前资产</span>
                     <strong>{selected?.name ?? effectiveFqn.split('.').pop()}</strong>
-                    <small>{catalog.service}</small>
+                    <small>{instanceServiceLabel(catalog.service)}</small>
                   </article>
                   {lineage.downstreams.map((node) => {
                     const Icon = nodeIcons[node.type] ?? nodeIcons.unknown
@@ -338,14 +339,14 @@ export function AssetCatalogLive({ onNotice }: { onNotice: (message: string) => 
           <div className={styles.evidenceHeader}><h2>资产证据</h2><Tag color={TAG_COLOR.healthy}>元数据中心</Tag></div>
           <div className={styles.evidenceBody}>
             <dl className={styles.evidenceDefinition}>
-              <div><dt>元数据服务</dt><dd>{catalog.service}</dd></div>
+              <div><dt>元数据服务</dt><dd>{instanceServiceLabel(catalog.service)}</dd></div>
               <div><dt>摄取范围</dt><dd>{schemas.map(lineageSchemaLabel).join('、')}（只读结构元数据，无数据采样）</dd></div>
               <div><dt>资产数量</dt><dd>{summary?.tableCount ?? assets.length} 表 · {summary?.columnCount ?? 0} 列</dd></div>
               <div><dt>读取时间</dt><dd>{formatDateTime(catalog.fetchedAt)}</dd></div>
             </dl>
             {summary && summary.dashboards.length > 0 ? (
               <section className={styles.evidenceSection}>
-                <h3>消费仪表盘（{summary.dashboardService}）</h3>
+                <h3>消费仪表盘（{instanceServiceLabel(summary.dashboardService)}）</h3>
                 <ul className={styles.relatedList}>
                   {summary.dashboards.map((dashboard) => <li key={dashboard.fullyQualifiedName}><ChartNoAxesCombined size={14} />{dashboard.displayName || dashboard.fullyQualifiedName}</li>)}
                 </ul>

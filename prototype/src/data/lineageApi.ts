@@ -122,6 +122,17 @@ export function shortNodeName(node: LineageNodeView): string {
   return parts.length > 1 ? parts.slice(1).join('.') : node.fullyQualifiedName
 }
 
+/** 实例名中文口径：业务视图不暴露底层引擎品牌（DESIGN.md 红线；
+ *  2026-11-09 走查 P2——资产页曾直出 doris-dataos / superset-dataos）。
+ *  已知实例映射为域内名称；未知实例按原样回显（技术域页面自行展示原始名）。 */
+export function instanceServiceLabel(service: string | null | undefined): string {
+  if (!service) return '—'
+  const normalized = service.trim().toLowerCase()
+  if (normalized.startsWith('doris')) return '数仓集群'
+  if (normalized.startsWith('superset')) return '分析看板实例'
+  return service
+}
+
 /** 节点类型中文口径（CONTEXT.md「血缘锚点」）。 */
 export const lineageNodeKindLabel: Record<LineageNodeView['type'], string> = {
   table: '数据表',

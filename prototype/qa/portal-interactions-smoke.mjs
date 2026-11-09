@@ -66,6 +66,11 @@ assert.match(quality, /提醒责任人/, '质量闭环责任人提醒必须是�
 // 技术域页面（平台运维、资产技术视图）按自身边界声明允许出现组件名，不在锁内。
 const assetsLive = read('src/pages/AssetCatalogLive.tsx')
 assert.doesNotMatch(assetsLive, /OpenMetadata/, '资产目录业务视图不得暴露元数据引擎名（DESIGN.md 红线）')
+// 实例名锁（2026-11-09 走查 P2）：渲染处不得直出原始实例名（doris-dataos /
+// superset-dataos 等小写实例名曾绕过上面的大小写敏感锁直出业务视图），
+// 须走 lineageApi.instanceServiceLabel 中文口径；源码注释与技术域页面不在锁内。
+assert.doesNotMatch(assetsLive, />\{catalog\.service\}|（\{summary\.dashboardService\}）/, '资产目录业务视图不得直出实例原始名（须 instanceServiceLabel 映射）')
+assert.match(assetsLive, /instanceServiceLabel\(/, '资产目录实例名必须经中文口径映射')
 const analyticsLive = read('src/pages/AnalyticsLive.tsx')
 assert.doesNotMatch(analyticsLive, /Superset/, '分析看板业务视图不得暴露分析引擎品牌（DESIGN.md 红线；包名/标识符为小写不受影响）')
 const aiDetail = read('src/pages/AIDataDetailPage.tsx')
