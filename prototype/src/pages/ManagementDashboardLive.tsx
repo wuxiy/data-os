@@ -9,9 +9,12 @@ import { formatDateTime } from '../data/domain'
 import { MetricStrip } from '../components/ui/Primitives'
 import type { Metric, Tone } from '../types'
 import {
+  EVENT_DOMAIN_LABEL,
+  EVENT_TYPE_LABEL,
   fetchOperationsEvents,
   fetchOperationsSummary,
   fetchWorkItems,
+  WORK_ITEM_SOURCE_LABEL,
   type OperationsEventItem,
   type OperationsSummary,
   type OperationsWorkItem,
@@ -122,7 +125,7 @@ export function ManagementDashboardLive(
       title: '来源',
       key: 'source',
       width: 200,
-      render: (_, item) => <code className={styles.inlineCode}>{item.sourceType}:{item.sourceId.slice(0, 12)}</code>,
+      render: (_, item) => <code className={styles.inlineCode}>{WORK_ITEM_SOURCE_LABEL[item.sourceType] ?? item.sourceType}</code>,
     },
     {
       title: '更新时间',
@@ -220,7 +223,7 @@ export function ManagementDashboardLive(
               {eventsState === 'unavailable' ? <li className={pageStyles.eventUnavailable}><strong>事件暂不可用</strong><p>无法读取近期事件，可重新加载。</p><Button size="small" onClick={() => setReloadKey((key) => key + 1)}>重新加载</Button></li> : null}
               {events.slice(0, 10).map((event, index) => (
                 <li key={`${event.domain}-${index}`}>
-                  <div className={styles.timelineTitle}><strong>{event.domain} · {event.type}</strong><span>{formatDateTime(event.asOf)}</span></div>
+                  <div className={styles.timelineTitle}><strong>{EVENT_DOMAIN_LABEL[event.domain] ?? event.domain} · {EVENT_TYPE_LABEL[event.type] ?? event.type}</strong><span>{formatDateTime(event.asOf)}</span></div>
                   <p>{event.detail}</p>
                 </li>
               ))}

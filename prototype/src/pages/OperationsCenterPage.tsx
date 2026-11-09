@@ -7,9 +7,12 @@ import type { ColumnsType } from 'antd/es/table'
 import { DemoDataBoundary } from '../components/ui/DemoDataBoundary'
 import { PageHeader } from '../components/ui/PageHeader'
 import {
+  EVENT_DOMAIN_LABEL,
+  EVENT_TYPE_LABEL,
   fetchOperationsEvents,
   fetchOperationsSummary,
   fetchWorkItems,
+  WORK_ITEM_SOURCE_LABEL,
   WORK_ITEM_TYPES,
   type OperationsEventItem,
   type OperationsSummary,
@@ -66,17 +69,6 @@ const SEVERITY_LABEL: Record<string, string> = {
   HIGH: '高',
   MEDIUM: '中',
   LOW: '低',
-}
-
-/** 来源域中文名（对齐控制面 OperationsProjection 的 sourceType）；uuid 片段不展示。 */
-const SOURCE_TYPE_LABEL: Record<string, string> = {
-  run: '数据接入',
-  issue: '治理问题',
-  notification: '通知投递',
-  delivery: '合同投递',
-  dataService: '数据服务',
-  aiBuildJob: 'AI 构建',
-  mpiMetrics: '患者主索引',
 }
 
 const WORK_ITEM_PAGE_SIZE = 12
@@ -151,7 +143,7 @@ function OperationsCenterLive(
       render: (_, item) => <Tag color={SEVERITY_COLOR[severityTone(item.severity)]}>{SEVERITY_LABEL[item.severity] ?? item.severity}</Tag>,
     },
     { title: '待办', key: 'title', render: (_, item) => item.title },
-    { title: '来源', key: 'source', width: 104, render: (_, item) => SOURCE_TYPE_LABEL[item.sourceType] ?? item.sourceType },
+    { title: '来源', key: 'source', width: 104, render: (_, item) => WORK_ITEM_SOURCE_LABEL[item.sourceType] ?? item.sourceType },
     {
       title: '更新时间',
       key: 'asOf',
@@ -258,7 +250,7 @@ function OperationsCenterLive(
               {eventsState === 'live' && events.length === 0 ? <li className={styles.emptyState}>近 48 小时无跨域事件。</li> : null}
               {events.map((event, index) => (
                 <li key={`${event.domain}-${index}`}>
-                  <div className={styles.timelineTitle}><strong>{event.domain} · {event.type}</strong><span>{formatDateTime(event.asOf)}</span></div>
+                  <div className={styles.timelineTitle}><strong>{EVENT_DOMAIN_LABEL[event.domain] ?? event.domain} · {EVENT_TYPE_LABEL[event.type] ?? event.type}</strong><span>{formatDateTime(event.asOf)}</span></div>
                   <p>{event.detail}</p>
                 </li>
               ))}
