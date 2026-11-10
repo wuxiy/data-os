@@ -25,7 +25,9 @@ document.documentElement.style.fontFamily = visualTokens.font
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ConfigProvider locale={zhCN} theme={dataOsTheme}>
+    {/* 两字中文按钮不自动插空格（「取消」「下线」），与自研按钮文案口径一致
+        （2026-11-09 走查 P3：antd 默认在两汉字间插全角空格，同屏两种按钮体系字距不一致）。 */}
+    <ConfigProvider locale={zhCN} theme={dataOsTheme} button={{ autoInsertSpace: false }}>
       <AntdApp>
         <App />
       </AntdApp>
