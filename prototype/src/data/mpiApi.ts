@@ -73,6 +73,32 @@ export const mpiEvidenceFieldLabel: Record<string, string> = {
   v2Score: 'V2 影子评分',
 }
 
+/** 证据值中文口径：联系方式一致性占位（SAME/DIFF，B6 收紧后不回显原文）
+ *  与影子引擎三态不直出英文枚举（2026-11-09 走查 P3）。 */
+export const mpiEvidenceValueLabel: Record<string, string> = {
+  SAME: '相同',
+  DIFF: '不同',
+  AUTO_MATCH: '自动匹配',
+  REVIEW: '待复核',
+  NO_MATCH: '不匹配（否决）',
+}
+
+/** 证据行展示文案：占位一致性折叠为单值，影子评分说明「与生产判定」的
+ *  一致口径，普通字段保持「A / B 一致/不一致」。 */
+export function mpiEvidenceLine(item: MpiEvidenceItem): string {
+  const field = mpiEvidenceFieldLabel[item.field] ?? item.field
+  const valueLabel = (value: string) => mpiEvidenceValueLabel[value] ?? value
+  // 联系方式：valueA/valueB 是同一占位（SAME/DIFF），只展示一次。
+  if (item.field === 'contact' && item.valueA === item.valueB && item.valueA in mpiEvidenceValueLabel) {
+    return `${field}：${valueLabel(item.valueA)}`
+  }
+  // 影子评分：valueA=分数、valueB=影子三态、match=与生产判定是否同判。
+  if (item.field === 'v2Score') {
+    return `${field}：${item.valueA || '—'} · 影子判定 ${item.valueB ? valueLabel(item.valueB) : '—'}（与生产判定${item.match ? '一致' : '不一致'}）`
+  }
+  return `${field}：${item.valueA || '—'} / ${item.valueB || '—'} ${item.match ? '一致' : '不一致'}`
+}
+
 export interface MpiCandidatesResponse {
   total: number
   page: number

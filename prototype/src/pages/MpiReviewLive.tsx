@@ -9,7 +9,7 @@ import {
   fetchMpiCandidates,
   fetchMpiMetrics,
   fetchMpiPerson,
-  mpiEvidenceFieldLabel,
+  mpiEvidenceLine,
   mpiRuleLabel,
   rebuildMpi,
   splitMpiPerson,
@@ -249,7 +249,7 @@ export function MpiReviewLive({ onNotice }: { onNotice: (message: string) => voi
                       {evidence.map((item) => (
                         <li key={item.field} className={item.match ? undefined : local.evidenceConflict}>
                           {item.match ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
-                          {mpiEvidenceFieldLabel[item.field] ?? item.field}：{item.valueA ?? '—'} / {item.valueB ?? '—'} {item.match ? '一致' : '不一致'}
+                          {mpiEvidenceLine(item)}
                         </li>
                       ))}
                     </ul>
