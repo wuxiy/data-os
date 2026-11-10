@@ -739,9 +739,18 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
         const canStart = job.status !== 'PAUSED' && job.status !== 'ARCHIVED'
         return (
           <div className={styles.tableActions}>
-            <Button size="small" disabled={runningJob === job.id || activeRun || !canStart} onClick={() => job.configured ? void runJob(job) : void openJobConfig(job)}>
-              <Play size={13} />{runningJob === job.id ? '处理中…' : activeRun ? '已有运行' : !canStart ? '已暂停' : job.configured ? '启动' : '配置后运行'}
-            </Button>
+            {/* 主操作位必须是可执行动作：暂停任务的恢复动作（启用）直接占位，
+                归档任务无动作则显示状态标签——不再用禁用按钮冒充状态
+                （2026-11-09 走查 P3）。 */}
+            {job.status === 'PAUSED' ? (
+              <Button size="small" disabled={runningJob === job.id} onClick={() => void changeJobStatus(job, 'ACTIVE')}><Play size={13} />启用</Button>
+            ) : job.status === 'ARCHIVED' ? (
+              <Tag color={TONE_COLOR.neutral}>已归档</Tag>
+            ) : (
+              <Button size="small" disabled={runningJob === job.id || activeRun} onClick={() => job.configured ? void runJob(job) : void openJobConfig(job)}>
+                <Play size={13} />{runningJob === job.id ? '处理中…' : activeRun ? '已有运行' : job.configured ? '启动' : '配置后运行'}
+              </Button>
+            )}
             {canRetry ? <Button size="small" disabled={runningJob === job.id || !canStart || activeRun} onClick={() => run && void retryRun(job, run)}><RotateCcw size={13} />重试</Button> : null}
             <Button size="small" onClick={() => void openJobConfig(job)}><Settings2 size={13} />配置</Button>
             <Button size="small" onClick={() => openRunDetails(job)}><Clock3 size={13} />详情</Button>
@@ -819,18 +828,15 @@ export function DataIngestionPage({ onNotice, onUnavailable, onNavigate }: Props
           <Table<IngestionJobApiItem>
             rowKey="id"
             columns={jobColumns}
-            dataSource={visibleJobs}
+            dataSource={visibleJobs.slice(jobsCurrentPage * JOBS_PAGE_SIZE, (jobsCurrentPage + 1) * JOBS_PAGE_SIZE)}
             loading={state === 'loading'}
             scroll={{ x: 950 }}
-            pagination={{
-              current: jobsCurrentPage + 1,
-              pageSize: JOBS_PAGE_SIZE,
-              total: visibleJobs.length,
-              showSizeChanger: false,
-              onChange: (page) => setJobsPage(page - 1),
-            }}
+            pagination={false}
             locale={{ emptyText: state === 'loading' ? '正在读取采集任务…' : state === 'live' ? '暂无采集任务，先登记数据源再新建任务。' : '采集任务暂不可用，请重新连接控制面。' }}
           />
+          {/* 分页与上方数据源列表同用自研 Pager：同屏单一分页交互体系
+              （2026-11-09 走查 P3，原先同页并存 antd 表格分页）。 */}
+          <Pager inset label="采集任务分页" page={jobsCurrentPage} pageCount={jobsPageCount} pageSize={JOBS_PAGE_SIZE} onPageChange={setJobsPage} />
         </section></Surface>
       </div>
 
