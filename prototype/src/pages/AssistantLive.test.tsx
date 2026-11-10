@@ -17,7 +17,8 @@ vi.mock('../data/assistantApi', async () => {
         aliases: [],
         paramSchema: [
           { name: 'start_date', type: 'date', required: true, description: '开始日期' },
-          { name: 'end_date', type: 'date', required: true, description: '结束日期' },
+          // 未带 description：走常见参数名兜底映射（dev 真实问题即此形态）。
+          { name: 'end_date', type: 'date', required: true },
         ],
         serviceCode: 'medicine-record-daily',
       },
@@ -69,7 +70,7 @@ describe('AssistantLive 参数表单', () => {
     })
   })
 
-  it('参数标签优先使用中文说明，未提供说明时回退参数名', async () => {
+  it('参数标签优先中文说明；无说明时按常见参数名兜底映射', async () => {
     render(<AssistantLive onNotice={vi.fn()} />)
     fireEvent.click(await screen.findByText('查询每天的用药记录量'))
     expect(await screen.findByLabelText('开始日期')).toBeTruthy()

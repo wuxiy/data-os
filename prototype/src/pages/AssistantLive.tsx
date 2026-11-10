@@ -7,6 +7,7 @@ import type { ColumnsType } from 'antd/es/table'
 import { PageHeader } from '../components/ui/PageHeader'
 import {
   askAssistantQuery,
+  assistantParamLabel,
   fetchAssistantQuestions,
   REFUSAL_LABEL,
   submitAssistantFeedback,
@@ -199,12 +200,12 @@ export function AssistantLive({ onNotice, professional = false, governance = fal
             >
               {selected.paramSchema.map((contract) => (
                 <Form.Item key={contract.name} className={styles.assistantParamField}
-                  label={<>{contract.description || contract.name}{contract.required ? ' *' : ''}</>}>
+                  label={<>{assistantParamLabel(contract.name, contract.description)}{contract.required ? ' *' : ''}</>}>
                   {/* 日期参数用受控原生日期输入：输入即提交值，避免日期选择器
                       「已输入未确认」时点执行导致参数丢失被判必填（2026-11-09 走查 P1）。 */}
                   {contract.type === 'date'
                     ? <Input type="date" value={params[contract.name] ?? ''}
-                        aria-label={contract.description || contract.name}
+                        aria-label={assistantParamLabel(contract.name, contract.description)}
                         onChange={(event) => setParams({ ...params, [contract.name]: event.target.value })} />
                     : contract.type === 'boolean'
                       ? <Select value={params[contract.name] ?? ''}
@@ -216,7 +217,7 @@ export function AssistantLive({ onNotice, professional = false, governance = fal
                             options={[{ value: '', label: '请选择' }, ...(contract.values ?? []).map((value) => ({ value, label: value }))]} />
                         : <Input type={contract.type === 'number' ? 'number' : 'text'} value={params[contract.name] ?? ''}
                             placeholder={contract.description ?? contract.name}
-                            aria-label={contract.description || contract.name}
+                            aria-label={assistantParamLabel(contract.name, contract.description)}
                             onChange={(event) => setParams({ ...params, [contract.name]: event.target.value })} />}
                 </Form.Item>
               ))}

@@ -15,6 +15,21 @@ export interface AssistantParamContract {
   description?: string
 }
 
+/** 常见日期参数名兜底中文（2026-11-09 走查 P3）：已发布问题未带
+ *  description 时标签不直出 start_date 等英文参数名；未收录名原样回显。 */
+export const ASSISTANT_PARAM_NAME_LABEL: Record<string, string> = {
+  begin_date: '开始日期',
+  start_date: '开始日期',
+  from_date: '开始日期',
+  end_date: '结束日期',
+  to_date: '结束日期',
+}
+
+/** 参数标签口径：description 优先，其次常见名兜底，最后参数名原样。 */
+export function assistantParamLabel(name: string, description?: string): string {
+  return description?.trim() || ASSISTANT_PARAM_NAME_LABEL[name] || name
+}
+
 export interface AssistantQuestionView {
   code: string
   question: string

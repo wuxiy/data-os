@@ -4,6 +4,7 @@ import { Button, Drawer, Form, Input, Select, Table, Tag } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { Pager } from '../components/ui/Pager'
 import {
+  assistantParamLabel,
   assistantQuestionAction,
   AUDIT_OUTCOME_OPTIONS,
   deleteAssistantQuestion,
@@ -496,16 +497,16 @@ export function AssistantGovernance({ onNotice, onQuestionsChanged }: {
             <div className={styles.assistantParamBar}>
               {testTarget ? paramRowsOf(testTarget).map((contract) => (
                 <Form.Item key={contract.name} className={styles.assistantParamField}
-                  label={<>{contract.name}{contract.required ? ' *' : ''}</>}>
+                  label={<>{assistantParamLabel(contract.name)}{contract.required ? ' *' : ''}</>}>
                   {/* 与问数页同源修复：受控原生日期输入，输入即提交值（2026-11-09 走查 P1）。 */}
                   {contract.type === 'date'
                     ? <Input type="date" value={testParams[contract.name] ?? ''}
-                        aria-label={contract.name}
+                        aria-label={assistantParamLabel(contract.name)}
                         onChange={(event) => setTestParams({ ...testParams, [contract.name]: event.target.value })} />
                     : <Input
                         type={contract.type === 'number' ? 'number' : 'text'}
                         value={testParams[contract.name] ?? ''}
-                        aria-label={contract.name}
+                        aria-label={assistantParamLabel(contract.name)}
                         onChange={(event) => setTestParams({ ...testParams, [contract.name]: event.target.value })} />}
                 </Form.Item>
               )) : null}
