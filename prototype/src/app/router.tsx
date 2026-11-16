@@ -2,6 +2,11 @@ import { Link, Outlet, createRootRoute, createRoute, createRouter, useRouter } f
 import { TriangleAlert } from 'lucide-react'
 import { EmptyState } from '../components/ui/states'
 import { Button } from '../components/ui/button'
+import { OverviewPage } from '../features/overview/overview-page'
+import { IngestionPage } from '../features/ingestion/ingestion-page'
+import { JobEditorPage } from '../features/ingestion/job-editor-page'
+import { JobDetailPage } from '../features/ingestion/job-detail-page'
+import { SourceExplorerPage } from '../features/ingestion/source-explorer-page'
 import { AppShell } from './shell/app-shell'
 import { LegacyPortalPage } from './legacy/legacy-page'
 
@@ -76,8 +81,42 @@ function legacy(path: string, key: LegacyKey, validateSearch?: (search: Record<s
   })
 }
 
-const indexRoute = legacy('/', 'management')
-const ingestionRoute = legacy('/ingestion', 'ingestion')
+const indexRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/',
+  component: OverviewPage,
+})
+const ingestionRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/ingestion',
+  component: IngestionPage,
+})
+const ingestionNewRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/ingestion/new',
+  component: () => <JobEditorPage />,
+})
+const ingestionSourceExplorerRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/ingestion/sources/$sourceId/explorer',
+  component: IngestionSourceExplorerRouteComponent,
+})
+const ingestionJobRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/ingestion/jobs/$jobId',
+  validateSearch: (search: Record<string, unknown>) => ({ tab: optString(search.tab) }),
+  component: IngestionJobRouteComponent,
+})
+
+function IngestionSourceExplorerRouteComponent() {
+  const { sourceId } = ingestionSourceExplorerRoute.useParams()
+  return <SourceExplorerPage sourceId={sourceId} />
+}
+
+function IngestionJobRouteComponent() {
+  const { jobId } = ingestionJobRoute.useParams()
+  return <JobDetailPage jobId={jobId} />
+}
 const governanceRoute = legacy('/governance', 'governance')
 const standardsRoute = legacy('/governance/standards', 'standards')
 const mappingRoute = legacy('/governance/mapping', 'mapping')
@@ -97,6 +136,9 @@ const operationsRoute = legacy('/operations', 'operations')
 const routeTree = rootRoute.addChildren([
   indexRoute,
   ingestionRoute,
+  ingestionNewRoute,
+  ingestionSourceExplorerRoute,
+  ingestionJobRoute,
   governanceRoute,
   standardsRoute,
   mappingRoute,

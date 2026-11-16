@@ -40,7 +40,9 @@ assert.match(assets, /target="_blank"/, '打开技术视图必须产生新标签
 assert.match(assets, /routePaths\.assetTechnical/, '打开技术视图必须指向真实深链')
 assert.match(assistant, /target="_blank"/, '进入专业工作区必须产生新标签页')
 assert.match(assistant, /routePaths\.assistantWorkspace/, '进入专业工作区必须指向真实深链')
-assert.match(ingestion, /<details className=\{styles\.configDetails\} open>/, '采集配置 JSON 必须默认展开')
+// FE2 锁迁移：采集页迁到 features/ingestion；JSON 默认展开的不变量随编辑器迁移。
+assert.match(read('src/features/ingestion/job-editor-page.tsx'), /<details open/, '采集配置 JSON 默认展开（details open）')
+assert.match(read('src/features/ingestion/job-editor-page.tsx'), /默认展开 · 可编辑/, '采集配置 JSON 必须标注默认展开可编辑')
 assert.match(controlPlane, /fetchGovernanceIssues/, '质量闭环必须调用治理问题查询 API')
 assert.match(controlPlane, /requestGovernanceIssueRecheck/, '质量闭环必须调用治理问题复检 API')
 assert.match(controlPlane, /syncGovernanceIssueRun/, '质量闭环必须支持同步质量执行批次')

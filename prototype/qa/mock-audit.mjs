@@ -5,8 +5,9 @@ import { resolve } from 'node:path'
 const root = resolve(new URL('..', import.meta.url).pathname)
 const src = (path) => readFileSync(resolve(root, path), 'utf8')
 
+// FE2 起逐域迁移：迁移后的页面要么读真实 API，要么显式演示；不再需要 DemoDataBoundary
+// 兜底，因此从本清单移除，改由下方「迁移页不得引用演示数据」锁覆盖。
 const staticPages = [
-  'src/pages/ManagementDashboardPage.tsx',
   'src/pages/DataStandardsPage.tsx',
   'src/pages/StandardMappingPage.tsx',
   'src/pages/MpiReviewPage.tsx',
@@ -30,9 +31,10 @@ assert.match(src('src/data/runtimeMode.ts'), /frontendDemoMode && apiState === '
 
 // G22/G24 接真锁：标准中心与管理驾驶舱在真实构建必须切到 Live 组件（不再只显示「暂未接入」）
 assert.match(src('src/pages/DataStandardsPage.tsx'), /frontendDemoMode[\s\S]*DataStandardsLive/, '数据标准页真实构建必须渲染 DataStandardsLive')
-assert.match(src('src/pages/ManagementDashboardPage.tsx'), /frontendDemoMode[\s\S]*ManagementDashboardLive/, '管理驾驶舱真实构建必须渲染 ManagementDashboardLive')
-assert.match(src('src/pages/ManagementDashboardLive.tsx'), /fetchOperationsSummary/, '管理驾驶舱必须读取运营投影摘要')
-assert.doesNotMatch(src('src/pages/ManagementDashboardLive.tsx'), /managementMetrics|riskRanking/, '管理驾驶舱真实页不得读取静态事实')
+// FE2 锁迁移：总览已由 features/overview 承担，旧 Page+Live 双件退役（文件保留到 FE7）。
+assert.match(src('src/features/overview/queries.ts'), /fetchOperationsSummary/, '总览必须读取运营投影摘要（原锁在 ManagementDashboardLive）')
+assert.match(src('src/features/overview/overview-page.tsx'), /operationsSummaryQuery/, '总览必须经 Query 层读取运营投影')
+assert.doesNotMatch(src('src/features/overview/overview-page.tsx'), /managementMetrics|riskRanking/, '总览不得读取静态事实')
 assert.match(src('src/pages/DataStandardsLive.tsx'), /fetchStandards/, '数据标准真实页必须读取标准 API')
 assert.match(src('src/pages/OperationsCenterPage.tsx'), /fetchWorkItems/, '运营中心必须读取运营待办投影')
 assert.match(src('src/components/ui/RuntimeStatusBanner.tsx'), /组件就绪/, '运行状态横幅必须显示组件覆盖数')
@@ -75,9 +77,22 @@ assert.match(src('src/pages/AssistantGovernance.tsx'), /fetchAssistantAudits|dow
 assert.match(src('src/pages/AssistantGovernance.tsx'), /Pager/, '治理列表与审计面必须分页（usePaged+Pager 先例）')
 assert.doesNotMatch(src('src/pages/AssistantGovernance.tsx'), /assistantScenarios/, '治理面不得使用演示场景数据')
 
-const ingestion = src('src/pages/DataIngestionPage.tsx')
-assert.match(ingestion, /真实模式不允许使用 FakeSource 演示模板/, '真实模式不得保存 FakeSource 演示采集模板')
-assert.match(ingestion, /defaultTemplateKey\(DEFAULT_TEMPLATE_KEY, LIVE_TEMPLATE_KEY\)/, '采集任务默认模板必须随运行模式切换')
+// FE2 锁迁移：接入域已迁到 features/ingestion，两条不变量随实现迁移。
+const ingestionEditor = src('src/features/ingestion/job-editor-page.tsx')
+assert.match(ingestionEditor, /真实模式不允许使用 FakeSource 演示模板/, '真实模式不得保存 FakeSource 演示采集模板')
+assert.match(src('src/features/ingestion/labels.ts'), /defaultTemplateKey\(DEFAULT_TEMPLATE_KEY, LIVE_TEMPLATE_KEY\)/, '采集任务默认模板必须随运行模式切换')
+
+// 迁移页不得把演示/静态数据带回真实路径（计划 §1 完成定义 3）。
+for (const page of [
+  'src/features/overview/overview-page.tsx',
+  'src/features/ingestion/ingestion-page.tsx',
+  'src/features/ingestion/job-editor-page.tsx',
+  'src/features/ingestion/job-detail-page.tsx',
+  'src/features/ingestion/source-explorer-page.tsx',
+]) {
+  assert.doesNotMatch(src(page), /from ['"][^'"]*data\/mock['"]/, `${page} 不得引用演示数据`)
+  assert.doesNotMatch(src(page), /assistantScenarios|managementMetrics/, `${page} 不得引用旧静态样例`)
+}
 
 const runtime = src('src/data/runtimeMode.ts')
 assert.match(runtime, /VITE_DATAOS_DEMO_MODE/, '前端演示模式必须通过显式构建变量启用')

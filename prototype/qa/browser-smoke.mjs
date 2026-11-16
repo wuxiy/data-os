@@ -136,6 +136,37 @@ try {
   await page.waitForTimeout(500)
   record((await page.locator('main').textContent())?.includes('页面不存在') ?? false, '未知路径必须显示「页面不存在」而不是静默首页')
   record((await page.title()).includes('医数中枢'), '未知路径仍保留站点标题')
+
+  /* FE2 业务流（需要 mock 控制面）：短表单登记、调度预览、库表浏览。 */
+  if (args.includes('--flows')) {
+    await page.goto(`${base}/ingestion`, { waitUntil: 'domcontentloaded' })
+    await page.waitForTimeout(400)
+    await page.getByRole('button', { name: '登记数据源' }).click()
+    const dialog = page.getByRole('dialog')
+    await dialog.waitFor({ timeout: 5000 })
+    await dialog.getByLabel('来源名称').fill('QA 登记来源')
+    await dialog.getByRole('button', { name: '登记来源' }).click()
+    await page.waitForTimeout(600)
+    record((await page.locator('body').textContent())?.includes('数据源已登记') ?? false, '登记数据源后必须出现可见回执')
+    record(await dialog.isHidden(), '登记成功后短表单应关闭')
+    await page.getByRole('tab', { name: /数据源/ }).click()
+    await page.waitForTimeout(300)
+    record((await page.locator('main').textContent())?.includes('QA 登记来源') ?? false, '新登记的数据源必须出现在列表')
+
+    await page.goto(`${base}/ingestion/jobs/job-ds-workflow-004?tab=scheduling`, { waitUntil: 'domcontentloaded' })
+    await page.waitForTimeout(600)
+    await page.getByRole('button', { name: '预览触发时间' }).click()
+    await page.waitForTimeout(500)
+    record((await page.locator('main').textContent())?.includes('平台调度引擎计算') ?? false, '调度预览必须显示计算来源')
+
+    await page.goto(`${base}/ingestion/sources/src-lis-001/explorer`, { waitUntil: 'domcontentloaded' })
+    await page.waitForTimeout(600)
+    await page.getByRole('button', { name: /lis_db/ }).click()
+    await page.waitForTimeout(400)
+    await page.getByRole('button', { name: /lab_result/ }).click()
+    await page.waitForTimeout(500)
+    record((await page.locator('main').textContent())?.includes('result_id') ?? false, '库表浏览必须渲染字段清单')
+  }
 } finally {
   await browser.close()
   server?.kill('SIGTERM')

@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { routeForPath } from '../navigation'
 
+/** 页签按 pathname 去重：同一任务的概览/配置/调度属于同一页签，只更新 search。 */
+const pathnameOf = (path: string) => path.split('?')[0]
+
 const STORAGE_KEY = 'dataos.portal.tabs'
 const HOME = '/'
 
@@ -25,7 +28,14 @@ export function useVisitedTabs(pathname: string) {
   const [tabs, setTabs] = useState<string[]>(readTabs)
 
   useEffect(() => {
-    setTabs((current) => (current.includes(pathname) ? current : [...current, pathname]))
+    setTabs((current) => {
+      const index = current.findIndex((path) => pathnameOf(path) === pathnameOf(pathname))
+      if (index === -1) return [...current, pathname]
+      if (current[index] === pathname) return current
+      const next = [...current]
+      next[index] = pathname
+      return next
+    })
   }, [pathname])
 
   useEffect(() => {
@@ -37,15 +47,22 @@ export function useVisitedTabs(pathname: string) {
   }, [tabs])
 
   const closeTab = useCallback((path: string) => {
-    setTabs((current) => current.filter((item) => item !== path || item === HOME))
+    setTabs((current) => current.filter((item) => item !== path || pathnameOf(item) === HOME))
   }, [])
 
   return {
-    tabs: tabs.map((path) => ({
-      path,
-      label: routeForPath(path)?.tabLabel ?? routeForPath(path)?.label ?? '工作区',
-      closable: path !== HOME,
-    })),
+    tabs: tabs.map((path) => {
+      const pathname = pathnameOf(path)
+      const route = routeForPath(pathname)
+      const base = route?.tabLabel ?? route?.label ?? '工作区'
+      // 同一模式打开多个对象时用对象键短号区分页签（如两个采集任务）。
+      const objectKey = route?.pattern ? pathname.split('/').filter(Boolean).at(-1) : undefined
+      return {
+        path,
+        label: objectKey ? `${base} · ${objectKey.slice(0, 8)}` : base,
+        closable: pathname !== HOME,
+      }
+    }),
     closeTab,
   }
 }
