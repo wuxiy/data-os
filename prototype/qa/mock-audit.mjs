@@ -101,7 +101,9 @@ assert.match(runtime, /VITE_DATAOS_DEMO_MODE/, '前端演示模式必须通过�
 assert.match(src('src/data/controlPlane.ts'), /fetchRuntimeStatus/, '门户必须读取控制面运行状态')
 assert.match(src('src/components/ui/RuntimeStatusBanner.tsx'), /演示运行模式/, '门户必须展示当前运行模式')
 assert.match(src('src/components/ui/RuntimeStatusBanner.tsx'), /真实运行模式/, '门户必须展示真实运行模式')
-assert.match(src('src/components/ui/DemoDataBoundary.tsx'), /不写入控制面/, '演示模式必须明确动作不会产生真实业务副作用')
+// FE7 锁迁移：DemoDataBoundary 随最后一个演示页退役；演示副作用口径由运行模式模块持有。
+assert.match(src('src/data/runtimeMode.ts'), /演示数据是构建期显式开关/, '演示模式必须是显式构建开关')
+assert.match(src('src/features/ingestion/job-editor-page.tsx'), /FakeSource/, '演示模板口径仍在接入编辑器中显式声明')
 assert.match(src('src/data/controlPlane.ts'), /confirmIngestionRunAbsent/, '采集 UNKNOWN 必须有人工确认不存在接口')
 
 // 2026-10-05 复评收口锁（P1-1 + 责任链 v1）：驾驶舱首屏叙事——待办先行、
@@ -112,4 +114,8 @@ assert.doesNotMatch(dashboardPage, /责任链详情待接入真实溯源服务/,
 assert.ok(dashboardPage.indexOf('治理待办') < dashboardPage.indexOf('<QualityScorePanel'), '驾驶舱待办表必须先于质量评分渲染（首屏叙事）')
 assert.match(src('src/features/governance/quality-score-panel.tsx'), /rules\.every\(\(rule\) => rule\.score == null\)/, '质量评分无带评分规则时必须收成一行空态')
 
-console.log('mock audit passed: 17 routes on feature pages, governance fallback removed, runtime mode visible')
+// FE7 新锁：生产依赖不得再包含 antd；正式源码零 antd 引用。
+const pkg = JSON.parse(src('package.json'))
+assert.ok(!('antd' in (pkg.dependencies ?? {})), '生产依赖不得再包含 antd（FE7 完成定义）')
+assert.doesNotMatch(src('src/main.tsx'), /from 'antd/, '入口不得加载旧组件库')
+console.log('mock audit passed: 17 routes on feature pages, antd-free, governance fallback removed, runtime mode visible')

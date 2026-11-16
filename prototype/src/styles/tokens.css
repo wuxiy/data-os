@@ -1,8 +1,7 @@
 /*
- * 新主题唯一来源（FE1）：批准原型 v0.2 的浅色蓝灰令牌。
- * Tailwind 4 官方拆分导入——迁移期刻意不导入 preflight，旧 antd 页面的
- * 元素默认样式仍由 styles/legacy.css 在 legacy 根内提供；FE7 收口时再评估
- * 是否引入受控的基础层。任何新色值先进本文件，不在组件里散落裸色。
+ * 新主题唯一来源：批准原型 v0.2 的浅色蓝灰令牌（FE7 起全站唯一主题）。
+ * Tailwind 4 官方拆分导入——不导入 preflight；基础元素样式由本文件的 base 层
+ * 显式提供（收口后的唯一主题）。任何新色值先进本文件，不在组件里散落裸色。
  */
 @layer theme, base, components, utilities;
 @import "tailwindcss/theme.css" layer(theme);

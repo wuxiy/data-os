@@ -1,31 +1,42 @@
+import { useQuery } from '@tanstack/react-query'
 import { CircleAlert, CloudCog, RefreshCw } from 'lucide-react'
-import { useState } from 'react'
-import { fetchRuntimeStatus, type RuntimeStatusApiResponse } from '../../data/controlPlane'
-import { useApiResource } from '../../hooks/useApiResource'
-import { frontendDemoMode, isDemoRuntime } from '../../data/runtimeMode'
 import { Badge } from './badge'
+import { fetchRuntimeStatus, type RuntimeStatusApiResponse } from '../../data/controlPlane'
+import { frontendDemoMode, isDemoRuntime } from '../../data/runtimeMode'
 
-const SCOPE_SUMMARY = '首期真实范围：数据接入、采集运行、治理问题、质量复检、通知、MPI、资产、分析、数据服务、AI Ready 评估、数据标准中心与管理驾驶舱/运营中心；标准映射、交付中心与受控智能问数已接入（已验证问题口径）。'
+const SCOPE_SUMMARY = '首期真实范围：数据接入、采集运行、治理问题、质量复检、通知、MPI、资产、分析、数据服务、AI Ready 评估、数据标准中心与管理驾驶舱/运营中心；标准映射、交付中心与受控智能问数已接入（仅已验证问题口径）。'
 
 /**
  * 运行状态横幅：运行模式与真实范围口径的单一展示点。
- * 迁移期由新主题承载；数据读取仍走既有 useApiResource 三态机。
+ * 读取走会话级 Query（2.5 秒自超时；已有数据时刷新保留展示，不闪加载态）。
  */
 export function RuntimeStatusBanner() {
-  const [status, setStatus] = useState<RuntimeStatusApiResponse | null>(null)
-  const state = useApiResource({
-    timeoutMs: 2500,
-    load: (signal) => fetchRuntimeStatus(signal),
-    onData: setStatus,
+  const query = useQuery({
+    queryKey: ['runtime-status'],
+    queryFn: ({ signal }) => {
+      // Query 没有内建超时：沿用旧三态机的 2.5 秒自超时语义（超时按不可用处理）。
+      const controller = new AbortController()
+      const timer = window.setTimeout(() => controller.abort(), 2500)
+      const forwardAbort = () => controller.abort()
+      signal?.addEventListener('abort', forwardAbort)
+      return fetchRuntimeStatus(controller.signal)
+        .finally(() => {
+          window.clearTimeout(timer)
+          signal?.removeEventListener('abort', forwardAbort)
+        })
+    },
+    staleTime: 30_000,
+    retry: false,
   })
 
+  const status: RuntimeStatusApiResponse | undefined = query.data
   const shell = 'mb-3 flex min-h-[30px] flex-wrap items-center gap-2.5 rounded-control border px-3 py-1.5 text-label'
 
-  if (state === 'loading') {
+  if (query.isPending) {
     return <div role="status" className={`${shell} border-line bg-wash text-muted`}><CloudCog size={14} /><span>正在读取运行模式…</span></div>
   }
 
-  if (state === 'unavailable') {
+  if (query.isError) {
     const scope = <ScopeFold />
     if (frontendDemoMode) {
       return (
@@ -37,7 +48,7 @@ export function RuntimeStatusBanner() {
     return (
       <div role="status" className={`${shell} border-[#eee2c5] bg-[#fdf9ef] text-[#8e7040]`}>
         <CircleAlert size={14} /><span>控制面状态未知 · 请查看各工作区连接状态</span>{scope}
-        <button type="button" onClick={() => window.location.reload()} aria-label="重新读取运行状态" className="ml-auto inline-flex size-6 items-center justify-center rounded-chip hover:bg-[#f3ead7]"><RefreshCw size={13} /></button>
+        <button type="button" onClick={() => void query.refetch()} aria-label="重新读取运行状态" className="ml-auto inline-flex size-6 items-center justify-center rounded-chip hover:bg-[#f3ead7]"><RefreshCw size={13} /></button>
       </div>
     )
   }

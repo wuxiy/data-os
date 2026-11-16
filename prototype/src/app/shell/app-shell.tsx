@@ -24,7 +24,7 @@ import { useVisitedTabs } from './visited-tabs'
 
 /**
  * 新壳（批准原型 v0.2）：分组侧栏 + 48px 顶栏内页签 + 连续工作面。
- * 迁移期旧页面渲染在 legacy 主题根内，壳本身不再写任何 v3 主题或 antd 组件。
+ * 壳只消费 styles/tokens.css 的主题与自研组件；业务页面按路由懒加载挂载在 Outlet。
  */
 export function AppShell({ children }: { children: ReactNode }) {
   const location = useLocation()

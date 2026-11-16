@@ -1,4 +1,0 @@
-/* 管理驾驶舱演示页页面级样式（antd 迁移后）：数字列右对齐 + tabular-nums。 */
-.numCell {
-  font-variant-numeric: tabular-nums;
-}

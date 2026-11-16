@@ -1,38 +1,41 @@
 import { Link, Outlet, createRootRoute, createRoute, createRouter, useRouter } from '@tanstack/react-router'
 import { TriangleAlert } from 'lucide-react'
+import { Suspense, lazy } from 'react'
 import { EmptyState } from '../components/ui/states'
 import { Button } from '../components/ui/button'
-import { OverviewPage } from '../features/overview/overview-page'
-import { IngestionPage } from '../features/ingestion/ingestion-page'
-import { JobEditorPage } from '../features/ingestion/job-editor-page'
-import { JobDetailPage } from '../features/ingestion/job-detail-page'
-import { SourceExplorerPage } from '../features/ingestion/source-explorer-page'
-import { GovernanceDashboardPage } from '../features/governance/governance-dashboard-page'
-import { QualityPage } from '../features/governance/quality-page'
-import { RuleEditorPage } from '../features/governance/rule-editor-page'
-import { ScoringPage } from '../features/governance/scoring-page'
-import { StandardsPage } from '../features/governance/standards-page'
-import { MappingPage } from '../features/governance/mapping-page'
-import { AssetCatalogPage } from '../features/assets/asset-catalog-page'
-import { AssetTechnicalPage } from '../features/assets/asset-technical-page'
-import { MpiReviewPage } from '../features/mpi/mpi-review-page'
-import { AIDataPage } from '../features/ai-data/ai-data-page'
-import { DataServicesPage } from '../features/data-services/data-services-page'
-import { ServiceEditorPage } from '../features/data-services/service-editor-page'
-import { AnalyticsPage } from '../features/analytics/analytics-page'
-import { AssistantPage } from '../features/assistant/assistant-page'
-import { QuestionEditorPage } from '../features/assistant/question-editor-page'
-import { AssistantAuditPage } from '../features/assistant/audit-page'
-import { OperationsCenterPage } from '../features/operations/operations-center-page'
-import { DeliveryCenterPage } from '../features/operations/delivery-center-page'
-import { PlatformOperationsPage } from '../features/operations/platform-operations-page'
 import { AppShell } from './shell/app-shell'
-import { LegacyPortalPage } from './legacy/legacy-page'
 
 /**
  * 路由单一来源：path 字面量来自 data/routes.ts 的同名常量语义（静态入口不重命名）。
  * search 只声明可分享的筛选/对象键；自由文本、患者检索、问数参数与密钥不入 URL。
+ * 页面按路由懒加载（FE7）：入口只带壳与基础组件，业务页随 chunk 到达。
  */
+// 零 props 包装让所有懒页面统一为 ComponentType<{}>；带参页面经下方包装组件传参。
+const OverviewPage = lazy(() => import('../features/overview/overview-page').then((m) => ({ default: () => <m.OverviewPage /> })))
+const IngestionPage = lazy(() => import('../features/ingestion/ingestion-page').then((m) => ({ default: () => <m.IngestionPage /> })))
+const JobEditorPage = lazy(() => import('../features/ingestion/job-editor-page').then((m) => ({ default: (props: { jobId?: string }) => <m.JobEditorPage jobId={props.jobId} /> })))
+const JobDetailPage = lazy(() => import('../features/ingestion/job-detail-page').then((m) => ({ default: (props: { jobId: string }) => <m.JobDetailPage jobId={props.jobId} /> })))
+const SourceExplorerPage = lazy(() => import('../features/ingestion/source-explorer-page').then((m) => ({ default: (props: { sourceId: string }) => <m.SourceExplorerPage sourceId={props.sourceId} /> })))
+const GovernanceDashboardPage = lazy(() => import('../features/governance/governance-dashboard-page').then((m) => ({ default: () => <m.GovernanceDashboardPage /> })))
+const QualityPage = lazy(() => import('../features/governance/quality-page').then((m) => ({ default: () => <m.QualityPage /> })))
+const RuleEditorPage = lazy(() => import('../features/governance/rule-editor-page').then((m) => ({ default: (props: { ruleId?: string }) => <m.RuleEditorPage ruleId={props.ruleId} /> })))
+const ScoringPage = lazy(() => import('../features/governance/scoring-page').then((m) => ({ default: () => <m.ScoringPage /> })))
+const StandardsPage = lazy(() => import('../features/governance/standards-page').then((m) => ({ default: () => <m.StandardsPage /> })))
+const MappingPage = lazy(() => import('../features/governance/mapping-page').then((m) => ({ default: () => <m.MappingPage /> })))
+const AssetCatalogPage = lazy(() => import('../features/assets/asset-catalog-page').then((m) => ({ default: () => <m.AssetCatalogPage /> })))
+const AssetTechnicalPage = lazy(() => import('../features/assets/asset-technical-page').then((m) => ({ default: () => <m.AssetTechnicalPage /> })))
+const MpiReviewPage = lazy(() => import('../features/mpi/mpi-review-page').then((m) => ({ default: () => <m.MpiReviewPage /> })))
+const AIDataPage = lazy(() => import('../features/ai-data/ai-data-page').then((m) => ({ default: () => <m.AIDataPage /> })))
+const DataServicesPage = lazy(() => import('../features/data-services/data-services-page').then((m) => ({ default: () => <m.DataServicesPage /> })))
+const ServiceEditorPage = lazy(() => import('../features/data-services/service-editor-page').then((m) => ({ default: () => <m.ServiceEditorPage /> })))
+const AnalyticsPage = lazy(() => import('../features/analytics/analytics-page').then((m) => ({ default: () => <m.AnalyticsPage /> })))
+const AssistantPage = lazy(() => import('../features/assistant/assistant-page').then((m) => ({ default: (props: { professional?: boolean }) => <m.AssistantPage professional={props.professional} /> })))
+const QuestionEditorPage = lazy(() => import('../features/assistant/question-editor-page').then((m) => ({ default: (props: { questionCode?: string }) => <m.QuestionEditorPage questionCode={props.questionCode} /> })))
+const AssistantAuditPage = lazy(() => import('../features/assistant/audit-page').then((m) => ({ default: () => <m.AssistantAuditPage /> })))
+const OperationsCenterPage = lazy(() => import('../features/operations/operations-center-page').then((m) => ({ default: () => <m.OperationsCenterPage /> })))
+const DeliveryCenterPage = lazy(() => import('../features/operations/delivery-center-page').then((m) => ({ default: () => <m.DeliveryCenterPage /> })))
+const PlatformOperationsPage = lazy(() => import('../features/operations/platform-operations-page').then((m) => ({ default: () => <m.PlatformOperationsPage /> })))
+
 const rootRoute = createRootRoute({
   component: ShellLayout,
   notFoundComponent: NotFoundPage,
@@ -42,8 +45,19 @@ const rootRoute = createRootRoute({
 function ShellLayout() {
   return (
     <AppShell>
-      <Outlet />
+      {/* 懒加载路由在此挂起：壳（侧栏/顶栏/横幅）立即呈现，页面 chunk 到达后替换占位。 */}
+      <Suspense fallback={<RouteLoading />}>
+        <Outlet />
+      </Suspense>
     </AppShell>
+  )
+}
+
+function RouteLoading() {
+  return (
+    <section className="flex min-h-[320px] items-center justify-center rounded-panel border border-line bg-paper" aria-busy="true" role="status">
+      <p className="text-label text-muted">正在进入工作区…</p>
+    </section>
   )
 }
 
@@ -83,23 +97,6 @@ function RouteErrorPage({ error }: { error: unknown }) {
 
 const optString = (value: unknown): string | undefined => (typeof value === 'string' && value !== '' ? value : undefined)
 
-const legacyRouteKeys = [
-  'management', 'ingestion', 'governance', 'standards', 'mapping', 'quality', 'mpi',
-  'assets', 'assetTechnical', 'analytics', 'aiData', 'dataServices', 'assistant',
-  'assistantWorkspace', 'operationsCenter', 'deliveryCenter', 'operations',
-] as const
-
-type LegacyKey = (typeof legacyRouteKeys)[number]
-
-function legacy(path: string, key: LegacyKey, validateSearch?: (search: Record<string, unknown>) => Record<string, unknown>) {
-  return createRoute({
-    getParentRoute: () => rootRoute,
-    path,
-    validateSearch: validateSearch ?? ((search: Record<string, unknown>) => search),
-    component: () => <LegacyPortalPage route={key} />,
-  })
-}
-
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/',
@@ -136,10 +133,27 @@ function IngestionJobRouteComponent() {
   const { jobId } = ingestionJobRoute.useParams()
   return <JobDetailPage jobId={jobId} />
 }
+
 const governanceRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/governance',
   component: GovernanceDashboardPage,
+})
+const standardsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/governance/standards',
+  component: StandardsPage,
+})
+const mappingRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/governance/mapping',
+  component: MappingPage,
+})
+const qualityRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/governance/quality',
+  validateSearch: (search: Record<string, unknown>) => ({ issue: optString(search.issue) }),
+  component: QualityPage,
 })
 const qualityRulesNewRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -161,22 +175,7 @@ function QualityRuleEditRouteComponent() {
   const { ruleId } = qualityRuleEditRoute.useParams()
   return <RuleEditorPage ruleId={ruleId} />
 }
-const standardsRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: '/governance/standards',
-  component: StandardsPage,
-})
-const mappingRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: '/governance/mapping',
-  component: MappingPage,
-})
-const qualityRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: '/governance/quality',
-  validateSearch: (search: Record<string, unknown>) => ({ issue: optString(search.issue) }),
-  component: QualityPage,
-})
+
 const mpiRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/mpi/review',
@@ -247,6 +246,7 @@ function AssistantQuestionRouteComponent() {
   const { questionCode } = assistantQuestionRoute.useParams()
   return <QuestionEditorPage questionCode={questionCode} />
 }
+
 const operationsCenterRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/operations-center',
@@ -260,12 +260,8 @@ const deliveryCenterRoute = createRoute({
 const operationsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/operations',
-  component: PlatformOperationsRouteComponent,
+  component: PlatformOperationsPage,
 })
-
-function PlatformOperationsRouteComponent() {
-  return <PlatformOperationsPage />
-}
 
 const routeTree = rootRoute.addChildren([
   indexRoute,

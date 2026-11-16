@@ -1,2 +1,0 @@
-/* 以单一网格收口页面节奏，组件内部不叠加块间顶距。 */
-.pageFlow { display: grid; gap: 24px; align-content: start; }
