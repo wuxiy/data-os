@@ -16,6 +16,13 @@ import { MappingPage } from '../features/governance/mapping-page'
 import { AssetCatalogPage } from '../features/assets/asset-catalog-page'
 import { AssetTechnicalPage } from '../features/assets/asset-technical-page'
 import { MpiReviewPage } from '../features/mpi/mpi-review-page'
+import { AIDataPage } from '../features/ai-data/ai-data-page'
+import { DataServicesPage } from '../features/data-services/data-services-page'
+import { ServiceEditorPage } from '../features/data-services/service-editor-page'
+import { AnalyticsPage } from '../features/analytics/analytics-page'
+import { AssistantPage } from '../features/assistant/assistant-page'
+import { QuestionEditorPage } from '../features/assistant/question-editor-page'
+import { AssistantAuditPage } from '../features/assistant/audit-page'
 import { AppShell } from './shell/app-shell'
 import { LegacyPortalPage } from './legacy/legacy-page'
 
@@ -185,11 +192,58 @@ const assetTechnicalRoute = createRoute({
   validateSearch: (search: Record<string, unknown>) => ({ asset: optString(search.asset), db: optString(search.db) }),
   component: AssetTechnicalPage,
 })
-const analyticsRoute = legacy('/analysis', 'analytics')
-const aiDataRoute = legacy('/ai-data', 'aiData', (search) => ({ product: optString(search.product) }))
-const dataServicesRoute = legacy('/data-services', 'dataServices')
-const assistantRoute = legacy('/assistant', 'assistant', (search) => ({ scenario: optString(search.scenario) }))
-const assistantWorkspaceRoute = legacy('/assistant/workspace', 'assistantWorkspace')
+const analyticsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/analysis',
+  component: AnalyticsPage,
+})
+const aiDataRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/ai-data',
+  validateSearch: (search: Record<string, unknown>) => ({ product: optString(search.product) }),
+  component: AIDataPage,
+})
+const dataServicesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/data-services',
+  component: DataServicesPage,
+})
+const dataServiceNewRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/data-services/new',
+  component: ServiceEditorPage,
+})
+const assistantRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/assistant',
+  component: () => <AssistantPage />,
+})
+const assistantWorkspaceRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/assistant/workspace',
+  component: () => <AssistantPage professional />,
+})
+const assistantQuestionNewRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/assistant/workspace/questions/new',
+  component: () => <QuestionEditorPage />,
+})
+const assistantQuestionRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/assistant/workspace/questions/$questionCode',
+  validateSearch: (search: Record<string, unknown>) => ({ tab: optString(search.tab) }),
+  component: AssistantQuestionRouteComponent,
+})
+const assistantAuditRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/assistant/workspace/audit',
+  component: AssistantAuditPage,
+})
+
+function AssistantQuestionRouteComponent() {
+  const { questionCode } = assistantQuestionRoute.useParams()
+  return <QuestionEditorPage questionCode={questionCode} />
+}
 const operationsCenterRoute = legacy('/operations-center', 'operationsCenter')
 const deliveryCenterRoute = legacy('/delivery-center', 'deliveryCenter')
 const operationsRoute = legacy('/operations', 'operations')
@@ -213,8 +267,12 @@ const routeTree = rootRoute.addChildren([
   analyticsRoute,
   aiDataRoute,
   dataServicesRoute,
+  dataServiceNewRoute,
   assistantRoute,
   assistantWorkspaceRoute,
+  assistantQuestionNewRoute,
+  assistantQuestionRoute,
+  assistantAuditRoute,
   operationsCenterRoute,
   deliveryCenterRoute,
   operationsRoute,

@@ -333,6 +333,62 @@ const mpiCandidates = [
   },
 ]
 
+
+// —— 数据应用（FE5）：AI Data / 数据服务 / 分析 / 问数 ——
+const aiProducts = [
+  { id: 'ai-prod-001', tenantId: 't', name: '门诊病历 RAG 语料', productType: 'RAG_CORPUS', owner: 'data-team', workflowType: 'ai-ready', sourceDesc: 'ods_ep 处方 + 标准值域', currentVersion: 'v3', lifecycle: 'ASSESSED', createdAt: '2026-10-01T00:00:00Z', updatedAt: '2026-11-15T00:00:00Z' },
+  { id: 'ai-prod-002', tenantId: 't', name: '检验指标训练集', productType: 'TRAINING_DATASET', owner: 'lis-team', workflowType: 'ai-ready', sourceDesc: 'ods_lis 结果', currentVersion: 'v1', lifecycle: 'CERTIFIED', createdAt: '2026-10-05T00:00:00Z', updatedAt: '2026-11-12T00:00:00Z' },
+]
+const aiVersions = {
+  'ai-prod-001': [
+    { id: 'aiv-001-3', productId: 'ai-prod-001', versionSn: 'v3', recipeRef: 'recipe/rag-ep', gitCommit: 'abcdef1234567890', snapshotAt: '2026-11-15T00:00:00Z', buildStatus: 'SUCCEEDED', createdAt: '2026-11-15T00:00:00Z', readinessJson: JSON.stringify({ overall: 0.8654, certification: 'CANDIDATE', evaluation: { evalSetSize: 60, retrievalRecallAt5: 0.9833, precisionAt5: 0.71, mrr: 0.9208, citationCorrectness: 0.9, faithfulness: 0.88 } }) },
+    { id: 'aiv-001-2', productId: 'ai-prod-001', versionSn: 'v2', recipeRef: 'recipe/rag-ep', gitCommit: '1234567890abcdef', snapshotAt: '2026-10-20T00:00:00Z', buildStatus: 'SUCCEEDED', createdAt: '2026-10-20T00:00:00Z', readinessJson: JSON.stringify({ overall: 0.8385, certification: 'REVIEW_REQUIRED', evaluation: null }) },
+  ],
+  'ai-prod-002': [
+    { id: 'aiv-002-1', productId: 'ai-prod-002', versionSn: 'v1', recipeRef: 'recipe/lis-train', gitCommit: 'ffeeddccbbaa9988', snapshotAt: '2026-11-12T00:00:00Z', buildStatus: 'SUCCEEDED', createdAt: '2026-11-12T00:00:00Z', readinessJson: JSON.stringify({ overall: 0.91, certification: 'CERTIFIED', evaluation: null }) },
+  ],
+}
+const aiCertifications = {
+  'ai-prod-001': [{ id: 'aice-001', productId: 'ai-prod-001', versionSn: 'v3', readinessOverall: 0.8654, certification: 'CANDIDATE', decision: 'PENDING', decisionNote: null, requestedBy: 'data-team', decidedBy: null, decidedAt: null, createdAt: '2026-11-15T01:00:00Z' }],
+}
+const aiFeedback = {
+  'ai-prod-001': [{ id: 'aif-001', productId: 'ai-prod-001', versionSn: 'v3', question: '检索命中错误分块，引用与答案不一致', metric: 'faithfulness', outcome: 'FAIL', feedbackType: 'CHUNK_QUALITY', detail: null, status: 'CREATED', resolution: null, createdBy: 'qa', resolvedBy: null, createdAt: '2026-11-15T02:00:00Z' }],
+}
+const aiBuilds = {}
+
+const dataServices = [
+  { id: 'ds-001', tenantId: 't', code: 'medicine-record-daily', name: '每日用药记录统计', description: '按天统计用药记录量', versionSn: '3', status: 'PUBLISHED', sqlTemplate: 'SELECT stat_date, COUNT(*) AS cnt FROM dws_medicine_day WHERE stat_date BETWEEN :start_date AND :end_date GROUP BY stat_date', parametersJson: '[{"name":"start_date","type":"date","required":true}]', columnsJson: '[{"name":"stat_date","type":"date"},{"name":"cnt","type":"number"}]', maxRows: 1000, timeoutSeconds: 30, owner: 'data-team', createdAt: '2026-10-01T00:00:00Z', updatedAt: '2026-11-10T00:00:00Z' },
+  { id: 'ds-002', tenantId: 't', code: 'lab-result-daily', name: '检验结果日汇总', description: '检验结果按日聚合', versionSn: '1', status: 'DRAFT', sqlTemplate: 'SELECT stat_date, COUNT(*) FROM dws_lab_day GROUP BY stat_date', parametersJson: '[]', columnsJson: '[{"name":"stat_date","type":"date"},{"name":"cnt","type":"number"}]', maxRows: 500, timeoutSeconds: 30, owner: 'lis-team', createdAt: '2026-11-01T00:00:00Z', updatedAt: '2026-11-11T00:00:00Z' },
+]
+const dataServiceKeys = {
+  'ds-001': [{ id: 'key-001', callerName: '医联体平台', keyPrefix: 'dk_live_ab12', allowedHospitals: 'INST-001,INST-002', dailyQuota: 500, status: 'ACTIVE', createdAt: '2026-10-02T00:00:00Z', lastUsedAt: '2026-11-16T01:00:00Z' }],
+  'ds-002': [],
+}
+
+const assistantQuestions = [
+  { code: 'medicine-record-daily', question: '查询每天的用药记录量', aliases: ['每日用药量'], paramSchema: [{ name: 'start_date', type: 'date', required: true, description: '开始日期' }, { name: 'end_date', type: 'date', required: true }], serviceCode: 'medicine-record-daily' },
+]
+const assistantAdmin = [
+  { code: 'medicine-record-daily', question: '查询每天的用药记录量', aliases: ['每日用药量'], paramSchema: [{ name: 'start_date', type: 'date', required: true, description: '开始日期' }, { name: 'end_date', type: 'date', required: true }], serviceCode: 'medicine-record-daily', answerTemplate: '', status: 'PUBLISHED', createdBy: 'data-team', createdAt: '2026-10-01T00:00:00Z', updatedAt: '2026-11-10T00:00:00Z', lastPassedTestRun: '2026-11-10T00:00:00Z', verified: true },
+  { code: 'lab-result-monthly', question: '按月统计检验结果量', aliases: [], paramSchema: [{ name: 'month', type: 'string', required: true, description: '统计月份' }], serviceCode: 'lab-result-daily', answerTemplate: '', status: 'DRAFT', createdBy: 'data-team', createdAt: '2026-11-01T00:00:00Z', updatedAt: '2026-11-11T00:00:00Z', lastPassedTestRun: null, verified: false },
+]
+const assistantAudits = Array.from({ length: 23 }, (_, index) => ({
+  id: `audit-${String(index + 1).padStart(3, '0')}`,
+  createdAt: `2026-11-${String(16 - Math.floor(index / 10)).padStart(2, '0')}T0${index % 9}:00:00Z`,
+  userId: 'qa', institutionId: 'INST-001',
+  questionText: index % 4 === 0 ? '今天天气怎么样' : '查询每天的用药记录量',
+  questionCode: index % 4 === 0 ? '' : 'medicine-record-daily',
+  serviceCode: index % 4 === 0 ? '' : 'medicine-record-daily',
+  outcome: index % 4 === 0 ? 'REFUSED_NO_MATCH' : 'ANSWERED',
+  rowCount: index % 4 === 0 ? 0 : 12, elapsedMs: 8 + index,
+  detail: index % 4 === 0 ? '没有匹配的已验证问题' : '受控服务执行', feedbackRating: null, feedbackNote: null,
+}))
+
+function aiDetail(id) {
+  const product = aiProducts.find((item) => item.id === id) ?? aiProducts[0]
+  return { product, versions: (aiVersions[product.id] ?? []).map(({ readinessJson, ...rest }) => ({ ...rest, readinessJson })) }
+}
+
 function json(response, status, payload) {
   const body = JSON.stringify(payload)
   response.writeHead(status, {
@@ -758,6 +814,199 @@ const server = createServer(async (request, response) => {
   if (match && method === 'POST') {
     const body = await readBody(request)
     return json(response, 200, { taskId: decodeURIComponent(match[1]), resolution: body.resolution ?? 'SAME_PERSON', mergedPersonId: 'person-001' })
+  }
+
+
+  // —— 数据应用（FE5）——
+  if (path === '/v1/ai-data-products' && method === 'GET') return json(response, 200, { items: aiProducts })
+  if (path === '/v1/ai-data-products' && method === 'POST') {
+    const body = await readBody(request)
+    const created = {
+      id: `ai-${randomUUID().slice(0, 6)}`, tenantId: 't', name: String(body.name ?? '未命名'), productType: body.type ?? 'RAG_CORPUS',
+      owner: String(body.owner ?? 'data-team'), workflowType: String(body.workflow ?? 'ai-ready'), sourceDesc: String(body.source ?? ''),
+      currentVersion: 'v1', lifecycle: 'DRAFT', createdAt: now(), updatedAt: now(),
+    }
+    aiProducts.unshift(created)
+    aiVersions[created.id] = []
+    return json(response, 201, created)
+  }
+  if (path === '/v1/ai-data-products/overview') {
+    return json(response, 200, { products: aiProducts.length, certified: 1, serving: 0, averageOverall: 0.8877 })
+  }
+  if (path === '/v1/ai-data-products/feedback/__placeholder__') return json(response, 404, { message: 'not found' })
+  match = /^\/v1\/ai-data-products\/feedback\/([^/]+)\/resolve$/.exec(path)
+  if (match && method === 'POST') {
+    const body = await readBody(request)
+    const all = Object.values(aiFeedback).flat()
+    const item = all.find((entry) => entry.id === match[1])
+    if (item) { item.status = body.consume ? 'CONSUMED' : 'DISMISSED'; item.resolution = body.resolution ?? '' }
+    return json(response, 200, item ?? {})
+  }
+  match = /^\/v1\/ai-data-products\/certification-requests\/([^/]+)\/decision$/.exec(path)
+  if (match && method === 'POST') {
+    const body = await readBody(request)
+    const all = Object.values(aiCertifications).flat()
+    const request_ = all.find((entry) => entry.id === match[1])
+    if (request_) {
+      request_.decision = body.approve ? 'APPROVED' : 'REJECTED'
+      request_.decisionNote = body.note ?? ''
+      request_.decidedAt = now()
+    }
+    return json(response, 200, { productId: request_?.productId ?? '', lifecycle: body.approve ? 'CERTIFIED' : 'ASSESSED' })
+  }
+  match = /^\/v1\/ai-data-products\/([^/]+)\/lifecycle$/.exec(path)
+  if (match && method === 'POST') {
+    const body = await readBody(request)
+    const product = aiProducts.find((item) => item.id === match[1])
+    if (!product) return json(response, 404, { message: '产品不存在' })
+    product.lifecycle = body.target
+    product.updatedAt = now()
+    return json(response, 200, product)
+  }
+  match = /^\/v1\/ai-data-products\/([^/]+)\/evaluate$/.exec(path)
+  if (match && method === 'POST') {
+    return json(response, 200, { product: match[1], version: 'v3', profile: 'default', overall: 0.87, certification: 'CANDIDATE', assessedAt: now(), mrr: 0.92, retrieval_recall_at_5: 0.98 })
+  }
+  match = /^\/v1\/ai-data-products\/([^/]+)\/build-jobs$/.exec(path)
+  if (match && method === 'GET') return json(response, 200, aiBuilds[match[1]] ?? [])
+  match = /^\/v1\/ai-data-products\/([^/]+)\/build$/.exec(path)
+  if (match && method === 'POST') {
+    const job = { id: `job-${randomUUID().slice(0, 6)}`, productId: match[1], tenantId: 't', versionSn: 'v4', recipeRef: 'recipe/rag-ep', status: 'QUEUED', resultJson: null, error: null, createdBy: 'qa', createdAt: now(), startedAt: null, finishedAt: null }
+    aiBuilds[match[1]] = [job, ...(aiBuilds[match[1]] ?? [])]
+    return json(response, 201, job)
+  }
+  match = /^\/v1\/ai-data-products\/([^/]+)\/certification-requests$/.exec(path)
+  if (match && method === 'GET') return json(response, 200, aiCertifications[match[1]] ?? [])
+  if (match && method === 'POST') {
+    const request_ = { id: `aice-${randomUUID().slice(0, 6)}`, productId: match[1], versionSn: 'v3', readinessOverall: 0.8654, certification: 'CANDIDATE', decision: 'PENDING', decisionNote: null, requestedBy: 'qa', decidedBy: null, decidedAt: null, createdAt: now() }
+    aiCertifications[match[1]] = [request_, ...(aiCertifications[match[1]] ?? [])]
+    return json(response, 201, request_)
+  }
+  match = /^\/v1\/ai-data-products\/([^/]+)\/feedback$/.exec(path)
+  if (match && method === 'GET') return json(response, 200, { items: aiFeedback[match[1]] ?? [] })
+  if (match && method === 'POST') {
+    const body = await readBody(request)
+    const item = { id: `aif-${randomUUID().slice(0, 6)}`, productId: match[1], versionSn: 'v3', question: body.question ?? '', metric: body.metric ?? 'faithfulness', outcome: 'FAIL', feedbackType: body.feedbackType ?? 'CHUNK_QUALITY', detail: null, status: 'CREATED', resolution: null, createdBy: 'qa', resolvedBy: null, createdAt: now() }
+    aiFeedback[match[1]] = [item, ...(aiFeedback[match[1]] ?? [])]
+    return json(response, 201, item)
+  }
+  match = /^\/v1\/ai-data-products\/([^/]+)$/.exec(path)
+  if (match && method === 'GET') return json(response, 200, aiDetail(match[1]))
+
+  if (path === '/v1/data-services' && method === 'GET') return json(response, 200, { items: dataServices })
+  if (path === '/v1/data-services' && method === 'POST') {
+    const body = await readBody(request)
+    const created = {
+      id: `ds-${randomUUID().slice(0, 6)}`, tenantId: 't', code: String(body.code ?? ''), name: String(body.name ?? ''),
+      description: String(body.description ?? ''), versionSn: '1', status: 'DRAFT', sqlTemplate: String(body.sqlTemplate ?? ''),
+      parametersJson: JSON.stringify(body.parameters ?? []), columnsJson: JSON.stringify(body.columns ?? []),
+      maxRows: Number(body.maxRows ?? 1000), timeoutSeconds: Number(body.timeoutSeconds ?? 30), owner: String(body.owner ?? ''),
+      createdAt: now(), updatedAt: now(),
+    }
+    dataServices.unshift(created)
+    return json(response, 201, created)
+  }
+  if (path === '/v1/data-services/overview') {
+    return json(response, 200, { total: dataServices.length, published: 1, draft: 1, activeKeys: 1, callsToday: 42 })
+  }
+  match = /^\/v1\/data-services\/([^/]+)\/calls$/.exec(path)
+  if (match) return json(response, 200, { items: [{ id: 'call-001', keyId: 'key-001', rowCount: 12, truncated: false, elapsedMs: 22, statusCode: 200, calledAt: '2026-11-16T01:00:00Z' }] })
+  match = /^\/v1\/data-services\/([^/]+)\/exports$/.exec(path)
+  if (match) return json(response, 200, { items: [] })
+  match = /^\/v1\/data-services\/([^/]+)\/contract-events$/.exec(path)
+  if (match) return json(response, 200, { items: [{ eventId: 'ce-001', changeType: 'PUBLISHED', fromVersion: '2', toVersion: '3', diff: '新增参数 end_date', occurredAt: '2026-11-10T00:00:00Z' }] })
+  match = /^\/v1\/data-services\/([^/]+)\/subscriptions$/.exec(path)
+  if (match) return json(response, 200, { items: [] })
+  match = /^\/v1\/data-services\/([^/]+)\/publish$/.exec(path)
+  if (match && method === 'POST') {
+    const service = dataServices.find((item) => item.id === match[1])
+    if (service) service.status = 'PUBLISHED'
+    return json(response, 200, service ?? {})
+  }
+  match = /^\/v1\/data-services\/([^/]+)\/deprecate$/.exec(path)
+  if (match && method === 'POST') {
+    const service = dataServices.find((item) => item.id === match[1])
+    if (service) service.status = 'DEPRECATED'
+    return json(response, 200, service ?? {})
+  }
+  match = /^\/v1\/data-services\/([^/]+)\/keys$/.exec(path)
+  if (match && method === 'POST') {
+    const body = await readBody(request)
+    const key = { id: `key-${randomUUID().slice(0, 6)}`, callerName: body.callerName ?? '', keyPrefix: 'dk_live_new1', allowedHospitals: String(body.allowedHospitals ?? '*'), dailyQuota: Number(body.dailyQuota ?? 100), status: 'ACTIVE', createdAt: now(), lastUsedAt: null }
+    dataServiceKeys[match[1]] = [key, ...(dataServiceKeys[match[1]] ?? [])]
+    return json(response, 201, { ...key, apiKey: 'dk_live_new1_plaintext_only_once_0123456789' })
+  }
+  match = /^\/v1\/data-services\/([^/]+)\/keys\/([^/]+)$/.exec(path)
+  if (match && method === 'DELETE') {
+    const key = (dataServiceKeys[match[1]] ?? []).find((item) => item.id === match[2])
+    if (key) key.status = 'REVOKED'
+    response.writeHead(204, { 'Access-Control-Allow-Origin': '*' })
+    return response.end()
+  }
+  match = /^\/v1\/data-services\/([^/]+)$/.exec(path)
+  if (match && method === 'GET') {
+    const service = dataServices.find((item) => item.id === match[1])
+    if (!service) return json(response, 404, { message: '服务不存在' })
+    return json(response, 200, { service, keys: dataServiceKeys[service.id] ?? [], totalCalls: 42 })
+  }
+
+  if (path === '/v1/analytics/dashboards') {
+    return json(response, 200, { dashboards: [{ id: 2, title: '门诊运营总览', embeddedUuid: null }] })
+  }
+  if (path === '/v1/analytics/guest-token' && method === 'POST') {
+    return json(response, 200, { token: 'guest-token-demo' })
+  }
+
+  if (path === '/v1/assistant/questions') return json(response, 200, { questions: assistantQuestions })
+  if (path === '/v1/assistant/admin/questions' && method === 'GET') return json(response, 200, { questions: assistantAdmin })
+  if (path === '/v1/assistant/admin/questions' && method === 'POST') {
+    const body = await readBody(request)
+    const code = String(body.code ?? `q-${randomUUID().slice(0, 6)}`)
+    const existing = assistantAdmin.find((item) => item.code === code)
+    const next = {
+      code, question: String(body.question ?? ''), aliases: body.aliases ?? [], paramSchema: body.paramSchema ?? [],
+      serviceCode: String(body.serviceCode ?? ''), answerTemplate: String(body.answerTemplate ?? ''),
+      status: existing?.status ?? 'DRAFT', createdBy: 'qa', createdAt: existing?.createdAt ?? now(), updatedAt: now(),
+      lastPassedTestRun: existing?.lastPassedTestRun ?? null, verified: existing?.verified ?? false,
+    }
+    if (existing) Object.assign(existing, next)
+    else assistantAdmin.unshift(next)
+    return json(response, 200, { code, status: next.status })
+  }
+  match = /^\/v1\/assistant\/admin\/questions\/([^/]+)\/test$/.exec(path)
+  if (match && method === 'POST') {
+    return json(response, 200, { answered: true, auditId: `audit-${randomUUID().slice(0, 6)}`, outcome: 'ANSWERED', columns: ['stat_date', 'cnt'], rows: [['2026-11-01', 12]], rowCount: 1, truncated: false, evidence: { serviceCode: 'medicine-record-daily', serviceVersion: 'v3', statisticsWindow: { start_date: '2026-11-01' }, rowCount: 1, truncated: false, elapsedMs: 12, executedAt: now(), executionPath: 'verified-question -> data-api verified-queries' } })
+  }
+  match = /^\/v1\/assistant\/admin\/questions\/([^/]+)\/(publish|deprecate|reopen)$/.exec(path)
+  if (match && method === 'POST') {
+    const item = assistantAdmin.find((entry) => entry.code === match[1])
+    if (item) item.status = match[2] === 'publish' ? 'PUBLISHED' : match[2] === 'deprecate' ? 'DEPRECATED' : 'DRAFT'
+    return json(response, 200, { code: match[1], status: item?.status ?? 'DRAFT' })
+  }
+  match = /^\/v1\/assistant\/admin\/questions\/([^/]+)\/events$/.exec(path)
+  if (match) {
+    return json(response, 200, { total: 2, returned: 2, events: [{ action: 'PUBLISHED', actor: 'data-governance', detail: '发布到问数面', createdAt: '2026-11-10T00:00:00Z' }, { action: 'SAVED', actor: 'data-team', detail: '保存草稿', createdAt: '2026-11-09T00:00:00Z' }] })
+  }
+  match = /^\/v1\/assistant\/admin\/questions\/([^/]+)$/.exec(path)
+  if (match && method === 'DELETE') {
+    const index = assistantAdmin.findIndex((item) => item.code === match[1])
+    if (index >= 0) assistantAdmin.splice(index, 1)
+    response.writeHead(204, { 'Access-Control-Allow-Origin': '*' })
+    return response.end()
+  }
+  if (path === '/v1/assistant/admin/audits') {
+    const outcome = url.searchParams.get('outcome') ?? ''
+    const page = Number(url.searchParams.get('page') ?? 0)
+    const pageSize = Number(url.searchParams.get('pageSize') ?? 10)
+    const filtered = outcome ? assistantAudits.filter((item) => item.outcome === outcome) : assistantAudits
+    return json(response, 200, { total: filtered.length, audits: filtered.slice(page * pageSize, (page + 1) * pageSize) })
+  }
+  if (path === '/v1/assistant/admin/audits/export') {
+    response.writeHead(200, { 'Content-Type': 'text/csv; charset=utf-8', 'Access-Control-Allow-Origin': '*' })
+    return response.end('id,outcome\n' + assistantAudits.map((item) => `${item.id},${item.outcome}`).join('\n'))
+  }
+  if (path === '/v1/assistant/query' && method === 'POST') {
+    return json(response, 200, { answered: true, auditId: `audit-${randomUUID().slice(0, 6)}`, outcome: 'ANSWERED', answer: '2026-11-01 共 12 条用药记录。', columns: ['stat_date', 'cnt'], rows: [['2026-11-01', 12]], rowCount: 1, truncated: false, evidence: { serviceCode: 'medicine-record-daily', serviceVersion: 'v3', statisticsWindow: { start_date: '2026-11-01' }, rowCount: 1, truncated: false, elapsedMs: 12, executedAt: now(), executionPath: 'verified-question -> data-api verified-queries' } })
   }
 
   // 周期调度

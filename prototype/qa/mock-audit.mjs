@@ -63,19 +63,22 @@ assert.match(src('src/data/routes.ts'), /deliveryCenter/, '路由表必须注册
 assert.match(src('src/app/navigation.ts'), /key: 'deliveryCenter', label: '交付中心', path: '\/delivery-center'/, '一级导航「交付中心」必须挂真实路由（不再是规划中占位）')
 
 // G26 接真锁：智能问数真实构建切 Live、拒答显式呈现、不回退演示场景
-assert.match(src('src/pages/AssistantPage.tsx'), /frontendDemoMode[\s\S]*AssistantLive/, '问数页真实构建必须渲染 AssistantLive')
-assert.match(src('src/pages/AssistantLive.tsx'), /fetchAssistantQuestions/, '问数真实页必须读取已验证问题清单')
+// FE5 锁迁移：问数页迁到 features/assistant，路由直接渲染新页。
+assert.match(src('src/app/router.tsx'), /component: \(\) => <AssistantPage \/>/, '问数路由必须挂载 AssistantPage')
+assert.match(src('src/features/assistant/assistant-page.tsx'), /AssistantLive/, '问数页必须渲染 AssistantLive 工作区')
+assert.match(src('src/features/assistant/queries.ts'), /fetchAssistantQuestions/, '问数必须读取已验证问题清单（原锁在 AssistantLive）')
 assert.match(src('src/pages/AssistantLive.tsx'), /askAssistantQuery|submitAssistantFeedback/, '问数真实页必须提供提问与反馈动作')
 assert.match(src('src/pages/AssistantLive.tsx'), /REFUSED_|answered/, '问数真实页必须显式呈现拒答信封')
 assert.doesNotMatch(src('src/pages/AssistantLive.tsx'), /assistantScenarios/, '问数真实页不得回退演示场景数据')
 // G27 治理面：专业工作区在治理角色内呈现问题治理区块；治理动作走真实接口
 assert.match(src('src/pages/AssistantLive.tsx'), /AssistantGovernance/, '专业工作区必须接入问数治理区块（G27）')
-assert.match(src('src/pages/AssistantGovernance.tsx'), /fetchAssistantAdminQuestions/, '治理面必须读取治理清单接口')
-assert.match(src('src/pages/AssistantGovernance.tsx'), /testAssistantQuestion|assistantQuestionAction/, '治理面必须提供试运行与生命周期动作')
-assert.match(src('src/pages/AssistantGovernance.tsx'), /verified/, '治理面必须呈现发布门验证状态')
-assert.match(src('src/pages/AssistantGovernance.tsx'), /fetchAssistantAudits|downloadAssistantAuditCsv/, '治理面必须提供审计管理面（G27 余项）')
-assert.match(src('src/pages/AssistantGovernance.tsx'), /Pager/, '治理列表与审计面必须分页（usePaged+Pager 先例）')
-assert.doesNotMatch(src('src/pages/AssistantGovernance.tsx'), /assistantScenarios/, '治理面不得使用演示场景数据')
+assert.match(src('src/features/assistant/queries.ts'), /fetchAssistantAdminQuestions/, '治理面必须读取治理清单接口（原锁在 AssistantGovernance）')
+assert.match(src('src/features/assistant/question-editor-page.tsx'), /testAssistantQuestion|assistantQuestionAction/, '治理面必须提供试运行与生命周期动作')
+assert.match(src('src/features/assistant/governance-section.tsx'), /verified/, '治理面必须呈现发布门验证状态')
+assert.match(src('src/features/assistant/audit-page.tsx'), /fetchAssistantAudits|downloadAssistantAuditCsv/, '治理面必须提供审计管理面（G27 余项）')
+assert.match(src('src/features/assistant/governance-section.tsx'), /TablePagination/, '治理列表必须分页')
+assert.match(src('src/features/assistant/audit-page.tsx'), /TablePagination/, '审计面必须服务端分页')
+assert.doesNotMatch(src('src/features/assistant/governance-section.tsx'), /assistantScenarios/, '治理面不得使用演示场景数据')
 
 // FE2 锁迁移：接入域已迁到 features/ingestion，两条不变量随实现迁移。
 const ingestionEditor = src('src/features/ingestion/job-editor-page.tsx')

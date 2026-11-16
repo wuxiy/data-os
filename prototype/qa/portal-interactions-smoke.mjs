@@ -82,13 +82,13 @@ assert.doesNotMatch(assetsLive, /OpenMetadata/, '资产目录业务视图不得�
 // 须走 lineageApi.instanceServiceLabel 中文口径；源码注释与技术域页面不在锁内。
 assert.doesNotMatch(assetsLive, />\{catalog\.service\}|>\{summary\.dashboardService\}/, '资产目录业务视图不得直出实例原始名（须 instanceServiceLabel 映射）')
 assert.match(assetsLive, /instanceServiceLabel\(/, '资产目录实例名必须经中文口径映射')
-const analyticsLive = read('src/pages/AnalyticsLive.tsx')
+const analyticsLive = read('src/features/analytics/analytics-page.tsx')
 assert.doesNotMatch(analyticsLive, /Superset/, '分析看板业务视图不得暴露分析引擎品牌（DESIGN.md 红线；包名/标识符为小写不受影响）')
-const aiDetail = read('src/pages/AIDataDetailPage.tsx')
+const aiDetail = read('src/features/ai-data/ai-data-page.tsx')
 assert.match(aiDetail, /aiBuildStatusLabel/, 'AI Data 版本构建状态必须经中文口径映射')
 assert.match(aiDetail, /aiCertificationLabel/, 'AI Data 认证档位必须经中文口径映射')
 assert.match(aiDetail, /aiFeedbackTypeLabel/, 'AI Data 反馈类型必须经中文口径映射')
-assert.doesNotMatch(aiDetail, />\{version\.buildStatus\}|>\{readiness\.certification \?\? '\u2014'\}|>\{item\.feedbackType\}/, 'AI Data 不得把后端枚举原样渲染进表格')
+assert.doesNotMatch(aiDetail, />\{version\.buildStatus\}|>\{item\.feedbackType\}|>\{row\.original\.certification\}/, 'AI Data 不得把后端枚举原样渲染进表格')
 assert.doesNotMatch(read('src/pages/MpiReviewLive.tsx'), /<StatusTag|<Tag color="warning">\{candidate\.ruleId\}/, 'MPI 队列不得重复渲染原始规则枚举')
 assert.match(read('src/pages/MpiReviewLive.tsx'), /mpiRuleLabel/, 'MPI 规则枚举必须经中文口径映射')
 

@@ -50,7 +50,7 @@ export interface DataTableSelection {
 export interface DataTableProps<TData extends RowData> {
   columns: ColumnDef<ListFeatures, TData, any>[]
   data: TData[]
-  getRowId: (row: TData) => string
+  getRowId: (row: TData, index: number) => string
   /** 选择态由调用方持有；选中行跨页保留在调用方。 */
   selection?: DataTableSelection
   /** 列可见性：键为列 id；未登记的列默认可见。 */
@@ -117,7 +117,7 @@ export function DataTable<TData extends RowData>({
     features: listFeatures,
     columns: allColumns,
     data,
-    getRowId: (row) => getRowId(row),
+    getRowId: (row, index) => getRowId(row, index),
     state: {
       rowSelection,
       columnVisibility: hiddenColumns ? Object.fromEntries([...hiddenColumns].map((id) => [id, false])) : {},

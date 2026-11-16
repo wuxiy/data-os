@@ -217,6 +217,40 @@ try {
     await page.waitForTimeout(900)
     record((await page.locator('main').textContent())?.includes('张测三 ↔ 张测三') ?? false, 'MPI 搜索必须命中服务端返回的队列外候选')
   }
+
+  /* FE5 业务流（需要 mock 控制面）：问数参数执行、服务发布、AI 评测、审计过滤。 */
+  if (wantsFlow('fe5')) {
+    await page.goto(`${base}/assistant`, { waitUntil: 'domcontentloaded' })
+    await page.waitForTimeout(700)
+    await page.getByRole('button', { name: /查询每天的用药记录量/ }).first().click()
+    await page.getByLabel('开始日期').fill('2026-11-01')
+    await page.getByLabel('结束日期').fill('2026-11-09')
+    await page.getByRole('button', { name: '按参数执行' }).click()
+    await page.waitForTimeout(700)
+    record((await page.locator('main').textContent())?.includes('分析结果') ?? false, '问数执行后必须出现分析结果')
+
+    await page.goto(`${base}/data-services`, { waitUntil: 'domcontentloaded' })
+    await page.waitForTimeout(700)
+    await page.getByRole('button', { name: /检验结果日汇总/ }).first().click()
+    await page.waitForTimeout(300)
+    await page.getByRole('button', { name: '发布', exact: true }).first().click()
+    await page.waitForTimeout(700)
+    record((await page.locator('main').textContent())?.includes('已发布') ?? false, '发布后服务状态必须变为已发布')
+
+    await page.goto(`${base}/ai-data?product=ai-prod-001`, { waitUntil: 'domcontentloaded' })
+    await page.waitForTimeout(700)
+    await page.getByRole('button', { name: '评测' }).click()
+    await page.waitForTimeout(700)
+    record((await page.locator('body').textContent())?.includes('评测完成') ?? false, '评测动作必须给出结果回执')
+
+    await page.goto(`${base}/assistant/workspace/audit`, { waitUntil: 'domcontentloaded' })
+    await page.waitForTimeout(700)
+    await page.getByLabel('按结局过滤').selectOption('REFUSED_NO_MATCH')
+    await page.waitForTimeout(600)
+    const auditText = await page.locator('main').textContent()
+    record(auditText?.includes('拒答·无匹配') ?? false, '审计结局过滤必须生效')
+    record(auditText?.includes('查询每天的用药记录量') === false, '过滤后不应出现已回答记录')
+  }
 } finally {
   await browser.close()
   server?.kill('SIGTERM')
