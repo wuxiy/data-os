@@ -1,0 +1,267 @@
+{
+  "registry": "shadcn/ui base-nova style (Base UI default)",
+  "cli": "shadcn@4.23.0",
+  "fetched_at": "2026-11-16T07:35:00Z",
+  "note": "FE0 冻结的 registry 快照；FE1 据此生成 src/components/ui 源码，CI 不重新拉取。",
+  "items": [
+    {
+      "name": "alert-dialog",
+      "url": "https://ui.shadcn.com/r/styles/base-nova/alert-dialog.json",
+      "file": "shadcn-registry-snapshot/base-nova/alert-dialog.json",
+      "sha256": "974543244faee02eb4ea40264b7e0bbda2b01c3f2c369de965d2ac771c57a8af",
+      "bytes": 6150
+    },
+    {
+      "name": "alert",
+      "url": "https://ui.shadcn.com/r/styles/base-nova/alert.json",
+      "file": "shadcn-registry-snapshot/base-nova/alert.json",
+      "sha256": "0799cfc29a481568f6e9b48e96518a446032350dec576bfe31b7f67b4b262028",
+      "bytes": 2629
+    },
+    {
+      "name": "avatar",
+      "url": "https://ui.shadcn.com/r/styles/base-nova/avatar.json",
+      "file": "shadcn-registry-snapshot/base-nova/avatar.json",
+      "sha256": "bbcabf0121fb2ff93a8522f8f80b74631e732a31399b1b7991c0b8c3167e2172",
+      "bytes": 3733
+    },
+    {
+      "name": "badge",
+      "url": "https://ui.shadcn.com/r/styles/base-nova/badge.json",
+      "file": "shadcn-registry-snapshot/base-nova/badge.json",
+      "sha256": "ccc20021cdcbf0fb23c0d4d28f1da4adde8e51ba59f4b11dd2722ed97a5ee3a4",
+      "bytes": 2478
+    },
+    {
+      "name": "breadcrumb",
+      "url": "https://ui.shadcn.com/r/styles/base-nova/breadcrumb.json",
+      "file": "shadcn-registry-snapshot/base-nova/breadcrumb.json",
+      "sha256": "5e7a33d921824d659494dc90411393cdf795c0ad5c94631da5c2883924623350",
+      "bytes": 3713
+    },
+    {
+      "name": "button",
+      "url": "https://ui.shadcn.com/r/styles/base-nova/button.json",
+      "file": "shadcn-registry-snapshot/base-nova/button.json",
+      "sha256": "9ba7e870178813f0552b818a913a2792fb500c779e36395740b4973e3025d427",
+      "bytes": 3821
+    },
+    {
+      "name": "card",
+      "url": "https://ui.shadcn.com/r/styles/base-nova/card.json",
+      "file": "shadcn-registry-snapshot/base-nova/card.json",
+      "sha256": "e73e3fe00ab2e14c4db1dccb1ff5c67041a94c0926ac3216c1dc6dd6dee9d7e0",
+      "bytes": 3251
+    },
+    {
+      "name": "checkbox",
+      "url": "https://ui.shadcn.com/r/styles/base-nova/checkbox.json",
+      "file": "shadcn-registry-snapshot/base-nova/checkbox.json",
+      "sha256": "e6df7b595f25a7ee97c3fb94e0ddc35998f74c98b990d3030e485905ec677178",
+      "bytes": 2343
+    },
+    {
+      "name": "collapsible",
+      "url": "https://ui.shadcn.com/r/styles/base-nova/collapsible.json",
+      "file": "shadcn-registry-snapshot/base-nova/collapsible.json",
+      "sha256": "74f78cd88a30185243847968977cf1de9ffbf576547f2ec1f14b5ef55505b90d",
+      "bytes": 1225
+    },
+    {
+      "name": "command",
+      "url": "https://ui.shadcn.com/r/styles/base-nova/command.json",
+      "file": "shadcn-registry-snapshot/base-nova/command.json",
+      "sha256": "626b25da7b65ae2e800e5c7bc516f2223c2a144fb745ddaf0dcbf746d879f3d1",
+      "bytes": 6313
+    },
+    {
+      "name": "dialog",
+      "url": "https://ui.shadcn.com/r/styles/base-nova/dialog.json",
+      "file": "shadcn-registry-snapshot/base-nova/dialog.json",
+      "sha256": "40fc321d25eb9590d07db54b00d9bc1a74274a549aa06d5915a34ba302ed8b94",
+      "bytes": 5119
+    },
+    {
+      "name": "dropdown-menu",
+      "url": "https://ui.shadcn.com/r/styles/base-nova/dropdown-menu.json",
+      "file": "shadcn-registry-snapshot/base-nova/dropdown-menu.json",
+      "sha256": "335c59dba30145f434a9cc9ccb0438a3c5e2afe857fc11b029de1ecb415224d7",
+      "bytes": 10405
+    },
+    {
+      "name": "empty",
+      "url": "https://ui.shadcn.com/r/styles/base-nova/empty.json",
+      "file": "shadcn-registry-snapshot/base-nova/empty.json",
+      "sha256": "e89ffe0fc2969956f6e1d601bd3f00b068600ac08e31590f65344e79ff242230",
+      "bytes": 3019
+    },
+    {
+      "name": "field",
+      "url": "https://ui.shadcn.com/r/styles/base-nova/field.json",
+      "file": "shadcn-registry-snapshot/base-nova/field.json",
+      "sha256": "586110f5563cbb5dc0929207ee34361f1349cf2f816465799c60b98821e4cedc",
+      "bytes": 7155
+    },
+    {
+      "name": "input-group",
+      "url": "https://ui.shadcn.com/r/styles/base-nova/input-group.json",
+      "file": "shadcn-registry-snapshot/base-nova/input-group.json",
+      "sha256": "acf9c5497a6c844dee87fbd4afefb6cd8be9ce50d050d14d58a340d955e517a1",
+      "bytes": 6116
+    },
+    {
+      "name": "input",
+      "url": "https://ui.shadcn.com/r/styles/base-nova/input.json",
+      "file": "shadcn-registry-snapshot/base-nova/input.json",
+      "sha256": "bbad1bba130ac9750a61844eeb8f043e8a710846e07689fa85398b80a46c2741",
+      "bytes": 1539
+    },
+    {
+      "name": "kbd",
+      "url": "https://ui.shadcn.com/r/styles/base-nova/kbd.json",
+      "file": "shadcn-registry-snapshot/base-nova/kbd.json",
+      "sha256": "4cfe2ba8e19f4d19d090eb039e3f1c041c9cfb379ce948237a9b5018203f7a6c",
+      "bytes": 1338
+    },
+    {
+      "name": "label",
+      "url": "https://ui.shadcn.com/r/styles/base-nova/label.json",
+      "file": "shadcn-registry-snapshot/base-nova/label.json",
+      "sha256": "89b01e14fd39dceece9fa421e71e78ea83286bd43a2ca1c2f55d2e8d3958fff2",
+      "bytes": 1079
+    },
+    {
+      "name": "native-select",
+      "url": "https://ui.shadcn.com/r/styles/base-nova/native-select.json",
+      "file": "shadcn-registry-snapshot/base-nova/native-select.json",
+      "sha256": "743d128b09f67c1921e3c302e778834639e5be92c454205cabfb61eed34b4ff1",
+      "bytes": 2944
+    },
+    {
+      "name": "pagination",
+      "url": "https://ui.shadcn.com/r/styles/base-nova/pagination.json",
+      "file": "shadcn-registry-snapshot/base-nova/pagination.json",
+      "sha256": "d2c45af4aaf4a676f420c673f337e8ba89dc7db75bf9fa11143f8a947f3a7f42",
+      "bytes": 4268
+    },
+    {
+      "name": "popover",
+      "url": "https://ui.shadcn.com/r/styles/base-nova/popover.json",
+      "file": "shadcn-registry-snapshot/base-nova/popover.json",
+      "sha256": "ba5fe84f353f6c0fd2133a2ab893f5e8861fc60dc4dea548a7ec875acaa37b2c",
+      "bytes": 3247
+    },
+    {
+      "name": "progress",
+      "url": "https://ui.shadcn.com/r/styles/base-nova/progress.json",
+      "file": "shadcn-registry-snapshot/base-nova/progress.json",
+      "sha256": "359e72beff723311ec2e4d5154a0f80dedd253bd6b16959a4db0773714ceab52",
+      "bytes": 2393
+    },
+    {
+      "name": "radio-group",
+      "url": "https://ui.shadcn.com/r/styles/base-nova/radio-group.json",
+      "file": "shadcn-registry-snapshot/base-nova/radio-group.json",
+      "sha256": "874b30662ba338d06362491b663cae9198281a4bc385b6be6425f2de442384d7",
+      "bytes": 2454
+    },
+    {
+      "name": "scroll-area",
+      "url": "https://ui.shadcn.com/r/styles/base-nova/scroll-area.json",
+      "file": "shadcn-registry-snapshot/base-nova/scroll-area.json",
+      "sha256": "be6cdcfbf02a2fa091ec92cb2bc34e35b8a4e4b3a2d041973cfcd68396e6da1d",
+      "bytes": 2264
+    },
+    {
+      "name": "select",
+      "url": "https://ui.shadcn.com/r/styles/base-nova/select.json",
+      "file": "shadcn-registry-snapshot/base-nova/select.json",
+      "sha256": "425e9b0a28b72617f18fabd75384050113295b88e7ba01c35bede2c72bd5d476",
+      "bytes": 8335
+    },
+    {
+      "name": "separator",
+      "url": "https://ui.shadcn.com/r/styles/base-nova/separator.json",
+      "file": "shadcn-registry-snapshot/base-nova/separator.json",
+      "sha256": "3ad65962485f464592201cb90017b3d52a5c9fe272ce41ee049485b4c42e0d76",
+      "bytes": 1131
+    },
+    {
+      "name": "sheet",
+      "url": "https://ui.shadcn.com/r/styles/base-nova/sheet.json",
+      "file": "shadcn-registry-snapshot/base-nova/sheet.json",
+      "sha256": "72b36d92af7fcbc9bd2d1d4ef0cbc65f4fc8178f7bb2bedaf657460f15011cf4",
+      "bytes": 5459
+    },
+    {
+      "name": "skeleton",
+      "url": "https://ui.shadcn.com/r/styles/base-nova/skeleton.json",
+      "file": "shadcn-registry-snapshot/base-nova/skeleton.json",
+      "sha256": "85692a09912f518ffd64c540dfcf098fe748a807baf288c107cf8126496cf886",
+      "bytes": 777
+    },
+    {
+      "name": "sonner",
+      "url": "https://ui.shadcn.com/r/styles/base-nova/sonner.json",
+      "file": "shadcn-registry-snapshot/base-nova/sonner.json",
+      "sha256": "831967f80f645ac3908b356a44748698a9ceed1c6a51b232dd5e87c52a54d7c3",
+      "bytes": 3009
+    },
+    {
+      "name": "spinner",
+      "url": "https://ui.shadcn.com/r/styles/base-nova/spinner.json",
+      "file": "shadcn-registry-snapshot/base-nova/spinner.json",
+      "sha256": "d949d0b91ff34620eecf2bb359536fd3e6942b518dc0a396b77fd02a90661b61",
+      "bytes": 1063
+    },
+    {
+      "name": "switch",
+      "url": "https://ui.shadcn.com/r/styles/base-nova/switch.json",
+      "file": "shadcn-registry-snapshot/base-nova/switch.json",
+      "sha256": "1f22350ccbf358a3aa198305c41d91e146abc0a7d5b18a9a23488b8d6b264ab4",
+      "bytes": 2397
+    },
+    {
+      "name": "table",
+      "url": "https://ui.shadcn.com/r/styles/base-nova/table.json",
+      "file": "shadcn-registry-snapshot/base-nova/table.json",
+      "sha256": "054c89df40058a96723c9ed8cde6308e738f3a303fd19301ce94ade032306b60",
+      "bytes": 3043
+    },
+    {
+      "name": "tabs",
+      "url": "https://ui.shadcn.com/r/styles/base-nova/tabs.json",
+      "file": "shadcn-registry-snapshot/base-nova/tabs.json",
+      "sha256": "b4552a0329dd9a6e2bfaf03405c133874df5a4930c7bb3dd84c9ab5c45b89402",
+      "bytes": 4143
+    },
+    {
+      "name": "textarea",
+      "url": "https://ui.shadcn.com/r/styles/base-nova/textarea.json",
+      "file": "shadcn-registry-snapshot/base-nova/textarea.json",
+      "sha256": "8f01f6bc4ee556263bae7644e8b527022fa77ff203f33a258bb47142ef7d9c81",
+      "bytes": 1349
+    },
+    {
+      "name": "toggle-group",
+      "url": "https://ui.shadcn.com/r/styles/base-nova/toggle-group.json",
+      "file": "shadcn-registry-snapshot/base-nova/toggle-group.json",
+      "sha256": "9f103af4a048ec392cb09b886985ec733a360a0033cc7138349f1775851a89d4",
+      "bytes": 3936
+    },
+    {
+      "name": "toggle",
+      "url": "https://ui.shadcn.com/r/styles/base-nova/toggle.json",
+      "file": "shadcn-registry-snapshot/base-nova/toggle.json",
+      "sha256": "f06447a03bcc1e510f3a50d5e7735bd82bdc17bc77849596709727c215bcc20e",
+      "bytes": 2371
+    },
+    {
+      "name": "tooltip",
+      "url": "https://ui.shadcn.com/r/styles/base-nova/tooltip.json",
+      "file": "shadcn-registry-snapshot/base-nova/tooltip.json",
+      "sha256": "2f55867faecee2d3616cfd8c6a80b538909a21e62fdfa2788b1ead56093e5395",
+      "bytes": 3929
+    }
+  ]
+}
