@@ -194,6 +194,29 @@ try {
     await page.waitForTimeout(400)
     record((await page.locator('main').textContent())?.includes('当前查看 v1') ?? false, '版本切换必须改变当前查看版本')
   }
+
+  /* FE4 业务流（需要 mock 控制面）：资产页签、技术深链、MPI 队列检索。 */
+  if (wantsFlow('fe4')) {
+    await page.goto(`${base}/assets`, { waitUntil: 'domcontentloaded' })
+    await page.waitForTimeout(700)
+    record((await page.locator('main').textContent())?.includes('数仓集群') ?? false, '资产目录实例名必须中文口径')
+    await page.getByRole('tab', { name: /质量测试/ }).click()
+    await page.waitForTimeout(400)
+    record((await page.locator('main').textContent())?.includes('quality.ep.order.paystatus-range') ?? false, '质量测试页签必须读真实规则')
+
+    await page.goto(`${base}/assets/technical?asset=doris-dataos.ods_ep.ep_mz_cfzb`, { waitUntil: 'domcontentloaded' })
+    await page.waitForTimeout(700)
+    const technical = await page.locator('main').textContent()
+    record(technical?.includes('PRESCRIPTION_ID') ?? false, '技术视图必须渲染字段结构')
+    record(technical?.includes('门诊就诊记录') ?? false, '技术视图必须渲染上游血缘')
+
+    await page.goto(`${base}/mpi/review`, { waitUntil: 'domcontentloaded' })
+    await page.waitForTimeout(700)
+    record((await page.locator('main').textContent())?.includes('陈测一短信一23 ↔ 陈测一104') ?? false, 'MPI 队列必须渲染候选对')
+    await page.getByLabel('搜索复核候选').fill('张测三')
+    await page.waitForTimeout(900)
+    record((await page.locator('main').textContent())?.includes('张测三 ↔ 张测三') ?? false, 'MPI 搜索必须命中服务端返回的队列外候选')
+  }
 } finally {
   await browser.close()
   server?.kill('SIGTERM')

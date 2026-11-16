@@ -10,9 +10,7 @@ const src = (path) => readFileSync(resolve(root, path), 'utf8')
 const staticPages = [
   'src/pages/DataStandardsPage.tsx',
   'src/pages/StandardMappingPage.tsx',
-  'src/pages/MpiReviewPage.tsx',
-  'src/pages/AssetCatalogPage.tsx',
-  'src/pages/AssetTechnicalPage.tsx',
+
   'src/pages/AnalyticsPage.tsx',
   'src/pages/AssistantPage.tsx',
   'src/pages/DeliveryCenterPage.tsx',
@@ -87,6 +85,10 @@ assert.match(src('src/features/ingestion/labels.ts'), /defaultTemplateKey\(DEFAU
 // 迁移页不得把演示/静态数据带回真实路径（计划 §1 完成定义 3）。
 for (const page of [
   'src/features/overview/overview-page.tsx',
+  'src/features/assets/asset-catalog-page.tsx',
+  'src/features/assets/asset-technical-page.tsx',
+  'src/features/mpi/mpi-review-page.tsx',
+  'src/pages/MpiReviewLive.tsx',
   'src/features/ingestion/ingestion-page.tsx',
   'src/features/ingestion/job-editor-page.tsx',
   'src/features/ingestion/job-detail-page.tsx',

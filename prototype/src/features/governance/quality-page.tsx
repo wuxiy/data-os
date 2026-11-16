@@ -396,7 +396,7 @@ export function QualityPage() {
               ) : null}
             </ul>
             <div className="border-t border-line px-3">
-              <TablePagination page={currentPage} pageSize={QUEUE_PAGE_SIZE} total={visibleIssues.length} onPageChange={setPage} label="问题队列分页" className="border-t-0 px-0" />
+              <TablePagination page={currentPage} pageSize={QUEUE_PAGE_SIZE} total={visibleIssues.length} onPageChange={setPage} label="问题队列分页" compact className="border-t-0 px-0" />
             </div>
           </Panel>
 

@@ -305,6 +305,7 @@ export function TablePagination({
   onPageSizeChange,
   label = '列表分页',
   className,
+  compact = false,
 }: {
   page: number
   pageSize: number
@@ -314,18 +315,22 @@ export function TablePagination({
   onPageSizeChange?: (size: number) => void
   label?: string
   className?: string
+  /** 窄栏（侧栏队列）用：省略每页条数与「共 N 条」长文案，保留区间与页码。 */
+  compact?: boolean
 }) {
   const pageCount = Math.max(1, Math.ceil(total / pageSize))
   const current = Math.min(page, pageCount - 1)
   const start = total === 0 ? 0 : current * pageSize + 1
   const end = Math.min((current + 1) * pageSize, total)
   return (
-    <nav aria-label={label} className={cn('flex items-center justify-between gap-3 border-t border-line px-[18px] py-3.5 text-label text-faint', className)}>
-      <span>
-        共 {total} 条记录{total ? ` · 第 ${start}–${end} 条` : ''}
+    <nav aria-label={label} className={cn('flex items-center justify-between gap-3 border-t border-line px-[18px] py-3.5 text-label text-faint', compact && 'flex-wrap gap-y-1 px-2 py-2', className)}>
+      <span className="min-w-0 truncate">
+        {compact
+          ? (total ? `${start}–${end} / ${total} 条` : '0 条')
+          : <>共 {total} 条记录{total ? ` · 第 ${start}–${end} 条` : ''}</>}
       </span>
       <div className="flex items-center gap-1.5">
-        {onPageSizeChange && pageSizeOptions?.length ? (
+        {!compact && onPageSizeChange && pageSizeOptions?.length ? (
           <NativeSelect
             aria-label="每页条数"
             className="mr-2 w-auto"
@@ -334,7 +339,7 @@ export function TablePagination({
           >
             {pageSizeOptions.map((size) => <option key={size} value={size}>每页 {size} 条</option>)}
           </NativeSelect>
-        ) : (
+        ) : compact ? null : (
           <span className="mr-2">每页 {pageSize} 条</span>
         )}
         <button

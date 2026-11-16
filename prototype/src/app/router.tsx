@@ -13,6 +13,9 @@ import { RuleEditorPage } from '../features/governance/rule-editor-page'
 import { ScoringPage } from '../features/governance/scoring-page'
 import { StandardsPage } from '../features/governance/standards-page'
 import { MappingPage } from '../features/governance/mapping-page'
+import { AssetCatalogPage } from '../features/assets/asset-catalog-page'
+import { AssetTechnicalPage } from '../features/assets/asset-technical-page'
+import { MpiReviewPage } from '../features/mpi/mpi-review-page'
 import { AppShell } from './shell/app-shell'
 import { LegacyPortalPage } from './legacy/legacy-page'
 
@@ -164,9 +167,24 @@ const qualityRoute = createRoute({
   validateSearch: (search: Record<string, unknown>) => ({ issue: optString(search.issue) }),
   component: QualityPage,
 })
-const mpiRoute = legacy('/mpi/review', 'mpi', (search) => ({ task: optString(search.task) }))
-const assetsRoute = legacy('/assets', 'assets', (search) => ({ db: optString(search.db), asset: optString(search.asset) }))
-const assetTechnicalRoute = legacy('/assets/technical', 'assetTechnical', (search) => ({ asset: optString(search.asset) }))
+const mpiRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/mpi/review',
+  validateSearch: (search: Record<string, unknown>) => ({ task: optString(search.task) }),
+  component: MpiReviewPage,
+})
+const assetsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/assets',
+  validateSearch: (search: Record<string, unknown>) => ({ db: optString(search.db), asset: optString(search.asset) }),
+  component: AssetCatalogPage,
+})
+const assetTechnicalRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/assets/technical',
+  validateSearch: (search: Record<string, unknown>) => ({ asset: optString(search.asset), db: optString(search.db) }),
+  component: AssetTechnicalPage,
+})
 const analyticsRoute = legacy('/analysis', 'analytics')
 const aiDataRoute = legacy('/ai-data', 'aiData', (search) => ({ product: optString(search.product) }))
 const dataServicesRoute = legacy('/data-services', 'dataServices')

@@ -278,6 +278,61 @@ function mappingDetail(id, versionId) {
   }
 }
 
+
+// —— 资产与 MPI（FE4）——
+const lineageSchemaAssets = {
+  ods_ep: [
+    { name: 'ep_mz_cfzb', fullyQualifiedName: 'doris-dataos.ods_ep.ep_mz_cfzb', displayName: '门诊处方主表', columnCount: 12, updatedAt: '2026-11-16T01:00:00Z', updatedBy: 'ingest' },
+    { name: 'ep_mz_cfzb_detail', fullyQualifiedName: 'doris-dataos.ods_ep.ep_mz_cfzb_detail', displayName: '门诊处方明细', columnCount: 18, updatedAt: '2026-11-16T01:00:00Z', updatedBy: 'ingest' },
+    { name: 'ep_patient', fullyQualifiedName: 'doris-dataos.ods_ep.ep_patient', displayName: '门诊患者', columnCount: 9, updatedAt: '2026-11-16T01:00:00Z', updatedBy: 'ingest' },
+  ],
+  dataos_mpi: [
+    { name: 'mpi_golden_person', fullyQualifiedName: 'doris-dataos.dataos_mpi.mpi_golden_person', displayName: '黄金人索引', columnCount: 7, updatedAt: '2026-11-16T01:00:00Z', updatedBy: 'ingest' },
+  ],
+}
+
+function assetDetail(fqn) {
+  const name = fqn.split('.').pop()
+  return {
+    name, fullyQualifiedName: fqn, displayName: name === 'ep_mz_cfzb' ? '门诊处方主表' : name,
+    description: '门诊处方结构元数据；业务定义在资产治理流程中补充。',
+    columns: [
+      { name: 'PRESCRIPTION_ID', dataType: 'VARCHAR(64)', description: '处方唯一标识' },
+      { name: 'PATIENT_ID', dataType: 'VARCHAR(64)', description: '患者主索引键' },
+      { name: 'PAY_STATUS', dataType: 'INT', description: '支付状态' },
+      { name: 'AMOUNT', dataType: 'DECIMAL(12,2)', description: '处方金额' },
+      { name: 'UPDATE_TIME', dataType: 'TIMESTAMP', description: '更新时间' },
+    ],
+    updatedAt: '2026-11-16T01:00:00Z',
+  }
+}
+
+function assetLineage(fqn) {
+  return {
+    root: fqn,
+    upstreams: [{ fullyQualifiedName: 'doris-dataos.ods_ep.ep_mz_visit', type: 'table', displayName: '门诊就诊记录', columnMappings: [{ fromColumns: ['VISIT_ID'], toColumn: 'VISIT_ID' }] }],
+    downstreams: [
+      { fullyQualifiedName: 'doris-dataos.dws.dws_prescription_day', type: 'table', displayName: '处方日汇总', columnMappings: [{ fromColumns: ['AMOUNT'], toColumn: 'TOTAL_AMOUNT' }] },
+      { fullyQualifiedName: 'superset-dataos.model.2', type: 'dataModel', displayName: '处方运营模型', columnMappings: [] },
+    ],
+  }
+}
+
+const mpiCandidates = [
+  {
+    taskId: 'task-001', pairId: 1, status: 'OPEN', createdAt: '2026-11-16T00:00:00Z', ruleId: 'E5', outcome: 'REVIEW',
+    identityA: { identity: 'H|EP|1', institution: 'ctest', sourceSystem: 'EP', patientId: '1***1', cardNo: '120112****6978', name: '陈测一短信一23', gender: 'F', age: '59.0' },
+    identityB: { identity: 'H|EP|2', institution: 'ctest', sourceSystem: 'EP', patientId: '2***2', cardNo: '120112****6979', name: '陈测一104', gender: 'F', age: '59.0' },
+    evidence: JSON.stringify([{ field: 'name', valueA: '陈测一短信一23', valueB: '陈测一104', match: false }, { field: 'cardNo', valueA: '120112****6978', valueB: '120112****6979', match: false }]),
+  },
+  {
+    taskId: 'task-002', pairId: 2, status: 'OPEN', createdAt: '2026-11-16T00:30:00Z', ruleId: 'E2', outcome: 'REVIEW',
+    identityA: { identity: 'H|EP|3', institution: 'ctest', sourceSystem: 'EP', patientId: '3***3', cardNo: '', name: '张测三', gender: 'M', age: '41.0' },
+    identityB: { identity: 'H|EP|4', institution: 'ctest', sourceSystem: 'EP', patientId: '4***4', cardNo: '', name: '张测三', gender: 'M', age: '41.0' },
+    evidence: JSON.stringify([{ field: 'name', valueA: '张测三', valueB: '张测三', match: true }]),
+  },
+]
+
 function json(response, status, payload) {
   const body = JSON.stringify(payload)
   response.writeHead(status, {
@@ -648,6 +703,62 @@ const server = createServer(async (request, response) => {
   if (match) return json(response, 200, { versionId: match[1], versionNo: 2, status: 'DRAFT', sourceAsset: 'doris.dataos.ods_ep.ep_order', dataset: 'ods_ep.ep_order', standard: { id: 'std-001', code: 'reg-channel', name: '挂号渠道标准' }, itemCount: 2, mappedElements: { channel: 1, patient_id: 1 }, unpublishedUncoveredElements: ['order_status'], latestValidation: {} })
   match = /^\/v1\/standard-mappings\/([^/]+)\/rollback$/.exec(path)
   if (match && method === 'POST') return json(response, 200, mappingDetail(match[1]))
+
+
+  // —— 资产与 MPI（FE4）——
+  if (path === '/v1/lineage/summary') {
+    return json(response, 200, {
+      service: 'doris-dataos', schemas: ['ods_ep', 'dataos_mpi'], tableCount: 4, columnCount: 46,
+      dashboardService: 'superset-dataos', dashboards: [{ fullyQualifiedName: 'superset-dataos.model.2', displayName: '处方运营模型', updatedAt: '2026-11-16T00:00:00Z' }],
+    })
+  }
+  if (path === '/v1/assets' && method === 'GET') {
+    const schema = url.searchParams.get('schema') ?? 'ods_ep'
+    return json(response, 200, { service: 'doris-dataos', schema, assets: lineageSchemaAssets[schema] ?? [], fetchedAt: now() })
+  }
+  match = /^\/v1\/assets\/([^/]+)\/lineage$/.exec(path)
+  if (match) return json(response, 200, assetLineage(decodeURIComponent(match[1])))
+  match = /^\/v1\/assets\/([^/]+)\/quality-tests$/.exec(path)
+  if (match) {
+    return json(response, 200, { tests: [
+      { ruleId: 'quality.ep.order.paystatus-range', datasetId: 'ods_ep.ep_order', selector: 'PAY_STATUS', lastRun: { status: 'SUCCEEDED', passed: true, finishedAt: '2026-11-16T01:00:00Z' } },
+      { ruleId: 'quality.ep.order.amount-min', datasetId: 'ods_ep.ep_order', selector: 'AMOUNT', lastRun: { status: 'FAILED', passed: false, finishedAt: '2026-11-16T02:00:00Z' } },
+    ] })
+  }
+  match = /^\/v1\/assets\/([^/]+)$/.exec(path)
+  if (match && method === 'GET') return json(response, 200, assetDetail(decodeURIComponent(match[1])))
+
+  if (path === '/v1/mpi/metrics') {
+    return json(response, 200, { identitiesLoaded: 2882, goldenPersons: 352, autoMatches: 360, reviewPending: mpiCandidates.length, reviewResolved: 4 })
+  }
+  if (path === '/v1/mpi/candidates') {
+    const q = (url.searchParams.get('q') ?? '').trim().toLowerCase()
+    const items = q
+      ? mpiCandidates.filter((item) => `${item.identityA.name}${item.identityB.name}${item.identityA.cardNo}${item.ruleId}`.toLowerCase().includes(q))
+      : mpiCandidates
+    return json(response, 200, { total: items.length, page: 1, size: 100, items })
+  }
+  match = /^\/v1\/mpi\/persons\/([^/]+)$/.exec(path)
+  if (match && method === 'GET') {
+    return json(response, 200, {
+      id: decodeURIComponent(match[1]), goldenName: '陈测一', goldenGender: 'F', status: 'ACTIVE', createdAt: '2026-11-01T00:00:00Z',
+      links: [
+        { sourceIdentifier: 'H|EP|1', decisionSource: 'MANUAL', linkStatus: 'ACTIVE' },
+        { sourceIdentifier: 'H|EP|2', decisionSource: 'RULE', linkStatus: 'ACTIVE' },
+      ],
+      history: [{ action: 'MERGE', actor: 'mpi-worker', createdAt: '2026-11-16T00:00:00Z' }],
+    })
+  }
+  match = /^\/v1\/mpi\/persons\/([^/]+)\/split$/.exec(path)
+  if (match && method === 'POST') return json(response, 200, { personId: decodeURIComponent(match[1]), newPersonId: 'person-new', splitIdentity: 'H|EP|2' })
+  if (path === '/v1/mpi/rebuild' && method === 'POST') {
+    return json(response, 200, { identitiesLoaded: 2882, candidatePairs: 1128, outcomes: { autoMatch: 360, review: 768 } })
+  }
+  match = /^\/v1\/mpi\/links\/([^/]+)\/decision$/.exec(path)
+  if (match && method === 'POST') {
+    const body = await readBody(request)
+    return json(response, 200, { taskId: decodeURIComponent(match[1]), resolution: body.resolution ?? 'SAME_PERSON', mergedPersonId: 'person-001' })
+  }
 
   // 周期调度
   match = /^\/v1\/jobs\/([^/]+)\/schedule$/.exec(path)

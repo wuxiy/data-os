@@ -33,8 +33,10 @@ assert.match(types, /'assetTechnical'/, '资产技术视图必须是可识别路
 assert.match(types, /'assistantWorkspace'/, '专业问数工作区必须是可识别路由')
 assert.match(routes, /assetTechnical:\s*'\/assets\/technical'/, '资产技术视图必须有深链路径')
 assert.match(routes, /assistantWorkspace:\s*'\/assistant\/workspace'/, '专业问数工作区必须有深链路径')
-assert.match(routerFile, /assetTechnicalRoute = legacy\('\/assets\/technical', 'assetTechnical'/, '路由树必须挂载资产技术视图')
-assert.match(routerFile, /assistantWorkspaceRoute = legacy\('\/assistant\/workspace', 'assistantWorkspace'/, '路由树必须挂载专业问数工作区')
+assert.match(routerFile, /path: '\/assets\/technical'/, '路由表必须登记资产技术视图深链')
+assert.match(routerFile, /component: AssetTechnicalPage/, '路由树必须挂载资产技术视图')
+assert.match(routerFile, /path: '\/assistant\/workspace'|legacy\('\/assistant\/workspace'/, '路由表必须登记专业问数工作区')
+assert.match(routerFile, /assistantWorkspaceRoute/, '路由树必须挂载专业问数工作区')
 assert.match(navigation, /pathname\.startsWith\('\/assets\/technical'\)\) return 'assets'/, '技术视图打开后数据资产导航仍应保持激活')
 assert.match(navigation, /pathname\.startsWith\('\/assistant'\)\) return 'assistant'/, '专业工作区打开后智能问数导航仍应保持激活')
 assert.match(assets, /target="_blank"/, '打开技术视图必须产生新标签页')
@@ -72,12 +74,13 @@ assert.match(quality, /提醒责任人/, '质量闭环责任人提醒必须是�
 
 // 品牌与枚举红线（DESIGN.md：业务视图不暴露底层引擎名与后端英文枚举）。
 // 技术域页面（平台运维、资产技术视图）按自身边界声明允许出现组件名，不在锁内。
-const assetsLive = read('src/pages/AssetCatalogLive.tsx')
+// FE4 锁迁移：资产目录迁到 features/assets；业务视图仍不得暴露引擎名与实例原始名。
+const assetsLive = read('src/features/assets/asset-catalog-page.tsx')
 assert.doesNotMatch(assetsLive, /OpenMetadata/, '资产目录业务视图不得暴露元数据引擎名（DESIGN.md 红线）')
 // 实例名锁（2026-11-09 走查 P2）：渲染处不得直出原始实例名（doris-dataos /
 // superset-dataos 等小写实例名曾绕过上面的大小写敏感锁直出业务视图），
 // 须走 lineageApi.instanceServiceLabel 中文口径；源码注释与技术域页面不在锁内。
-assert.doesNotMatch(assetsLive, />\{catalog\.service\}|（\{summary\.dashboardService\}）/, '资产目录业务视图不得直出实例原始名（须 instanceServiceLabel 映射）')
+assert.doesNotMatch(assetsLive, />\{catalog\.service\}|>\{summary\.dashboardService\}/, '资产目录业务视图不得直出实例原始名（须 instanceServiceLabel 映射）')
 assert.match(assetsLive, /instanceServiceLabel\(/, '资产目录实例名必须经中文口径映射')
 const analyticsLive = read('src/pages/AnalyticsLive.tsx')
 assert.doesNotMatch(analyticsLive, /Superset/, '分析看板业务视图不得暴露分析引擎品牌（DESIGN.md 红线；包名/标识符为小写不受影响）')
@@ -86,7 +89,8 @@ assert.match(aiDetail, /aiBuildStatusLabel/, 'AI Data 版本构建状态必须�
 assert.match(aiDetail, /aiCertificationLabel/, 'AI Data 认证档位必须经中文口径映射')
 assert.match(aiDetail, /aiFeedbackTypeLabel/, 'AI Data 反馈类型必须经中文口径映射')
 assert.doesNotMatch(aiDetail, />\{version\.buildStatus\}|>\{readiness\.certification \?\? '\u2014'\}|>\{item\.feedbackType\}/, 'AI Data 不得把后端枚举原样渲染进表格')
-assert.doesNotMatch(read('src/pages/MpiReviewLive.tsx'), /<StatusTag tone="warning">\{candidate\.ruleId\}/, 'MPI 队列不得重复渲染原始规则枚举')
+assert.doesNotMatch(read('src/pages/MpiReviewLive.tsx'), /<StatusTag|<Tag color="warning">\{candidate\.ruleId\}/, 'MPI 队列不得重复渲染原始规则枚举')
+assert.match(read('src/pages/MpiReviewLive.tsx'), /mpiRuleLabel/, 'MPI 规则枚举必须经中文口径映射')
 
 // 版本切换控件红线（2026-10-05 critique P0-1）：不可变版本模型的命脉交互，
 // 不得复用 11px 装饰圆点类，控件可见尺寸必须由样式锁定。
