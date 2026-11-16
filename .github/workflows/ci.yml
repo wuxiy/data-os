@@ -154,6 +154,9 @@ jobs:
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
 
+      - name: Test portal
+        run: npx vitest run
+
       - name: Verify mock boundaries and portal interactions
         run: |
           npm run qa:mock

@@ -56,7 +56,9 @@ assert.match(src('src/pages/DeliveryCenterPage.tsx'), /fetchDeliveries/, '交付
 assert.match(src('src/pages/DeliveryCenterPage.tsx'), /submitDelivery|acceptDelivery/, '交付中心真实页必须提供提交与验收动作')
 assert.match(src('src/pages/DeliveryCenterPage.tsx'), /downloadEvidenceZip/, '交付中心真实页必须提供证据包下载')
 assert.match(src('src/data/routes.ts'), /deliveryCenter/, '路由表必须注册交付中心路径')
-assert.match(src('src/components/layout/AppShell.tsx'), /label: '交付中心', icon: PackageCheck, route: 'deliveryCenter'/, '一级导航「交付中心」必须挂真实路由（不再是规划中占位）')
+// FE1 锁迁移：旧 AppShell 的一级导航数组并入 app/navigation.ts，断言改指新家，
+// 业务不变量不变——交付中心必须是一级入口且挂真实路由。
+assert.match(src('src/app/navigation.ts'), /key: 'deliveryCenter', label: '交付中心', path: '\/delivery-center'/, '一级导航「交付中心」必须挂真实路由（不再是规划中占位）')
 
 // G26 接真锁：智能问数真实构建切 Live、拒答显式呈现、不回退演示场景
 assert.match(src('src/pages/AssistantPage.tsx'), /frontendDemoMode[\s\S]*AssistantLive/, '问数页真实构建必须渲染 AssistantLive')

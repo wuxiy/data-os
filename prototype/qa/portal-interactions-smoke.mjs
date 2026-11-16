@@ -11,10 +11,14 @@ function read(path) {
   return execFileSync('git', ['show', `${revision}:prototype/${path}`], { encoding: 'utf8' })
 }
 
+// 锁迁移记录（FE1，2026-11-16）：App.tsx 的 switch 分发已由 app/router.tsx 的
+// 代码路由取代，侧栏高亮逻辑移入 app/navigation.ts。以下三条断言改指新家，
+// 业务不变量不变：技术视图/专业工作区必须有深链、可挂载，且侧栏保持父入口高亮。
 const app = read('src/App.tsx')
+const routerFile = read('src/app/router.tsx')
+const navigation = read('src/app/navigation.ts')
 const types = read('src/types.ts')
 const routes = read('src/data/routes.ts')
-const shell = read('src/components/layout/AppShell.tsx')
 const assets = read('src/pages/AssetCatalogPage.tsx')
 const assistant = read('src/pages/AssistantPage.tsx')
 const ingestion = read('src/pages/DataIngestionPage.tsx')
@@ -28,10 +32,10 @@ assert.match(types, /'assetTechnical'/, '资产技术视图必须是可识别路
 assert.match(types, /'assistantWorkspace'/, '专业问数工作区必须是可识别路由')
 assert.match(routes, /assetTechnical:\s*'\/assets\/technical'/, '资产技术视图必须有深链路径')
 assert.match(routes, /assistantWorkspace:\s*'\/assistant\/workspace'/, '专业问数工作区必须有深链路径')
-assert.match(app, /case 'assetTechnical':/, 'App 必须挂载资产技术视图')
-assert.match(app, /case 'assistantWorkspace':/, 'App 必须挂载专业问数工作区')
-assert.match(shell, /\['assets', 'assetTechnical'\]/, '技术视图打开后数据资产导航仍应保持激活')
-assert.match(shell, /\['assistant', 'assistantWorkspace'\]/, '专业工作区打开后智能问数导航仍应保持激活')
+assert.match(routerFile, /assetTechnicalRoute = legacy\('\/assets\/technical', 'assetTechnical'/, '路由树必须挂载资产技术视图')
+assert.match(routerFile, /assistantWorkspaceRoute = legacy\('\/assistant\/workspace', 'assistantWorkspace'/, '路由树必须挂载专业问数工作区')
+assert.match(navigation, /pathname\.startsWith\('\/assets\/technical'\)\) return 'assets'/, '技术视图打开后数据资产导航仍应保持激活')
+assert.match(navigation, /pathname\.startsWith\('\/assistant'\)\) return 'assistant'/, '专业工作区打开后智能问数导航仍应保持激活')
 assert.match(assets, /target="_blank"/, '打开技术视图必须产生新标签页')
 assert.match(assets, /routePaths\.assetTechnical/, '打开技术视图必须指向真实深链')
 assert.match(assistant, /target="_blank"/, '进入专业工作区必须产生新标签页')
@@ -45,7 +49,8 @@ assert.match(http, /Authorization/, '门户 API 传输层必须支持 Bearer tok
 assert.match(http, /dataos:auth-required/, '传输层必须在 401 时广播会话失效事件')
 assert.match(oidc, /code_challenge_method.*S256/, '门户 OIDC 登录必须使用 PKCE S256')
 assert.match(oidc, /sessionStorage/, '门户 OIDC 会话必须限制在当前浏览器会话')
-assert.match(app, /OidcLoginGate/, '生产门户必须在 OIDC 未登录时阻断业务页面')
+assert.match(app, /AuthGate/, '应用入口必须经过会话门')
+assert.match(read('src/app/auth-gate.tsx'), /OidcLoginGate/, '生产门户必须在 OIDC 未登录时阻断业务页面')
 assert.match(read('src/components/ui/RuntimeStatusBanner.tsx'), /首期真实范围/, '门户必须持续显示首期真实产品范围（由运行状态横幅承载）')
 assert.match(scopeNotice, /首期真实范围/, '门户范围提示必须明确首期真实能力')
 assert.match(scopeNotice, /受控智能问数（Beta，仅已验证问题/, '门户范围提示必须声明问数边界（Beta · 仅已验证问题）')
