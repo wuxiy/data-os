@@ -1,0 +1,94 @@
+{
+  "approved_on": "2026-11-16",
+  "approved_by": "user",
+  "prototype_version": "0.2",
+  "approval_scope": [
+    "四页视觉与布局",
+    "抽屉/Dialog/AlertDialog/工作页按任务分工",
+    "代表性可点击交互"
+  ],
+  "implementation_plan_status": "pending_review",
+  "application_commit": "64aa39b",
+  "files": [
+    {
+      "path": "index.html",
+      "sha256": "0bf544d3027e30dec8688363b83e4d93a557c76c916bfdc81c8a9c6c8b929901"
+    },
+    {
+      "path": "styles.css",
+      "sha256": "d2d6893feabc55bb4eaacf8b6df8b885d5ff16bd958ede93fb0fe749d71a8757"
+    },
+    {
+      "path": "app.js",
+      "sha256": "d300588ff46438d5fba12f82eaae5b0a731494ded4432ffd1bc07c3e8a9ea7a2"
+    },
+    {
+      "path": "icons.js",
+      "sha256": "5c6f83104fbf3c373d485f3f10e5af3d2c8a8136aed7da78966aae3db8103ddd"
+    },
+    {
+      "path": "interaction-patterns.js",
+      "sha256": "4bc6e3cf82f7f612e405560c0ba86e9b819d2844be5b069c44b9565e5b1bb507"
+    },
+    {
+      "path": "review.html",
+      "sha256": "47bca9b5ec907f8e01c736b7bc3b693df7e51b7ce5d11220be81775070207840"
+    },
+    {
+      "path": "01-overview-1440.png",
+      "sha256": "8d94bda8c70573fc424e8b7340c9b075b37ad56817c32fa11b2bfe14dff81059"
+    },
+    {
+      "path": "02-ingestion-1440.png",
+      "sha256": "5e1bb826f9a61ea534c8572f0b2453fa0853ff2d665ac7b94b5fe1f4114fc333"
+    },
+    {
+      "path": "03-quality-1440.png",
+      "sha256": "ccb4cb96eca51ce8175ac714135628f8b374e2af3550c436a9755c834e124a17"
+    },
+    {
+      "path": "04-assets-1440.png",
+      "sha256": "465b80b9e129f356bde0fa46f7d44b04ac048b6413c503f4527b597391a064a8"
+    },
+    {
+      "path": "05-quality-detail-1440.png",
+      "sha256": "62ad1dd44417b53e9c986818444a50701a466aa0364b9f7f18c273b76a17aa4f"
+    },
+    {
+      "path": "06-responsibility-chain-1440.png",
+      "sha256": "3075d946c2360d247d3c97ba455d52a6661a522532b8ef4f78365180267979f9"
+    },
+    {
+      "path": "07-asset-detail-1440.png",
+      "sha256": "339167f501f98ecc2240e75912cc336ac31587639dafcf4fa68149fcfa3e9d34"
+    },
+    {
+      "path": "08-new-task-1440.png",
+      "sha256": "ccc8d75e25bd93d9d04da83b85db8a81b13b8b1d4472681603cdfbf9412c6a18"
+    },
+    {
+      "path": "09-error-state-1440.png",
+      "sha256": "6b50d0fc85e90ae59e2d9fc64f4e3da7be195f8a0f7865fda8c5aa90074a0409"
+    },
+    {
+      "path": "10-source-dialog-1440.png",
+      "sha256": "cc2ad7cdd6ff1ffb36af6bc57ef760029a3f9900444f1da25295c23d74fbbb6e"
+    },
+    {
+      "path": "11-task-copy-dialog-1440.png",
+      "sha256": "35ec82133e7475b2c8d3d93e9f051ac625f5cf32f934b2963b0cdd5b52d226cc"
+    },
+    {
+      "path": "12-rule-delete-1440.png",
+      "sha256": "f80ea684b91c9cb2296a8f7f7f097031ef399d5e1beb6bb55257418236745a5e"
+    },
+    {
+      "path": "13-unsaved-exit-1440.png",
+      "sha256": "644ab204ddb03565c989b51aa378aec23a2d9e5c508929a01b770c1f5d4867eb"
+    },
+    {
+      "path": "14-task-editor-1440.png",
+      "sha256": "5437b2011b2d9580f28215e3a9a0a573991247b7d9742894bb4584342943ee7c"
+    }
+  ]
+}

@@ -1,0 +1,628 @@
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  Activity,
+  Archive,
+  Cable,
+  CalendarClock,
+  CheckCircle2,
+  Copy,
+  Database,
+  MoreHorizontal,
+  Pause,
+  Play,
+  Plus,
+  RefreshCw,
+  RotateCcw,
+  Settings2,
+} from 'lucide-react'
+import { useMemo, useState, type ReactNode } from 'react'
+import { Badge, StatusText } from '../../components/ui/badge'
+import { Button } from '../../components/ui/button'
+import { NativeSelect, SearchField } from '../../components/ui/input'
+import { Breadcrumb, PageHeading } from '../../components/ui/page-heading'
+import { Count, Panel, PanelHead, ScopeNote } from '../../components/ui/panel'
+import { Popover } from '../../components/ui/popover'
+import { EmptyState, LoadingInline } from '../../components/ui/states'
+import { DataTable, TablePagination, listColumnHelper } from '../../components/table/data-table'
+import { useNotice } from '../../components/ui/toast'
+import {
+  confirmIngestionRunAbsent,
+  fetchIngestionRuns,
+  retryIngestionRun,
+  startIngestionRun,
+  syncIngestionRun,
+  updateIngestionJobStatus,
+  type IngestionJobApiItem,
+  type IngestionRunApiItem,
+  type SourceApiItem,
+} from '../../data/controlPlane'
+import { ACTIVE_RUN_STATUSES, formatDateTime, retryableRunStatus, runStatusView } from '../../data/domain'
+import { workLinks } from '../../data/routes'
+import { usePortalNavigate } from '../../app/navigate'
+import { ingestionKeys, jobRunsQuery, jobsQuery, sourcesQuery, workflowTemplatesQuery } from './queries'
+import {
+  JOBS_PAGE_SIZE,
+  RUNS_PAGE_SIZE,
+  SOURCES_PAGE_SIZE,
+  businessMessage,
+  createRequestKey,
+  errorMessage,
+  executorLabel,
+  jobLifecycleView,
+  sourceDisplayName,
+  sourceStatusView,
+} from './labels'
+import { CopyJobDialog, SourceCheckDialog, SourceRegisterDialog } from './source-dialogs'
+
+/**
+ * 数据接入（FE2）：数据源 / 采集任务 / 运行记录三个工作区。
+ * 与旧页的差异是容器分工：短表单进 Dialog，任务配置与调度进独立工作页，
+ * 列表只保留能一眼判断的对象信息与主操作。
+ */
+type TabValue = 'sources' | 'jobs' | 'runs'
+
+export function IngestionPage() {
+  const navigate = usePortalNavigate()
+  const queryClient = useQueryClient()
+  const notify = useNotice()
+
+  const [tab, setTab] = useState<TabValue>('jobs')
+  const [keyword, setKeyword] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
+  const [modeFilter, setModeFilter] = useState('')
+  const [sourcesPage, setSourcesPage] = useState(0)
+  const [jobsPage, setJobsPage] = useState(0)
+  const [runsPage, setRunsPage] = useState(0)
+  const [sourceDialogOpen, setSourceDialogOpen] = useState(false)
+  const [checkingSource, setCheckingSource] = useState<SourceApiItem | null>(null)
+  const [copyTarget, setCopyTarget] = useState<IngestionJobApiItem | null>(null)
+
+  const sourcesRequest = useQuery(sourcesQuery())
+  const jobsRequest = useQuery(jobsQuery())
+  // 模板目录为从属资源：失败不塌页（列表主链路照常可用）。
+  const templatesRequest = useQuery(workflowTemplatesQuery())
+
+  const sources = sourcesRequest.data?.items ?? []
+  const jobs = jobsRequest.data?.items ?? []
+
+  const runQueries = useQueries({
+    queries: jobs.map((job) => ({ ...jobRunsQuery(job.id), enabled: jobsRequest.isSuccess })),
+  })
+  const latestRuns = useMemo(() => {
+    const map = new Map<string, IngestionRunApiItem>()
+    jobs.forEach((job, index) => {
+      const run = runQueries[index]?.data?.items?.[0]
+      if (run) map.set(job.id, run)
+    })
+    return map
+  }, [jobs, runQueries])
+
+  const sourceById = useMemo(() => new Map(sources.map((source) => [source.id, source])), [sources])
+
+  const filteredSources = useMemo(() => {
+    const text = keyword.trim().toLowerCase()
+    return sources.filter((source) => {
+      const matchesText = !text || [source.name, source.id, source.systemType, source.protocol].some((value) => value?.toLowerCase().includes(text))
+      const matchesStatus = !statusFilter || (statusFilter === 'checked' ? source.status === 'HEALTHY' : source.status !== 'HEALTHY')
+      return matchesText && matchesStatus
+    })
+  }, [sources, keyword, statusFilter])
+
+  const filteredJobs = useMemo(() => {
+    const text = keyword.trim().toLowerCase()
+    return jobs.filter((job) => {
+      const source = sourceById.get(job.sourceId)
+      const matchesText = !text || [job.name, job.id, source?.name].some((value) => value?.toLowerCase().includes(text))
+      const matchesStatus = !statusFilter || (statusFilter === 'enabled' ? job.status === 'ACTIVE' : job.status !== 'ACTIVE')
+      const matchesMode = !modeFilter || job.mode === modeFilter
+      return matchesText && matchesStatus && matchesMode
+    })
+  }, [jobs, keyword, statusFilter, modeFilter, sourceById])
+
+  const runRows = useMemo(() => jobs
+    .map((job) => ({ job, run: latestRuns.get(job.id) }))
+    .filter((row): row is { job: IngestionJobApiItem; run: IngestionRunApiItem } => Boolean(row.run))
+    .sort((left, right) => right.run.submittedAt.localeCompare(left.run.submittedAt)), [jobs, latestRuns])
+
+  const filteredRuns = useMemo(() => {
+    const text = keyword.trim().toLowerCase()
+    return runRows.filter(({ job, run }) => {
+      const matchesText = !text || [job.name, run.id, run.message].some((value) => value?.toLowerCase().includes(text))
+      const matchesStatus = !statusFilter || run.status === statusFilter
+      return matchesText && matchesStatus
+    })
+  }, [runRows, keyword, statusFilter])
+
+  const sourcesPageCount = Math.max(1, Math.ceil(filteredSources.length / SOURCES_PAGE_SIZE))
+  const jobsPageCount = Math.max(1, Math.ceil(filteredJobs.length / JOBS_PAGE_SIZE))
+  const runsPageCount = Math.max(1, Math.ceil(filteredRuns.length / RUNS_PAGE_SIZE))
+
+  const refresh = () => {
+    void sourcesRequest.refetch()
+    void jobsRequest.refetch()
+    runQueries.forEach((query) => void query.refetch())
+  }
+  const refreshing = sourcesRequest.isFetching || jobsRequest.isFetching || runQueries.some((query) => query.isFetching)
+
+  const unavailable = sourcesRequest.isError && jobsRequest.isError
+
+  const runAction = useMutation({
+    mutationFn: async ({ job, run, action }: { job: IngestionJobApiItem; run: IngestionRunApiItem; action: 'sync' | 'retry' | 'confirm-absent' }) => {
+      if (action === 'sync') return syncIngestionRun(job.id, run.id)
+      if (action === 'retry') return retryIngestionRun(job.id, run.id)
+      return confirmIngestionRunAbsent(job.id, run.id)
+    },
+    onSuccess: (run, variables) => {
+      void queryClient.invalidateQueries({ queryKey: ingestionKeys.runs(variables.job.id) })
+      void queryClient.invalidateQueries({ queryKey: ingestionKeys.jobs() })
+      notify(variables.action === 'sync'
+        ? `运行状态已更新：${runStatusView(run.status).label}`
+        : variables.action === 'retry'
+          ? `已创建重试运行：${runStatusView(run.status).label}`
+          : '已确认外部运行不存在，当前运行允许重试')
+    },
+    onError: (cause, variables) => notify(errorMessage(cause, variables.action === 'sync' ? '运行状态同步失败，请稍后重试' : variables.action === 'retry' ? '运行重试失败，请先确认任务未暂停且没有活动运行' : '确认外部运行不存在失败，请刷新后重试')),
+  })
+
+  const startRun = useMutation({
+    mutationFn: (job: IngestionJobApiItem) => startIngestionRun(job.id, { idempotencyKey: createRequestKey() }),
+    onSuccess: (run, job) => {
+      void queryClient.invalidateQueries({ queryKey: ingestionKeys.runs(job.id) })
+      void queryClient.invalidateQueries({ queryKey: ingestionKeys.jobs() })
+      notify(run.status === 'BLOCKED_DEPENDENCY' ? '运行记录已保存，等待中心采集执行器上线' : `运行已提交：${runStatusView(run.status).label}`)
+    },
+    onError: (cause) => notify(errorMessage(cause, '运行请求失败，请查看控制面运行日志')),
+  })
+
+  const changeStatus = useMutation({
+    mutationFn: ({ job, status }: { job: IngestionJobApiItem; status: string }) => updateIngestionJobStatus(job.id, status),
+    onSuccess: (updated) => {
+      void queryClient.invalidateQueries({ queryKey: ingestionKeys.jobs() })
+      notify(`任务状态已更新：${jobLifecycleView(updated.status).label}`)
+    },
+    onError: (cause) => notify(errorMessage(cause, '任务状态更新失败，请稍后重试')),
+  })
+
+  function openJob(job: IngestionJobApiItem) {
+    navigate(workLinks.ingestionJob(job.id))
+  }
+
+  const sourceHelper = listColumnHelper<SourceApiItem>()
+  const sourceColumns = sourceHelper.columns([
+    sourceHelper.display({
+      id: 'name',
+      header: '数据源',
+      cell: ({ row }) => (
+        <div>
+          <div className="text-body-sm font-medium text-[#313c4d]">{sourceDisplayName(row.original)}</div>
+          <div className="mt-0.5 text-meta text-[#707c8c]">{row.original.id.slice(0, 12)}</div>
+        </div>
+      ),
+    }),
+    sourceHelper.display({
+      id: 'access',
+      header: '接入方式',
+      size: 190,
+      cell: ({ row }) => <span className="text-label">{row.original.systemType} · {row.original.protocol}</span>,
+    }),
+    sourceHelper.display({
+      id: 'status',
+      header: '配置状态',
+      size: 110,
+      cell: ({ row }) => {
+        const status = sourceStatusView(row.original.status)
+        return <Badge tone={status.tone}>{status.label}</Badge>
+      },
+    }),
+    sourceHelper.display({
+      id: 'checked',
+      header: '最近检查',
+      size: 210,
+      cell: ({ row }) => row.original.lastCheckedAt
+        ? (
+          <div>
+            <div className="text-label text-[#576171]">{formatDateTime(row.original.lastCheckedAt)}</div>
+            {row.original.lastCheckMessage ? <div className="mt-0.5 max-w-[220px] truncate text-meta text-[#8b94a1]" title={row.original.lastCheckMessage}>{row.original.lastCheckMessage}</div> : null}
+          </div>
+        )
+        : <span className="text-label text-faint">未检查</span>,
+    }),
+    sourceHelper.display({
+      id: 'actions',
+      header: '操作',
+      size: 170,
+      cell: ({ row }) => (
+        <div className="flex items-center gap-3" onClick={(event) => event.stopPropagation()}>
+          <Button variant="text" onClick={() => setCheckingSource(row.original)}>检查</Button>
+          {row.original.protocol.toUpperCase() === 'JDBC' ? (
+            <Button variant="text" onClick={() => navigate(workLinks.ingestionSourceExplorer(row.original.id))}>
+              <Database size={13} />浏览
+            </Button>
+          ) : null}
+        </div>
+      ),
+    }),
+  ])
+
+  const jobHelper = listColumnHelper<IngestionJobApiItem>()
+  const jobColumns = jobHelper.columns([
+    jobHelper.display({
+      id: 'name',
+      header: '采集任务',
+      cell: ({ row }) => (
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="text-body-sm font-medium text-[#313c4d]">{row.original.name}</span>
+            <Badge tone={row.original.configured ? 'blue' : 'warn'}>
+              {row.original.configured ? `${row.original.templateKey ?? '自定义'} v${row.original.templateVersion ?? 1}` : '未配置'}
+            </Badge>
+          </div>
+          <div className="mt-0.5 text-meta text-[#707c8c]">{row.original.id.slice(0, 12)}</div>
+        </div>
+      ),
+    }),
+    jobHelper.display({
+      id: 'source',
+      header: '数据源',
+      size: 160,
+      cell: ({ row }) => <span className="text-label">{sourceById.get(row.original.sourceId)?.name ?? '来源未登记'}</span>,
+    }),
+    jobHelper.display({
+      id: 'executor',
+      header: '执行通道',
+      size: 130,
+      cell: ({ row }) => <span className="text-label">{executorLabel(row.original.executor)}</span>,
+    }),
+    jobHelper.display({
+      id: 'run',
+      header: '最近运行',
+      size: 200,
+      cell: ({ row }) => {
+        const run = latestRuns.get(row.original.id)
+        const latestStatus = run?.status ?? row.original.latestRunStatus
+        if (!latestStatus) {
+          const lifecycle = jobLifecycleView(row.original.status)
+          return <StatusText tone={lifecycle.tone === 'success' ? 'good' : lifecycle.tone === 'danger' ? 'bad' : 'neutral'}>{lifecycle.label}</StatusText>
+        }
+        const status = runStatusView(latestStatus)
+        return (
+          <div>
+            <StatusText tone={status.tone === 'healthy' ? 'good' : status.tone === 'danger' ? 'bad' : status.tone === 'warning' ? 'running' : 'neutral'}>{status.label}</StatusText>
+            {run ? <div className="mt-0.5 max-w-[200px] truncate text-meta text-[#8b94a1]" title={businessMessage(run.message)}>{businessMessage(run.message)}</div> : null}
+          </div>
+        )
+      },
+    }),
+    jobHelper.display({
+      id: 'lifecycle',
+      header: '任务状态',
+      size: 100,
+      cell: ({ row }) => {
+        const lifecycle = jobLifecycleView(row.original.status)
+        return <Badge tone={lifecycle.tone}>{lifecycle.label}</Badge>
+      },
+    }),
+    jobHelper.display({
+      id: 'actions',
+      header: '操作',
+      size: 230,
+      cell: ({ row }) => {
+        const job = row.original
+        const run = latestRuns.get(job.id)
+        const latestStatus = run?.status ?? job.latestRunStatus
+        const activeRun = Boolean(latestStatus && ACTIVE_RUN_STATUSES.includes(latestStatus))
+        const canRetry = Boolean(run && retryableRunStatus(run.status))
+        const busy = startRun.isPending && startRun.variables?.id === job.id || changeStatus.isPending && changeStatus.variables?.job.id === job.id
+        return (
+          <div className="flex items-center gap-2" onClick={(event) => event.stopPropagation()}>
+            {job.status === 'PAUSED' ? (
+              <Button size="sm" disabled={busy} onClick={() => changeStatus.mutate({ job, status: 'ACTIVE' })}><Play size={12} />启用</Button>
+            ) : job.status === 'ARCHIVED' ? (
+              <Badge>已归档</Badge>
+            ) : (
+              <Button
+                size="sm"
+                disabled={busy || activeRun}
+                title={activeRun ? '已有活动运行' : undefined}
+                onClick={() => {
+                  if (!job.configured) {
+                    notify('请先保存采集任务配置，再启动运行')
+                    navigate(workLinks.ingestionJob(job.id, 'configuration'))
+                    return
+                  }
+                  startRun.mutate(job)
+                }}
+              >
+                <Play size={12} />{activeRun ? '已有运行' : job.configured ? '启动' : '配置后运行'}
+              </Button>
+            )}
+            {canRetry ? (
+              <Button size="sm" disabled={busy || activeRun || job.status !== 'ACTIVE'} onClick={() => run && runAction.mutate({ job, run, action: 'retry' })}>
+                <RotateCcw size={12} />重试
+              </Button>
+            ) : null}
+            <Button variant="text" onClick={() => openJob(job)}>详情</Button>
+            <Popover
+              align="end"
+              trigger={<Button size="icon-plain" aria-label={`更多操作：${job.name}`} title="更多"><MoreHorizontal size={14} /></Button>}
+            >
+              <div className="flex flex-col">
+                {executorLabel(job.executor) === '平台调度' ? (
+                  <Button variant="quiet" size="sm" className="justify-start" onClick={() => navigate(workLinks.ingestionJob(job.id, 'scheduling'))}>
+                    <CalendarClock size={13} />调度配置
+                  </Button>
+                ) : null}
+                <Button variant="quiet" size="sm" className="justify-start" onClick={() => navigate(workLinks.ingestionJob(job.id, 'configuration'))}>
+                  <Settings2 size={13} />任务配置
+                </Button>
+                {job.status === 'ACTIVE' ? (
+                  <Button variant="quiet" size="sm" className="justify-start" disabled={busy} onClick={() => changeStatus.mutate({ job, status: 'PAUSED' })}>
+                    <Pause size={13} />暂停
+                  </Button>
+                ) : job.status === 'PAUSED' || job.status === 'DRAFT' ? (
+                  <Button variant="quiet" size="sm" className="justify-start" disabled={busy} onClick={() => changeStatus.mutate({ job, status: 'ACTIVE' })}>
+                    <Play size={13} />启用
+                  </Button>
+                ) : null}
+                <Button variant="quiet" size="sm" className="justify-start" disabled={busy} onClick={() => setCopyTarget(job)}>
+                  <Copy size={13} />复制
+                </Button>
+                {run && ACTIVE_RUN_STATUSES.includes(run.status) ? (
+                  <Button variant="quiet" size="sm" className="justify-start" disabled={busy} onClick={() => runAction.mutate({ job, run, action: 'sync' })}>
+                    <RefreshCw size={13} />同步运行状态
+                  </Button>
+                ) : null}
+                {job.status !== 'ARCHIVED' ? (
+                  <Button variant="quiet" size="sm" className="justify-start" disabled={busy || activeRun} onClick={() => changeStatus.mutate({ job, status: 'ARCHIVED' })}>
+                    <Archive size={13} />归档
+                  </Button>
+                ) : null}
+              </div>
+            </Popover>
+          </div>
+        )
+      },
+    }),
+  ])
+
+  const runHelper = listColumnHelper<{ job: IngestionJobApiItem; run: IngestionRunApiItem }>()
+  const runColumns = runHelper.columns([
+    runHelper.display({
+      id: 'job',
+      header: '执行批次 / 任务',
+      cell: ({ row }) => (
+        <div>
+          <div className="text-body-sm font-medium text-[#313c4d]">{row.original.job.name}</div>
+          <div className="mt-0.5 text-meta text-[#707c8c]">{row.original.run.id.slice(0, 12)}</div>
+        </div>
+      ),
+    }),
+    runHelper.display({
+      id: 'status',
+      header: '执行状态',
+      size: 140,
+      cell: ({ row }) => {
+        const status = runStatusView(row.original.run.status)
+        return <StatusText tone={status.tone === 'healthy' ? 'good' : status.tone === 'danger' ? 'bad' : status.tone === 'warning' ? 'running' : 'neutral'}>{status.label}</StatusText>
+      },
+    }),
+    runHelper.display({
+      id: 'reconcile',
+      header: '对账',
+      size: 150,
+      cell: ({ row }) => row.original.run.reconciliationStatus === 'MANUAL_REQUIRED'
+        ? <Badge tone="warn">待人工对账</Badge>
+        : <span className="text-label text-faint">—</span>,
+    }),
+    runHelper.display({
+      id: 'submitted',
+      header: '提交时间',
+      size: 140,
+      cell: ({ row }) => <span className="text-label text-[#576171]">{formatDateTime(row.original.run.submittedAt)}</span>,
+    }),
+    runHelper.display({
+      id: 'actions',
+      header: '操作',
+      size: 240,
+      cell: ({ row }) => {
+        const { job, run } = row.original
+        const busy = runAction.isPending && runAction.variables?.run.id === run.id
+        return (
+          <div className="flex items-center gap-2.5" onClick={(event) => event.stopPropagation()}>
+            {run.reconciliationStatus === 'MANUAL_REQUIRED' ? (
+              <>
+                <Button variant="text" disabled={busy} onClick={() => runAction.mutate({ job, run, action: 'sync' })}>重新查询</Button>
+                <Button variant="text" disabled={busy} onClick={() => runAction.mutate({ job, run, action: 'confirm-absent' })}>确认不存在</Button>
+              </>
+            ) : (
+              <Button variant="text" onClick={() => openJob(job)}>查看任务</Button>
+            )}
+            {retryableRunStatus(run.status) ? (
+              <Button variant="text" disabled={busy || job.status !== 'ACTIVE'} onClick={() => runAction.mutate({ job, run, action: 'retry' })}>重试</Button>
+            ) : null}
+          </div>
+        )
+      },
+    }),
+  ])
+
+  const statusOptions = tab === 'sources'
+    ? [['', '全部检查状态'], ['checked', '已检查'], ['pending', '待检查']]
+    : tab === 'runs'
+      ? [['', '全部状态'], ['SUCCEEDED', '已完成'], ['FAILED', '失败'], ['RUNNING', '运行中'], ['UNKNOWN', '状态待确认']]
+      : [['', '全部状态'], ['enabled', '已启用'], ['paused', '未启用']]
+
+  return (
+    <div>
+      <Breadcrumb items={[{ label: '数据管理' }, { label: '数据接入' }]} trailing={<><span>本地合成数据不进入生产路径</span></>} />
+      <PageHeading
+        title="数据接入"
+        description="统一管理数据来源、采集任务与运行记录。"
+        actions={
+          <>
+            <Button onClick={() => setSourceDialogOpen(true)}><Cable size={14} />登记数据源</Button>
+            <Button
+              variant="primary"
+              onClick={() => {
+                if (sources.length === 0) {
+                  notify('请先登记至少一个数据源')
+                  setSourceDialogOpen(true)
+                  return
+                }
+                navigate(workLinks.ingestionNew())
+              }}
+            >
+              <Plus size={14} />新建采集任务
+            </Button>
+          </>
+        }
+      />
+
+      <section className="mb-[18px] grid grid-cols-4 gap-3.5 rounded-panel border border-line bg-paper px-0 py-3.5 max-[1100px]:grid-cols-2">
+        <SummaryCell label="登记数据源" value={String(sources.length)} note="个" icon={<Database size={17} />} />
+        <SummaryCell label="采集任务" value={String(jobs.length)} note="个" icon={<Cable size={17} />} />
+        <SummaryCell label="已启用任务" value={String(jobs.filter((job) => job.status === 'ACTIVE').length)} note="个" icon={<CheckCircle2 size={17} />} />
+        <SummaryCell label="配置待补齐" value={String(jobs.filter((job) => !job.configured).length)} note="个" icon={<Activity size={17} />} />
+      </section>
+
+      <Panel>
+        <div role="tablist" aria-label="数据接入类型" className="flex items-center gap-[21px] border-b border-line px-[18px]">
+          {([
+            { value: 'sources' as const, label: '数据源', count: sources.length },
+            { value: 'jobs' as const, label: '采集任务', count: jobs.length },
+            { value: 'runs' as const, label: '运行记录', count: runRows.length },
+          ]).map((item) => (
+            <button
+              key={item.value}
+              type="button"
+              role="tab"
+              aria-selected={tab === item.value}
+              onClick={() => { setTab(item.value); setKeyword(''); setStatusFilter(''); setModeFilter('') }}
+              className={`-mb-px border-b-2 px-px pt-[13px] pb-3 text-body-sm transition-colors ${tab === item.value ? 'border-blue font-medium text-blue' : 'border-transparent text-[#75808e] hover:text-ink'}`}
+            >
+              {item.label}<Count>{item.count}</Count>
+            </button>
+          ))}
+        </div>
+
+        <div className="flex items-center justify-between gap-2.5 px-[18px] py-4">
+          <div className="flex min-w-0 items-center gap-2">
+            <SearchField
+              value={keyword}
+              onValueChange={(value) => { setKeyword(value); setSourcesPage(0); setJobsPage(0); setRunsPage(0) }}
+              placeholder={tab === 'sources' ? '搜索数据源名称或编号' : tab === 'runs' ? '搜索任务、批次或消息' : '搜索任务名称、数据源或编号'}
+            />
+            <NativeSelect aria-label="状态筛选" className="w-auto" value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setSourcesPage(0); setJobsPage(0); setRunsPage(0) }}>
+              {statusOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </NativeSelect>
+            {tab === 'jobs' ? (
+              <NativeSelect aria-label="模式筛选" className="w-auto" value={modeFilter} onChange={(event) => { setModeFilter(event.target.value); setJobsPage(0) }}>
+                <option value="">全部模式</option>
+                <option value="BATCH">批量同步</option>
+                <option value="CDC">增量变更</option>
+              </NativeSelect>
+            ) : null}
+          </div>
+          <Button size="icon" aria-label="刷新列表" title="刷新列表" onClick={refresh} disabled={refreshing}>
+            <RefreshCw size={14} className={refreshing ? 'animate-spin' : undefined} />
+          </Button>
+        </div>
+
+        {unavailable ? (
+          <div className="px-5 pb-5">
+            <EmptyState
+              minHeight={240}
+              icon={<Cable />}
+              title="采集控制面不可用"
+              description="当前页面没有展示演示状态；请恢复控制面后重新加载。"
+              action={<Button onClick={refresh}><RefreshCw size={13} />重新连接</Button>}
+            />
+          </div>
+        ) : tab === 'sources' ? (
+          <>
+            <ScopeNote>登记与连通性检查分开呈现；已检查不代表业务采集已经完成。</ScopeNote>
+            <DataTable
+              columns={sourceColumns}
+              data={filteredSources.slice(sourcesPage * SOURCES_PAGE_SIZE, (sourcesPage + 1) * SOURCES_PAGE_SIZE)}
+              getRowId={(source) => source.id}
+              rowLabel={(source) => sourceDisplayName(source)}
+              loading={sourcesRequest.isPending}
+              onRowClick={(source) => navigate(workLinks.ingestionSourceExplorer(source.id))}
+              empty={<EmptyState minHeight={260} icon={<Database />} title={sourcesRequest.isPending ? '正在读取数据源' : '暂无已登记数据源'} description="登记来源后，可检查连通性并浏览库表。" action={<Button onClick={() => setSourceDialogOpen(true)}><Plus size={13} />登记数据源</Button>} />}
+            />
+            <TablePagination page={Math.min(sourcesPage, sourcesPageCount - 1)} pageSize={SOURCES_PAGE_SIZE} total={filteredSources.length} onPageChange={setSourcesPage} label="数据源分页" />
+          </>
+        ) : tab === 'jobs' ? (
+          <>
+            <ScopeNote>任务配置可复用模板；运行状态由控制面统一回写，暂停不终止已提交批次。</ScopeNote>
+            <DataTable
+              columns={jobColumns}
+              data={filteredJobs.slice(jobsPage * JOBS_PAGE_SIZE, (jobsPage + 1) * JOBS_PAGE_SIZE)}
+              getRowId={(job) => job.id}
+              rowLabel={(job) => job.name}
+              loading={jobsRequest.isPending}
+              onRowClick={openJob}
+              empty={<EmptyState minHeight={260} icon={<Cable />} title={jobsRequest.isPending ? '正在读取采集任务' : '暂无采集任务'} description="先登记数据源，再新建采集任务。" action={<Button onClick={() => navigate(workLinks.ingestionNew())}><Plus size={13} />新建采集任务</Button>} />}
+            />
+            <TablePagination page={Math.min(jobsPage, jobsPageCount - 1)} pageSize={JOBS_PAGE_SIZE} total={filteredJobs.length} onPageChange={setJobsPage} label="采集任务分页" />
+          </>
+        ) : (
+          <>
+            <ScopeNote>这里汇总各任务最近一次运行；完整历史与调度实例在任务详情页。人工对账出现在执行器状态不可确认时。</ScopeNote>
+            <DataTable
+              columns={runColumns}
+              data={filteredRuns.slice(runsPage * RUNS_PAGE_SIZE, (runsPage + 1) * RUNS_PAGE_SIZE)}
+              getRowId={(row) => row.run.id}
+              rowLabel={(row) => `${row.job.name} ${runStatusView(row.run.status).label}`}
+              loading={jobsRequest.isPending || runQueries.some((query) => query.isPending)}
+              onRowClick={(row) => openJob(row.job)}
+              empty={<EmptyState minHeight={260} icon={<Activity />} title="还没有运行记录" description="从采集任务启动一次运行后，这里会显示执行状态与对账信息。" />}
+            />
+            <TablePagination page={Math.min(runsPage, runsPageCount - 1)} pageSize={RUNS_PAGE_SIZE} total={filteredRuns.length} onPageChange={setRunsPage} label="运行记录分页" />
+          </>
+        )}
+        {templatesRequest.isError ? <p className="px-[18px] pb-3 text-meta text-amber">模板目录读取失败：新建任务仍可使用自定义 JSON。</p> : null}
+      </Panel>
+
+      <SourceRegisterDialog
+        open={sourceDialogOpen}
+        onOpenChange={setSourceDialogOpen}
+        onCreated={() => {
+          setSourcesPage(0)
+          setTab('sources')
+          void queryClient.invalidateQueries({ queryKey: ingestionKeys.sources() })
+        }}
+      />
+
+      <SourceCheckDialog
+        source={checkingSource}
+        onOpenChange={(open) => { if (!open) setCheckingSource(null) }}
+        onChecked={(updated) => setCheckingSource(updated)}
+      />
+
+      <CopyJobDialog
+        job={copyTarget}
+        sources={sources}
+        onOpenChange={(open) => { if (!open) setCopyTarget(null) }}
+        onCopied={() => {
+          setJobsPage(0)
+          void queryClient.invalidateQueries({ queryKey: ingestionKeys.jobs() })
+        }}
+      />
+
+      {startRun.isPending || changeStatus.isPending || runAction.isPending ? <div className="mt-2"><LoadingInline>正在提交动作…</LoadingInline></div> : null}
+    </div>
+  )
+}
+
+function SummaryCell({ label, value, note, icon }: { label: string; value: string; note: string; icon: ReactNode }) {
+  return (
+    <div className="flex items-center gap-3 border-r border-line px-[21px] last:border-r-0">
+      <span className="text-[#8e9bab]">{icon}</span>
+      <div>
+        <small className="block text-label text-[#85909e]">{label}</small>
+        <strong className="text-[22px] leading-tight font-medium text-[#3d4c62]">{value}<span className="ml-1.5 text-meta font-normal text-[#8b96a4]">{note}</span></strong>
+      </div>
+    </div>
+  )
+}

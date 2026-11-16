@@ -1,0 +1,208 @@
+/*
+ * 新主题唯一来源：批准原型 v0.2 的浅色蓝灰令牌（FE7 起全站唯一主题）。
+ * Tailwind 4 官方拆分导入——不导入 preflight；基础元素样式由本文件的 base 层
+ * 显式提供（收口后的唯一主题）。任何新色值先进本文件，不在组件里散落裸色。
+ */
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+@theme {
+  /* 画布与文本 */
+  --color-canvas: #f6f7f9;
+  --color-paper: #ffffff;
+  --color-shell: #fcfcfd;
+  --color-wash: #f8f9fb;
+  --color-ink: #202631;
+  --color-ink-soft: #4a5666;
+  --color-muted: #687281;
+  --color-faint: #7c8795;
+  --color-line: #e5e8ed;
+  --color-line-strong: #dae1e9;
+  --color-line-soft: #edf0f4;
+
+  /* 主动作与状态 */
+  --color-blue: #376ed6;
+  --color-blue-hover: #2c5fc3;
+  --color-blue-soft: #eaf1fe;
+  --color-blue-line: #d2e0fa;
+  --color-red: #bb4848;
+  --color-red-deep: #a63838;
+  --color-red-soft: #fceeee;
+  --color-red-line: #f4dbdb;
+  --color-amber: #936111;
+  --color-amber-soft: #fbf3e3;
+  --color-amber-line: #f0e2bd;
+  --color-green: #3d7b61;
+  --color-green-soft: #edf6f0;
+  --color-green-line: #d7e9df;
+
+  /* 字体：院内离线部署，只用本地回退，不加载在线字体 */
+  --font-sans: "Geist", "Inter", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-mono: "SFMono-Regular", "Consolas", "Liberation Mono", monospace;
+
+  /* 语义字号：批准原型以 13px 为正文基准，比 Tailwind 默认更紧凑 */
+  --text-meta: 10px;
+  --text-label: 11px;
+  --text-body-sm: 12px;
+  --text-body: 13px;
+  --text-title: 14px;
+  --text-subject: 17px;
+  --text-heading: 23px;
+  --text-metric: 28px;
+
+  /* 圆角：面板 8、控件 6、标签 4、外框 9 */
+  --radius-chip: 4px;
+  --radius-control: 6px;
+  --radius-panel: 8px;
+  --radius-shell: 9px;
+  --radius-modal: 10px;
+
+  /* 阴影只在浮层使用 */
+  --shadow-panel: 0 10px 30px -10px #1c294d26;
+  --shadow-sheet: -6px 0 30px #1c294d14;
+  --shadow-focus: 0 1px 3px #172b4910;
+
+  /* 布局尺寸 */
+  --spacing-sidebar: 256px;
+  --spacing-sidebar-narrow: 232px;
+  --spacing-sidebar-collapsed: 68px;
+  --spacing-topbar: 48px;
+}
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  /* 根字号保持 16px：Tailwind 间距和字号都以 rem 计，
+     13px 正文通过 body 与 text-body 语义档设置，避免整站间距被一起缩小。 */
+  html {
+    font-family: var(--font-sans);
+    font-size: 16px;
+    color: var(--color-ink);
+    background: var(--color-canvas);
+    font-synthesis: none;
+    font-variant-numeric: tabular-nums;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100dvh;
+    font-size: var(--text-body);
+    line-height: 1.5;
+    background: var(--color-canvas);
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  p {
+    margin: 0;
+    font-weight: inherit;
+  }
+
+  button {
+    color: inherit;
+    background: none;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+    font: inherit;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+  }
+
+  input,
+  select,
+  textarea {
+    font: inherit;
+    color: inherit;
+    caret-color: var(--color-blue);
+  }
+
+  ::placeholder {
+    color: var(--color-faint);
+    opacity: 1;
+  }
+
+  a {
+    color: inherit;
+    text-underline-offset: 3px;
+  }
+
+  svg {
+    display: inline-block;
+    flex-shrink: 0;
+    vertical-align: middle;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-blue);
+    outline-offset: 3px;
+  }
+
+  ::selection {
+    color: #173b7a;
+    background: #d8e6ff;
+  }
+
+  ::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    border-radius: 4px;
+    background: #cdd3dc;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  /* Chrome 对 closed <details> 的子元素保留布局矩形（未绘制但占几何），
+     会冲破父容器并参与溢出计量（2026-10-05 P3 轮）。 */
+  details:not([open]) > *:not(summary) {
+    display: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  /* 侧栏宽度：批准原型的 256 → 232（≤1320）→ 68（收起）。
+     用 CSS 变量承载，布局只引用一处，不在组件里重复断点。 */
+  :root {
+    --shell-sidebar: var(--spacing-sidebar);
+  }
+
+  @media (max-width: 1320px) {
+    :root {
+      --shell-sidebar: var(--spacing-sidebar-narrow);
+    }
+  }
+
+  [data-shell-collapsed='true'] {
+    --shell-sidebar: var(--spacing-sidebar-collapsed);
+  }
+}
+
+/* 线性图标统一轻线（沿用 v3 口径）。 */
+svg.lucide {
+  stroke-width: 1.35;
+}

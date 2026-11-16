@@ -141,10 +141,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Node.js 22
+      - name: Set up Node.js (project .node-version)
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version-file: prototype/.node-version
           cache: npm
           cache-dependency-path: prototype/package-lock.json
 
@@ -153,6 +153,9 @@ jobs:
 
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
+
+      - name: Test portal
+        run: npx vitest run
 
       - name: Verify mock boundaries and portal interactions
         run: |
