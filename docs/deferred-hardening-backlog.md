@@ -1,5 +1,11 @@
 # 下一阶段备忘（深度测试 / 安全 / 生产加固）
 
+## 2026-11-16 存量镜像 CVE 清零 · 已收口
+
+- **main CI 全绿恢复**（run 43896706670，提交 `a217b6e`）：两个自 2026-11-04 起持续失败的 Trivy job 已清零。修复内容：control-plane 升 Spring Boot 3.5.14→4.0.9（spring-webmvc CVE-2026-47884/47890 仅 7.0.9+ 修复），产物内 Jackson 迁到 3.1.7 + 传递携带的 2.21.7（均高于全部 5 项 CVE 修复地板），Flyway 10.20.1→11.20.3，Boot 4 模块化补 `spring-boot-restclient`/`spring-boot-flyway`/`spring-boot-webmvc-test` 三个模块；quality-runner 镜像加 `apt-get upgrade` 层（apt/pcre2/openssl/zlib 四项 deb CVE）+ PyJWT 2.13.0→2.14.0（CRITICAL 认证绕过族，data-api/ai-ready 同步升钉版）。
+- 验证：control-plane 344 测试、quality-runner 53、ai-ready 74、data-api 59、platformctl 契约脚本全绿；远端 CI 五个 job 全部 success。
+- 后续注意：Boot 4 已是当前主线（Jackson 3 为主、2.21.7 由 flyway 传递），新代码用 `tools.jackson` 包名；mpi-service 仍是 Boot 3.x（不在 CI 扫描面，未动），若后续升级需重复本次的模块化三件套步骤。
+
 ## 2026-11-16 前端技术栈迁移 FE0–FE7 全部收官 · 状态更新
 
 - **FE7 终局收口已完成**（本地，未推送）：antd/dayjs 移出生产依赖（audit 0 漏洞），旧页面/旧主题/legacy 渲染器全删，全站路由懒加载（入口 277KB）；93 项测试（原 45 零修改）、双 QA、29 路由×2 宽度矩阵 + 1920/reduced-motion、FE2–FE6 业务流全绿。
