@@ -1,4 +1,7 @@
 # G21-1 CVE 收口：3.12.8 基础镜像的 openssl/gnutls/krb5/pcre2/perl 全部过期，升到当前补丁
+# 2026-11-16 CVE 收口：上游 tag 的 deb 快照滞后于 trixie 安全更新
+# （apt CVE-2026-109518 / pcre2 CVE-2026-103111 / openssl CVE-2026-84782 / zlib CVE-2026-76844,85091），
+# 在镜像内显式升级已修复的 OS 包，钉住的基镜像 tag 不再决定补丁水位。
 FROM python:3.12.14-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -6,7 +9,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PYTHONPATH=/opt/dataos/quality-runner/app
 
-RUN groupadd --system dataos && useradd --system --gid dataos --home-dir /opt/dataos dataos \
+RUN apt-get update     && apt-get upgrade -y     && rm -rf /var/lib/apt/lists/*     && groupadd --system dataos && useradd --system --gid dataos --home-dir /opt/dataos dataos \
     && mkdir -p /opt/dataos/quality /var/lib/dataos-quality/artifacts \
     && chown -R dataos:dataos /opt/dataos /var/lib/dataos-quality
 

@@ -12,7 +12,7 @@ import com.cywu.dataos.controlplane.api.InvalidRequestException;
 import com.cywu.dataos.controlplane.executor.AdapterHttp;
 import com.cywu.dataos.controlplane.executor.AdapterUnavailableException;
 import com.cywu.dataos.controlplane.quality.OidcClientCredentialsTokenProvider;
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 
 /**
  * 质量执行器聚合验证客户端（G23）：POST /api/v1/mapping-validations。

@@ -20,9 +20,9 @@ import com.cywu.dataos.controlplane.run.RunPolicy;
 import com.cywu.dataos.controlplane.run.RunStatus;
 import com.cywu.dataos.controlplane.run.StaleSubmissionPolicy;
 import com.cywu.dataos.controlplane.security.TenantScope;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.SerializationFeature;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -220,7 +220,7 @@ public class IngestionRunService {
                     .with(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
                     .writeValueAsBytes(config);
             return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(canonical));
-        } catch (JsonProcessingException | NoSuchAlgorithmException exception) {
+        } catch (JacksonException | NoSuchAlgorithmException exception) {
             throw new IllegalStateException("运行请求无法生成幂等指纹", exception);
         }
     }

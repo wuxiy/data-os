@@ -119,8 +119,8 @@ public class AIBuildJobWorker {
             response.put("build", outcome.build());
         }
         try {
-            return new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(response);
-        } catch (com.fasterxml.jackson.core.JsonProcessingException exception) {
+            return new tools.jackson.databind.ObjectMapper().writeValueAsString(response);
+        } catch (tools.jackson.core.JacksonException exception) {
             throw new IllegalStateException("构建结果序列化失败", exception);
         }
     }

@@ -2,8 +2,8 @@ package com.cywu.dataos.controlplane.ai;
 
 import java.util.Map;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * readiness_json 的只读投影。camelCase 契约的唯一源是 ai-ready-service

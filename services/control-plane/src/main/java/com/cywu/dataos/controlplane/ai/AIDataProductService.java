@@ -161,11 +161,11 @@ public class AIDataProductService {
             buildSummary = engine.construct(product, normalized);
         }
         var assessment = engine.build(product, normalized);
-        var objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        var objectMapper = new tools.jackson.databind.ObjectMapper();
         String readinessJson;
         try {
             readinessJson = objectMapper.writeValueAsString(assessment.rawJson());
-        } catch (com.fasterxml.jackson.core.JsonProcessingException exception) {
+        } catch (tools.jackson.core.JacksonException exception) {
             throw new IllegalStateException("评估报告序列化失败", exception);
         }
         repository.updateVersionReadiness(product.id(), product.currentVersion(),
@@ -274,18 +274,18 @@ public class AIDataProductService {
                 .findFirst()
                 .orElseThrow(() -> new ConflictException("当前版本不存在"));
         var report = engine.evaluate(product, version.recipeRef());
-        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        var mapper = new tools.jackson.databind.ObjectMapper();
         try {
             var root = version.readinessJson() == null || version.readinessJson().isBlank()
                     ? mapper.createObjectNode()
-                    : (com.fasterxml.jackson.databind.node.ObjectNode) mapper.readTree(version.readinessJson());
-            var evaluation = (com.fasterxml.jackson.databind.node.ObjectNode) mapper.valueToTree(report);
+                    : (tools.jackson.databind.node.ObjectNode) mapper.readTree(version.readinessJson());
+            var evaluation = (tools.jackson.databind.node.ObjectNode) mapper.valueToTree(report);
             // 细节明细过长，入库只保留指标摘要
             evaluation.remove("details");
             root.set("evaluation", evaluation);
             repository.updateVersionReadiness(product.id(), product.currentVersion(),
                     mapper.writeValueAsString(root), version.buildStatus());
-        } catch (com.fasterxml.jackson.core.JsonProcessingException exception) {
+        } catch (tools.jackson.core.JacksonException exception) {
             throw new IllegalStateException("评测报告写回失败", exception);
         }
         return report;

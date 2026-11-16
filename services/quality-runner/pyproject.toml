@@ -13,7 +13,7 @@ dependencies = [
   "sqlalchemy==2.0.37",
   "psycopg[binary]==3.2.4",
   "pymysql==1.1.1",
-  "PyJWT[crypto]==2.13.0",
+  "PyJWT[crypto]==2.14.0",
   "httpx==0.28.1",
   "prometheus-client==0.21.1",
   "PyYAML==6.0.2",

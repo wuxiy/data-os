@@ -7,7 +7,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.ActiveProfiles;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -22,8 +22,8 @@ import com.cywu.dataos.controlplane.executor.AdapterUnavailableException;
 import com.cywu.dataos.controlplane.standard.StandardAdminService;
 import com.cywu.dataos.controlplane.standard.UpdateStandardVersionRequest;
 import com.cywu.dataos.controlplane.standard.CreateStandardRequest;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * 标准映射业务规则（G23）：生命周期与 checksum 门控（含漂移拒绝）、标准停用阻断、
@@ -45,7 +45,7 @@ class MappingAdminServiceTest {
     @Autowired
     private StandardAdminService standards;
 
-    @MockBean
+    @MockitoBean
     private MappingValidationClient validationClient;
 
     // ---- 夹具 ----

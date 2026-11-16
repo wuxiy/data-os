@@ -6,7 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.Map;
 import java.util.Optional;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.cywu.dataos.controlplane.security.AuthProperties;
 import com.cywu.dataos.controlplane.security.TenantScope;
 import org.junit.jupiter.api.Test;

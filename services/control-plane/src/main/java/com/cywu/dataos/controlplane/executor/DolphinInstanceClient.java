@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -227,7 +227,7 @@ public class DolphinInstanceClient {
     }
 
     private URI pathUri(long projectCode, String path, LinkedMultiValueMap<String, String> query) {
-        var builder = UriComponentsBuilder.fromHttpUrl(baseUrl)
+        var builder = UriComponentsBuilder.fromUriString(baseUrl)
                 .path("/projects/")
                 .pathSegment(String.valueOf(projectCode))
                 .path(path);

@@ -13,7 +13,7 @@ import com.cywu.dataos.controlplane.governance.IssueRepository;
 import com.cywu.dataos.controlplane.governance.NotificationOutboxRepository;
 import com.cywu.dataos.controlplane.security.AuthProperties;
 import com.cywu.dataos.controlplane.security.TenantScope;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;

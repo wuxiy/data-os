@@ -73,7 +73,7 @@ class DolphinSchedulerExecutorAdapterTest {
     @Test
     void doesNotFallBackToUsernamePasswordWhenTokenIsMissing() {
         var adapter = DolphinSchedulerExecutorAdapter.forTesting(
-                RestClient.builder(), new com.fasterxml.jackson.databind.ObjectMapper(),
+                RestClient.builder(), new tools.jackson.databind.ObjectMapper(),
                 "http://127.0.0.1:1", "", "svc-user", "svc-password", "UTC", "dataos-dev", "development");
         var job = new IngestionJob("job-1", "source-1", "门诊批处理", "BATCH", "DOLPHINSCHEDULER",
                 "ACTIVE", null, null, null, null, null, false);
@@ -135,7 +135,7 @@ class DolphinSchedulerExecutorAdapterTest {
     void rejectsTenantOverrideThatDiffersFromRuntimeBinding() {
         var adapter = DolphinSchedulerExecutorAdapter.forTesting(
                 RestClient.builder(),
-                new com.fasterxml.jackson.databind.ObjectMapper(),
+                new tools.jackson.databind.ObjectMapper(),
                 "http://127.0.0.1:1", "token", "", "", "UTC", "dataos-dev", "development");
         var job = new IngestionJob("job-1", "source-1", "批处理", "BATCH", "DOLPHINSCHEDULER",
                 "ACTIVE", null, null, null, null, null, false);

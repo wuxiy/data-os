@@ -119,7 +119,7 @@ public class DynamicRulePushClient {
 
     private String runnerDetail(HttpClientErrorException exception, String fallback) {
         try {
-            var body = new com.fasterxml.jackson.databind.ObjectMapper().readValue(
+            var body = new tools.jackson.databind.ObjectMapper().readValue(
                     exception.getResponseBodyAsByteArray(), Map.class);
             Object detail = body == null ? null : body.get("detail");
             return detail == null || String.valueOf(detail).isBlank()

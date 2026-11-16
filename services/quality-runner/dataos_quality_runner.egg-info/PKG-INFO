@@ -1,0 +1,21 @@
+Metadata-Version: 2.2
+Name: dataos-quality-runner
+Version: 0.1.0
+Summary: DataOS registered dbt quality execution runtime
+Requires-Python: <3.13,>=3.12
+Requires-Dist: fastapi==0.141.1
+Requires-Dist: uvicorn[standard]==0.34.0
+Requires-Dist: sqlalchemy==2.0.37
+Requires-Dist: psycopg[binary]==3.2.4
+Requires-Dist: pymysql==1.1.1
+Requires-Dist: PyJWT[crypto]==2.14.0
+Requires-Dist: httpx==0.28.1
+Requires-Dist: prometheus-client==0.21.1
+Requires-Dist: PyYAML==6.0.2
+Requires-Dist: boto3==1.36.20
+Requires-Dist: dbt-core-experimental-parser==2.0.5
+Requires-Dist: dbt-core==1.12.5
+Requires-Dist: dbt-doris==1.0.0
+Provides-Extra: test
+Requires-Dist: pytest==8.3.4; extra == "test"
+Requires-Dist: pytest-asyncio==0.25.3; extra == "test"

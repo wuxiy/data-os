@@ -22,7 +22,7 @@ import com.sun.net.httpserver.HttpServer;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -139,7 +139,7 @@ class ControlPlaneApiTest {
                 .andExpect(jsonPath("$.institutionId", is("demo-hospital")))
                 .andExpect(jsonPath("$.metrics", hasSize(0)))
                 .andReturn().getResponse().getContentAsString();
-        var apiIssues = com.fasterxml.jackson.databind.json.JsonMapper.builder().build()
+        var apiIssues = tools.jackson.databind.json.JsonMapper.builder().build()
                 .readTree(body).path("issues").size();
         var dbIssues = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM data_os.governance_issues WHERE tenant_id = 'default' "

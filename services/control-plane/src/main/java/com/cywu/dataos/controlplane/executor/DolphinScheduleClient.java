@@ -10,8 +10,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -233,7 +233,7 @@ public class DolphinScheduleClient {
         schedule.put("timezoneId", isBlank(timezoneId) ? schedulerZone.getId() : timezoneId.trim());
         try {
             return objectMapper.writeValueAsString(schedule);
-        } catch (JsonProcessingException exception) {
+        } catch (JacksonException exception) {
             throw new AdapterConfigurationException("DolphinScheduler 调度参数不是有效 JSON");
         }
     }
@@ -276,7 +276,7 @@ public class DolphinScheduleClient {
     }
 
     private URI schedulesUri(long projectCode, String path, LinkedMultiValueMap<String, String> query) {
-        var builder = UriComponentsBuilder.fromHttpUrl(baseUrl)
+        var builder = UriComponentsBuilder.fromUriString(baseUrl)
                 .path("/projects/")
                 .pathSegment(String.valueOf(projectCode))
                 .path("/schedules");

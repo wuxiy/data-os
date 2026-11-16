@@ -9,7 +9,7 @@ import com.cywu.dataos.controlplane.executor.AdapterSubmission;
 import com.cywu.dataos.controlplane.executor.ExecutorAdapter;
 import com.cywu.dataos.controlplane.security.AuthProperties;
 import com.cywu.dataos.controlplane.security.TenantScope;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;

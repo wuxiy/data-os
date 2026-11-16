@@ -9,7 +9,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import com.cywu.dataos.controlplane.api.ErrorMessages;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -123,7 +123,7 @@ public class ContractNotificationService {
             payloadMap.put("diff", event.diffJson() == null || event.diffJson().isBlank()
                     ? Map.of()
                     : objectMapper.readTree(event.diffJson()));
-        } catch (com.fasterxml.jackson.core.JsonProcessingException exception) {
+        } catch (tools.jackson.core.JacksonException exception) {
             return "事件 diff 载荷损坏";
         }
         payloadMap.put("occurredAt", event.createdAt().toString());
@@ -132,7 +132,7 @@ public class ContractNotificationService {
         final String payload;
         try {
             payload = objectMapper.writeValueAsString(payloadMap);
-        } catch (com.fasterxml.jackson.core.JsonProcessingException exception) {
+        } catch (tools.jackson.core.JacksonException exception) {
             return "事件载荷序列化失败";
         }
         try {

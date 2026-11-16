@@ -16,7 +16,7 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 
 @Component
@@ -109,7 +109,7 @@ public class WebhookNotificationChannel implements NotificationChannel {
                     .retrieve()
                     .toBodilessEntity();
             return new NotificationDeliveryResult("SENT", "责任人 Webhook 已送达");
-        } catch (RestClientException | java.security.GeneralSecurityException | com.fasterxml.jackson.core.JsonProcessingException exception) {
+        } catch (RestClientException | java.security.GeneralSecurityException | tools.jackson.core.JacksonException exception) {
             return new NotificationDeliveryResult("FAILED", ErrorMessages.safe(exception));
         }
     }

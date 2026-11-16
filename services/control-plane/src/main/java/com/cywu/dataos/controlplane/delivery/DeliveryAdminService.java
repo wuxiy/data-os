@@ -20,7 +20,8 @@ import org.springframework.stereotype.Service;
 import com.cywu.dataos.controlplane.api.ConflictException;
 import com.cywu.dataos.controlplane.api.InvalidRequestException;
 import com.cywu.dataos.controlplane.api.ResourceNotFoundException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * 交付中心编排（G25）：项目生命周期 DRAFT→IN_PROGRESS→READY_FOR_ACCEPTANCE→
@@ -296,7 +297,7 @@ public class DeliveryAdminService {
         String manifestJson;
         try {
             manifestJson = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(manifest);
-        } catch (IOException exception) {
+        } catch (JacksonException exception) {
             throw new IllegalStateException("证据 manifest 序列化失败", exception);
         }
         DeliveryEvidenceSanitizer.assertWhitelisted(manifestJson);
@@ -423,8 +424,8 @@ public class DeliveryAdminService {
     private String blockersJson(List<Map<String, Object>> blockers) {
         try {
             return objectMapper.writeValueAsString(blockers);
-        } catch (IOException exception) {
-            return "{\"error\":\"blockers-serialization-failed\"}";
+        } catch (JacksonException exception) {
+            return "{\"error\":\"blockers-serialization-failed-failed\"}";
         }
     }
 

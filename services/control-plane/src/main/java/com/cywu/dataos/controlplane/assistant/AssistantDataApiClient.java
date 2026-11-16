@@ -25,7 +25,7 @@ public class AssistantDataApiClient {
             return fallback;
         }
         try {
-            var root = new com.fasterxml.jackson.databind.ObjectMapper().readTree(body);
+            var root = new tools.jackson.databind.ObjectMapper().readTree(body);
             var message = root.path("detail").path("message").asText("");
             return message.isBlank() ? fallback : message;
         } catch (Exception exception) {

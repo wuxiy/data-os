@@ -12,8 +12,8 @@ import java.util.Map;
 import java.util.Objects;
 
 import com.cywu.dataos.controlplane.job.IngestionJob;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -264,7 +264,7 @@ public class DolphinSchedulerExecutorAdapter implements ExecutorAdapter {
     private String json(Object value) {
         try {
             return objectMapper.writeValueAsString(value);
-        } catch (JsonProcessingException exception) {
+        } catch (JacksonException exception) {
             throw new AdapterConfigurationException("DolphinScheduler startParams 不是有效 JSON");
         }
     }
@@ -281,7 +281,7 @@ public class DolphinSchedulerExecutorAdapter implements ExecutorAdapter {
     }
 
     private URI workflowUri(long projectCode, String path, LinkedMultiValueMap<String, String> query) {
-        var builder = UriComponentsBuilder.fromHttpUrl(baseUrl)
+        var builder = UriComponentsBuilder.fromUriString(baseUrl)
                 .path("/projects/")
                 .pathSegment(String.valueOf(projectCode))
                 .path(path);

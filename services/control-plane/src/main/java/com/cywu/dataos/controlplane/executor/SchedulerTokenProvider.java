@@ -6,7 +6,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 
 /** Hot-loads the current/previous DolphinScheduler token file during rotation overlap. */
 public final class SchedulerTokenProvider {

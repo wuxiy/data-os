@@ -142,7 +142,7 @@ public class AIReadyEngineConfiguration {
     /** 引擎 422 的 FastAPI 错误体形如 {"detail":"..."}——提取 detail，缺省给原文。 */
     private static String engineDetail(org.springframework.web.client.HttpClientErrorException exception) {
         try {
-            var node = new com.fasterxml.jackson.databind.ObjectMapper()
+            var node = new tools.jackson.databind.ObjectMapper()
                     .readTree(exception.getResponseBodyAsString());
             var detail = node.path("detail").asText("");
             return detail.isBlank() ? ErrorMessages.safe(exception) : detail;

@@ -5,9 +5,9 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -57,7 +57,7 @@ public class JobConfigRepository {
         if (json == null || json.isBlank()) return Map.of();
         try {
             return objectMapper.readValue(json, CONFIG_TYPE);
-        } catch (JsonProcessingException exception) {
+        } catch (JacksonException exception) {
             throw new IllegalStateException("任务配置存储内容无法解析", exception);
         }
     }
@@ -66,7 +66,7 @@ public class JobConfigRepository {
         if (json == null || json.isBlank()) return null;
         try {
             return objectMapper.readValue(json, CONFIG_TYPE);
-        } catch (JsonProcessingException exception) {
+        } catch (JacksonException exception) {
             // 结构化意图列只由本仓储写入；损坏按无意图处理，配置面回退 JSON 编辑。
             return null;
         }
@@ -75,7 +75,7 @@ public class JobConfigRepository {
     private String writeConfig(Map<String, Object> config) {
         try {
             return objectMapper.writeValueAsString(config);
-        } catch (JsonProcessingException exception) {
+        } catch (JacksonException exception) {
             throw new IllegalStateException("任务配置无法序列化", exception);
         }
     }

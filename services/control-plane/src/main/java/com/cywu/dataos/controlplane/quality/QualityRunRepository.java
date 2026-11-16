@@ -9,8 +9,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 import com.cywu.dataos.controlplane.run.RunStatus;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -333,7 +333,7 @@ public class QualityRunRepository {
         try {
             return objectMapper.readValue(json, objectMapper.getTypeFactory()
                     .constructCollectionType(List.class, Map.class));
-        } catch (JsonProcessingException exception) {
+        } catch (JacksonException exception) {
             return List.of(Map.of("raw", json));
         }
     }
@@ -342,7 +342,7 @@ public class QualityRunRepository {
         if (evidence == null || evidence.isEmpty()) return "[]";
         try {
             return objectMapper.writeValueAsString(evidence);
-        } catch (JsonProcessingException exception) {
+        } catch (JacksonException exception) {
             throw new IllegalStateException("质量复检样本证据无法序列化", exception);
         }
     }

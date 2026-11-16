@@ -10,7 +10,7 @@ import java.util.zip.ZipInputStream;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.ActiveProfiles;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -37,8 +37,8 @@ import com.cywu.dataos.controlplane.executor.AdapterUnavailableException;
 import com.cywu.dataos.controlplane.lineage.LineageAssetService;
 import com.cywu.dataos.controlplane.quality.QualityAssetTestsService;
 import com.cywu.dataos.controlplane.quality.QualityRunRepository;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * 交付中心业务规则（G25）：生命周期与逐项阻断、快照/状态动作幂等（同键一份）、
@@ -70,13 +70,13 @@ class DeliveryAdminServiceTest {
     @Autowired
     private AICertificationRepository certifications;
 
-    @MockBean
+    @MockitoBean
     private LineageAssetService lineage;
 
-    @MockBean
+    @MockitoBean
     private SupersetGuestTokenService superset;
 
-    @MockBean
+    @MockitoBean
     private QualityAssetTestsService qualityTests;
 
     // ---- 夹具 ----

@@ -20,15 +20,16 @@ import java.util.HashMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.json.JsonMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
@@ -179,14 +180,14 @@ class JobScheduleApiTest {
         }
     }
 
-    private static com.fasterxml.jackson.databind.ObjectMapper mapper() {
-        return new com.fasterxml.jackson.databind.ObjectMapper();
+    private static tools.jackson.databind.ObjectMapper mapper() {
+        return new tools.jackson.databind.ObjectMapper();
     }
 
     private static String jsonList(List<?> items) {
         try {
             return mapper().writeValueAsString(items);
-        } catch (IOException exception) {
+        } catch (JacksonException exception) {
             throw new IllegalStateException(exception);
         }
     }

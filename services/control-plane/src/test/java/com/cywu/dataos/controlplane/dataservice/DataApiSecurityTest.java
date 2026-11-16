@@ -7,9 +7,9 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
@@ -39,7 +39,7 @@ class DataApiSecurityTest {
     @Autowired
     private DataApiAdminService service;
 
-    @MockBean
+    @MockitoBean
     private JwtDecoder jwtDecoder;
 
     @BeforeEach
@@ -131,7 +131,7 @@ class DataApiSecurityTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.status").value("DRAFT"))
                 .andReturn().getResponse().getContentAsString();
-        var id = com.fasterxml.jackson.databind.json.JsonMapper.builder().build()
+        var id = tools.jackson.databind.json.JsonMapper.builder().build()
                 .readTree(body).get("id").asText();
 
         mockMvc.perform(post("/api/v1/data-services/" + id + "/publish")
@@ -162,7 +162,7 @@ class DataApiSecurityTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.apiKey").isNotEmpty())
                 .andReturn().getResponse().getContentAsString();
-        var keyId = com.fasterxml.jackson.databind.json.JsonMapper.builder().build()
+        var keyId = tools.jackson.databind.json.JsonMapper.builder().build()
                 .readTree(keyBody).get("keyId").asText();
         mockMvc.perform(delete("/api/v1/data-services/" + id + "/keys/" + keyId)
                         .header("Authorization", "Bearer admin-token"))
@@ -189,7 +189,7 @@ class DataApiSecurityTest {
                         .content(createBody()))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
-        var id = com.fasterxml.jackson.databind.json.JsonMapper.builder().build()
+        var id = tools.jackson.databind.json.JsonMapper.builder().build()
                 .readTree(body).get("id").asText();
 
         // DRAFT 直接 DEPRECATED：状态机拒绝

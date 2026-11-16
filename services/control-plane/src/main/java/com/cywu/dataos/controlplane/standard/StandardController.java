@@ -225,10 +225,10 @@ public class StandardController {
 
     private static CreateStandardRequest parseJson(String body) {
         try {
-            return new com.fasterxml.jackson.databind.ObjectMapper()
+            return new tools.jackson.databind.ObjectMapper()
                     .readValue(body, CreateStandardRequest.class);
     // json 解析失败给出可操作的文案
-        } catch (com.fasterxml.jackson.core.JsonProcessingException failure) {
+        } catch (tools.jackson.core.JacksonException failure) {
             throw new InvalidRequestException("JSON 导入体解析失败: " + failure.getOriginalMessage());
         }
     }

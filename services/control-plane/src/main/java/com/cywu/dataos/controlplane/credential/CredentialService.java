@@ -5,9 +5,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 import com.cywu.dataos.controlplane.api.ResourceNotFoundException;
 import com.cywu.dataos.controlplane.security.TenantScope;
 import jakarta.validation.constraints.NotBlank;
@@ -74,7 +74,7 @@ public class CredentialService implements CredentialResolver {
         if (!"ACTIVE".equals(credential.status())) throw new IllegalArgumentException("凭据已停用");
         try {
             return objectMapper.readValue(cipher.decrypt(credential.secretCiphertext()), SECRET_TYPE);
-        } catch (JsonProcessingException exception) {
+        } catch (JacksonException exception) {
             throw new IllegalStateException("凭据内容无法解析", exception);
         }
     }
@@ -91,7 +91,7 @@ public class CredentialService implements CredentialResolver {
                 throw new com.cywu.dataos.controlplane.api.InvalidRequestException(label + "不能超过 " + maxBytes + " 字节");
             }
             return serialized;
-        } catch (JsonProcessingException exception) {
+        } catch (JacksonException exception) {
             throw new IllegalArgumentException("凭据内容无法序列化", exception);
         }
     }

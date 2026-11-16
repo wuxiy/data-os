@@ -14,7 +14,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import com.cywu.dataos.controlplane.security.TenantScope;
-import com.fasterxml.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.json.JsonMapper;
 import com.cywu.dataos.controlplane.api.ConflictException;
 import com.cywu.dataos.controlplane.api.InvalidRequestException;
 import com.cywu.dataos.controlplane.api.ResourceNotFoundException;

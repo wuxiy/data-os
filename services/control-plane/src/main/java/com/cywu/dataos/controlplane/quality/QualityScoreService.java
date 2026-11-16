@@ -179,9 +179,9 @@ public class QualityScoreService {
 
     private Map<String, Integer> readWeights(String json) {
         try {
-            var type = new com.fasterxml.jackson.core.type.TypeReference<LinkedHashMap<String, Integer>>() {
+            var type = new tools.jackson.core.type.TypeReference<LinkedHashMap<String, Integer>>() {
             };
-            return new com.fasterxml.jackson.databind.ObjectMapper().readValue(json, type);
+            return new tools.jackson.databind.ObjectMapper().readValue(json, type);
         } catch (Exception exception) {
             return Map.of();
         }
@@ -189,9 +189,9 @@ public class QualityScoreService {
 
     private List<GradeView> readGrades(String json) {
         try {
-            var type = new com.fasterxml.jackson.core.type.TypeReference<List<Map<String, Object>>>() {
+            var type = new tools.jackson.core.type.TypeReference<List<Map<String, Object>>>() {
             };
-            var raw = new com.fasterxml.jackson.databind.ObjectMapper().readValue(json, type);
+            var raw = new tools.jackson.databind.ObjectMapper().readValue(json, type);
             var result = new ArrayList<GradeView>();
             for (var item : raw) {
                 result.add(new GradeView(
@@ -231,7 +231,7 @@ public class QualityScoreService {
 
     private String writeJson(Object value) {
         try {
-            return new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(value);
+            return new tools.jackson.databind.ObjectMapper().writeValueAsString(value);
         } catch (Exception exception) {
             throw new IllegalStateException("评分标准序列化失败", exception);
         }

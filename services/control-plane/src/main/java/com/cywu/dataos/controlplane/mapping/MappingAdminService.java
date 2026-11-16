@@ -21,8 +21,8 @@ import com.cywu.dataos.controlplane.standard.DataStandard;
 import com.cywu.dataos.controlplane.standard.DataStandardElement;
 import com.cywu.dataos.controlplane.standard.StandardLifecycle;
 import com.cywu.dataos.controlplane.standard.StandardRepository;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 
 /**
@@ -203,7 +203,7 @@ public class MappingAdminService {
         if (body.trim().startsWith("{")) {
             try {
                 contracts = JSON.readValue(body, ImportBody.class).items();
-            } catch (com.fasterxml.jackson.core.JsonProcessingException failure) {
+            } catch (tools.jackson.core.JacksonException failure) {
                 throw new InvalidRequestException("JSON 导入体解析失败: " + failure.getOriginalMessage());
             }
         } else {
@@ -555,9 +555,9 @@ public class MappingAdminService {
     private void validateValueMap(String where, String param, DataStandardElement element) {
         Map<String, String> map;
         try {
-            map = JSON.readValue(param, new com.fasterxml.jackson.core.type.TypeReference<>() {
+            map = JSON.readValue(param, new tools.jackson.core.type.TypeReference<>() {
             });
-        } catch (com.fasterxml.jackson.core.JsonProcessingException failure) {
+        } catch (tools.jackson.core.JacksonException failure) {
             throw new InvalidRequestException(where + " VALUE_MAP 参数必须是 {源值: 标准值} JSON");
         }
         if (map == null || map.isEmpty()) {
