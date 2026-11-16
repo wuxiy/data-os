@@ -7,6 +7,12 @@ import { IngestionPage } from '../features/ingestion/ingestion-page'
 import { JobEditorPage } from '../features/ingestion/job-editor-page'
 import { JobDetailPage } from '../features/ingestion/job-detail-page'
 import { SourceExplorerPage } from '../features/ingestion/source-explorer-page'
+import { GovernanceDashboardPage } from '../features/governance/governance-dashboard-page'
+import { QualityPage } from '../features/governance/quality-page'
+import { RuleEditorPage } from '../features/governance/rule-editor-page'
+import { ScoringPage } from '../features/governance/scoring-page'
+import { StandardsPage } from '../features/governance/standards-page'
+import { MappingPage } from '../features/governance/mapping-page'
 import { AppShell } from './shell/app-shell'
 import { LegacyPortalPage } from './legacy/legacy-page'
 
@@ -117,10 +123,47 @@ function IngestionJobRouteComponent() {
   const { jobId } = ingestionJobRoute.useParams()
   return <JobDetailPage jobId={jobId} />
 }
-const governanceRoute = legacy('/governance', 'governance')
-const standardsRoute = legacy('/governance/standards', 'standards')
-const mappingRoute = legacy('/governance/mapping', 'mapping')
-const qualityRoute = legacy('/governance/quality', 'quality', (search) => ({ issue: optString(search.issue) }))
+const governanceRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/governance',
+  component: GovernanceDashboardPage,
+})
+const qualityRulesNewRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/governance/quality/rules/new',
+  component: () => <RuleEditorPage />,
+})
+const qualityRuleEditRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/governance/quality/rules/$ruleId/edit',
+  component: QualityRuleEditRouteComponent,
+})
+const qualityScoringRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/governance/quality/scoring',
+  component: ScoringPage,
+})
+
+function QualityRuleEditRouteComponent() {
+  const { ruleId } = qualityRuleEditRoute.useParams()
+  return <RuleEditorPage ruleId={ruleId} />
+}
+const standardsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/governance/standards',
+  component: StandardsPage,
+})
+const mappingRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/governance/mapping',
+  component: MappingPage,
+})
+const qualityRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/governance/quality',
+  validateSearch: (search: Record<string, unknown>) => ({ issue: optString(search.issue) }),
+  component: QualityPage,
+})
 const mpiRoute = legacy('/mpi/review', 'mpi', (search) => ({ task: optString(search.task) }))
 const assetsRoute = legacy('/assets', 'assets', (search) => ({ db: optString(search.db), asset: optString(search.asset) }))
 const assetTechnicalRoute = legacy('/assets/technical', 'assetTechnical', (search) => ({ asset: optString(search.asset) }))
@@ -143,6 +186,9 @@ const routeTree = rootRoute.addChildren([
   standardsRoute,
   mappingRoute,
   qualityRoute,
+  qualityRulesNewRoute,
+  qualityRuleEditRoute,
+  qualityScoringRoute,
   mpiRoute,
   assetsRoute,
   assetTechnicalRoute,

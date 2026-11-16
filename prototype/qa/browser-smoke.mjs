@@ -25,6 +25,9 @@ const flag = (name, fallback = undefined) => {
 
 const base = String(flag('base', 'http://127.0.0.1:4173')).replace(/\/$/, '')
 const shouldServe = args.includes('--serve')
+const flowArgIndex = args.indexOf('--flows')
+const flows = flowArgIndex >= 0 ? String(args[flowArgIndex + 1] ?? 'all').split(',') : []
+const wantsFlow = (name) => flows.includes(name) || flows.includes('all')
 const shotsDir = flag('shots', null)
 const routeArg = flag('routes', null)
 const widths = [
@@ -121,7 +124,10 @@ try {
 
   /* 壳交互（FE1）：页签保留、关闭回退与未知路径的显式空态。 */
   await page.setViewportSize(widths[0])
+  // 页签是会话状态：清空后只留下本流程打开的两个页签，回退目标才是确定的。
   await page.goto(`${base}/`, { waitUntil: 'domcontentloaded' })
+  await page.evaluate(() => sessionStorage.clear())
+  await page.reload({ waitUntil: 'domcontentloaded' })
   await page.goto(`${base}/ingestion`, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(600)
   const tabLabels = await page.locator('nav[aria-label="已打开的页面"] button').allTextContents()
@@ -138,7 +144,7 @@ try {
   record((await page.title()).includes('医数中枢'), '未知路径仍保留站点标题')
 
   /* FE2 业务流（需要 mock 控制面）：短表单登记、调度预览、库表浏览。 */
-  if (args.includes('--flows')) {
+  if (wantsFlow('fe2')) {
     await page.goto(`${base}/ingestion`, { waitUntil: 'domcontentloaded' })
     await page.waitForTimeout(400)
     await page.getByRole('button', { name: '登记数据源' }).click()
@@ -166,6 +172,27 @@ try {
     await page.getByRole('button', { name: /lab_result/ }).click()
     await page.waitForTimeout(500)
     record((await page.locator('main').textContent())?.includes('result_id') ?? false, '库表浏览必须渲染字段清单')
+  }
+
+  /* FE3 业务流（需要 mock 控制面）：问题深链、规则编辑回填、标准版本切换。 */
+  if (wantsFlow('fe3')) {
+    await page.goto(`${base}/governance/quality?issue=DQ-20261116-001`, { waitUntil: 'domcontentloaded' })
+    await page.waitForTimeout(700)
+    record((await page.locator('main').textContent())?.includes('药品编码不符合院级标准') ?? false, '问题深链必须选中对应问题')
+    const noteBox = page.locator('#processing-note')
+    record((await noteBox.inputValue()).includes('已核对 127 个编码'), '处理说明必须回填已保存结论')
+
+    await page.goto(`${base}/governance/quality/rules/quality.ep.order.paystatus-range/edit`, { waitUntil: 'domcontentloaded' })
+    await page.waitForTimeout(700)
+    record((await page.locator('#rule-id').inputValue()) === 'quality.ep.order.paystatus-range', '规则编辑必须回填规则编号')
+    record((await page.locator('#rule-type').inputValue()) === 'VAL_SET', '规则编辑必须回填规则类型')
+
+    await page.goto(`${base}/governance/standards`, { waitUntil: 'domcontentloaded' })
+    await page.waitForTimeout(700)
+    record((await page.locator('main').textContent())?.includes('挂号渠道标准') ?? false, '标准清单必须渲染')
+    await page.getByRole('button', { name: /v1/ }).first().click()
+    await page.waitForTimeout(400)
+    record((await page.locator('main').textContent())?.includes('当前查看 v1') ?? false, '版本切换必须改变当前查看版本')
   }
 } finally {
   await browser.close()

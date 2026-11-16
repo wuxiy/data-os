@@ -22,35 +22,37 @@ for (const page of staticPages) {
   assert.match(src(page), /DemoDataBoundary/, `${page} 必须显式声明 mock 数据边界`)
 }
 
-const governance = src('src/pages/GovernanceDashboardPage.tsx')
-assert.match(governance, /fetchGovernanceSummary/, '治理驾驶舱必须读取真实摘要 API')
+// FE3 锁迁移：治理驾驶舱迁到 features/governance；演示样例不再进入新页面。
+const governance = src('src/features/governance/governance-dashboard-page.tsx')
+assert.match(src('src/features/governance/queries.ts'), /fetchGovernanceSummary/, '治理驾驶舱必须读取真实摘要 API')
 assert.doesNotMatch(governance, /fallbackIssues|演示数据 · 控制面暂不可用/, '治理驾驶舱不得在 API 失败时静默展示问题 mock')
 assert.match(governance, /控制面暂不可用 · 未加载真实治理指标或问题/, '治理驾驶舱必须展示真实不可用状态')
-assert.match(governance, /showStaticSamples\(apiState\)/, '治理静态链路和趋势必须经运行模式模块同时满足演示模式与控制面可用')
+assert.doesNotMatch(governance, /showStaticSamples|TrendChart/, '迁移后的驾驶舱不得回退静态演示样例')
+assert.match(src('src/data/runtimeMode.ts'), /showStaticSamples/, '运行模式模块仍保留静态样例可见性谓词（旧页兼容 seam）')
 assert.match(src('src/data/runtimeMode.ts'), /frontendDemoMode && apiState === 'live'/, '静态样例可见性谓词必须由运行模式模块单一实现')
 
 // G22/G24 接真锁：标准中心与管理驾驶舱在真实构建必须切到 Live 组件（不再只显示「暂未接入」）
-assert.match(src('src/pages/DataStandardsPage.tsx'), /frontendDemoMode[\s\S]*DataStandardsLive/, '数据标准页真实构建必须渲染 DataStandardsLive')
+assert.match(src('src/features/governance/standards-page.tsx'), /standardsQuery/, '数据标准页必须经 Query 读取标准清单（原锁在 DataStandardsLive）')
+assert.match(src('src/features/governance/queries.ts'), /fetchStandards/, '标准 Query 必须调用标准 API')
 // FE2 锁迁移：总览已由 features/overview 承担，旧 Page+Live 双件退役（文件保留到 FE7）。
 assert.match(src('src/features/overview/queries.ts'), /fetchOperationsSummary/, '总览必须读取运营投影摘要（原锁在 ManagementDashboardLive）')
 assert.match(src('src/features/overview/overview-page.tsx'), /operationsSummaryQuery/, '总览必须经 Query 层读取运营投影')
 assert.doesNotMatch(src('src/features/overview/overview-page.tsx'), /managementMetrics|riskRanking/, '总览不得读取静态事实')
-assert.match(src('src/pages/DataStandardsLive.tsx'), /fetchStandards/, '数据标准真实页必须读取标准 API')
 assert.match(src('src/pages/OperationsCenterPage.tsx'), /fetchWorkItems/, '运营中心必须读取运营待办投影')
 assert.match(src('src/components/ui/RuntimeStatusBanner.tsx'), /组件就绪/, '运行状态横幅必须显示组件覆盖数')
 
 // G23 接真锁：标准映射真实构建切 Live、治理导航三入口不再是无动作占位
-assert.match(src('src/pages/StandardMappingPage.tsx'), /frontendDemoMode[\s\S]*StandardMappingLive/, '标准映射页真实构建必须渲染 StandardMappingLive')
-assert.match(src('src/pages/StandardMappingLive.tsx'), /fetchMappingSets/, '标准映射真实页必须读取映射 API')
-assert.match(src('src/pages/StandardMappingLive.tsx'), /validateMappingVersion|activateMappingVersion/, '标准映射真实页必须提供验证与生效动作')
-const governanceTabs = src('src/components/ui/GovernanceTabs.tsx')
-assert.match(governanceTabs, /'血缘与影响', route: 'assetTechnical'/, '治理导航「血缘与影响」必须进入资产技术视图')
+assert.match(src('src/features/governance/mapping-page.tsx'), /fetchMappingSets|mappingSetsQuery/, '标准映射页必须读取映射 API（原锁在 StandardMappingLive）')
+assert.match(src('src/features/governance/mapping-page.tsx'), /validateMappingVersion|activateMappingVersion/, '标准映射页必须提供验证与生效动作')
+// FE3 锁迁移：治理子导航由壳的 app/navigation.ts 承担（旧 GovernanceTabs 随迁移退役）。
+const governanceNav = src('src/app/navigation.ts')
+assert.match(governanceNav, /label: '血缘与影响', path: '\/assets\/technical'/, '治理导航「血缘与影响」必须进入资产技术视图')
 // P1-4 收敛（2026-10-05）：「数据质量」是质量工作台唯一入口（旧「问题闭环」
 // 同指 quality 路由致双 aria-current 高亮），并锁定子导航路由不重复。
-assert.match(governanceTabs, /'数据质量', route: 'quality'/, '治理导航「数据质量」必须进入质量问题工作台')
-assert.doesNotMatch(governanceTabs, /'问题闭环'/, '治理导航不得再有与「数据质量」同路由的重复入口（双高亮回归）')
-assert.match(governanceTabs, /'数据合同', route: 'dataServices'/, '治理导航「数据合同」必须进入数据服务合同视图')
-assert.doesNotMatch(governanceTabs, /规划中/, '治理导航不得再有无动作占位')
+assert.match(governanceNav, /label: '数据质量', path: '\/governance\/quality'/, '治理导航「数据质量」必须进入质量问题工作台')
+assert.doesNotMatch(governanceNav, /问题闭环/, '治理导航不得再有与「数据质量」同路由的重复入口（双高亮回归）')
+assert.match(governanceNav, /label: '数据合同', path: '\/data-services'/, '治理导航「数据合同」必须进入数据服务合同视图')
+assert.doesNotMatch(governanceNav, /规划中/, '治理导航不得再有无动作占位')
 
 // G25 接真锁：交付中心真实构建切 Live、一级路由可达、不回静态数据
 assert.match(src('src/pages/DeliveryCenterPage.tsx'), /frontendDemoMode[\s\S]*DeliveryCenterLive/, '交付中心页真实构建必须渲染 DeliveryCenterLive')
@@ -104,10 +106,10 @@ assert.match(src('src/data/controlPlane.ts'), /confirmIngestionRunAbsent/, '采�
 
 // 2026-10-05 复评收口锁（P1-1 + 责任链 v1）：驾驶舱首屏叙事——待办先行、
 // 责任链认领质量工作台证据链、评分无数据收一行、死告示不得回归
-const dashboardPage = src('src/pages/GovernanceDashboardPage.tsx')
+const dashboardPage = src('src/features/governance/governance-dashboard-page.tsx')
 assert.match(dashboardPage, /治理责任链 · v1/, '驾驶舱必须渲染责任链 v1 入口（认领质量工作台证据链）')
 assert.doesNotMatch(dashboardPage, /责任链详情待接入真实溯源服务/, '驾驶舱不得再渲染「责任链待接入」死告示')
 assert.ok(dashboardPage.indexOf('治理待办') < dashboardPage.indexOf('<QualityScorePanel'), '驾驶舱待办表必须先于质量评分渲染（首屏叙事）')
-assert.match(src('src/pages/QualityScorePanel.tsx'), /rules\.every\(\(rule\) => rule\.score == null\)/, '质量评分无带评分规则时必须收成一行空态')
+assert.match(src('src/features/governance/quality-score-panel.tsx'), /rules\.every\(\(rule\) => rule\.score == null\)/, '质量评分无带评分规则时必须收成一行空态')
 
 console.log(`mock audit passed: ${staticPages.length} static pages gated, governance fallback removed, runtime mode visible`)

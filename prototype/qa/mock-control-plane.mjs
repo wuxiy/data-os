@@ -172,6 +172,112 @@ const events = [
   { domain: 'CONTRACT', type: 'FAILED', detail: '合同投递 webhook 返回 502，已进入重试', asOf: '2026-11-15T22:10:00Z' },
 ]
 
+// —— 治理闭环（FE3）：问题 / 规则 / 评分 / 标准 / 映射 ——
+const govIssues = [
+  { id: 'DQ-20261116-001', title: '药品编码不符合院级标准', severity: 'HIGH', status: 'IN_PROGRESS', datasetId: 'ods_ep.ep_order', ruleId: 'quality.ep.order.paystatus-range', ownerDepartment: '药学部', ownerName: '王药师', ticketId: 'TICKET-001', impact: '门诊医疗 / 38 张表', dueAt: '2026-11-15T09:00:00Z', objectLabel: '门诊处方明细', processingNote: '已核对 127 个编码，待药学部确认替换口径。', updatedAt: '2026-11-16T01:20:00Z' },
+  { id: 'DQ-20261116-002', title: '患者证件号完整性校验未通过', severity: 'CRITICAL', status: 'RECHECKING', datasetId: 'mpi_source_identity', ruleId: 'quality.mpi.identity.missing', ownerDepartment: '病案管理科', ownerName: '李老师', ticketId: '', impact: '患者主索引 / 12 张表', dueAt: '2026-11-14T09:00:00Z', objectLabel: '患者源身份', processingNote: null, updatedAt: '2026-11-16T02:00:00Z' },
+  { id: 'DQ-20261110-003', title: '就诊类型枚举值不规范', severity: 'LOW', status: 'CLOSED', datasetId: 'ods_outpatient_visit', ruleId: 'quality.visit.type.enum', ownerDepartment: '信息中心', ownerName: '陈老师', ticketId: 'TICKET-000', impact: '门诊医疗 / 6 张表', dueAt: '2026-11-10T09:00:00Z', objectLabel: '门诊就诊记录', processingNote: '字典已补齐，复检通过。', updatedAt: '2026-11-10T10:00:00Z' },
+]
+
+function govDetail(issue) {
+  const run = issue.status === 'RECHECKING'
+    ? { id: 'qr-1001', issueId: issue.id, tenantId: 't', institutionId: 'i', ruleId: issue.ruleId, datasetId: issue.datasetId, executor: 'DBT', status: 'SUBMITTED', externalId: null, executionBatchId: 'batch-20261116-0001', passed: null, resultMessage: '等待执行器回写结果', sampleEvidence: [{ id: 'DEMO-018', count: 86 }], artifactUri: 'https://artifacts.internal/recheck/1001.json', reconciliationStatus: null, reconciliationMessage: null, submittedAt: '2026-11-16T02:00:00Z', startedAt: null, finishedAt: '2026-11-16T02:01:00Z', attemptCount: 1, nextPollAt: new Date(Date.now() + 3000).toISOString(), lastError: null, updatedAt: '2026-11-16T02:00:00Z' }
+    : null
+  return {
+    issue,
+    events: [
+      { id: 'e1', issueId: issue.id, eventType: 'RECHECK_SUBMIT_FAILED', note: '执行器不可用，按策略重试', actor: 'system', createdAt: '2026-11-16T01:55:00Z' },
+      { id: 'e2', issueId: issue.id, eventType: 'RECHECK_SUBMIT_FAILED', note: '执行器不可用，按策略重试', actor: 'system', createdAt: '2026-11-16T01:57:00Z' },
+      { id: 'e3', issueId: issue.id, eventType: 'WORKFLOW_UPDATED', note: `已分派给${issue.ownerDepartment}`, actor: 'governance-admin', createdAt: '2026-11-16T01:26:00Z' },
+      { id: 'e4', issueId: issue.id, eventType: 'RECHECK_REQUESTED', note: `规则 ${issue.ruleId} 发现质量问题`, actor: 'quality-runner', createdAt: '2026-11-16T01:20:00Z' },
+    ],
+    latestRun: run,
+    runs: run ? [run, { ...run, id: 'qr-0999', executionBatchId: 'batch-20261115-0009', status: 'FAILED', submittedAt: '2026-11-15T02:00:00Z', nextPollAt: null }] : [],
+    notifications: [{ id: 'n1', issueId: issue.id, eventId: null, channel: 'EMAIL', recipient: 'owner@hospital', subject: '质量问题待处理', body: '', status: 'SENT', idempotencyKey: 'k1', attemptCount: 1, lastError: null, nextAttemptAt: null, sentAt: '2026-11-16T01:30:00Z', createdAt: '2026-11-16T01:29:00Z', updatedAt: '2026-11-16T01:30:00Z' }],
+  }
+}
+
+const govRules = [
+  { ruleId: 'quality.ep.order.paystatus-range', ruleType: 'VAL_SET', datasetId: 'ods_ep.ep_order', targetColumn: 'PAY_STATUS', params: { values: [0, 1] }, evidenceColumns: [{ name: 'ORDER_ID', classification: 'IDENTIFIER' }], enabled: true, createdAt: '2026-10-01T00:00:00Z', updatedAt: '2026-11-10T00:00:00Z' },
+  { ruleId: 'quality.mpi.identity.missing', ruleType: 'NOT_NULL', datasetId: 'mpi_source_identity', targetColumn: 'IDENTITY_KEY', params: { checkBlank: true }, evidenceColumns: [], enabled: false, createdAt: '2026-10-02T00:00:00Z', updatedAt: '2026-11-11T00:00:00Z' },
+]
+
+const govRuleTypes = ['NOT_NULL', 'UNIQUE', 'VAL_SET', 'VAL_MINMAX', 'VAL_LEN', 'STR_REGEX', 'FK_REF', 'SQL', 'CROSS_VAL_COMPARE', 'STAT_VAL_COMPARE', 'SQL_STAT_VAL', 'DETAIL_STAT', 'FIELD_LOGIC', 'UPDATE_TIME', 'TIME_CONTINUITY']
+  .map((type) => ({ type, label: { NOT_NULL: '非空校验', UNIQUE: '唯一性校验', VAL_SET: '值域校验', VAL_MINMAX: '数值范围校验', VAL_LEN: '长度范围校验', STR_REGEX: '正则校验', FK_REF: '外键参照校验', SQL: '自定义 SQL 校验', CROSS_VAL_COMPARE: '跨表数据值比较', STAT_VAL_COMPARE: '统计数据值比较', SQL_STAT_VAL: 'SQL 统计值比较', DETAIL_STAT: '明细汇总校验', FIELD_LOGIC: '字段间关系', UPDATE_TIME: '更新时效校验', TIME_CONTINUITY: '时间连续性校验' }[type], dimension: '一致性', computedEvidence: ['STAT_VAL_COMPARE', 'SQL_STAT_VAL', 'DETAIL_STAT', 'TIME_CONTINUITY'].includes(type) }))
+
+const govScore = {
+  standard: { passScore: 60, weights: { 完整性: 1, 一致性: 1, 规范性: 1, 准确性: 1, 时效性: 1, 稳定性: 1 }, grades: [{ grade: 'A', lowScore: 90 }, { grade: 'B', lowScore: 75 }, { grade: 'C', lowScore: 60 }], updatedAt: '2026-11-01T00:00:00Z' },
+  dimensions: [
+    { dimension: '完整性', score: 96.2, ruleCount: 4 }, { dimension: '一致性', score: 88.4, ruleCount: 6 },
+    { dimension: '规范性', score: 92.1, ruleCount: 3 }, { dimension: '准确性', score: 97.5, ruleCount: 5 },
+    { dimension: '时效性', score: 85.0, ruleCount: 2 }, { dimension: '稳定性', score: 99.0, ruleCount: 1 },
+  ],
+  totalScore: 93.0,
+  grade: 'A',
+  rules: [
+    { ruleId: 'quality.ep.order.paystatus-range', ruleType: 'VAL_SET', targetColumn: 'PAY_STATUS', datasetId: 'ods_ep.ep_order', score: 96.2, passed: true },
+    { ruleId: 'quality.mpi.identity.missing', ruleType: 'NOT_NULL', targetColumn: 'IDENTITY_KEY', datasetId: 'mpi_source_identity', score: null, passed: null },
+  ],
+}
+
+const govStandards = [
+  { id: 'std-001', code: 'reg-channel', name: '挂号渠道标准', description: '渠道枚举与业务定义', owner: '信息中心', updatedAt: '2026-11-12T00:00:00Z', versionCount: 2, latestVersion: { versionNo: 2, status: 'PUBLISHED', syncStatus: 'SYNCED' } },
+  { id: 'std-002', code: 'drug-code', name: '院级药品编码', description: '药品编码与名称标准', owner: '药学部', updatedAt: '2026-11-14T00:00:00Z', versionCount: 1, latestVersion: { versionNo: 1, status: 'DRAFT', syncStatus: 'PENDING' } },
+]
+
+function standardDetail(id, versionId) {
+  const item = govStandards.find((standard) => standard.id === id) ?? govStandards[0]
+  const versions = [
+    { id: `${id}-v2`, versionNo: 2, status: item.latestVersion.status, syncStatus: item.latestVersion.syncStatus, createdBy: 'data-governance', createdAt: '2026-11-12T00:00:00Z', publishedAt: '2026-11-12T06:00:00Z' },
+    { id: `${id}-v1`, versionNo: 1, status: 'DEPRECATED', syncStatus: 'SYNCED', createdBy: 'data-governance', createdAt: '2026-10-12T00:00:00Z', deprecatedAt: '2026-11-12T06:00:00Z' },
+  ]
+  const version = versions.find((entry) => entry.id === versionId) ?? versions[0]
+  return {
+    standard: { id: item.id, code: item.code, name: item.name, description: item.description, owner: item.owner, updatedAt: item.updatedAt },
+    versions,
+    version: {
+      id: version.id, versionNo: version.versionNo, status: version.status, syncStatus: version.syncStatus,
+      elements: [
+        { id: `${version.id}-e1`, code: 'channel', name: '挂号渠道', dataType: 'CODE', required: true, definition: '渠道枚举', sensitivity: 'NORMAL', assetRef: '', values: [{ code: 'OPD', displayName: '门诊', validFrom: '2026-01-01', validTo: '9999-12-31' }, { code: 'IPD', displayName: '住院', validFrom: '2026-01-01', validTo: '9999-12-31' }] },
+        { id: `${version.id}-e2`, code: 'patient_id', name: '患者标识', dataType: 'STRING', required: true, definition: '院内患者主索引键', sensitivity: 'SENSITIVE', assetRef: 'doris.dataos.mpi.mpi_golden_person', values: [] },
+      ],
+    },
+    events: [
+      { id: 'se1', eventType: 'PUBLISHED', actor: 'governance-admin', detail: 'OM 术语投影已同步', createdAt: '2026-11-12T06:00:00Z' },
+      { id: 'se2', eventType: 'SUBMITTED', actor: 'data-governance', detail: '提交评审', createdAt: '2026-11-12T05:00:00Z' },
+    ],
+  }
+}
+
+const govMappings = [
+  { id: 'map-001', code: 'MAP-EP-CFZB', name: '门诊处方表映射', sourceAsset: 'doris.dataos.ods_ep.ep_order', dataset: 'ods_ep.ep_order', standard: { id: 'std-001', code: 'reg-channel', name: '挂号渠道标准' }, versionCount: 2, activeVersion: { versionNo: 1, status: 'ACTIVE', checksum: 'abc123def456' }, updatedAt: '2026-11-13T00:00:00Z' },
+]
+
+function mappingDetail(id, versionId) {
+  const set = govMappings.find((item) => item.id === id) ?? govMappings[0]
+  const versions = [
+    { id: `${id}-v2`, versionNo: 2, status: 'DRAFT', checksum: 'def456789abc', createdAt: '2026-11-13T00:00:00Z' },
+    { id: `${id}-v1`, versionNo: 1, status: 'ACTIVE', checksum: 'abc123def456', createdAt: '2026-11-01T00:00:00Z' },
+    { id: `${id}-v0`, versionNo: 0, status: 'RETIRED', checksum: 'aaa111bbb222', createdAt: '2026-10-01T00:00:00Z' },
+  ]
+  const version = versions.find((entry) => entry.id === versionId) ?? versions[0]
+  return {
+    set,
+    versions,
+    version: {
+      ...version,
+      items: [
+        { id: 'mi1', sourceColumn: 'CHANNEL_CODE', targetElementCode: 'channel', transform: 'VALUE_MAP', transformParam: '{"OPD":"OPD","IPD":"IPD"}', conclusion: 'CONFIRMED', note: '' },
+        { id: 'mi2', sourceColumn: 'PATIENT_NO', targetElementCode: 'patient_id', transform: 'COPY', transformParam: '', conclusion: 'PENDING', note: '' },
+      ],
+      validations: [{ id: 'mv1', status: 'PASS', checksum: version.checksum, dataTime: '2026-11-13T01:00:00Z', createdAt: '2026-11-13T01:00:00Z', result: '全部通过' }],
+    },
+    events: [
+      { id: 'me1', eventType: 'VALIDATED', actor: 'data-governance', detail: '聚合验证 PASS', createdAt: '2026-11-13T01:00:00Z' },
+    ],
+  }
+}
+
 function json(response, status, payload) {
   const body = JSON.stringify(payload)
   response.writeHead(status, {
@@ -372,6 +478,177 @@ const server = createServer(async (request, response) => {
     return json(response, 200, run)
   }
 
+
+  // —— 治理闭环（FE3）——
+  if (path === '/v1/governance/summary') {
+    return json(response, 200, {
+      asOf: now(), tenantId: 'tenant-demo', institutionId: 'INST-001',
+      metrics: [
+        { key: 'standard-coverage', label: '标准覆盖率', value: 82.5, unit: '%', target: 90, detail: '已发布标准覆盖的资产比例', tone: 'warning' },
+        { key: 'quality-pass', label: '质量规则通过率', value: 98.4, unit: '%', target: 95, detail: '最近一轮规则运行', tone: 'healthy' },
+        { key: 'issue-closure', label: '问题按时闭环率', value: 91.0, unit: '%', target: 90, detail: 'SLA 内关闭占比', tone: 'healthy' },
+        { key: 'lineage', label: '血缘完整率', value: 76.0, unit: '%', target: 85, detail: '上下游已登记资产', tone: 'warning' },
+      ],
+      issues: govIssues,
+    })
+  }
+  if (path === '/v1/governance/issues' && method === 'GET') {
+    const status = url.searchParams.get('status')
+    const query = (url.searchParams.get('query') ?? '').toLowerCase()
+    const items = govIssues.filter((issue) => (!status || issue.status === status)
+      && (!query || `${issue.id}${issue.title}${issue.ownerDepartment}`.toLowerCase().includes(query)))
+    return json(response, 200, { items, total: items.length })
+  }
+  match = /^\/v1\/governance\/issues\/([^/]+)$/.exec(path)
+  if (match && method === 'GET') {
+    const issue = govIssues.find((item) => item.id === match[1])
+    if (!issue) return json(response, 404, { message: '问题不存在' })
+    return json(response, 200, govDetail(issue))
+  }
+  match = /^\/v1\/governance\/issues\/([^/]+)\/workflow$/.exec(path)
+  if (match && method === 'PUT') {
+    const issue = govIssues.find((item) => item.id === match[1])
+    if (!issue) return json(response, 404, { message: '问题不存在' })
+    const body = await readBody(request)
+    issue.status = String(body.status ?? issue.status)
+    issue.processingNote = String(body.note ?? '')
+    issue.updatedAt = now()
+    return json(response, 200, govDetail(issue))
+  }
+  match = /^\/v1\/governance\/issues\/([^/]+)\/recheck$/.exec(path)
+  if (match && method === 'POST') {
+    const issue = govIssues.find((item) => item.id === match[1])
+    if (!issue) return json(response, 404, { message: '问题不存在' })
+    issue.status = 'RECHECKING'
+    issue.updatedAt = now()
+    return json(response, 200, govDetail(issue))
+  }
+  match = /^\/v1\/governance\/issues\/([^/]+)\/runs\/([^/]+)\/sync$/.exec(path)
+  if (match && method === 'POST') {
+    const issue = govIssues.find((item) => item.id === match[1])
+    if (!issue) return json(response, 404, { message: '问题不存在' })
+    const detail = govDetail(issue)
+    if (detail.latestRun) {
+      detail.latestRun.status = 'SUCCEEDED'
+      detail.latestRun.passed = true
+      detail.latestRun.resultMessage = '复检通过，0 条失败行'
+      detail.latestRun.nextPollAt = null
+      detail.latestRun.finishedAt = now()
+      issue.status = 'CLOSED'
+    }
+    return json(response, 200, detail)
+  }
+  match = /^\/v1\/governance\/issues\/([^/]+)\/runs\/([^/]+)\/reconcile$/.exec(path)
+  if (match && method === 'POST') {
+    const issue = govIssues.find((item) => item.id === match[1])
+    if (!issue) return json(response, 404, { message: '问题不存在' })
+    return json(response, 200, govDetail(issue))
+  }
+  match = /^\/v1\/governance\/issues\/([^/]+)\/runs\/([^/]+)\/reconcile\/confirm-absent$/.exec(path)
+  if (match && method === 'POST') {
+    const issue = govIssues.find((item) => item.id === match[1])
+    if (!issue) return json(response, 404, { message: '问题不存在' })
+    return json(response, 200, govDetail(issue))
+  }
+  match = /^\/v1\/governance\/issues\/([^/]+)\/notifications\/remind$/.exec(path)
+  if (match && method === 'POST') {
+    const issue = govIssues.find((item) => item.id === match[1])
+    if (!issue) return json(response, 404, { message: '问题不存在' })
+    return json(response, 200, govDetail(issue))
+  }
+
+  if (path === '/v1/quality/rules/types') return json(response, 200, govRuleTypes)
+  if (path === '/v1/quality/rules' && method === 'GET') return json(response, 200, { items: govRules, total: govRules.length })
+  match = /^\/v1\/quality\/rules\/([^/]+)$/.exec(path)
+  if (match && method === 'PUT') {
+    const body = await readBody(request)
+    const existing = govRules.find((rule) => rule.ruleId === match[1])
+    const next = {
+      ruleId: match[1], ruleType: body.ruleType, datasetId: body.datasetId, targetColumn: body.targetColumn,
+      params: body.params ?? {}, evidenceColumns: body.evidenceColumns ?? [], enabled: existing?.enabled ?? true,
+      createdAt: existing?.createdAt ?? now(), updatedAt: now(),
+    }
+    if (existing) Object.assign(existing, next)
+    else govRules.unshift(next)
+    return json(response, 200, next)
+  }
+  if (match && method === 'DELETE') {
+    const index = govRules.findIndex((rule) => rule.ruleId === match[1])
+    if (index >= 0) govRules.splice(index, 1)
+    response.writeHead(204, { 'Access-Control-Allow-Origin': '*' })
+    return response.end()
+  }
+  match = /^\/v1\/quality\/rules\/([^/]+)\/(enable|disable)$/.exec(path)
+  if (match && method === 'POST') {
+    const rule = govRules.find((item) => item.ruleId === match[1])
+    if (!rule) return json(response, 404, { message: '规则不存在' })
+    rule.enabled = match[2] === 'enable'
+    return json(response, 200, rule)
+  }
+  if (path === '/v1/quality/score' && method === 'GET') return json(response, 200, govScore)
+  if (path === '/v1/quality/score/standard' && method === 'PUT') {
+    const body = await readBody(request)
+    govScore.standard = { ...govScore.standard, ...body, updatedAt: now() }
+    return json(response, 200, govScore.standard)
+  }
+
+  if (path === '/v1/data-standards' && method === 'GET') {
+    const query = (url.searchParams.get('query') ?? '').toLowerCase()
+    const status = url.searchParams.get('status') ?? ''
+    const items = govStandards.filter((item) => (!query || `${item.code}${item.name}`.toLowerCase().includes(query))
+      && (!status || item.latestVersion.status === status))
+    return json(response, 200, { items })
+  }
+  match = /^\/v1\/data-standards\/([^/]+)$/.exec(path)
+  if (match && method === 'GET') return json(response, 200, standardDetail(match[1], url.searchParams.get('versionId') ?? ''))
+  match = /^\/v1\/data-standards\/([^/]+)\/versions$/.exec(path)
+  if (match && method === 'POST') {
+    const next = standardDetail(match[1])
+    next.version = { ...next.version, id: `${match[1]}-v3`, versionNo: 3, status: 'DRAFT', syncStatus: 'PENDING' }
+    return json(response, 200, next)
+  }
+  match = /^\/v1\/data-standard-versions\/([^/]+)$/.exec(path)
+  if (match && method === 'PUT') return json(response, 200, standardDetail('std-001', match[1]))
+  match = /^\/v1\/data-standard-versions\/([^/]+)\/(submit|publish|deprecate|sync)$/.exec(path)
+  if (match && method === 'POST') return json(response, 200, standardDetail('std-001', match[1]))
+  if (path === '/v1/data-standards/import') {
+    const dryRun = url.searchParams.get('dryRun') === 'true'
+    return json(response, 200, {
+      dryRun, standardCode: 'reg-channel', elementCount: 2, valueCount: 3, problems: [],
+      ...(dryRun ? {} : { created: standardDetail('std-001') }),
+    })
+  }
+  match = /^\/v1\/data-standard-versions\/([^/]+)\/impact$/.exec(path)
+  if (match) return json(response, 200, { versionId: match[1], versionNo: 2, status: 'PUBLISHED', elementCount: 2, referencedAssets: ['doris.dataos.ods_ep.ep_order'], notes: ['变更需同步下游映射'] })
+  match = /^\/v1\/data-standard-versions\/([^/]+)\/fhir-bundle$/.exec(path)
+  if (match) return json(response, 200, { resourceType: 'Bundle', type: 'collection', entry: [] })
+
+  if (path === '/v1/standard-mappings' && method === 'GET') return json(response, 200, { items: govMappings })
+  if (path === '/v1/standard-mappings/coverage') {
+    return json(response, 200, { asOf: now(), activeMappingVersions: 1, publishedCodeElements: 24, coveredCodeElements: 21, coverage: 0.875 })
+  }
+  if (path === '/v1/standard-mappings' && method === 'POST') {
+    const body = await readBody(request)
+    return json(response, 200, mappingDetail(`map-${randomUUID().slice(0, 6)}`, ''))
+  }
+  match = /^\/v1\/standard-mappings\/([^/]+)$/.exec(path)
+  if (match && method === 'GET') return json(response, 200, mappingDetail(match[1], url.searchParams.get('versionId') ?? ''))
+  match = /^\/v1\/standard-mappings\/([^/]+)\/versions$/.exec(path)
+  if (match && method === 'POST') return json(response, 200, mappingDetail(match[1]))
+  match = /^\/v1\/standard-mapping-versions\/([^/]+)$/.exec(path)
+  if (match && (method === 'PUT')) return json(response, 200, mappingDetail('map-001', match[1]))
+  match = /^\/v1\/standard-mapping-versions\/([^/]+)\/import$/.exec(path)
+  if (match) {
+    const dryRun = url.searchParams.get('dryRun') === 'true'
+    return json(response, 200, { dryRun, itemCount: 2, problems: [], checksum: 'def456789abc', applied: !dryRun })
+  }
+  match = /^\/v1\/standard-mapping-versions\/([^/]+)\/(submit|validate|activate|retire)$/.exec(path)
+  if (match && method === 'POST') return json(response, 200, mappingDetail('map-001', match[1]))
+  match = /^\/v1\/standard-mapping-versions\/([^/]+)\/impact$/.exec(path)
+  if (match) return json(response, 200, { versionId: match[1], versionNo: 2, status: 'DRAFT', sourceAsset: 'doris.dataos.ods_ep.ep_order', dataset: 'ods_ep.ep_order', standard: { id: 'std-001', code: 'reg-channel', name: '挂号渠道标准' }, itemCount: 2, mappedElements: { channel: 1, patient_id: 1 }, unpublishedUncoveredElements: ['order_status'], latestValidation: {} })
+  match = /^\/v1\/standard-mappings\/([^/]+)\/rollback$/.exec(path)
+  if (match && method === 'POST') return json(response, 200, mappingDetail(match[1]))
+
   // 周期调度
   match = /^\/v1\/jobs\/([^/]+)\/schedule$/.exec(path)
   if (match) {
@@ -433,6 +710,7 @@ const server = createServer(async (request, response) => {
     response.writeHead(204, { 'Access-Control-Allow-Origin': '*' })
     return response.end()
   }
+
 
   return json(response, 404, { message: `未实现的控制面替身端点：${method} ${path}` })
 })

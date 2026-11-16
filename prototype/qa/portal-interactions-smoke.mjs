@@ -22,7 +22,8 @@ const routes = read('src/data/routes.ts')
 const assets = read('src/pages/AssetCatalogPage.tsx')
 const assistant = read('src/pages/AssistantPage.tsx')
 const ingestion = read('src/pages/DataIngestionPage.tsx')
-const quality = read('src/pages/QualityIssuesPage.tsx')
+// FE3 锁迁移：质量工作台迁到 features/governance；下面各条不变量随实现迁移。
+const quality = read('src/features/governance/quality-page.tsx')
 const controlPlane = read('src/data/controlPlane.ts')
 const http = read('src/data/http.ts')
 const oidc = read('src/data/oidc.ts')
@@ -56,7 +57,7 @@ assert.match(read('src/app/auth-gate.tsx'), /OidcLoginGate/, '生产门户必须
 assert.match(read('src/components/ui/RuntimeStatusBanner.tsx'), /首期真实范围/, '门户必须持续显示首期真实产品范围（由运行状态横幅承载）')
 assert.match(scopeNotice, /首期真实范围/, '门户范围提示必须明确首期真实能力')
 assert.match(scopeNotice, /受控智能问数（Beta，仅已验证问题/, '门户范围提示必须声明问数边界（Beta · 仅已验证问题）')
-assert.doesNotMatch(quality, /from ['"]\.\.\/data\/mock['"]/, '质量闭环不得继续依赖本地演示问题数据')
+assert.doesNotMatch(quality, /from ['"][^'"]*data\/mock['"]/, '质量闭环不得继续依赖本地演示问题数据')
 assert.match(quality, /控制面暂不可用 · 未加载治理问题/, '质量闭环必须有真实控制面不可用状态')
 assert.match(quality, /updateGovernanceIssueWorkflow/, '处理说明必须回写控制面')
 assert.match(quality, /canRecheck/, '复检中的问题不得重复提交复检请求')
@@ -89,14 +90,14 @@ assert.doesNotMatch(read('src/pages/MpiReviewLive.tsx'), /<StatusTag tone="warni
 
 // 版本切换控件红线（2026-10-05 critique P0-1）：不可变版本模型的命脉交互，
 // 不得复用 11px 装饰圆点类，控件可见尺寸必须由样式锁定。
-const standardsLive = read('src/pages/DataStandardsLive.tsx')
-const mappingLive = read('src/pages/StandardMappingLive.tsx')
-const pagesCss = read('src/pages/Pages.module.css')
-assert.doesNotMatch(standardsLive, /styles\.timelineDot/, '标准详情版本切换不得复用时间轴装饰圆点类（曾致控件塌陷）')
-assert.doesNotMatch(mappingLive, /styles\.timelineDot/, '映射详情版本切换不得复用时间轴装饰圆点类')
-assert.match(standardsLive, /styles\.versionChip/, '标准详情版本切换必须使用 versionChip')
-assert.match(mappingLive, /styles\.versionChip/, '映射详情版本切换必须使用 versionChip')
-assert.match(pagesCss, /\.versionChip \{[^}]*min-height: 32px/s, 'versionChip 必须锁定可见高度（≥32px）')
+// FE3 锁迁移：版本切换控件由 CSS Module 换成 Tailwind 内联样式，不变量改为
+// 「版本切换按钮锁定可见高度 ≥32px、且不复用时间轴装饰类」。
+const standardsLive = read('src/features/governance/standards-page.tsx')
+const mappingLive = read('src/features/governance/mapping-page.tsx')
+assert.doesNotMatch(standardsLive, /timelineDot|rounded-full size-2/, '标准详情版本切换不得复用装饰圆点类（曾致控件塌陷）')
+assert.doesNotMatch(mappingLive, /timelineDot|rounded-full size-2/, '映射详情版本切换不得复用装饰圆点类')
+assert.match(standardsLive, /min-h-\[36px\]/, '标准详情版本切换必须锁定可见高度（≥32px）')
+assert.match(mappingLive, /min-h-\[36px\]/, '映射详情版本切换必须锁定可见高度（≥32px）')
 
 // 执行器输出治理（2026-10-05 critique P0-2）：处理说明不得预填执行器全文，
 // dbt 品牌不得直出业务视图（指纹仅存活在治理助手中）。
