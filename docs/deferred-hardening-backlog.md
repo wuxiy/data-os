@@ -1,5 +1,11 @@
 # 下一阶段备忘（深度测试 / 安全 / 生产加固）
 
+## 2026-11-16 前端技术栈迁移 FE0–FE7 全部收官 · 状态更新
+
+- **FE7 终局收口已完成**（本地，未推送）：antd/dayjs 移出生产依赖（audit 0 漏洞），旧页面/旧主题/legacy 渲染器全删，全站路由懒加载（入口 277KB）；93 项测试（原 45 零修改）、双 QA、29 路由×2 宽度矩阵 + 1920/reduced-motion、FE2–FE6 业务流全绿。
+- 制品与回滚：三类构建包 SHA-256、272 项依赖/许可证清单、持久回滚包 `docs/validation/frontend-artifacts-20261116/portal-dist-rollback-64aa39b.zip`（64aa39b 重建哈希与 FE0 基线一致）；本地静态目录新→旧→新切换演练通过。开发环境发布操作单见 [FE7 验收文档](validation/gate-frontend-fe7-20261116.md)，**推送与远端发布待用户明示**。
+- 旧 `hooks/useApiResource` 等与 18 项测试作为兼容 seam 保留（迁移计划 §3.2）；清理需连测试一起退役，属后续独立事项，不自行排期。
+
 ## 2026-11-16 Continew 风格审核原型 · 状态更新
 
 - **原型已批准、实施计划待审核**：用户已批准原型 v0.2，设计源码/截图的 SHA-256 已冻结在 `APPROVED-BASELINE.json`。全站新技术栈迁移计划见 [FE0–FE7 实施计划](frontend-stack-migration-plan-20261116.md)，建议 40–58 人日；本轮未安装依赖、未启动 FE0、未修改业务代码或部署。
