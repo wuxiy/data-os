@@ -23,6 +23,9 @@ import { AnalyticsPage } from '../features/analytics/analytics-page'
 import { AssistantPage } from '../features/assistant/assistant-page'
 import { QuestionEditorPage } from '../features/assistant/question-editor-page'
 import { AssistantAuditPage } from '../features/assistant/audit-page'
+import { OperationsCenterPage } from '../features/operations/operations-center-page'
+import { DeliveryCenterPage } from '../features/operations/delivery-center-page'
+import { PlatformOperationsPage } from '../features/operations/platform-operations-page'
 import { AppShell } from './shell/app-shell'
 import { LegacyPortalPage } from './legacy/legacy-page'
 
@@ -244,9 +247,25 @@ function AssistantQuestionRouteComponent() {
   const { questionCode } = assistantQuestionRoute.useParams()
   return <QuestionEditorPage questionCode={questionCode} />
 }
-const operationsCenterRoute = legacy('/operations-center', 'operationsCenter')
-const deliveryCenterRoute = legacy('/delivery-center', 'deliveryCenter')
-const operationsRoute = legacy('/operations', 'operations')
+const operationsCenterRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/operations-center',
+  component: OperationsCenterPage,
+})
+const deliveryCenterRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/delivery-center',
+  component: DeliveryCenterPage,
+})
+const operationsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/operations',
+  component: PlatformOperationsRouteComponent,
+})
+
+function PlatformOperationsRouteComponent() {
+  return <PlatformOperationsPage />
+}
 
 const routeTree = rootRoute.addChildren([
   indexRoute,

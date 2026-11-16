@@ -251,6 +251,32 @@ try {
     record(auditText?.includes('拒答·无匹配') ?? false, '审计结局过滤必须生效')
     record(auditText?.includes('查询每天的用药记录量') === false, '过滤后不应出现已回答记录')
   }
+
+  /* FE6 业务流（需要 mock 控制面）：交付提交阻断、前置机登记、运营待办下钻。 */
+  if (wantsFlow('fe6')) {
+    await page.goto(`${base}/delivery-center`, { waitUntil: 'domcontentloaded' })
+    await page.waitForTimeout(700)
+    await page.getByRole('button', { name: /患者主索引交付/ }).first().click()
+    await page.waitForTimeout(300)
+    await page.getByRole('button', { name: '提交验收' }).click()
+    await page.waitForTimeout(700)
+    record((await page.locator('main').textContent())?.includes('提交被阻断') ?? false, '无交付对象时提交必须逐项显示阻断原因')
+
+    await page.goto(`${base}/operations`, { waitUntil: 'domcontentloaded' })
+    await page.waitForTimeout(700)
+    await page.getByRole('button', { name: '登记前置机' }).click()
+    const edgeDialog = page.getByRole('dialog')
+    await edgeDialog.waitFor({ timeout: 5000 })
+    await edgeDialog.getByLabel('名称').fill('QA 前置机')
+    await edgeDialog.getByLabel('主机').fill('10.0.0.99')
+    await edgeDialog.getByRole('button', { name: '保存前置机' }).click()
+    await page.waitForTimeout(700)
+    record((await page.locator('main').textContent())?.includes('QA 前置机') ?? false, '新登记的前置机必须出现在列表')
+
+    await page.goto(`${base}/operations-center`, { waitUntil: 'domcontentloaded' })
+    await page.waitForTimeout(700)
+    record((await page.locator('main').textContent())?.includes('住院病历每日同步 · 执行失败') ?? false, '运营中心必须渲染跨域待办')
+  }
 } finally {
   await browser.close()
   server?.kill('SIGTERM')

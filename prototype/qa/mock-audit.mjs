@@ -7,20 +7,16 @@ const src = (path) => readFileSync(resolve(root, path), 'utf8')
 
 // FE2 起逐域迁移：迁移后的页面要么读真实 API，要么显式演示；不再需要 DemoDataBoundary
 // 兜底，因此从本清单移除，改由下方「迁移页不得引用演示数据」锁覆盖。
-const staticPages = [
-  'src/pages/DataStandardsPage.tsx',
-  'src/pages/StandardMappingPage.tsx',
-
-  'src/pages/AnalyticsPage.tsx',
-  'src/pages/AssistantPage.tsx',
-  'src/pages/DeliveryCenterPage.tsx',
-]
-
-for (const page of staticPages) {
-  assert.match(src(page), /DemoDataBoundary/, `${page} 必须显式声明 mock 数据边界`)
+// FE2–FE6 迁移完成后，17 个既有入口全部由 feature 页面承接；旧的 demo 边界页
+// 进入退役清单（FE7 删除）。这里改为锁「每条既有路径都由新页注册」，比逐文件
+// 断言 DemoDataBoundary 更能防止路由回退到演示页。
+const routerSource = src('src/app/router.tsx')
+for (const path of ['/', '/ingestion', '/governance', '/governance/standards', '/governance/mapping', '/governance/quality', '/mpi/review', '/assets', '/assets/technical', '/analysis', '/ai-data', '/data-services', '/assistant', '/assistant/workspace', '/operations-center', '/delivery-center', '/operations']) {
+  assert.match(routerSource, new RegExp(`path: '${path.replace(/[/]/g, '\\/')}'`), `路由必须注册 ${path}`)
 }
+assert.doesNotMatch(routerSource, /legacy\('/, '既有入口不得再回退到 legacy 页面渲染器')
+assert.match(src('src/data/runtimeMode.ts'), /frontendDemoMode/, '运行模式开关必须仍由 runtimeMode 单一持有')
 
-// FE3 锁迁移：治理驾驶舱迁到 features/governance；演示样例不再进入新页面。
 const governance = src('src/features/governance/governance-dashboard-page.tsx')
 assert.match(src('src/features/governance/queries.ts'), /fetchGovernanceSummary/, '治理驾驶舱必须读取真实摘要 API')
 assert.doesNotMatch(governance, /fallbackIssues|演示数据 · 控制面暂不可用/, '治理驾驶舱不得在 API 失败时静默展示问题 mock')
@@ -36,7 +32,7 @@ assert.match(src('src/features/governance/queries.ts'), /fetchStandards/, '标�
 assert.match(src('src/features/overview/queries.ts'), /fetchOperationsSummary/, '总览必须读取运营投影摘要（原锁在 ManagementDashboardLive）')
 assert.match(src('src/features/overview/overview-page.tsx'), /operationsSummaryQuery/, '总览必须经 Query 层读取运营投影')
 assert.doesNotMatch(src('src/features/overview/overview-page.tsx'), /managementMetrics|riskRanking/, '总览不得读取静态事实')
-assert.match(src('src/pages/OperationsCenterPage.tsx'), /fetchWorkItems/, '运营中心必须读取运营待办投影')
+assert.match(src('src/features/operations/queries.ts'), /fetchWorkItems/, '运营中心必须读取运营待办投影（原锁在 OperationsCenterPage）')
 assert.match(src('src/components/ui/RuntimeStatusBanner.tsx'), /组件就绪/, '运行状态横幅必须显示组件覆盖数')
 
 // G23 接真锁：标准映射真实构建切 Live、治理导航三入口不再是无动作占位
@@ -53,10 +49,9 @@ assert.match(governanceNav, /label: '数据合同', path: '\/data-services'/, '�
 assert.doesNotMatch(governanceNav, /规划中/, '治理导航不得再有无动作占位')
 
 // G25 接真锁：交付中心真实构建切 Live、一级路由可达、不回静态数据
-assert.match(src('src/pages/DeliveryCenterPage.tsx'), /frontendDemoMode[\s\S]*DeliveryCenterLive/, '交付中心页真实构建必须渲染 DeliveryCenterLive')
-assert.match(src('src/pages/DeliveryCenterPage.tsx'), /fetchDeliveries/, '交付中心真实页必须读取交付项目 API')
-assert.match(src('src/pages/DeliveryCenterPage.tsx'), /submitDelivery|acceptDelivery/, '交付中心真实页必须提供提交与验收动作')
-assert.match(src('src/pages/DeliveryCenterPage.tsx'), /downloadEvidenceZip/, '交付中心真实页必须提供证据包下载')
+assert.match(src('src/features/operations/queries.ts'), /fetchDeliveries/, '交付中心必须读取交付项目 API')
+assert.match(src('src/features/operations/delivery-center-page.tsx'), /submitDelivery|acceptDelivery/, '交付中心必须提供提交与验收动作')
+assert.match(src('src/features/operations/delivery-center-page.tsx'), /downloadEvidenceZip/, '交付中心必须提供证据包下载')
 assert.match(src('src/data/routes.ts'), /deliveryCenter/, '路由表必须注册交付中心路径')
 // FE1 锁迁移：旧 AppShell 的一级导航数组并入 app/navigation.ts，断言改指新家，
 // 业务不变量不变——交付中心必须是一级入口且挂真实路由。
@@ -117,4 +112,4 @@ assert.doesNotMatch(dashboardPage, /责任链详情待接入真实溯源服务/,
 assert.ok(dashboardPage.indexOf('治理待办') < dashboardPage.indexOf('<QualityScorePanel'), '驾驶舱待办表必须先于质量评分渲染（首屏叙事）')
 assert.match(src('src/features/governance/quality-score-panel.tsx'), /rules\.every\(\(rule\) => rule\.score == null\)/, '质量评分无带评分规则时必须收成一行空态')
 
-console.log(`mock audit passed: ${staticPages.length} static pages gated, governance fallback removed, runtime mode visible`)
+console.log('mock audit passed: 17 routes on feature pages, governance fallback removed, runtime mode visible')

@@ -389,6 +389,29 @@ function aiDetail(id) {
   return { product, versions: (aiVersions[product.id] ?? []).map(({ readinessJson, ...rest }) => ({ ...rest, readinessJson })) }
 }
 
+
+// —— 运营交付运维（FE6）——
+const edgeNodes = [
+  { id: 'edge-001', name: '门诊前置机 01', groupName: '门诊楼', site: '主院区', host: '10.0.0.12', port: 8443, version: '1.4.2', lastProbeAt: '2026-11-16T01:00:00Z', lastProbeOk: true, lastProbeMessage: '代理在线', config: { relayPrefix: '/edge/outpatient' }, createdAt: '2026-10-01T00:00:00Z', updatedAt: '2026-11-16T01:00:00Z', state: 'ONLINE' },
+  { id: 'edge-002', name: '住院前置机 01', groupName: '住院楼', site: '主院区', host: '10.0.0.22', port: 8443, version: '1.3.9', lastProbeAt: null, lastProbeOk: null, lastProbeMessage: null, config: {}, createdAt: '2026-10-05T00:00:00Z', updatedAt: '2026-10-05T00:00:00Z', state: 'UNKNOWN' },
+]
+const edgeDeployments = {
+  'edge-001': [{ id: 'dep-001', nodeId: 'edge-001', version: '1.4.2', artifactRef: 'minifi-1.4.2', note: '修复转发重试', deployedBy: 'ops', deployedAt: '2026-11-10T00:00:00Z' }],
+}
+
+const deliveryProjects = [
+  { id: 'del-001', code: 'DEL-2026-EP', name: '电子处方域交付', scope: 'EP 域 17 表', owner: 'data-team', targetDate: '2026-12-31', status: 'IN_PROGRESS', acceptedSnapshotId: '', createdBy: 'data-team', createdAt: '2026-11-01T00:00:00Z', updatedAt: '2026-11-15T00:00:00Z' },
+  { id: 'del-002', code: 'DEL-2026-MPI', name: '患者主索引交付', scope: 'MPI 服务', owner: 'mpi-team', targetDate: '2026-12-15', status: 'DRAFT', acceptedSnapshotId: '', createdBy: 'mpi-team', createdAt: '2026-11-05T00:00:00Z', updatedAt: '2026-11-14T00:00:00Z' },
+]
+const deliveryDetails = {
+  'del-001': {
+    items: [{ id: 'di-001', refType: 'ASSET', refId: 'doris-dataos.ods_ep.ep_order', note: '处方主表', createdBy: 'data-team', createdAt: '2026-11-02T00:00:00Z' }],
+    snapshots: [{ id: 'snap-001', checksum: 'abc123def456789', createdAt: '2026-11-10T00:00:00Z', createdBy: 'data-team' }],
+    events: [{ eventType: 'CREATED', actor: 'data-team', detail: '创建交付项目', createdAt: '2026-11-01T00:00:00Z' }, { eventType: 'ITEM_ADDED', actor: 'data-team', detail: '引用数据资产', createdAt: '2026-11-02T00:00:00Z' }],
+  },
+  'del-002': { items: [], snapshots: [], events: [{ eventType: 'CREATED', actor: 'mpi-team', detail: '创建交付项目', createdAt: '2026-11-05T00:00:00Z' }] },
+}
+
 function json(response, status, payload) {
   const body = JSON.stringify(payload)
   response.writeHead(status, {
@@ -1007,6 +1030,147 @@ const server = createServer(async (request, response) => {
   }
   if (path === '/v1/assistant/query' && method === 'POST') {
     return json(response, 200, { answered: true, auditId: `audit-${randomUUID().slice(0, 6)}`, outcome: 'ANSWERED', answer: '2026-11-01 共 12 条用药记录。', columns: ['stat_date', 'cnt'], rows: [['2026-11-01', 12]], rowCount: 1, truncated: false, evidence: { serviceCode: 'medicine-record-daily', serviceVersion: 'v3', statisticsWindow: { start_date: '2026-11-01' }, rowCount: 1, truncated: false, elapsedMs: 12, executedAt: now(), executionPath: 'verified-question -> data-api verified-queries' } })
+  }
+
+
+  // —— 运营交付运维（FE6）——
+  if (path === '/v1/platform-operations') {
+    return json(response, 200, {
+      technicalAccess: true, checkedAt: now(),
+      operational: { state: 'READY', ready: 7, degraded: 0, unknown: 0, total: 7 },
+      services: [
+        { key: 'seatunnel', name: '中心采集执行器', role: '批量采集执行', status: 'UP' },
+        { key: 'dolphinscheduler', name: '平台调度', role: '周期触发与实例管理', status: 'UP' },
+        { key: 'rustfs', name: '对象存储', role: '制品与证据包', status: 'NOT_CONFIGURED' },
+      ],
+    })
+  }
+  if (path === '/v1/edge/nodes' && method === 'GET') return json(response, 200, { items: edgeNodes, total: edgeNodes.length })
+  if (path === '/v1/edge/nodes' && method === 'PUT') {
+    const body = await readBody(request)
+    const node = { id: `edge-${randomUUID().slice(0, 6)}`, name: String(body.name ?? ''), groupName: String(body.groupName ?? ''), site: String(body.site ?? ''), host: String(body.host ?? ''), port: Number(body.port ?? 8443), version: String(body.version ?? ''), lastProbeAt: null, lastProbeOk: null, lastProbeMessage: null, config: body.config ?? {}, createdAt: now(), updatedAt: now(), state: 'UNKNOWN' }
+    edgeNodes.unshift(node)
+    return json(response, 201, node)
+  }
+  match = /^\/v1\/edge\/nodes\/([^/]+)$/.exec(path)
+  if (match && method === 'PUT') {
+    const node = edgeNodes.find((item) => item.id === match[1])
+    const body = await readBody(request)
+    if (!node) return json(response, 404, { message: '节点不存在' })
+    Object.assign(node, { name: body.name ?? node.name, groupName: body.groupName ?? node.groupName, site: body.site ?? node.site, host: body.host ?? node.host, port: Number(body.port ?? node.port), version: body.version ?? node.version, updatedAt: now() })
+    return json(response, 200, node)
+  }
+  if (match && method === 'DELETE') {
+    const index = edgeNodes.findIndex((item) => item.id === match[1])
+    if (index >= 0) edgeNodes.splice(index, 1)
+    response.writeHead(204, { 'Access-Control-Allow-Origin': '*' })
+    return response.end()
+  }
+  match = /^\/v1\/edge\/nodes\/([^/]+)\/probe$/.exec(path)
+  if (match && method === 'POST') {
+    const node = edgeNodes.find((item) => item.id === match[1])
+    if (!node) return json(response, 404, { message: '节点不存在' })
+    node.lastProbeAt = now()
+    node.lastProbeOk = true
+    node.lastProbeMessage = '代理在线'
+    node.state = 'ONLINE'
+    return json(response, 200, node)
+  }
+  match = /^\/v1\/edge\/nodes\/([^/]+)\/deployments$/.exec(path)
+  if (match && method === 'GET') return json(response, 200, edgeDeployments[match[1]] ?? [])
+  if (match && method === 'POST') {
+    const body = await readBody(request)
+    const record = { id: `dep-${randomUUID().slice(0, 6)}`, nodeId: match[1], version: String(body.version ?? ''), artifactRef: String(body.artifactRef ?? ''), note: String(body.note ?? ''), deployedBy: 'qa', deployedAt: now() }
+    edgeDeployments[match[1]] = [record, ...(edgeDeployments[match[1]] ?? [])]
+    const node = edgeNodes.find((item) => item.id === match[1])
+    if (node) node.version = record.version
+    return json(response, 201, record)
+  }
+  if (path === '/v1/edge/nodes/watermarks') {
+    return json(response, 200, {
+      asOf: now(),
+      tables: [{ key: 'ods_ep.ep_order', dataset: 'ods_ep.ep_order', totalRows: 128600, latestWriteAt: '2026-11-16T01:00:00Z', dailyCounts: [{ date: '2026-11-15', count: 12860 }, { date: '2026-11-16', count: 12404 }] }],
+    })
+  }
+
+  if (path === '/v1/deliveries' && method === 'GET') {
+    const query = (url.searchParams.get('query') ?? '').toLowerCase()
+    const projects = query
+      ? deliveryProjects.filter((item) => `${item.code}${item.name}${item.owner}`.toLowerCase().includes(query))
+      : deliveryProjects
+    return json(response, 200, { projects })
+  }
+  if (path === '/v1/deliveries' && method === 'POST') {
+    const body = await readBody(request)
+    const created = { id: `del-${randomUUID().slice(0, 6)}`, code: String(body.code ?? ''), name: String(body.name ?? ''), scope: String(body.scope ?? ''), owner: String(body.owner ?? ''), targetDate: String(body.targetDate ?? ''), status: 'DRAFT', acceptedSnapshotId: '', createdBy: 'qa', createdAt: now(), updatedAt: now() }
+    deliveryProjects.unshift(created)
+    deliveryDetails[created.id] = { items: [], snapshots: [], events: [{ eventType: 'CREATED', actor: 'qa', detail: '创建交付项目', createdAt: now() }] }
+    return json(response, 201, { project: created, items: [], snapshots: [], events: deliveryDetails[created.id].events })
+  }
+  match = /^\/v1\/deliveries\/([^/]+)\/items$/.exec(path)
+  if (match && method === 'POST') {
+    const body = await readBody(request)
+    const detail = deliveryDetails[match[1]]
+    const project = deliveryProjects.find((item) => item.id === match[1])
+    if (!detail || !project) return json(response, 404, { message: '项目不存在' })
+    detail.items.push({ id: `di-${randomUUID().slice(0, 6)}`, refType: body.refType, refId: body.refId, note: body.note ?? '', createdBy: 'qa', createdAt: now() })
+    project.status = 'IN_PROGRESS'
+    return json(response, 200, { project, ...detail })
+  }
+  match = /^\/v1\/deliveries\/([^/]+)\/items\/([^/]+)$/.exec(path)
+  if (match && method === 'DELETE') {
+    const detail = deliveryDetails[match[1]]
+    if (detail) detail.items = detail.items.filter((item) => item.id !== match[2])
+    const project = deliveryProjects.find((item) => item.id === match[1])
+    return json(response, 200, { project, ...(detail ?? { items: [], snapshots: [], events: [] }) })
+  }
+  match = /^\/v1\/deliveries\/([^/]+)\/snapshot$/.exec(path)
+  if (match && method === 'POST') {
+    const detail = deliveryDetails[match[1]]
+    if (!detail) return json(response, 404, { message: '项目不存在' })
+    const existing = detail.snapshots[0]
+    if (existing) return json(response, 200, { snapshotId: existing.id, checksum: existing.checksum, idempotent: true })
+    const snap = { id: `snap-${randomUUID().slice(0, 6)}`, checksum: 'newchecksum12345', createdAt: now(), createdBy: 'qa' }
+    detail.snapshots.unshift(snap)
+    return json(response, 201, { snapshotId: snap.id, checksum: snap.checksum, idempotent: false })
+  }
+  match = /^\/v1\/deliveries\/([^/]+)\/submit$/.exec(path)
+  if (match && method === 'POST') {
+    const project = deliveryProjects.find((item) => item.id === match[1])
+    const detail = deliveryDetails[match[1]]
+    if (!project || !detail) return json(response, 404, { message: '项目不存在' })
+    if (detail.items.length === 0) {
+      return json(response, 409, { code: 'BLOCKED', message: '提交被阻断：存在不可交付项', blockers: [{ refType: 'ASSET', refId: '（无交付对象）', reasons: ['交付项目还没有引用任何对象'] }] })
+    }
+    project.status = 'READY_FOR_ACCEPTANCE'
+    return json(response, 200, { project, ...detail })
+  }
+  match = /^\/v1\/deliveries\/([^/]+)\/accept$/.exec(path)
+  if (match && method === 'POST') {
+    const project = deliveryProjects.find((item) => item.id === match[1])
+    const detail = deliveryDetails[match[1]]
+    if (!project || !detail) return json(response, 404, { message: '项目不存在' })
+    project.status = 'ACCEPTED'
+    project.acceptedSnapshotId = detail.snapshots[0]?.id ?? 'snap-accepted'
+    return json(response, 200, { project, ...detail })
+  }
+  match = /^\/v1\/deliveries\/([^/]+)\/archive$/.exec(path)
+  if (match && method === 'POST') {
+    const project = deliveryProjects.find((item) => item.id === match[1])
+    if (project) project.status = 'ARCHIVED'
+    return json(response, 200, project ?? {})
+  }
+  match = /^\/v1\/deliveries\/([^/]+)\/evidence\.zip$/.exec(path)
+  if (match) {
+    response.writeHead(200, { 'Content-Type': 'application/zip', 'Content-Disposition': 'attachment; filename="delivery-evidence.zip"', 'Access-Control-Allow-Origin': '*' })
+    return response.end(Buffer.from('PK mock zip'))
+  }
+  match = /^\/v1\/deliveries\/([^/]+)$/.exec(path)
+  if (match && method === 'GET') {
+    const project = deliveryProjects.find((item) => item.id === match[1])
+    const detail = deliveryDetails[match[1]]
+    if (!project || !detail) return json(response, 404, { message: '项目不存在' })
+    return json(response, 200, { project, ...detail })
   }
 
   // 周期调度
