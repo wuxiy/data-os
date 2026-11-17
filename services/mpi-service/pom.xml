@@ -7,7 +7,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.4.5</version>
+        <version>4.0.9</version>
         <relativePath/>
     </parent>
 
@@ -19,6 +19,9 @@
 
     <properties>
         <java.version>21</java.version>
+        <!-- 2026-11-17 CVE 收口：与 control-plane 同步升 Boot 4.0.9
+             （spring-webmvc CVE-2026-47884/47890 仅 Framework 7.0.9+ 修复）；
+             Flyway 随 Boot 4 托管线（11.x），Jackson 主线转 tools.jackson 3.1.7。 -->
     </properties>
 
     <dependencies>
@@ -79,6 +82,23 @@
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
             <scope>test</scope>
+        </dependency>
+        <!-- Boot 4 模块化：Flyway 自动配置移入 spring-boot-flyway（缺了迁移不执行）。 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-flyway</artifactId>
+        </dependency>
+        <!-- Boot 4 拆分：TestRestTemplate 迁入 spring-boot-resttestclient
+             （新包 org.springframework.boot.resttestclient），其自动配置依赖
+             spring-boot-restclient 的 RestTemplateBuilder，一并补上。 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-resttestclient</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-restclient</artifactId>
         </dependency>
     </dependencies>
 

@@ -79,7 +79,11 @@ public class DorisAccessConfiguration {
                 .build();
         var template = new JdbcTemplate(dataSource);
         // 装载是批处理：Blocking 自 JOIN 结果集需要全量拉取。
-        template.setMaxRows(0);
+        // Spring Framework 7（Boot 4）applyStatementSettings 语义变更：maxRows
+        // 由「>0 才应用」改为「≠-1 即应用」，0 会被字面下发给 Statement——
+        // H2 将其当作 0 行上限，Doris 侧查询全空（装载/召回/COUNT 均零行）。
+        // 不限制在 v7 的表达是 -1（模板默认值）。
+        template.setMaxRows(-1);
         return template;
     }
 }

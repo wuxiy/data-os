@@ -9,8 +9,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.ToDoubleFunction;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * 评测语料装载（G14 冻结语料与 T5b 漂移检测共用）：JSONL → Pair/Anchor/

@@ -26,7 +26,7 @@ import com.cywu.dataos.mpi.matcher.MpiScoreMatcher;
 import com.cywu.dataos.mpi.matcher.MpiWeights;
 import com.cywu.dataos.mpi.matcher.Outcome;
 import com.cywu.dataos.mpi.person.MpiPersonService;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * 决策编排：候选对 → Hard Constraint 前置 → T5 混合引擎判定 → 三态分派。
