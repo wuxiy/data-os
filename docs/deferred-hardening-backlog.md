@@ -1,5 +1,10 @@
 # 下一阶段备忘（深度测试 / 安全 / 生产加固）
 
+## 2026-11-17 mpi-service 同步升 Boot 4 · 已收口
+
+- **mpi-service 升 Spring Boot 3.4.5→4.0.9**（提交 `9d329d2`，CI 全绿）：与 control-plane 对齐（webmvc 7.0.10、Jackson 主线 3.1.7 + 传递 2.21.7、Flyway 11.14.1）；迁移面 = Jackson 包名（主/测试）、`TestRestTemplate` 迁 `spring-boot-resttestclient` 新包 + 显式 `@AutoConfigureTestRestTemplate`（Boot 4 不再随 RANDOM_PORT 隐式注入，其自动配置还需 `spring-boot-restclient`）、补 `spring-boot-flyway` 模块。63 测试全绿（0 失败 0 错误）。
+- **实抓迁移坑（Spring Framework 7 语义变更）**：`JdbcTemplate.applyStatementSettings` 的 maxRows 判断由 v6「>0 才应用」改为「≠-1 即应用」，`DorisAccessConfiguration` 显式 `setMaxRows(0)`（旧写法"不限制"）被字面下发给 Statement——H2 按 0 行上限执行，Doris 侧查询全空（装载/召回/COUNT 均零行，表象为 19 个"expected N but was 0"失败）。修复：`setMaxRows(-1)`（v7 的"不限制"）。任何在 Boot 4 上显式 setMaxRows(0) 的存量代码都会踩同坑。
+
 ## 2026-11-16 存量镜像 CVE 清零 · 已收口
 
 - **main CI 全绿恢复**（run 43896706670，提交 `a217b6e`）：两个自 2026-11-04 起持续失败的 Trivy job 已清零。修复内容：control-plane 升 Spring Boot 3.5.14→4.0.9（spring-webmvc CVE-2026-47884/47890 仅 7.0.9+ 修复），产物内 Jackson 迁到 3.1.7 + 传递携带的 2.21.7（均高于全部 5 项 CVE 修复地板），Flyway 10.20.1→11.20.3，Boot 4 模块化补 `spring-boot-restclient`/`spring-boot-flyway`/`spring-boot-webmvc-test` 三个模块；quality-runner 镜像加 `apt-get upgrade` 层（apt/pcre2/openssl/zlib 四项 deb CVE）+ PyJWT 2.13.0→2.14.0（CRITICAL 认证绕过族，data-api/ai-ready 同步升钉版）。
