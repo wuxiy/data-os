@@ -19,3 +19,6 @@ docs/*-local.md
 
 # impeccable 评审快照为工具本地状态
 prototype/.impeccable/
+
+# 预取的 dbt parser wheel（55MB 二进制，仅本地构建上下文用，不入库）
+services/quality-runner/wheels/

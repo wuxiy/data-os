@@ -1,5 +1,9 @@
 # 下一阶段备忘（深度测试 / 安全 / 生产加固）
 
+## 2026-11-17 dev 环境全量上线 main 新栈 · 已完成
+
+- **开发环境已部署 `48a341d` 全量版本**（镜像 tag `0.3.0-main-20261117`：Boot 4 全部 Java 服务 + PyJWT 2.14 + 新栈门户），回滚目录 `/root/data-os-dev-rollback-20261117-main`；验证与冒烟记录见 [dev 部署台账](validation/dev-deploy-20261117-main.md)。真实采集 run 写路径通过（SeaTunnel SUCCEEDED）。**磁盘 95%（4.4G free，18.9GB 可回收镜像层）**：旧 tag 保留作回滚面，是否清理待用户明示。生产发布未启动。
+
 ## 2026-11-17 mpi-service 同步升 Boot 4 · 已收口
 
 - **mpi-service 升 Spring Boot 3.4.5→4.0.9**（提交 `9d329d2`，CI 全绿）：与 control-plane 对齐（webmvc 7.0.10、Jackson 主线 3.1.7 + 传递 2.21.7、Flyway 11.14.1）；迁移面 = Jackson 包名（主/测试）、`TestRestTemplate` 迁 `spring-boot-resttestclient` 新包 + 显式 `@AutoConfigureTestRestTemplate`（Boot 4 不再随 RANDOM_PORT 隐式注入，其自动配置还需 `spring-boot-restclient`）、补 `spring-boot-flyway` 模块。63 测试全绿（0 失败 0 错误）。
