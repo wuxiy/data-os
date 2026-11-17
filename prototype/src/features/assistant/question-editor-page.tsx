@@ -28,6 +28,7 @@ import {
 import { formatDateTime } from '../../data/domain'
 import { workLinks } from '../../data/routes'
 import { usePortalNavigate } from '../../app/navigate'
+import { useDirtyLeaveGuard } from '../../app/dirty-leave-guard'
 import { assistantKeys, assistantAdminQuestionsQuery, assistantQuestionEventsQuery } from './queries'
 
 type TabValue = 'definition' | 'try' | 'events'
@@ -105,6 +106,7 @@ export function QuestionEditorPage({ questionCode }: { questionCode?: string }) 
 
   const questionsRequest = useQuery(assistantAdminQuestionsQuery())
   const question = questionCode ? questionsRequest.data?.find((item) => item.code === questionCode) : undefined
+  const readOnly = question ? question.status !== 'DRAFT' : false
   const eventsRequest = useQuery({ ...assistantQuestionEventsQuery(questionCode ?? ''), enabled: Boolean(questionCode) && tab === 'events' })
 
   const [form, setForm] = useState<DraftForm>(EMPTY_FORM)
@@ -125,12 +127,22 @@ export function QuestionEditorPage({ questionCode }: { questionCode?: string }) 
     void queryClient.invalidateQueries({ queryKey: assistantKeys.questions() })
   }
 
+  const dirty = !readOnly && initialized && (questionCode
+    ? JSON.stringify(form) !== JSON.stringify(question ? formOf(question) : EMPTY_FORM)
+    : JSON.stringify(form) !== JSON.stringify(EMPTY_FORM))
+
+  // 拦一切路由离开（含侧栏/页签）；返回/问数审计只需正常 navigate，守卫会先询问。
+  const { allowNextLeave, guard } = useDirtyLeaveGuard(dirty)
+
   const saveMutation = useMutation({
     mutationFn: () => saveAssistantQuestion(draftOf(form), questionCode || undefined),
     onSuccess: (saved) => {
       invalidate()
       notify(`问题 ${saved.code} 已保存（${QUESTION_STATUS_LABEL[saved.status] ?? saved.status}）`)
-      if (!questionCode) navigate(workLinks.assistantQuestion(saved.code, 'try'))
+      if (!questionCode) {
+        allowNextLeave()
+        navigate(workLinks.assistantQuestion(saved.code, 'try'))
+      }
     },
     onError: (cause) => setError(cause instanceof Error ? cause.message : '问题保存失败'),
   })
@@ -142,6 +154,7 @@ export function QuestionEditorPage({ questionCode }: { questionCode?: string }) 
       invalidate()
       if (action === 'delete') {
         notify('草稿已删除')
+        allowNextLeave()
         navigate('/assistant/workspace')
         return
       }
@@ -178,7 +191,6 @@ export function QuestionEditorPage({ questionCode }: { questionCode?: string }) 
     )
   }
 
-  const readOnly = question ? question.status !== 'DRAFT' : false
   const eventColumns = eventHelper.columns([
     eventHelper.display({ id: 'type', header: '事件', size: 160, cell: ({ row }) => <Badge>{row.original.action}</Badge> }),
     eventHelper.display({ id: 'actor', header: '操作者', size: 140, cell: ({ row }) => <span className="text-label">{row.original.actor}</span> }),
@@ -375,6 +387,8 @@ export function QuestionEditorPage({ questionCode }: { questionCode?: string }) 
         busy={actionMutation.isPending}
         onConfirm={() => actionMutation.mutate('delete')}
       />
+
+      {guard}
     </div>
   )
 }

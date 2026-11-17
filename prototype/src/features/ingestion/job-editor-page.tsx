@@ -5,7 +5,6 @@ import { Badge } from '../../components/ui/badge'
 import { Button } from '../../components/ui/button'
 import { FormField, FormGrid, FormNotice } from '../../components/ui/form'
 import { CodeTextarea, Input, NativeSelect } from '../../components/ui/input'
-import { Dialog, DialogFooter } from '../../components/ui/overlay'
 import { Breadcrumb, PageHeading } from '../../components/ui/page-heading'
 import { Panel, ScopeNote } from '../../components/ui/panel'
 import { EmptyState, LoadingBlock } from '../../components/ui/states'
@@ -20,6 +19,7 @@ import {
 import { allowsTemplate, offersDemoTemplate } from '../../data/runtimeMode'
 import { workLinks } from '../../data/routes'
 import { usePortalNavigate } from '../../app/navigate'
+import { useDirtyLeaveGuard } from '../../app/dirty-leave-guard'
 import { ingestionKeys, jobConfigQuery, jobsQuery, sourcesQuery, workflowTemplatesQuery } from './queries'
 import {
   DEFAULT_TEMPLATE_KEY,
@@ -66,7 +66,6 @@ export function JobConfigurationEditor({ jobId }: { jobId?: string }) {
   const [structuredDirty, setStructuredDirty] = useState(false)
   const [structuredSpec, setStructuredSpec] = useState<StructuredTaskSpec | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [discardOpen, setDiscardOpen] = useState(false)
 
   const configRequest = useQuery({ ...jobConfigQuery(jobId ?? ''), enabled: Boolean(jobId && job) })
 
@@ -104,6 +103,16 @@ export function JobConfigurationEditor({ jobId }: { jobId?: string }) {
 
   const selectedSource = useMemo(() => sources.find((source) => source.id === sourceId), [sources, sourceId])
   const structuredReady = Boolean(selectedSource && selectedSource.protocol.toUpperCase() === 'JDBC' && selectedSource.connection)
+
+  const dirty = Boolean(
+    structuredDirty
+    || (jobId
+      ? name !== (job?.name ?? '') || sourceId !== (job?.sourceId ?? '') || mode !== (job?.mode ?? '') || Boolean(configText)
+      : Boolean(name.trim())),
+  )
+
+  // 拦一切路由离开（含侧栏/页签）；页内出口只需正常 navigate，守卫会先询问。
+  const { allowNextLeave, guard } = useDirtyLeaveGuard(dirty)
 
   function selectTemplate(nextKey: string) {
     const template = templates.find((item) => item.key === nextKey)
@@ -149,6 +158,7 @@ export function JobConfigurationEditor({ jobId }: { jobId?: string }) {
     onSuccess: (created) => {
       void queryClient.invalidateQueries({ queryKey: ingestionKeys.jobs() })
       notify(`采集任务已创建：${created.name}`)
+      allowNextLeave()
       navigate('/ingestion')
     },
     onError: (cause) => setError(errorMessage(cause, '采集任务创建失败，请检查配置内容与控制面日志')),
@@ -204,6 +214,7 @@ export function JobConfigurationEditor({ jobId }: { jobId?: string }) {
     onSuccess: (created) => {
       void queryClient.invalidateQueries({ queryKey: ingestionKeys.jobs() })
       notify(created.length > 1 ? `已创建 ${created.length} 个结构化采集任务` : `采集任务已创建：${created[0].name}`)
+      allowNextLeave()
       navigate('/ingestion')
     },
     onError: (cause) => setError(errorMessage(cause, '采集任务创建失败。请确认表单内容，且未填写明文密码或密钥。')),
@@ -220,18 +231,7 @@ export function JobConfigurationEditor({ jobId }: { jobId?: string }) {
     onError: (cause) => setError(errorMessage(cause, '配置保存失败。请确认表单内容，且未填写明文密码或密钥。')),
   })
 
-  const dirty = Boolean(
-    structuredDirty
-    || (jobId
-      ? name !== (job?.name ?? '') || sourceId !== (job?.sourceId ?? '') || mode !== (job?.mode ?? '') || Boolean(configText)
-      : Boolean(name.trim())),
-  )
-
   function requestLeave(target: string) {
-    if (dirty) {
-      setDiscardOpen(true)
-      return
-    }
     navigate(target)
   }
 
@@ -457,19 +457,7 @@ export function JobConfigurationEditor({ jobId }: { jobId?: string }) {
 
       <ScopeNote>保存不会发起运行；运行只从任务列表或任务详情显式启动。</ScopeNote>
 
-      <Dialog
-        open={discardOpen}
-        onOpenChange={setDiscardOpen}
-        title="放弃未保存的修改？"
-        description="离开后本页未保存的内容会丢失；已保存的配置与运行记录不受影响。"
-        width={460}
-        footer={
-          <DialogFooter>
-            <Button onClick={() => setDiscardOpen(false)}>继续编辑</Button>
-            <Button variant="danger" onClick={() => { setDiscardOpen(false); navigate('/ingestion') }}>放弃修改</Button>
-          </DialogFooter>
-        }
-      />
+      {guard}
     </div>
   )
 }

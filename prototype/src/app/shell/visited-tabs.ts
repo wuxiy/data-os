@@ -22,7 +22,7 @@ function readTabs(): string[] {
 
 /**
  * 顶栏页签：只保存会话内的路由路径，不保存检索词、对象参数之外的内容，
- * 也不做全站 KeepAlive（未保存编辑由 blocker 处理）。
+ * 也不做全站 KeepAlive（未保存编辑由路由级 useDirtyLeaveGuard 统一拦截）。
  */
 export function useVisitedTabs(pathname: string) {
   const [tabs, setTabs] = useState<string[]>(readTabs)

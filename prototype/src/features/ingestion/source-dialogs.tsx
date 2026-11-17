@@ -55,7 +55,7 @@ export function SourceRegisterDialog({
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
-      title="新增数据源"
+      title="登记数据源"
       description="登记来源系统与接入方式；提交后为待检查，不会立即读取院内数据。"
       width={540}
       dirty={dirty && !mutation.isPending}

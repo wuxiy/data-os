@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { ChartNoAxesCombined, Database, RefreshCw, Search, Table2 } from 'lucide-react'
+import { ChartNoAxesCombined, Database, Download, RefreshCw, Search, Table2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useSearch } from '@tanstack/react-router'
 import { Badge } from '../../components/ui/badge'
@@ -76,6 +76,30 @@ export function AssetCatalogPage() {
 
   const pageCount = Math.max(1, Math.ceil(visible.length / 8))
   const currentPage = Math.min(page, pageCount - 1)
+
+  // 导出目录（原型「导出目录」按钮）：当前库、当前过滤口径下的已读取清单；
+  // 结构元数据由元数据中心摄取，导出不补业务口径（与页面同一来源）。
+  function exportCatalog() {
+    const header = ['资产名称', '全限定名', '物理表名', '列数', '最近更新', '更新来源']
+    const escape = (value: string) => (/[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value)
+    const rows = visible.map((asset) => [
+      escape(asset.displayName || asset.name),
+      escape(asset.fullyQualifiedName),
+      escape(asset.name),
+      String(asset.columnCount),
+      asset.updatedAt,
+      escape(asset.updatedBy),
+    ])
+    const csv = `\uFEFF${[header, ...rows].map((row) => row.join(',')).join('\n')}`
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = `asset-catalog-${schema}-${new Date().toISOString().slice(0, 10)}.csv`
+    anchor.click()
+    URL.revokeObjectURL(url)
+  }
+
   const detail = detailRequest.data
   const lineage = lineageRequest.data
   const selected = assets.find((asset) => asset.fullyQualifiedName === effectiveFqn) ?? null
@@ -108,6 +132,9 @@ export function AssetCatalogPage() {
         description="围绕同一资产查看业务定义、字段结构、质量结果与消费影响。"
         actions={
           <>
+            <Button onClick={exportCatalog} disabled={visible.length === 0 || catalogRequest.isFetching}>
+              <Download size={14} />导出目录
+            </Button>
             <Button onClick={() => { void catalogRequest.refetch(); void detailRequest.refetch() }} disabled={catalogRequest.isFetching}>
               <RefreshCw size={14} className={catalogRequest.isFetching ? 'animate-spin' : undefined} />刷新目录
             </Button>

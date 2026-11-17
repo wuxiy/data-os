@@ -22,8 +22,9 @@ import { NativeSelect, SearchField } from '../../components/ui/input'
 import { Breadcrumb, PageHeading } from '../../components/ui/page-heading'
 import { Count, Panel, PanelHead, ScopeNote } from '../../components/ui/panel'
 import { Popover } from '../../components/ui/popover'
+import { Confirm } from '../../components/ui/overlay'
 import { EmptyState, LoadingInline } from '../../components/ui/states'
-import { DataTable, TablePagination, listColumnHelper } from '../../components/table/data-table'
+import { DataTable, SelectionBar, TablePagination, listColumnHelper } from '../../components/table/data-table'
 import { useNotice } from '../../components/ui/toast'
 import {
   confirmIngestionRunAbsent,
@@ -76,6 +77,8 @@ export function IngestionPage() {
   const [sourceDialogOpen, setSourceDialogOpen] = useState(false)
   const [checkingSource, setCheckingSource] = useState<SourceApiItem | null>(null)
   const [copyTarget, setCopyTarget] = useState<IngestionJobApiItem | null>(null)
+  const [selectedJobs, setSelectedJobs] = useState<Set<string>>(new Set())
+  const [batchAction, setBatchAction] = useState<'ACTIVE' | 'PAUSED' | null>(null)
 
   const sourcesRequest = useQuery(sourcesQuery())
   const jobsRequest = useQuery(jobsQuery())
@@ -98,6 +101,12 @@ export function IngestionPage() {
   }, [jobs, runQueries])
 
   const sourceById = useMemo(() => new Map(sources.map((source) => [source.id, source])), [sources])
+
+  // 原型口径的第四张摘要卡：最近 24h 内最近一次运行失败的任务数（真实时间窗）。
+  const failedIn24h = useMemo(() => {
+    const cutoff = Date.now() - 24 * 60 * 60 * 1000
+    return jobs.filter((job) => job.latestRunStatus === 'FAILED' && job.lastRunAt !== null && new Date(job.lastRunAt).getTime() >= cutoff).length
+  }, [jobs])
 
   const filteredSources = useMemo(() => {
     const text = keyword.trim().toLowerCase()
@@ -181,6 +190,31 @@ export function IngestionPage() {
       notify(`任务状态已更新：${jobLifecycleView(updated.status).label}`)
     },
     onError: (cause) => notify(errorMessage(cause, '任务状态更新失败，请稍后重试')),
+  })
+
+  // 批量启用/暂停：逐个走既有单任务状态合同，失败项如实列回执（口径同质量页批量提醒）。
+  const batchStatus = useMutation({
+    mutationFn: async ({ ids, status }: { ids: string[]; status: 'ACTIVE' | 'PAUSED' }) => {
+      const failed: string[] = []
+      let ok = 0
+      for (const id of ids) {
+        try { await updateIngestionJobStatus(id, status); ok += 1 } catch { failed.push(id) }
+      }
+      return { ok, failed }
+    },
+    onSuccess: ({ ok, failed }, variables) => {
+      setBatchAction(null)
+      setSelectedJobs(new Set())
+      void queryClient.invalidateQueries({ queryKey: ingestionKeys.jobs() })
+      const verb = variables.status === 'ACTIVE' ? '启用' : '暂停'
+      notify(failed.length === 0
+        ? `已${verb} ${ok} 个采集任务`
+        : `已${verb} ${ok} 个任务，${failed.length} 个失败：${failed.slice(0, 3).join('、')}${failed.length > 3 ? '…' : ''}`)
+    },
+    onError: () => {
+      setBatchAction(null)
+      notify('批量操作未能完成，请稍后重试')
+    },
   })
 
   function openJob(job: IngestionJobApiItem) {
@@ -482,7 +516,7 @@ export function IngestionPage() {
         <SummaryCell label="登记数据源" value={String(sources.length)} note="个" icon={<Database size={17} />} />
         <SummaryCell label="采集任务" value={String(jobs.length)} note="个" icon={<Cable size={17} />} />
         <SummaryCell label="已启用任务" value={String(jobs.filter((job) => job.status === 'ACTIVE').length)} note="个" icon={<CheckCircle2 size={17} />} />
-        <SummaryCell label="配置待补齐" value={String(jobs.filter((job) => !job.configured).length)} note="个" icon={<Activity size={17} />} />
+        <SummaryCell label="最近 24h 失败" value={String(failedIn24h)} note="次" icon={<Activity size={17} />} />
       </section>
 
       <Panel>
@@ -560,10 +594,16 @@ export function IngestionPage() {
               data={filteredJobs.slice(jobsPage * JOBS_PAGE_SIZE, (jobsPage + 1) * JOBS_PAGE_SIZE)}
               getRowId={(job) => job.id}
               rowLabel={(job) => job.name}
+              selection={{ selected: selectedJobs, onChange: setSelectedJobs }}
               loading={jobsRequest.isPending}
               onRowClick={openJob}
               empty={<EmptyState minHeight={260} icon={<Cable />} title={jobsRequest.isPending ? '正在读取采集任务' : '暂无采集任务'} description="先登记数据源，再新建采集任务。" action={<Button onClick={() => navigate(workLinks.ingestionNew())}><Plus size={13} />新建采集任务</Button>} />}
             />
+            <SelectionBar count={selectedJobs.size}>
+              <Button size="sm" disabled={batchStatus.isPending} onClick={() => setBatchAction('ACTIVE')}><Play size={12} />批量启用</Button>
+              <Button size="sm" disabled={batchStatus.isPending} onClick={() => setBatchAction('PAUSED')}><Pause size={12} />批量暂停</Button>
+              <Button size="sm" variant="text" onClick={() => setSelectedJobs(new Set())}>清空选择</Button>
+            </SelectionBar>
             <TablePagination page={Math.min(jobsPage, jobsPageCount - 1)} pageSize={JOBS_PAGE_SIZE} total={filteredJobs.length} onPageChange={setJobsPage} label="采集任务分页" />
           </>
         ) : (
@@ -608,6 +648,20 @@ export function IngestionPage() {
           setJobsPage(0)
           void queryClient.invalidateQueries({ queryKey: ingestionKeys.jobs() })
         }}
+      />
+
+      <Confirm
+        open={batchAction !== null}
+        onOpenChange={(open) => { if (!open) setBatchAction(null) }}
+        title={batchAction === 'ACTIVE' ? '批量启用采集任务？' : '批量暂停采集任务？'}
+        description={batchAction === 'ACTIVE'
+          ? '启用后任务恢复按调度执行；已提交的运行批次不受影响。'
+          : '暂停后任务不再发起新运行；已提交的运行批次会继续完成。'}
+        object={{ name: `已选 ${selectedJobs.size} 个采集任务`, meta: '逐个执行，失败项在回执中列出' }}
+        confirmLabel={batchAction === 'ACTIVE' ? '批量启用' : '批量暂停'}
+        tone={batchAction === 'PAUSED' ? 'destructive' : 'default'}
+        busy={batchStatus.isPending}
+        onConfirm={() => batchAction && batchStatus.mutate({ ids: [...selectedJobs], status: batchAction })}
       />
 
       {startRun.isPending || changeStatus.isPending || runAction.isPending ? <div className="mt-2"><LoadingInline>正在提交动作…</LoadingInline></div> : null}

@@ -5,7 +5,6 @@ import { Badge } from '../../components/ui/badge'
 import { Button } from '../../components/ui/button'
 import { FormField, FormGrid, FormNotice } from '../../components/ui/form'
 import { CodeTextarea, Input, NativeSelect } from '../../components/ui/input'
-import { Dialog, DialogFooter } from '../../components/ui/overlay'
 import { Breadcrumb, PageHeading } from '../../components/ui/page-heading'
 import { Panel } from '../../components/ui/panel'
 import { EmptyState, LoadingBlock } from '../../components/ui/states'
@@ -18,6 +17,7 @@ import {
   type QualityRuleType,
 } from '../../data/controlPlane'
 import { usePortalNavigate } from '../../app/navigate'
+import { useDirtyLeaveGuard } from '../../app/dirty-leave-guard'
 import {
   CLASSIFICATIONS,
   CLASSIFICATION_LABELS,
@@ -47,7 +47,6 @@ export function RuleEditorPage({ ruleId }: { ruleId?: string }) {
   const existing = ruleId ? rulesRequest.data?.items.find((rule) => rule.ruleId === ruleId) : undefined
   const [form, setForm] = useState<RuleForm>(emptyForm)
   const [error, setError] = useState<string | null>(null)
-  const [discardOpen, setDiscardOpen] = useState(false)
   const [initialized, setInitialized] = useState(!ruleId)
 
   useEffect(() => {
@@ -55,6 +54,13 @@ export function RuleEditorPage({ ruleId }: { ruleId?: string }) {
     setForm(formFromRule(existing))
     setInitialized(true)
   }, [existing, initialized, ruleId])
+
+  const dirty = initialized && (ruleId
+    ? JSON.stringify(form) !== JSON.stringify(existing ? formFromRule(existing) : emptyForm())
+    : form.ruleId.trim() !== '' || form.datasetId.trim() !== '')
+
+  // 拦一切路由离开（含侧栏/页签）；返回/取消只需正常 navigate，守卫会先询问。
+  const { allowNextLeave, guard } = useDirtyLeaveGuard(dirty)
 
   const mutation = useMutation({
     mutationFn: () => saveQualityRule(form.ruleId.trim(), {
@@ -70,6 +76,7 @@ export function RuleEditorPage({ ruleId }: { ruleId?: string }) {
       void queryClient.invalidateQueries({ queryKey: governanceKeys.rules() })
       void queryClient.invalidateQueries({ queryKey: governanceKeys.score() })
       notify(`质量规则已保存并推送执行器：${saved.ruleId}`)
+      allowNextLeave()
       navigate('/governance/quality')
     },
     onError: (cause) => setError(cause instanceof Error ? cause.message : '质量规则保存失败，请检查参数与执行器日志'),
@@ -81,10 +88,6 @@ export function RuleEditorPage({ ruleId }: { ruleId?: string }) {
     setError(null)
     mutation.mutate()
   }
-
-  const dirty = initialized && (ruleId
-    ? JSON.stringify(form) !== JSON.stringify(existing ? formFromRule(existing) : emptyForm())
-    : form.ruleId.trim() !== '' || form.datasetId.trim() !== '')
 
   if (ruleId && rulesRequest.isPending) return <LoadingBlock>正在读取规则…</LoadingBlock>
   if (ruleId && rulesRequest.isSuccess && !existing) {
@@ -113,7 +116,7 @@ export function RuleEditorPage({ ruleId }: { ruleId?: string }) {
       <PageHeading
         title={ruleId ? '编辑质量规则' : '新建质量规则'}
         description="规则语义由质量规则执行器编译校验：标识符与 SQL 只读约束在保存时实校验，失败原因会如实返回。"
-        actions={<Button onClick={() => (dirty ? setDiscardOpen(true) : navigate('/governance/quality'))}>返回</Button>}
+        actions={<Button onClick={() => navigate('/governance/quality')}>返回</Button>}
       />
 
       <Panel className="max-w-[880px]">
@@ -311,7 +314,7 @@ export function RuleEditorPage({ ruleId }: { ruleId?: string }) {
           <div className="flex items-center justify-between gap-3 border-t border-line pt-4">
             <span className="text-meta text-[#788495]"><Badge tone="blue">保存即推送</Badge> 执行器对目标表列做实校验</span>
             <div className="flex items-center gap-2">
-              <Button onClick={() => (dirty ? setDiscardOpen(true) : navigate('/governance/quality'))}>取消</Button>
+              <Button onClick={() => navigate('/governance/quality')}>取消</Button>
               <Button variant="primary" disabled={mutation.isPending} onClick={submit}>
                 <Save size={14} />{mutation.isPending ? '保存中…' : '保存并推送'}
               </Button>
@@ -320,19 +323,7 @@ export function RuleEditorPage({ ruleId }: { ruleId?: string }) {
         </div>
       </Panel>
 
-      <Dialog
-        open={discardOpen}
-        onOpenChange={setDiscardOpen}
-        title="放弃未保存的修改？"
-        description="离开后本页未保存的规则内容会丢失；已保存的规则与运行记录不受影响。"
-        width={460}
-        footer={
-          <DialogFooter>
-            <Button onClick={() => setDiscardOpen(false)}>继续编辑</Button>
-            <Button variant="danger" onClick={() => { setDiscardOpen(false); navigate('/governance/quality') }}>放弃修改</Button>
-          </DialogFooter>
-        }
-      />
+      {guard}
     </div>
   )
 }

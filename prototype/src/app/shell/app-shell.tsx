@@ -1,4 +1,5 @@
 import { useLocation } from '@tanstack/react-router'
+import { useQuery } from '@tanstack/react-query'
 import {
   Bell,
   ChevronDown,
@@ -17,6 +18,7 @@ import { Kbd } from '../../components/ui/panel'
 import { Popover } from '../../components/ui/popover'
 import { cn } from '../../lib/utils'
 import { activeNavKey, governanceChildren, isGovernancePath, navGroups, routeForPath } from '../navigation'
+import { operationsSummaryQuery } from '../../features/overview/queries'
 import { usePortalNavigate } from '../navigate'
 import { useAuth } from '../providers'
 import { CommandPalette, useCommandHotkey } from './command-palette'
@@ -256,6 +258,8 @@ function Sidebar({
   onLogout?: () => void
 }) {
   const scrollRef = useRef<HTMLDivElement>(null)
+  // 待复核计数（原型 nav-count 徽标）：复用总览的运营投影查询，读取失败只是不显示徽标。
+  const reviewPending = useQuery(operationsSummaryQuery()).data?.domains.mpi.reviewPending ?? 0
   return (
     <aside
       aria-label="主导航"
@@ -345,6 +349,9 @@ function Sidebar({
                   >
                     <Icon size={17} />
                     <span className={cn('min-w-0 flex-1 truncate', collapsed && 'lg:hidden')}>{item.label}</span>
+                    {item.key === 'mpi' && reviewPending > 0 ? (
+                      <span className={cn('rounded-[3px] bg-[#e3e9f1] px-[5px] text-[10px] text-[#5c6d89]', collapsed && 'lg:hidden')}>{reviewPending}</span>
+                    ) : null}
                   </a>
                 )
               })}
