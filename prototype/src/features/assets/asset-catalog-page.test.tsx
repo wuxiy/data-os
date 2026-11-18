@@ -113,6 +113,35 @@ describe('资产目录', () => {
     await waitFor(() => expect(vi.mocked(fetchLineageAsset)).toHaveBeenCalledWith('doris-dataos.ods_ep.ep_patient', expect.anything()))
   })
 
+  it('没有 db 参数时按资产全限定名定位所属库', async () => {
+    const fqn = 'doris-dataos.default.dataos_mpi.mpi_person'
+    vi.mocked(fetchLineageCatalog).mockImplementation(async (schema) => ({
+      ...catalog,
+      schema: schema ?? 'ods_ep',
+      assets: [{ ...catalog.assets[0], name: 'mpi_person', fullyQualifiedName: fqn }],
+    }))
+    renderPage([`/assets?asset=${fqn}`])
+    await waitFor(() => expect(vi.mocked(fetchLineageCatalog)).toHaveBeenCalledWith('dataos_mpi', expect.anything()))
+    await waitFor(() => expect(vi.mocked(fetchLineageAsset)).toHaveBeenCalledWith(fqn, expect.anything()))
+  })
+
+  it('指定资产不存在时保留空态，不静默切到其他资产', async () => {
+    renderPage(['/assets?db=ods_ep&asset=doris-dataos.ods_ep.missing'])
+    expect(await screen.findByText('未找到指定资产')).toBeTruthy()
+    expect(vi.mocked(fetchLineageAsset)).not.toHaveBeenCalled()
+  })
+
+  it('质量规则执行失败时不冒充质量未通过', async () => {
+    vi.mocked(fetchAssetQualityTests).mockResolvedValue([
+      { ruleId: 'quality.failed', datasetId: 'ods_ep.ep_order', selector: 'PAY_STATUS', lastRun: { status: 'FAILED', passed: false, finishedAt: null } },
+    ])
+    renderPage()
+    await screen.findByText('PRESCRIPTION_ID')
+    fireEvent.click(screen.getByRole('tab', { name: /质量测试/ }))
+    expect(await screen.findByText('执行失败')).toBeTruthy()
+    expect(screen.queryByText('未通过')).toBeNull()
+  })
+
   it('质量测试不可读只降级该页签，字段结构仍可用', async () => {
     vi.mocked(fetchAssetQualityTests).mockRejectedValue(new Error('quality down'))
     renderPage()

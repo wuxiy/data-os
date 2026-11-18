@@ -1,6 +1,6 @@
 import { Popover as PopoverPrimitive } from '@base-ui/react/popover'
 import { Tabs as TabsPrimitive } from '@base-ui/react/tabs'
-import type { ReactNode } from 'react'
+import type { ReactElement, ReactNode } from 'react'
 import { cn } from '../../lib/utils'
 
 /**
@@ -16,7 +16,7 @@ export function Popover({
   open,
   onOpenChange,
 }: {
-  trigger: ReactNode
+  trigger: ReactElement
   children: ReactNode
   align?: 'start' | 'center' | 'end'
   side?: 'top' | 'bottom' | 'left' | 'right'
@@ -26,7 +26,7 @@ export function Popover({
 }) {
   return (
     <PopoverPrimitive.Root open={open} onOpenChange={onOpenChange}>
-      <PopoverPrimitive.Trigger render={<span className="inline-flex" />}>{trigger}</PopoverPrimitive.Trigger>
+      <PopoverPrimitive.Trigger render={trigger} />
       <PopoverPrimitive.Portal>
         <PopoverPrimitive.Positioner align={align} side={side} sideOffset={6} className="isolate z-50">
           <PopoverPrimitive.Popup
@@ -84,10 +84,10 @@ export function Tabs({
           <TabsPrimitive.Tab
             key={item.value}
             value={item.value}
-            className="relative -mb-px shrink-0 cursor-pointer border-b-2 border-transparent px-px pt-[13px] pb-3 text-body-sm whitespace-nowrap text-[#75808e] outline-none transition-colors hover:text-ink data-[active]:border-blue data-[active]:font-medium data-[active]:text-blue"
+            className="relative -mb-px shrink-0 cursor-pointer border-b-2 border-transparent px-px pt-[13px] pb-3 text-body-sm whitespace-nowrap text-muted transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-blue focus-visible:outline-offset-[-2px] data-[active]:border-blue data-[active]:font-medium data-[active]:text-blue"
           >
             {item.label}
-            {item.count !== undefined ? <span className="ml-1.5 rounded-chip border border-[#e4e8ed] bg-wash px-1 text-meta font-medium text-[#6b7687]">{item.count}</span> : null}
+            {item.count !== undefined ? <span className="ml-1.5 rounded-chip border border-line bg-wash px-1 text-meta font-medium text-muted">{item.count}</span> : null}
           </TabsPrimitive.Tab>
         ))}
       </TabsPrimitive.List>
@@ -107,7 +107,7 @@ export function TabPanel({ value, className, children }: { value: string; classN
 /** 分段控件（如近 7 天 / 近 30 天）。 */
 export function Segmented({ value, onValueChange, options }: { value: string; onValueChange: (value: string) => void; options: { value: string; label: string }[] }) {
   return (
-    <div role="group" className="inline-flex gap-0.5 rounded-control border border-[#e3e7ee] bg-wash p-0.5">
+    <div role="group" className="inline-flex gap-0.5 rounded-control border border-line bg-wash p-0.5">
       {options.map((option) => (
         <button
           key={option.value}
@@ -116,7 +116,7 @@ export function Segmented({ value, onValueChange, options }: { value: string; on
           onClick={() => onValueChange(option.value)}
           className={cn(
             'rounded-chip px-[9px] py-[3px] text-meta',
-            value === option.value ? 'bg-paper text-[#485366] shadow-focus' : 'text-[#7a8491] hover:text-ink',
+            value === option.value ? 'bg-paper text-ink-soft shadow-focus' : 'text-muted hover:text-ink',
           )}
         >
           {option.label}

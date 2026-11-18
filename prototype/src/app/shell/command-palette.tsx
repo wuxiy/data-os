@@ -4,6 +4,7 @@ import { ChevronRight, House, Search, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { portalRoutes, routeForPath } from '../navigation'
 import { usePortalNavigate } from '../navigate'
+import { useAuth } from '../providers'
 import { Kbd } from '../../components/ui/panel'
 import { cn } from '../../lib/utils'
 
@@ -14,21 +15,20 @@ import { cn } from '../../lib/utils'
 export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const navigate = usePortalNavigate()
   const location = useLocation()
+  const { technicalAccess } = useAuth()
   const [query, setQuery] = useState('')
   const [activeIndex, setActiveIndex] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const commands = useMemo(() => {
-    const seen = new Set<string>()
     return portalRoutes
       .filter((route) => {
         if (!route.path.startsWith('/') || route.pattern) return false
-        if (seen.has(route.path)) return false
-        seen.add(route.path)
+        if (route.key === 'operations' && !technicalAccess) return false
         return true
       })
-      .map((route) => ({ label: route.label, path: route.path, icon: route.icon, group: route.group }))
-  }, [])
+      .map((route) => ({ key: route.key, label: route.label, path: route.path, icon: route.icon, group: route.group }))
+  }, [technicalAccess])
 
   const filtered = useMemo(() => {
     const keyword = query.trim().toLowerCase()
@@ -61,6 +61,8 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
         <DialogPrimitive.Popup
           className="fixed top-[12vh] left-1/2 z-50 w-[min(560px,calc(100vw-32px))] -translate-x-1/2 overflow-hidden rounded-modal border border-line bg-paper shadow-panel outline-none"
           onKeyDown={(event) => {
+            // 搜索框使用方向键与回车；其他控件保留原生键盘行为。
+            if (event.target !== inputRef.current) return
             if (event.key === 'ArrowDown') {
               event.preventDefault()
               setActiveIndex((index) => (filtered.length ? (index + 1) % filtered.length : 0))
@@ -77,7 +79,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
         >
           <DialogPrimitive.Title className="sr-only">跳转到工作区</DialogPrimitive.Title>
           <div className="flex items-center gap-2.5 border-b border-line px-4">
-            <Search size={15} className="text-[#8b95a3]" />
+            <Search size={15} className="text-muted" />
             <input
               ref={inputRef}
               value={query}
@@ -85,10 +87,10 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
               placeholder="搜索页面名称…"
               aria-label="搜索页面"
               autoComplete="off"
-              className="h-11 min-w-0 flex-1 border-0 bg-transparent text-body-sm outline-none placeholder:text-faint"
+              className="h-11 min-w-0 flex-1 border-0 bg-transparent text-body-sm placeholder:text-faint"
             />
             <DialogPrimitive.Close
-              render={<button type="button" aria-label="关闭命令面板" className="inline-flex size-7 items-center justify-center rounded-chip text-faint hover:bg-[#f0f3f7]" />}
+              render={<button type="button" aria-label="关闭命令面板" className="inline-flex size-7 items-center justify-center rounded-chip text-faint hover:bg-wash" />}
             >
               <X size={14} />
             </DialogPrimitive.Close>
@@ -100,28 +102,29 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
               const current = location.pathname === command.path
               return (
                 <button
-                  key={command.path}
+                  key={command.key}
                   type="button"
                   onMouseEnter={() => setActiveIndex(index)}
+                  onFocus={() => setActiveIndex(index)}
                   onClick={() => go(command.path)}
                   className={cn(
-                    'flex w-full items-center gap-2.5 rounded-control px-3 py-2.5 text-left text-body-sm text-[#4b5b71]',
-                    index === activeIndex ? 'bg-[#f0f5ff] text-blue' : 'hover:bg-wash',
+                    'flex w-full items-center gap-2.5 rounded-control px-3 py-2.5 text-left text-body-sm text-ink-soft',
+                    index === activeIndex ? 'bg-blue-soft text-blue' : 'hover:bg-wash',
                   )}
                 >
                   <Icon size={16} />
                   <span className="min-w-0 flex-1 truncate">{command.label}</span>
-                  <small className="text-meta text-[#8e98a8]">{current ? '当前页面' : command.group}</small>
-                  <ChevronRight size={13} className="text-[#a3adb9]" />
+                  <small className="text-meta text-muted">{current ? '当前页面' : command.group}</small>
+                  <ChevronRight size={13} className="text-muted" />
                 </button>
               )
             })}
           </div>
-          <div className="flex items-center gap-3 border-t border-line px-4 py-2.5 text-meta text-[#8e98a8]">
+          <div className="flex items-center gap-3 border-t border-line px-4 py-2.5 text-meta text-muted">
             <span className="flex items-center gap-1"><Kbd>↑</Kbd><Kbd>↓</Kbd>选择</span>
             <span className="flex items-center gap-1"><Kbd>Enter</Kbd>打开</span>
             <span className="flex items-center gap-1"><Kbd>Esc</Kbd>关闭</span>
-            <span className="ml-auto flex items-center gap-1 text-[#a3adb9]"><House size={11} />{routeForPath(location.pathname)?.label ?? '工作区'}</span>
+            <span className="ml-auto flex items-center gap-1 text-muted"><House size={11} />{routeForPath(location.pathname)?.label ?? '工作区'}</span>
           </div>
         </DialogPrimitive.Popup>
       </DialogPrimitive.Portal>

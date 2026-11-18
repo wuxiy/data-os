@@ -52,6 +52,8 @@ import { governanceIssueQuery, governanceIssuesQuery, qualityRulesQuery } from '
 import { ResponsibilitySheet } from './responsibility-sheet'
 
 const QUEUE_PAGE_SIZE = 8
+type IssueAction = 'sync' | 'recheck' | 'note' | 'remind' | 'reconcile' | 'confirmAbsent'
+type IssueActionError = { issueId: string; action: IssueAction; message: string }
 
 type TimelineEntry = { kind: 'single'; event: GovernanceIssueEventApiItem } | { kind: 'retries'; events: GovernanceIssueEventApiItem[] }
 
@@ -100,10 +102,17 @@ export function QualityPage() {
   const [statusFilter, setStatusFilter] = useState<'open' | 'closed' | 'all'>('open')
   const [page, setPage] = useState(0)
   const [note, setNote] = useState('')
-  const [actionError, setActionError] = useState<string | null>(null)
+  const noteDrafts = useRef(new Map<string, string>())
+  const mounted = useRef(true)
+  const [actionErrors, setActionErrors] = useState<IssueActionError[]>([])
   const [batchOpen, setBatchOpen] = useState(false)
   const [chainOpen, setChainOpen] = useState(false)
   const [pendingDelete, setPendingDelete] = useState<QualityRuleDefinitionApiItem | null>(null)
+
+  useEffect(() => {
+    mounted.current = true
+    return () => { mounted.current = false }
+  }, [])
 
   const issuesRequest = useQuery(governanceIssuesQuery())
   const detailRequest = useQuery(governanceIssueQuery(selectedId))
@@ -129,28 +138,59 @@ export function QualityPage() {
   useEffect(() => {
     const issue = detail?.issue
     if (!issue) { setNote(''); return }
-    setNote(looksLikeExecutorOutput(issue.processingNote) ? '' : (issue.processingNote ?? ''))
+    setNote(noteDrafts.current.get(issue.id) ?? (looksLikeExecutorOutput(issue.processingNote) ? '' : (issue.processingNote ?? '')))
   }, [detail?.issue.id, detail?.issue.processingNote])
 
   // 自动轮询：执行器返回 nextPollAt 时到点同步，2–60 秒边界、同一运行最多 12 次。
   const autoPollRef = useRef({ lastKey: '', runId: '', count: 0 })
+  const syncSequence = useRef(0)
+  const latestSync = useRef(new Map<string, number>())
+  const pendingSync = useRef(new Map<string, Promise<GovernanceIssueDetailApiResponse>>())
   const latestRun = detail?.latestRun ?? null
 
   const applyDetail = (next: GovernanceIssueDetailApiResponse) => {
     queryClient.setQueryData(['governance', 'issue', next.issue.id], next)
     void queryClient.invalidateQueries({ queryKey: ['governance', 'issues'] })
-    setNote(looksLikeExecutorOutput(next.issue.processingNote) ? '' : (next.issue.processingNote ?? ''))
+  }
+
+  const recordActionError = (issueId: string, action: IssueAction, cause: unknown, fallback: string) => {
+    const message = cause instanceof Error ? cause.message : fallback
+    if (!mounted.current) {
+      notify(`问题 ${issueId} 的操作失败：${message}`, 'error')
+      return
+    }
+    setActionErrors((current) => [...current.filter((entry) => entry.issueId !== issueId || entry.action !== action), { issueId, action, message }])
+  }
+
+  const clearActionError = (issueId: string, action: IssueAction) => {
+    setActionErrors((current) => current.filter((entry) => entry.issueId !== issueId || entry.action !== action))
   }
 
   const syncMutation = useMutation({
-    mutationFn: ({ issueId, runId }: { issueId: string; runId: string }) => syncGovernanceIssueRun(issueId, runId),
-    onSuccess: (next) => {
+    mutationFn: ({ issueId, runId }: { issueId: string; runId: string }) => {
+      const key = JSON.stringify([issueId, runId])
+      const pending = pendingSync.current.get(key)
+      if (pending) return pending
+      const request = syncGovernanceIssueRun(issueId, runId).finally(() => pendingSync.current.delete(key))
+      pendingSync.current.set(key, request)
+      return request
+    },
+    onMutate: ({ issueId }) => {
+      const sequence = ++syncSequence.current
+      latestSync.current.set(issueId, sequence)
+      return sequence
+    },
+    onSuccess: (next, { issueId }, sequence) => {
+      if (latestSync.current.get(issueId) !== sequence) return
       applyDetail(next)
+      clearActionError(issueId, 'sync')
       notify(next.latestRun?.status === 'SUCCEEDED'
         ? (next.latestRun.passed ? '质量复检通过，问题已自动关闭' : '质量复检未通过，问题已退回')
         : '质量执行批次状态已同步')
     },
-    onError: (cause) => setActionError(cause instanceof Error ? cause.message : '质量复检结果同步失败，请稍后重试'),
+    onError: (cause, { issueId }, sequence) => {
+      if (latestSync.current.get(issueId) === sequence) recordActionError(issueId, 'sync', cause, '质量复检结果同步失败，请稍后重试')
+    },
   })
 
   useEffect(() => {
@@ -175,8 +215,9 @@ export function QualityPage() {
 
   const recheckMutation = useMutation({
     mutationFn: (issueId: string) => requestGovernanceIssueRecheck(issueId, '按原质量规则重新执行复检'),
-    onSuccess: (next) => {
+    onSuccess: (next, issueId) => {
       applyDetail(next)
+      clearActionError(issueId, 'recheck')
       const run = next.latestRun
       notify(next.issue.status === 'RETURNED' || run?.status === 'SUBMIT_FAILED'
         ? '复检投递失败，问题已退回，请检查执行器配置'
@@ -184,31 +225,36 @@ export function QualityPage() {
           ? '复检请求已登记，执行器暂不可用，将按策略自动重试'
           : '复检请求已投递，等待质量规则执行器回写结果')
     },
-    onError: (cause) => setActionError(cause instanceof Error ? cause.message : '复检请求失败，请稍后重试'),
+    onError: (cause, issueId) => recordActionError(issueId, 'recheck', cause, '复检请求失败，请稍后重试'),
   })
 
   const noteMutation = useMutation({
     mutationFn: ({ issueId, status, text }: { issueId: string; status: string; text: string }) => updateGovernanceIssueWorkflow(issueId, { status, note: text }),
-    onSuccess: (next) => { applyDetail(next); notify('处理说明已保存，治理问题状态已回写') },
-    onError: (cause) => setActionError(cause instanceof Error ? cause.message : '处理说明保存失败，请稍后重试'),
+    onSuccess: (next, { issueId, text }) => {
+      if (noteDrafts.current.get(issueId)?.trim() === text) noteDrafts.current.delete(issueId)
+      applyDetail(next)
+      clearActionError(issueId, 'note')
+      notify('处理说明已保存，治理问题状态已回写')
+    },
+    onError: (cause, { issueId }) => recordActionError(issueId, 'note', cause, '处理说明保存失败，请稍后重试'),
   })
 
   const remindMutation = useMutation({
     mutationFn: (issueId: string) => remindGovernanceIssueOwner(issueId),
-    onSuccess: (next) => { applyDetail(next); notify('责任人提醒已加入通知队列') },
-    onError: (cause) => setActionError(cause instanceof Error ? cause.message : '责任人提醒请求失败，请稍后重试'),
+    onSuccess: (next, issueId) => { applyDetail(next); clearActionError(issueId, 'remind'); notify('责任人提醒已加入通知队列') },
+    onError: (cause, issueId) => recordActionError(issueId, 'remind', cause, '责任人提醒请求失败，请稍后重试'),
   })
 
   const reconcileMutation = useMutation({
     mutationFn: ({ issueId, runId }: { issueId: string; runId: string }) => reconcileGovernanceIssueRun(issueId, runId),
-    onSuccess: (next) => { applyDetail(next); notify('已重新查询质量执行器，状态已更新') },
-    onError: (cause) => setActionError(cause instanceof Error ? cause.message : '质量执行批次重新对账失败，请稍后重试'),
+    onSuccess: (next, { issueId }) => { applyDetail(next); clearActionError(issueId, 'reconcile'); notify('已重新查询质量执行器，状态已更新') },
+    onError: (cause, { issueId }) => recordActionError(issueId, 'reconcile', cause, '质量执行批次重新对账失败，请稍后重试'),
   })
 
   const confirmAbsentMutation = useMutation({
     mutationFn: ({ issueId, runId }: { issueId: string; runId: string }) => confirmGovernanceIssueRunAbsent(issueId, runId),
-    onSuccess: (next) => { applyDetail(next); notify('已确认外部质量执行批次不存在，问题已退回处理队列') },
-    onError: (cause) => setActionError(cause instanceof Error ? cause.message : '确认质量执行批次不存在失败，请稍后重试'),
+    onSuccess: (next, { issueId }) => { applyDetail(next); clearActionError(issueId, 'confirmAbsent'); notify('已确认外部质量执行批次不存在，问题已退回处理队列') },
+    onError: (cause, { issueId }) => recordActionError(issueId, 'confirmAbsent', cause, '确认质量执行批次不存在失败，请稍后重试'),
   })
 
   const batchRemindMutation = useMutation({
@@ -269,7 +315,6 @@ export function QualityPage() {
   const busy = syncMutation.isPending || recheckMutation.isPending || noteMutation.isPending || remindMutation.isPending || reconcileMutation.isPending || confirmAbsentMutation.isPending
 
   function select(id: string) {
-    setActionError(null)
     void navigate(`/governance/quality?issue=${encodeURIComponent(id)}`)
   }
 
@@ -280,8 +325,8 @@ export function QualityPage() {
       header: '规则',
       cell: ({ row }) => (
         <div>
-          <div className="font-mono text-label text-[#313c4d]">{row.original.ruleId}</div>
-          <div className="mt-0.5 text-meta text-[#707c8c]">{QUALITY_RULE_TYPE_LABELS[row.original.ruleType] ?? row.original.ruleType}{row.original.targetColumn ? ` · ${row.original.targetColumn}` : ''}</div>
+          <div className="font-mono text-label text-ink">{row.original.ruleId}</div>
+          <div className="mt-0.5 text-meta text-muted">{QUALITY_RULE_TYPE_LABELS[row.original.ruleType] ?? row.original.ruleType}{row.original.targetColumn ? ` · ${row.original.targetColumn}` : ''}</div>
         </div>
       ),
     }),
@@ -303,7 +348,7 @@ export function QualityPage() {
           <Button variant="text" disabled={ruleToggle.isPending} onClick={() => ruleToggle.mutate({ ruleId: row.original.ruleId, enabled: !row.original.enabled })}>
             {row.original.enabled ? '停用' : '启用'}
           </Button>
-          <Button variant="text" className="text-[#b44848]" onClick={() => setPendingDelete(row.original)}><Trash2 size={12} />删除</Button>
+          <Button variant="text" className="text-red" onClick={() => setPendingDelete(row.original)}><Trash2 size={12} />删除</Button>
         </div>
       ),
     }),
@@ -323,6 +368,14 @@ export function QualityPage() {
         }
       />
 
+      {actionErrors.filter((entry) => entry.issueId !== effectiveId).map((entry) => (
+        <div key={JSON.stringify([entry.issueId, entry.action])} role="alert" className="mb-3 flex flex-wrap items-center gap-2 rounded-control border border-red-line bg-red-soft px-4 py-3 text-body-sm text-red">
+          <strong>问题 {entry.issueId} 的操作失败</strong>
+          <span>{entry.message}</span>
+          <Button size="sm" onClick={() => select(entry.issueId)}>查看问题 {entry.issueId}</Button>
+        </div>
+      ))}
+
       {issuesRequest.isPending ? <LoadingBlock>正在读取治理问题…</LoadingBlock> : null}
 
       {issuesRequest.isError ? (
@@ -338,11 +391,11 @@ export function QualityPage() {
       ) : null}
 
       {issuesRequest.isSuccess ? (
-        <div className="grid grid-cols-[300px_minmax(0,1fr)_320px] gap-3.5 max-[1320px]:grid-cols-[280px_minmax(0,1fr)] max-[1100px]:grid-cols-1">
+        <div className="grid grid-cols-[300px_minmax(0,1fr)_320px] gap-3.5 max-[1320px]:grid-cols-[250px_minmax(0,1fr)_270px] max-[1100px]:grid-cols-1">
           <Panel className="flex flex-col">
             <div className="flex items-center justify-between px-[18px] pt-4 pb-2">
               <h2 className="text-title font-semibold">问题队列<Count>{openIssues.length}</Count></h2>
-              <span className="text-meta text-[#8b94a1]">按 SLA 排序</span>
+              <span className="text-meta text-muted">按 SLA 排序</span>
             </div>
             <div className="px-[18px] pb-2">
               <SearchField
@@ -352,21 +405,21 @@ export function QualityPage() {
                 className="w-full"
               />
             </div>
-            <div className="flex flex-wrap items-center gap-1.5 px-[18px] pb-2">
+            <div className="flex flex-wrap items-center gap-1 px-[18px] pb-2">
               {([['open', `待闭环 ${openIssues.length}`], ['closed', `已关闭 ${issues.length - openIssues.length}`], ['all', `全部 ${issues.length}`]] as const).map(([value, label]) => (
                 <button
                   key={value}
                   type="button"
                   aria-pressed={statusFilter === value}
                   onClick={() => { setStatusFilter(value); setPage(0) }}
-                  className={`rounded-chip border px-2 py-0.5 text-label ${statusFilter === value ? 'border-blue-line bg-blue-soft text-blue' : 'border-line bg-paper text-[#6b788b] hover:bg-wash'}`}
+                  className={`rounded-chip border px-1.5 py-0.5 text-label ${statusFilter === value ? 'border-blue-line bg-blue-soft text-blue' : 'border-line bg-paper text-muted hover:bg-wash'}`}
                 >
                   {label}
                 </button>
               ))}
-              {openIssues.length > 0 ? <button type="button" onClick={() => setBatchOpen(true)} className="rounded-chip border border-line bg-paper px-2 py-0.5 text-label text-[#6b788b] hover:bg-wash">批量提醒</button> : null}
+              {openIssues.length > 0 ? <button type="button" onClick={() => setBatchOpen(true)} className="rounded-chip border border-line bg-paper px-1.5 py-0.5 text-label text-muted hover:bg-wash">批量提醒</button> : null}
             </div>
-            <p className="px-[18px] pb-2 text-meta text-[#98a2ae]">当前筛选 {visibleIssues.length} 项</p>
+            <p className="px-[18px] pb-2 text-meta text-muted">当前筛选 {visibleIssues.length} 项</p>
             <ul className="m-0 min-h-0 flex-1 list-none overflow-y-auto px-2 pb-2">
               {pagedIssues.map((issue) => {
                 const active = selected?.id === issue.id
@@ -379,11 +432,11 @@ export function QualityPage() {
                       className={`mb-1 w-full rounded-control px-2.5 py-2 text-left ${active ? 'bg-blue-soft' : 'hover:bg-wash'}`}
                     >
                       <span className="flex items-center justify-between gap-2">
-                        <span className="font-mono text-meta text-[#8b94a1]">{issue.id}</span>
+                        <span className="font-mono text-meta text-muted">{issue.id}</span>
                         <Badge tone={toneBadge(severityTone(issue.severity))}>{severityLabel(issue.severity)}风险</Badge>
                       </span>
-                      <span className="mt-1 block text-body-sm text-[#43546e]">{issue.title}</span>
-                      <span className="mt-0.5 block text-meta text-[#6c798c]">{issue.ownerDepartment} · {issue.ownerName} · {issueStatusLabel(issue.status)}</span>
+                      <span className="mt-1 block text-body-sm text-ink-soft">{issue.title}</span>
+                      <span className="mt-0.5 block text-meta text-muted">{issue.ownerDepartment} · {issue.ownerName} · {issueStatusLabel(issue.status)}</span>
                     </button>
                   </li>
                 )
@@ -404,7 +457,7 @@ export function QualityPage() {
             {detailRequest.isPending && selected ? <Skeleton rows={5} /> : null}
             {detailRequest.isError ? (
               <div className="px-5 py-8 text-center">
-                <p className="text-body-sm font-medium text-[#59677d]">治理问题详情不可用</p>
+                <p className="text-body-sm font-medium text-ink-soft">治理问题详情不可用</p>
                 <p className="mt-1 text-label text-muted">问题详情读取失败，请刷新后重试</p>
                 <Button size="sm" className="mt-3" onClick={() => void detailRequest.refetch()}>重新读取</Button>
               </div>
@@ -414,9 +467,9 @@ export function QualityPage() {
                 <div className="border-b border-line px-5 py-4">
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge tone={toneBadge(issueStatusTone(selected.status))}>{issueStatusLabel(selected.status)}</Badge>
-                    <span className="text-meta text-[#8b94a1]">更新于 {formatDateTime(selected.updatedAt ?? null)}</span>
+                    <span className="text-meta text-muted">更新于 {formatDateTime(selected.updatedAt ?? null)}</span>
                   </div>
-                  <h2 className="mt-2 text-subject font-semibold text-[#2c3a4d]">{selected.title}</h2>
+                  <h2 className="mt-2 text-subject font-semibold text-ink">{selected.title}</h2>
                   <p className="mt-1 text-label text-muted">{selected.id} · {selected.objectLabel || selected.datasetId}</p>
                   <dl className="mt-3 grid grid-cols-3 gap-4">
                     <Fact label="责任人" value={`${selected.ownerDepartment} · ${selected.ownerName}`} />
@@ -436,23 +489,25 @@ export function QualityPage() {
                       {remindMutation.isPending ? '提醒中…' : selected.status === 'CLOSED' ? '问题已关闭' : '提醒责任人'}
                     </Button>
                     <Button onClick={() => setChainOpen(true)}><Shield size={13} />责任链</Button>
-                    {selected.status === 'CLOSED' ? <span className="text-meta text-[#98a2ae]">问题已关闭，主操作停用；如需重新处理请从队列选择未闭环问题</span> : null}
+                    {selected.status === 'CLOSED' ? <span className="text-meta text-muted">问题已关闭，主操作停用；如需重新处理请从队列选择未闭环问题</span> : null}
                   </div>
-                  {selected.status === 'RECHECKING' ? <p className="mt-2 text-label text-[#8e7040]">复检请求已登记，正在等待执行器异步回写；本状态尚不代表质量规则通过。</p> : null}
-                  {actionError ? <p role="alert" className="mt-2 text-body-sm text-[#b04747]">{actionError}</p> : null}
+                  {selected.status === 'RECHECKING' ? <p className="mt-2 text-label text-amber">复检请求已登记，正在等待执行器异步回写；本状态尚不代表质量规则通过。</p> : null}
+                  {actionErrors.filter((entry) => entry.issueId === selected.id).map((entry) => (
+                    <p key={entry.action} role="alert" className="mt-2 text-body-sm text-red">{entry.message}</p>
+                  ))}
                 </div>
 
                 <div className="flex items-center justify-between px-5 pt-4 pb-2">
-                  <h3 className="text-label font-medium text-[#566173]">处理记录</h3>
-                  <span className="text-meta text-[#98a2ae]">{detail.events.length} 条事件</span>
+                  <h3 className="text-label font-medium text-ink-soft">处理记录</h3>
+                  <span className="text-meta text-muted">{detail.events.length} 条事件</span>
                 </div>
                 <ol className="m-0 list-none px-5 pb-4">
                   {groupedTimeline(detail.events).map((group) => group.kind === 'retries' ? (
-                    <li key={group.events[0].id} className="border-l border-[#e2e8f0] pb-4 pl-5">
-                      <div className="text-body-sm font-medium text-[#43546e]">
+                    <li key={group.events[0].id} className="border-l border-line pb-4 pl-5">
+                      <div className="text-body-sm font-medium text-ink-soft">
                         复检投递重试（共 {group.events.length} 条）
                       </div>
-                      <details className="mt-1 text-label text-[#8b94a1]">
+                      <details className="mt-1 text-label text-muted">
                         <summary className="cursor-pointer">展开每次记录</summary>
                         {group.events.map((event) => (
                           <p key={event.id} className="mt-1">
@@ -462,12 +517,12 @@ export function QualityPage() {
                       </details>
                     </li>
                   ) : (
-                    <li key={group.event.id} className="border-l border-[#e2e8f0] pb-4 pl-5">
+                    <li key={group.event.id} className="border-l border-line pb-4 pl-5">
                       <div className="flex items-start justify-between gap-3">
-                        <strong className="text-body-sm font-medium text-[#43546e]">{eventTitle(group.event.eventType)}</strong>
-                        <time className="shrink-0 text-meta text-[#8d96a3]">{formatDateTime(group.event.createdAt)}</time>
+                        <strong className="text-body-sm font-medium text-ink-soft">{eventTitle(group.event.eventType)}</strong>
+                        <time className="shrink-0 text-meta text-muted">{formatDateTime(group.event.createdAt)}</time>
                       </div>
-                      <p className="mt-1 text-label leading-relaxed text-[#8b94a1]">
+                      <p className="mt-1 text-label leading-relaxed text-muted">
                         {executorOutputView(group.event.note).folded
                           ? <>{formatInlineDateTimes(executorOutputView(group.event.note).head)}…</>
                           : formatInlineDateTimes(group.event.note)} · {actorLabel(group.event.actor)}
@@ -480,9 +535,9 @@ export function QualityPage() {
                 </ol>
 
                 <div className="border-t border-line px-5 py-4">
-                  <label htmlFor="processing-note" className="mb-1.5 block text-body-sm text-[#566173]">处理说明</label>
+                  <label htmlFor="processing-note" className="mb-1.5 block text-body-sm text-ink-soft">处理说明</label>
                   {looksLikeExecutorOutput(selected.processingNote) ? (
-                    <details className="mb-2 rounded-control border border-line bg-wash px-3 py-2 text-label text-[#7c8795]">
+                    <details className="mb-2 rounded-control border border-line bg-wash px-3 py-2 text-label text-muted">
                       <summary className="cursor-pointer">历史执行器输出（仅参考，不作为处理结论）</summary>
                       <pre className="mt-1 max-h-[160px] overflow-auto whitespace-pre-wrap font-mono text-meta">{selected.processingNote}</pre>
                     </details>
@@ -490,7 +545,11 @@ export function QualityPage() {
                   <textarea
                     id="processing-note"
                     value={note}
-                    onChange={(event) => setNote(event.target.value)}
+                    onChange={(event) => {
+                      const value = event.target.value
+                      setNote(value)
+                      if (selected) noteDrafts.current.set(selected.id, value)
+                    }}
                     disabled={!canEdit || busy}
                     placeholder={canEdit ? '填写人工处理结论（处置动作、原因与复核口径）' : ''}
                     className="min-h-[96px] w-full rounded-control border border-line-strong bg-paper px-2.5 py-2 text-body-sm text-ink-soft disabled:bg-wash disabled:text-faint"
@@ -511,11 +570,11 @@ export function QualityPage() {
             ) : null}
           </Panel>
 
-          <Panel className="max-[1320px]:col-span-2 max-[1100px]:col-span-1">
+          <Panel>
             {selected && detail ? (
               <div className="px-4 py-4">
                 <div className="mb-2 flex items-center justify-between">
-                  <h3 className="text-label font-medium text-[#566173]">影响与证据</h3>
+                  <h3 className="text-label font-medium text-ink-soft">影响与证据</h3>
                   <Badge tone={toneBadge(severityTone(selected.severity))}>{severityLabel(selected.severity)}风险</Badge>
                 </div>
                 <EvidenceBox title="影响范围">{selected.impact}</EvidenceBox>
@@ -524,9 +583,9 @@ export function QualityPage() {
                   {detail.latestRun ? <RunEvidence run={detail.latestRun} /> : <p>尚未提交质量规则复检。</p>}
                   {detail.runs.length > 1 ? (
                     <div className="mt-2 border-t border-line pt-2">
-                      <strong className="text-label text-[#566173]">历史执行批次（{detail.runs.length}）</strong>
+                      <strong className="text-label text-ink-soft">历史执行批次（{detail.runs.length}）</strong>
                       {detail.runs.slice(1).map((run) => (
-                        <div key={run.id} className="mt-1 flex items-center gap-2 text-meta text-[#6b7889]">
+                        <div key={run.id} className="mt-1 flex items-center gap-2 text-meta text-muted">
                           <Badge tone={toneBadge(runStatusTone(run.status))}>{runStatusLabel(run.status)}</Badge>
                           <span title={run.executionBatchId}>{shortBatchId(run.executionBatchId)}</span>
                           <time>{formatDateTime(run.submittedAt)}</time>
@@ -537,7 +596,7 @@ export function QualityPage() {
                   ) : null}
                 </EvidenceBox>
                 {detail.latestRun?.reconciliationStatus === 'MANUAL_REQUIRED' ? (
-                  <div role="status" className="mb-2 rounded-control border border-[#eee2c5] bg-[#fdf9ef] px-3 py-2 text-label text-[#8e7040]">
+                  <div role="status" className="mb-2 rounded-control border border-[#eee2c5] bg-[#fdf9ef] px-3 py-2 text-label text-amber">
                     <strong>质量执行批次待人工对账</strong>
                     <p className="mt-1">{detail.latestRun.reconciliationMessage ?? '外部执行器未能可靠返回状态，请先重新查询；确认不存在后才允许结束本批次。'}</p>
                     <div className="mt-1.5 flex gap-2">
@@ -557,12 +616,12 @@ export function QualityPage() {
                         <Badge tone={notification.status === 'SENT' ? 'success' : notification.status === 'FAILED' ? 'danger' : 'warn'}>{notificationStatusLabel(notification.status)}</Badge>
                         <span className="ml-1.5">{notification.channel} · {notification.recipient}</span>
                         <br />{notification.subject}
-                        {notification.lastError ? <><br /><span className="text-[#b04747]">{notification.lastError}</span></> : null}
+                        {notification.lastError ? <><br /><span className="text-red">{notification.lastError}</span></> : null}
                       </p>
                     ))
                     : <p>当前没有通知记录。</p>}
                 </EvidenceBox>
-                <EvidenceBox title="责任归属">{selected.ownerDepartment} · {selected.ownerName}<br />来源：资产责任人与组织主数据</EvidenceBox>
+                <EvidenceBox title="责任归属">{selected.ownerDepartment} · {selected.ownerName}<br />来源：治理问题记录</EvidenceBox>
               </div>
             ) : null}
           </Panel>
@@ -572,7 +631,7 @@ export function QualityPage() {
       <Panel className="mt-3.5">
         <PanelHead
           title="质量规则"
-          count={rulesRequest.data?.total ?? 0}
+          count={rulesRequest.data?.total}
           description="动态规则台账：保存即推送质量执行器编译，失败原因如实回显"
           actions={<Button size="sm" variant="primary" onClick={() => navigate(workLinks.qualityRuleNew())}><Plus size={13} />新建规则</Button>}
         />
@@ -583,7 +642,9 @@ export function QualityPage() {
           getRowId={(rule) => rule.ruleId}
           rowLabel={(rule) => rule.ruleId}
           loading={rulesRequest.isPending}
-          empty={<EmptyState minHeight={200} icon={<Shield />} title="还没有动态质量规则" description="新建规则后保存即推送执行器；执行器对目标表列做实校验。" />}
+          empty={rulesRequest.isError
+            ? <EmptyState minHeight={200} icon={<CircleAlert />} title="质量规则暂不可用" description="无法读取规则台账，不能据此判断当前是否存在规则。" action={<Button onClick={() => void rulesRequest.refetch()}>重新读取规则</Button>} />
+            : <EmptyState minHeight={200} icon={<Shield />} title="还没有动态质量规则" description="新建规则后保存即推送执行器；执行器对目标表列做实校验。" />}
         />
       </Panel>
 
@@ -619,8 +680,8 @@ export function QualityPage() {
 function Fact({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="mb-0.5 text-meta text-[#8a929e]">{label}</dt>
-      <dd className="m-0 text-body-sm text-[#4a5666]">{value}</dd>
+      <dt className="mb-0.5 text-meta text-muted">{label}</dt>
+      <dd className="m-0 text-body-sm text-ink-soft">{value}</dd>
     </div>
   )
 }
@@ -628,8 +689,8 @@ function Fact({ label, value }: { label: string; value: string }) {
 function EvidenceBox({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="mb-2.5 rounded-control border border-line bg-wash px-3 py-2.5">
-      <h4 className="mb-1 text-label font-medium text-[#566173]">{title}</h4>
-      <div className="text-label leading-relaxed text-[#6b7789]">{children}</div>
+      <h4 className="mb-1 text-label font-medium text-ink-soft">{title}</h4>
+      <div className="text-label leading-relaxed text-muted">{children}</div>
     </div>
   )
 }
@@ -654,7 +715,7 @@ function RunEvidence({ run }: { run: GovernanceQualityRunApiItem }) {
           {view.folded ? <>…<details className="mt-1 text-meta"><summary className="cursor-pointer">查看完整执行输出</summary><pre className="mt-1 max-h-[180px] overflow-auto whitespace-pre-wrap font-mono">{view.folded}</pre></details></> : null}
         </p>
       ) : null}
-      {run.lastError ? <p className="mt-1 text-[#b04747]">最近错误：{run.lastError}</p> : null}
+      {run.lastError ? <p className="mt-1 text-red">最近错误：{run.lastError}</p> : null}
       {run.artifactUri ? (
         <p className="mt-1">
           制品地址：{isSafeArtifactLink(run.artifactUri)
@@ -664,7 +725,7 @@ function RunEvidence({ run }: { run: GovernanceQualityRunApiItem }) {
       ) : null}
       {run.sampleEvidence.length > 0 ? (
         <div className="mt-2">
-          <strong className="text-label text-[#566173]">样本证据（{run.sampleEvidence.length}）</strong>
+          <strong className="text-label text-ink-soft">样本证据（{run.sampleEvidence.length}）</strong>
           {run.sampleEvidence.map((item, index) => (
             <pre key={`${run.id}-${index}`} className="mt-1 max-h-[140px] overflow-auto rounded-chip border border-line bg-paper p-2 font-mono text-meta">{JSON.stringify(item, null, 2)}</pre>
           ))}

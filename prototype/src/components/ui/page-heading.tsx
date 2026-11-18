@@ -10,7 +10,7 @@ export interface Crumb {
 /** 面包屑：首页图标 + 分组 + 当前页；当前页用深一档文字，不做链接。 */
 export function Breadcrumb({ items, trailing }: { items: Crumb[]; trailing?: ReactNode }) {
   return (
-    <nav aria-label="面包屑" className="mb-[13px] flex items-center gap-2 text-label text-[#697586]">
+    <nav aria-label="面包屑" className="mb-4 flex items-center gap-2 text-label text-muted">
       <House aria-hidden="true" className="size-[13px] opacity-70" />
       {items.map((item, index) => {
         const last = index === items.length - 1
@@ -21,13 +21,13 @@ export function Breadcrumb({ items, trailing }: { items: Crumb[]; trailing?: Rea
                 {item.label}
               </a>
             ) : (
-              <span className={last ? 'text-[#414c5c]' : undefined}>{item.label}</span>
+              <span className={last ? 'font-medium text-ink-soft' : undefined}>{item.label}</span>
             )}
-            {!last ? <ChevronRight aria-hidden="true" className="size-3 text-[#a3adb9]" /> : null}
+            {!last ? <ChevronRight aria-hidden="true" className="size-3 text-faint" /> : null}
           </span>
         )
       })}
-      {trailing ? <div className="ml-auto flex items-center gap-2 text-meta text-[#7b8491]">{trailing}</div> : null}
+      {trailing ? <div className="ml-auto flex items-center gap-2 text-meta text-muted">{trailing}</div> : null}
     </nav>
   )
 }
@@ -48,10 +48,10 @@ export function PageHeading({
   className?: string
 }) {
   return (
-    <div className={cn('mb-[18px] flex items-center justify-between gap-5', className)}>
+    <div className={cn('mb-6 flex items-center justify-between gap-5', className)}>
       <div className="min-w-0">
-        <h1 className="text-heading leading-[1.3] font-semibold tracking-[-0.55px]">{title}</h1>
-        {description ? <p className="mt-[7px] text-body-sm text-muted">{description}</p> : null}
+        <h1 className="text-heading leading-[1.25] font-semibold tracking-[-0.55px] text-ink">{title}</h1>
+        {description ? <p className="mt-2 text-body-sm leading-relaxed text-muted">{description}</p> : null}
       </div>
       {actions ? <div className="flex shrink-0 items-center gap-[9px]">{actions}</div> : null}
     </div>
@@ -61,7 +61,7 @@ export function PageHeading({
 /** 页脚：样例快照/合成数据边界等口径声明。 */
 export function PageFooter({ left, right }: { left?: ReactNode; right?: ReactNode }) {
   return (
-    <footer className="mt-[17px] flex items-center justify-between text-meta text-[#7a8491]">
+    <footer className="mt-[17px] flex items-center justify-between text-meta text-muted">
       <span>{left}</span>
       <span>{right}</span>
     </footer>

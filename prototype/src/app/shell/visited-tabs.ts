@@ -56,7 +56,7 @@ export function useVisitedTabs(pathname: string) {
       const route = routeForPath(pathname)
       const base = route?.tabLabel ?? route?.label ?? '工作区'
       // 同一模式打开多个对象时用对象键短号区分页签（如两个采集任务）。
-      const objectKey = route?.pattern ? pathname.split('/').filter(Boolean).at(-1) : undefined
+      const objectKey = route?.pattern ? pathname.slice(route.path.length + 1).split('/')[0] : undefined
       return {
         path,
         label: objectKey ? `${base} · ${objectKey.slice(0, 8)}` : base,

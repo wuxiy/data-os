@@ -48,7 +48,7 @@ export function OidcLoginGate({ snapshot }: { snapshot: AuthSnapshot }) {
           <LogIn size={16} />
           {busy ? '正在跳转…' : '使用统一身份认证登录'}
         </Button>
-        <p className="mt-3.5 text-meta leading-relaxed text-[#8b94a1]">登录令牌仅保存在当前浏览器会话，退出页面后自动失效。</p>
+        <p className="mt-3.5 text-meta leading-relaxed text-muted">登录令牌仅保存在当前浏览器会话，退出页面后自动失效。</p>
       </section>
     </main>
   )

@@ -52,7 +52,7 @@ export function DiscardInline({
   children?: ReactNode
 }) {
   return (
-    <div role="alert" className="mb-3.5 rounded-control border border-[#ecd9b6] bg-[#fffaf0] px-3 py-[11px] text-label text-[#8b6938]">
+    <div role="alert" className="mb-3.5 rounded-control border border-[#ecd9b6] bg-[#fffaf0] px-3 py-[11px] text-label text-amber">
       <div>{children}离开后会丢失这些内容。</div>
       <div className="mt-2 flex justify-end gap-2">
         <Button size="sm" onClick={onKeepEditing}>继续编辑</Button>
@@ -92,7 +92,7 @@ export function Sheet({ open, onOpenChange, title, subtitle, width = 610, dirty 
                 {subtitle ? <p className="mt-[5px] text-label text-muted">{subtitle}</p> : null}
               </div>
               <DialogPrimitive.Close
-                render={<button type="button" aria-label="关闭详情" title="关闭，Esc" className="inline-flex size-[30px] shrink-0 items-center justify-center rounded-chip text-[#67717f] hover:bg-[#f0f3f7] hover:text-[#253650]" />}
+                render={<button type="button" aria-label="关闭详情" title="关闭，Esc" className="inline-flex size-[30px] shrink-0 items-center justify-center rounded-chip text-muted hover:bg-wash hover:text-ink" />}
               >
                 <X size={16} />
               </DialogPrimitive.Close>
@@ -122,7 +122,7 @@ export function SheetBody({ className, children }: { className?: string; childre
 export function SheetFooterActions({ hint, children }: { hint?: ReactNode; children: ReactNode }) {
   return (
     <div className="flex flex-col gap-2.5">
-      {hint ? <div className="text-meta text-[#858e9b]">{hint}</div> : null}
+      {hint ? <div className="text-meta text-muted">{hint}</div> : null}
       <div className="flex items-center justify-end gap-[9px]">{children}</div>
     </div>
   )
@@ -156,7 +156,7 @@ export function Dialog({ open, onOpenChange, title, description, width = 540, di
               {description ? <DialogPrimitive.Description className="mt-2 text-body-sm leading-relaxed text-muted">{description}</DialogPrimitive.Description> : null}
             </div>
             <DialogPrimitive.Close
-              render={<button type="button" aria-label="关闭对话框" className="inline-flex size-[30px] shrink-0 items-center justify-center rounded-chip text-[#67717f] hover:bg-[#f0f3f7] hover:text-[#253650]" />}
+              render={<button type="button" aria-label="关闭对话框" className="inline-flex size-[30px] shrink-0 items-center justify-center rounded-chip text-muted hover:bg-wash hover:text-ink" />}
             >
               <X size={16} />
             </DialogPrimitive.Close>
@@ -176,7 +176,7 @@ export function Dialog({ open, onOpenChange, title, description, width = 540, di
 export function DialogFooter({ note, children }: { note?: ReactNode; children: ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <div className="text-meta text-[#788495]">{note}</div>
+      <div className="text-meta text-muted">{note}</div>
       <div className="flex items-center justify-end gap-[9px]">{children}</div>
     </div>
   )
@@ -231,22 +231,22 @@ export function Confirm({
               aria-hidden="true"
               className={cn(
                 'mb-[17px] inline-flex rounded-panel border p-[9px]',
-                tone === 'destructive' ? 'border-[#f0dada] bg-[#fff5f5] text-[#b64b4b]' : 'border-[#dfe7f4] bg-[#f1f6fe] text-[#587baa]',
+                tone === 'destructive' ? 'border-[#f0dada] bg-[#fff5f5] text-red' : 'border-[#dfe7f4] bg-[#f1f6fe] text-blue',
               )}
             >
               {tone === 'destructive' ? <TriangleAlert size={21} /> : <Info size={21} />}
             </div>
             <AlertDialogPrimitive.Title className="mb-[11px] text-subject font-semibold">{title}</AlertDialogPrimitive.Title>
             {description ? (
-              <AlertDialogPrimitive.Description className="text-body-sm leading-relaxed text-[#66758a]">{description}</AlertDialogPrimitive.Description>
+              <AlertDialogPrimitive.Description className="text-body-sm leading-relaxed text-muted">{description}</AlertDialogPrimitive.Description>
             ) : null}
             {object ? (
-              <div className="mt-[17px] rounded-control border border-[#e6e9ef] bg-[#fafbfc] px-[13px] py-3">
-                <strong className="block text-body-sm font-medium text-[#53627a]">{object.name}</strong>
-                {object.meta ? <span className="mt-1 block text-meta text-[#718097]">{object.meta}</span> : null}
+              <div className="mt-[17px] rounded-control border border-line bg-[#fafbfc] px-[13px] py-3">
+                <strong className="block text-body-sm font-medium text-ink-soft">{object.name}</strong>
+                {object.meta ? <span className="mt-1 block text-meta text-muted">{object.meta}</span> : null}
               </div>
             ) : null}
-            {hint ? <p className="mt-[13px] text-label leading-relaxed text-[#8c6b44]">{hint}</p> : null}
+            {hint ? <p className="mt-[13px] text-label leading-relaxed text-amber">{hint}</p> : null}
           </div>
           <div className="flex justify-end gap-[9px] border-t border-line px-[26px] pt-[15px] pb-[21px]">
             <AlertDialogPrimitive.Close

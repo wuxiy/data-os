@@ -179,7 +179,7 @@ export function StandardsPage() {
   }
 
   const listColumns = listHelper.columns([
-    listHelper.display({ id: 'code', header: '代码', size: 160, cell: ({ row }) => <code className="font-mono text-label text-[#6b778a]">{row.original.code}</code> }),
+    listHelper.display({ id: 'code', header: '代码', size: 160, cell: ({ row }) => <code className="font-mono text-label text-muted">{row.original.code}</code> }),
     listHelper.accessor('name', { header: '名称' }),
     listHelper.display({ id: 'owner', header: '负责人', size: 110, cell: ({ row }) => row.original.owner || '—' }),
     listHelper.display({ id: 'version', header: '最新版本', size: 130, cell: ({ row }) => `v${row.original.latestVersion.versionNo} / 共 ${row.original.versionCount} 版` }),
@@ -198,7 +198,7 @@ export function StandardsPage() {
     elementHelper.display({
       id: 'element',
       header: '数据元',
-      cell: ({ row }) => <div><code className="font-mono text-label text-[#6b778a]">{row.original.code}</code><div className="text-meta text-[#707c8c]">{row.original.name}</div></div>,
+      cell: ({ row }) => <div><code className="font-mono text-label text-muted">{row.original.code}</code><div className="text-meta text-muted">{row.original.name}</div></div>,
     }),
     elementHelper.accessor('dataType', { header: '类型', size: 100 }),
     elementHelper.display({ id: 'required', header: '必填', size: 70, cell: ({ row }) => row.original.required ? '必填' : '可选' }),
@@ -208,12 +208,12 @@ export function StandardsPage() {
       size: 100,
       cell: ({ row }) => <Badge tone={severityTone(row.original.sensitivity) === 'danger' ? 'danger' : severityTone(row.original.sensitivity) === 'warning' ? 'warn' : 'neutral'}>{sensitivityLabel(row.original.sensitivity)}</Badge>,
     }),
-    elementHelper.display({ id: 'definition', header: '定义', cell: ({ row }) => <span className="text-label text-[#6b7789]">{row.original.definition || '—'}</span> }),
+    elementHelper.display({ id: 'definition', header: '定义', cell: ({ row }) => <span className="text-label text-muted">{row.original.definition || '—'}</span> }),
     elementHelper.display({
       id: 'values',
       header: '值域',
       cell: ({ row }) => row.original.dataType === 'CODE'
-        ? <span className="flex flex-wrap gap-1">{row.original.values.map((value) => <span key={value.code} className="rounded-chip bg-wash px-1.5 py-0.5 text-meta text-[#6b778a]">{value.code} {value.displayName}</span>)}</span>
+        ? <span className="flex flex-wrap gap-1">{row.original.values.map((value) => <span key={value.code} className="rounded-chip bg-wash px-1.5 py-0.5 text-meta text-muted">{value.code} {value.displayName}</span>)}</span>
         : '—',
     }),
   ])
@@ -275,8 +275,8 @@ export function StandardsPage() {
               actions={<Button size="sm" disabled={busy} onClick={() => createDraft.mutate()}><GitCompareArrows size={14} />基于当前版本新建草稿</Button>}
             />
             <div className="px-[18px] pb-3">
-              <div className="flex flex-wrap items-center gap-2 text-label text-[#6b7889]">
-                <strong className="text-body-sm text-[#43546e]">当前查看 v{version.versionNo}</strong>
+              <div className="flex flex-wrap items-center gap-2 text-label text-muted">
+                <strong className="text-body-sm text-ink-soft">当前查看 v{version.versionNo}</strong>
                 <Badge tone={statusTone(version.status)}>{STATUS_LABEL[version.status]}</Badge>
                 <span>{version.elements.length} 个数据元 · {version.status === 'DRAFT' ? '修改后提交评审，发布后供资产与映射引用' : version.status === 'IN_REVIEW' ? '评审通过后由管理员发布' : version.status === 'PUBLISHED' ? '已发布版本只读，变更请新建草稿' : '该版本已停用，保留历史追溯'}</span>
               </div>
@@ -287,11 +287,11 @@ export function StandardsPage() {
                     type="button"
                     aria-pressed={item.id === version.id}
                     onClick={() => setVersionId(item.id)}
-                    className={`inline-flex min-h-[36px] items-center gap-2 rounded-control border px-2.5 py-1.5 text-label ${item.id === version.id ? 'border-blue-line bg-blue-soft text-blue' : 'border-line bg-paper text-[#5b6b80] hover:bg-wash'}`}
+                    className={`inline-flex min-h-[36px] items-center gap-2 rounded-control border px-2.5 py-1.5 text-label ${item.id === version.id ? 'border-blue-line bg-blue-soft text-blue' : 'border-line bg-paper text-ink-soft hover:bg-wash'}`}
                   >
                     <strong>v{item.versionNo}</strong>
                     <Badge tone={statusTone(item.status)}>{STATUS_LABEL[item.status]}</Badge>
-                    <span className="text-meta text-[#8b94a1]">{item.syncStatus === 'SYNCED' ? '术语已投影' : item.status === 'PUBLISHED' ? '投影待同步' : ''}</span>
+                    <span className="text-meta text-muted">{item.syncStatus === 'SYNCED' ? '术语已投影' : item.status === 'PUBLISHED' ? '投影待同步' : ''}</span>
                   </button>
                 ))}
               </div>
@@ -310,11 +310,11 @@ export function StandardsPage() {
               </div>
 
               {impactOpen ? (
-                <div className="mt-3 rounded-control border border-line bg-wash px-3 py-2.5 text-label text-[#6b7889]">
+                <div className="mt-3 rounded-control border border-line bg-wash px-3 py-2.5 text-label text-muted">
                   {impactRequest.isPending ? <LoadingInline>正在读取影响范围…</LoadingInline> : null}
                   {impactRequest.data ? (
                     <>
-                      <strong className="block text-body-sm text-[#566173]">影响范围（v{impactRequest.data.versionNo}）</strong>
+                      <strong className="block text-body-sm text-ink-soft">影响范围（v{impactRequest.data.versionNo}）</strong>
                       <p className="mt-1">数据元 {impactRequest.data.elementCount} 个；引用资产 {impactRequest.data.referencedAssets.length} 项{impactRequest.data.referencedAssets.length > 0 ? `：${impactRequest.data.referencedAssets.join('、')}` : ''}。{impactRequest.data.notes.join('；')}</p>
                     </>
                   ) : null}
@@ -323,8 +323,8 @@ export function StandardsPage() {
               ) : null}
 
               {version.status === 'DRAFT' ? (
-                <div className="mt-4 rounded-control border border-line bg-[#fcfdff] px-3.5 py-3">
-                  <h3 className="mb-2 text-label font-medium text-[#566173]">草稿修改（仅 DRAFT 可改）</h3>
+                <div className="mt-4 rounded-control border border-line bg-wash px-3.5 py-3">
+                  <h3 className="mb-2 text-label font-medium text-ink-soft">草稿修改（仅 DRAFT 可改）</h3>
                   <FormGrid>
                     <FormField label="标准名称" htmlFor="standard-name"><Input id="standard-name" value={metaDraft.name} onChange={(event) => setMetaDraft((current) => ({ ...current, name: event.target.value }))} placeholder={detail.standard.name} /></FormField>
                     <FormField label="负责人" htmlFor="standard-owner"><Input id="standard-owner" value={metaDraft.owner} onChange={(event) => setMetaDraft((current) => ({ ...current, owner: event.target.value }))} placeholder={detail.standard.owner || '未指定'} /></FormField>
@@ -355,7 +355,7 @@ export function StandardsPage() {
               </div>
 
               <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-line pt-3">
-                <span className="text-label text-[#6b7889]">版本对比：与</span>
+                <span className="text-label text-muted">版本对比：与</span>
                 <NativeSelect
                   aria-label="选择对比版本"
                   className="w-[200px]"
@@ -388,7 +388,7 @@ export function StandardsPage() {
                 </ul>
               ) : null}
 
-              {error ? <p role="alert" className="mt-2 text-body-sm text-[#b04747]">{error}</p> : null}
+              {error ? <p role="alert" className="mt-2 text-body-sm text-red">{error}</p> : null}
             </div>
           </Panel>
 
@@ -398,11 +398,11 @@ export function StandardsPage() {
               {detail.events.map((event) => (
                 <li key={event.id} className="border-b border-line-soft py-2 last:border-b-0">
                   <div className="flex items-center justify-between gap-2">
-                    <strong className="text-label font-medium text-[#43546e]">{standardEventLabel(event.eventType)}</strong>
-                    <span className="text-meta text-[#98a2ae]">{actorLabel(event.actor)}</span>
+                    <strong className="text-label font-medium text-ink-soft">{standardEventLabel(event.eventType)}</strong>
+                    <span className="text-meta text-muted">{actorLabel(event.actor)}</span>
                   </div>
-                  <p className="mt-0.5 text-meta leading-relaxed text-[#8b94a1]">{standardEventDetail(event.detail)}</p>
-                  <small className="text-meta text-[#a3adb9]">{formatDateTime(event.createdAt)}</small>
+                  <p className="mt-0.5 text-meta leading-relaxed text-muted">{standardEventDetail(event.detail)}</p>
+                  <small className="text-meta text-muted">{formatDateTime(event.createdAt)}</small>
                 </li>
               ))}
               {detail.events.length === 0 ? <li className="py-4 text-center text-label text-muted">暂无事件。</li> : null}
@@ -441,8 +441,8 @@ export function StandardsPage() {
             </Button>
           </div>
           {importReport ? (
-            <div className="mt-3 rounded-control border border-line bg-wash px-3 py-2.5 text-label text-[#6b7889]">
-              <strong className="block text-body-sm text-[#566173]">{importReport.created ? '导入结果' : '预检报告'} · {importReport.standardCode || '（空代码）'}</strong>
+            <div className="mt-3 rounded-control border border-line bg-wash px-3 py-2.5 text-label text-muted">
+              <strong className="block text-body-sm text-ink-soft">{importReport.created ? '导入结果' : '预检报告'} · {importReport.standardCode || '（空代码）'}</strong>
               <p className="mt-1">数据元 {importReport.elementCount} 个 · 值域 {importReport.valueCount} 条 · 问题 {importReport.problems.length} 项</p>
               {importReport.problems.length > 0
                 ? <ul className="mt-1 space-y-0.5 text-amber">{importReport.problems.map((problem) => <li key={problem}>{problem}</li>)}</ul>

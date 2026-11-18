@@ -243,8 +243,8 @@ export function AIDataPage() {
       header: '产品',
       cell: ({ row }) => (
         <div>
-          <div className="text-body-sm font-medium text-[#313c4d]">{row.original.name}</div>
-          <div className="text-meta text-[#8b94a1]">{productTypeLabel[row.original.productType]} · {row.original.currentVersion}</div>
+          <div className="text-body-sm font-medium text-ink">{row.original.name}</div>
+          <div className="text-meta text-muted">{productTypeLabel[row.original.productType]} · {row.original.currentVersion}</div>
         </div>
       ),
     }),
@@ -271,8 +271,8 @@ export function AIDataPage() {
         ? <Badge tone={row.original.readiness.certification === 'BLOCKED' ? 'danger' : row.original.readiness.certification === 'CANDIDATE' ? 'blue' : 'warn'}>{aiCertificationLabel[row.original.readiness.certification] ?? row.original.readiness.certification}</Badge>
         : <span className="text-label text-faint">—</span>,
     }),
-    versionHelper.display({ id: 'recipe', header: 'Recipe', size: 140, cell: ({ row }) => <span className="font-mono text-meta text-[#6b778a]">{row.original.recipeRef ?? '—'}</span> }),
-    versionHelper.display({ id: 'commit', header: 'Git Commit', size: 110, cell: ({ row }) => <span className="font-mono text-meta text-[#8b94a1]">{row.original.gitCommit ? row.original.gitCommit.slice(0, 8) : '—'}</span> }),
+    versionHelper.display({ id: 'recipe', header: 'Recipe', size: 140, cell: ({ row }) => <span className="font-mono text-meta text-muted">{row.original.recipeRef ?? '—'}</span> }),
+    versionHelper.display({ id: 'commit', header: 'Git Commit', size: 110, cell: ({ row }) => <span className="font-mono text-meta text-muted">{row.original.gitCommit ? row.original.gitCommit.slice(0, 8) : '—'}</span> }),
     versionHelper.display({ id: 'created', header: '创建时间', size: 130, cell: ({ row }) => <span className="text-label text-faint">{formatDateTime(row.original.createdAt)}</span> }),
   ])
 
@@ -280,7 +280,7 @@ export function AIDataPage() {
   const certColumns = certHelper.columns([
     certHelper.display({ id: 'status', header: '状态', size: 100, cell: ({ row }) => <Badge tone={row.original.decision === 'APPROVED' ? 'success' : row.original.decision === 'REJECTED' ? 'danger' : 'warn'}>{row.original.decision === 'APPROVED' ? '已批准' : row.original.decision === 'REJECTED' ? '已退回' : '待审批'}</Badge> }),
     certHelper.display({ id: 'version', header: '版本', size: 110, cell: ({ row }) => <span className="font-mono text-label">{row.original.versionSn}</span> }),
-    certHelper.display({ id: 'note', header: '说明', cell: ({ row }) => <span className="text-label text-[#6b7789]">{row.original.decisionNote || `就绪度 ${row.original.readinessOverall.toFixed(2)} · ${aiCertificationLabel[row.original.certification] ?? row.original.certification}`}</span> }),
+    certHelper.display({ id: 'note', header: '说明', cell: ({ row }) => <span className="text-label text-muted">{row.original.decisionNote || `就绪度 ${row.original.readinessOverall.toFixed(2)} · ${aiCertificationLabel[row.original.certification] ?? row.original.certification}`}</span> }),
     certHelper.display({ id: 'at', header: '提交时间', size: 130, cell: ({ row }) => <span className="text-label text-faint">{formatDateTime(row.original.createdAt)}</span> }),
     certHelper.display({
       id: 'actions',
@@ -299,7 +299,7 @@ export function AIDataPage() {
 
   const feedbackHelper = listColumnHelper<AIEvaluationFeedbackItem>()
   const feedbackColumns = feedbackHelper.columns([
-    feedbackHelper.display({ id: 'question', header: '失败样本', cell: ({ row }) => <span className="text-label text-[#4a5666]">{row.original.question}</span> }),
+    feedbackHelper.display({ id: 'question', header: '失败样本', cell: ({ row }) => <span className="text-label text-ink-soft">{row.original.question}</span> }),
     feedbackHelper.display({ id: 'metric', header: '指标', size: 110, cell: ({ row }) => <span className="text-label">{row.original.metric ? (aiMetricLabel[row.original.metric] ?? row.original.metric) : '—'}</span> }),
     feedbackHelper.display({ id: 'type', header: '类型', size: 130, cell: ({ row }) => <Badge>{aiFeedbackTypeLabel[row.original.feedbackType] ?? row.original.feedbackType}</Badge> }),
     feedbackHelper.display({ id: 'status', header: '状态', size: 100, cell: ({ row }) => <Badge tone={row.original.status === 'CONSUMED' ? 'success' : row.original.status === 'DISMISSED' ? 'neutral' : 'warn'}>{row.original.status === 'CONSUMED' ? '已吸收' : row.original.status === 'DISMISSED' ? '已驳回' : '待处置'}</Badge> }),
@@ -322,9 +322,9 @@ export function AIDataPage() {
   const buildColumns = buildHelper.columns([
     buildHelper.display({ id: 'status', header: '任务状态', size: 110, cell: ({ row }) => <Badge tone={row.original.status === 'FAILED' ? 'danger' : row.original.status === 'SUCCEEDED' ? 'success' : 'warn'}>{aiBuildJobStatusLabel[row.original.status] ?? row.original.status}</Badge> }),
     buildHelper.display({ id: 'version', header: '版本', size: 110, cell: ({ row }) => <span className="font-mono text-label">{row.original.versionSn}</span> }),
-    buildHelper.display({ id: 'recipe', header: 'Recipe', size: 150, cell: ({ row }) => <span className="font-mono text-meta text-[#6b778a]">{row.original.recipeRef ?? '—'}</span> }),
+    buildHelper.display({ id: 'recipe', header: 'Recipe', size: 150, cell: ({ row }) => <span className="font-mono text-meta text-muted">{row.original.recipeRef ?? '—'}</span> }),
     buildHelper.display({ id: 'at', header: '投递', size: 130, cell: ({ row }) => <span className="text-label text-faint">{formatDateTime(row.original.createdAt)}</span> }),
-    buildHelper.display({ id: 'error', header: '错误', cell: ({ row }) => <span className="text-label text-[#b04747]">{row.original.error || '—'}</span> }),
+    buildHelper.display({ id: 'error', header: '错误', cell: ({ row }) => <span className="text-label text-red">{row.original.error || '—'}</span> }),
   ])
 
   return (
@@ -373,10 +373,10 @@ export function AIDataPage() {
                       className={`mb-1 w-full rounded-control px-2.5 py-2 text-left ${active ? 'bg-blue-soft' : 'hover:bg-wash'}`}
                     >
                       <span className="flex items-center justify-between gap-2">
-                        <span className="truncate text-body-sm text-[#43546e]">{item.name}</span>
+                        <span className="truncate text-body-sm text-ink-soft">{item.name}</span>
                         <Badge tone={lifecycleTone(item.lifecycle)}>{lifecycleLabel[item.lifecycle]}</Badge>
                       </span>
-                      <span className="mt-0.5 block text-meta text-[#8b94a1]">{productTypeLabel[item.productType]} · {item.currentVersion}</span>
+                      <span className="mt-0.5 block text-meta text-muted">{productTypeLabel[item.productType]} · {item.currentVersion}</span>
                     </button>
                   </li>
                 )
@@ -396,10 +396,10 @@ export function AIDataPage() {
                 <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line px-5 py-4">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-chip bg-wash px-1.5 py-0.5 text-meta text-[#6b778a]">{productTypeLabel[product.productType]}</span>
+                      <span className="rounded-chip bg-wash px-1.5 py-0.5 text-meta text-muted">{productTypeLabel[product.productType]}</span>
                       <Badge tone={lifecycleTone(product.lifecycle)}>{lifecycleLabel[product.lifecycle]}</Badge>
                     </div>
-                    <h2 className="mt-1.5 text-subject font-semibold text-[#2c3a4d]">{product.name}</h2>
+                    <h2 className="mt-1.5 text-subject font-semibold text-ink">{product.name}</h2>
                     <p className="mt-1 text-label text-muted">当前版本 {product.currentVersion} · 负责人 {product.owner} · 工作流 {product.workflowType}</p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
@@ -437,7 +437,7 @@ export function AIDataPage() {
                     {detailRequest.isPending ? <Skeleton rows={4} /> : null}
                     <div className="mb-3 flex flex-wrap items-center gap-1.5">
                       {lifecycleMainChain.map((step) => (
-                        <span key={step} className={`rounded-chip border px-2 py-0.5 text-meta ${step === product.lifecycle ? 'border-blue-line bg-blue-soft text-blue' : 'border-line bg-paper text-[#8b94a1]'}`}>
+                        <span key={step} className={`rounded-chip border px-2 py-0.5 text-meta ${step === product.lifecycle ? 'border-blue-line bg-blue-soft text-blue' : 'border-line bg-paper text-muted'}`}>
                           {lifecycleLabel[step]}
                         </span>
                       ))}
@@ -473,7 +473,7 @@ export function AIDataPage() {
                     />
                     <div className="border-t border-line px-5 py-3">
                       <div className="mb-2 flex items-center gap-2">
-                        <h3 className="text-label font-medium text-[#566173]">构建任务</h3>
+                        <h3 className="text-label font-medium text-ink-soft">构建任务</h3>
                         {activeBuild ? <Badge tone="warn">执行中 · 每 2 秒刷新</Badge> : null}
                         {buildPollState.exhausted ? <Badge tone="neutral">超过观察窗口，仍在执行</Badge> : null}
                       </div>
@@ -526,7 +526,7 @@ export function AIDataPage() {
           <FormField label="工作流" htmlFor="ai-workflow"><Input id="ai-workflow" value={form.workflow} onChange={(event) => setForm({ ...form, workflow: event.target.value })} placeholder="ai-ready" /></FormField>
         </FormGrid>
         <FormField label="数据来源说明" htmlFor="ai-source"><Input id="ai-source" value={form.source} onChange={(event) => setForm({ ...form, source: event.target.value })} placeholder="例如：ods_ep 处方表 + 标准值域" /></FormField>
-        {createError ? <p role="alert" className="mt-2 text-body-sm text-[#b04747]">{createError}</p> : null}
+        {createError ? <p role="alert" className="mt-2 text-body-sm text-red">{createError}</p> : null}
       </Dialog>
 
       <Dialog
@@ -581,8 +581,8 @@ export function AIDataPage() {
 function Fact({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="text-meta text-[#8a929e]">{label}</dt>
-      <dd className="m-0 text-body-sm text-[#4a5666]">{value}</dd>
+      <dt className="text-meta text-muted">{label}</dt>
+      <dd className="m-0 text-body-sm text-ink-soft">{value}</dd>
     </div>
   )
 }

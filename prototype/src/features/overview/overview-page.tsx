@@ -69,7 +69,7 @@ const workItemColumns = helper.columns([
     id: 'source',
     header: '来源',
     size: 170,
-    cell: ({ row }) => <code className="font-mono text-label text-[#6b778a]">{WORK_ITEM_SOURCE_LABEL[row.original.sourceType] ?? row.original.sourceType}</code>,
+    cell: ({ row }) => <code className="font-mono text-label text-muted">{WORK_ITEM_SOURCE_LABEL[row.original.sourceType] ?? row.original.sourceType}</code>,
   }),
   helper.display({
     id: 'asOf',
@@ -154,15 +154,14 @@ export function OverviewPage() {
           ))}
         </MetricStrip>
       ) : summaryQuery.isError ? (
-        <Panel className="mb-[18px]">
-          <EmptyState
-            minHeight={200}
-            icon={<CloudCog />}
-            title="运营投影暂不可用"
-            description="控制面运营摘要不可达，暂无法展示真实指标；本页不显示静态回退。"
-            action={<Button onClick={() => void summaryQuery.refetch()}>重新加载</Button>}
-          />
-        </Panel>
+        <section role="status" className="mb-[18px] flex items-start gap-3 rounded-panel border border-amber-line bg-amber-soft px-4 py-4">
+          <CloudCog size={19} className="mt-0.5 text-amber" />
+          <div className="min-w-0 flex-1">
+            <h2 className="text-title font-semibold text-ink">运营投影暂不可用</h2>
+            <p className="mt-1 text-body-sm text-ink-soft">控制面运营摘要不可达，暂无法展示真实指标；请恢复连接后重新读取。</p>
+          </div>
+          <Button onClick={() => void summaryQuery.refetch()}>重新加载</Button>
+        </section>
       ) : (
         <MetricStrip>
           {metrics.map((metric) => (
@@ -180,7 +179,7 @@ export function OverviewPage() {
 
       <section className={`mb-3.5 flex items-center justify-between gap-4 rounded-panel border px-[21px] py-3.5 ${components?.state === 'DEGRADED' ? 'border-amber-line bg-amber-soft' : 'border-line bg-paper'}`}>
         <div className="flex items-center gap-3">
-          <Activity size={21} className={components?.state === 'DEGRADED' ? 'text-amber' : 'text-[#6d8fb8]'} />
+          <Activity size={21} className={components?.state === 'DEGRADED' ? 'text-amber' : 'text-blue'} />
           <div>
             <h2 className="text-body-sm font-semibold text-ink">
               组件覆盖 {components ? `${components.ready}/${components.total}` : '—'} · {components?.state === 'READY' ? '全部就绪' : components?.state === 'DEGRADED' ? '存在降级' : '状态未知'}
@@ -202,7 +201,7 @@ export function OverviewPage() {
         <Panel>
           <PanelHead
             title="优先处理"
-            count={workItemsQuery.data?.length ?? 0}
+            count={workItemsQuery.data?.length}
             description="按严重度排序 · 完整清单在运营中心"
             actions={<Button variant="text" onClick={() => navigate('/operations-center')}>查看全部<ChevronRight size={13} /></Button>}
           />
@@ -225,7 +224,7 @@ export function OverviewPage() {
             {eventsQuery.isPending ? <LoadingBlock className="min-h-[160px]">正在读取事件…</LoadingBlock> : null}
             {eventsQuery.isError ? (
               <div className="space-y-2 py-6 text-center">
-                <p className="text-body-sm font-medium text-[#59677d]">事件暂不可用</p>
+                <p className="text-body-sm font-medium text-ink-soft">事件暂不可用</p>
                 <p className="text-label text-muted">无法读取近期事件，可重新加载。</p>
                 <Button size="sm" onClick={() => void eventsQuery.refetch()}>重新加载</Button>
               </div>
@@ -235,14 +234,14 @@ export function OverviewPage() {
               {(eventsQuery.data ?? []).slice(0, 10).map((event, index) => (
                 <li key={`${event.domain}-${index}`} className="border-b border-line-soft py-2.5 last:border-b-0">
                   <div className="flex items-start justify-between gap-3">
-                    <strong className="text-label font-medium text-[#43546e]">{EVENT_DOMAIN_LABEL[event.domain] ?? event.domain} · {EVENT_TYPE_LABEL[event.type] ?? event.type}</strong>
-                    <span className="shrink-0 text-meta text-[#8d96a3]">{formatDateTime(event.asOf)}</span>
+                    <strong className="text-label font-medium text-ink-soft">{EVENT_DOMAIN_LABEL[event.domain] ?? event.domain} · {EVENT_TYPE_LABEL[event.type] ?? event.type}</strong>
+                    <span className="shrink-0 text-meta text-muted">{formatDateTime(event.asOf)}</span>
                   </div>
-                  <p className="mt-1 text-label leading-relaxed text-[#8b94a1]">{event.detail}</p>
+                  <p className="mt-1 text-label leading-relaxed text-muted">{event.detail}</p>
                 </li>
               ))}
             </ol>
-            <p className="mt-3 flex items-center gap-1.5 border-t border-line pt-3 text-meta text-[#9aa2ae]"><CloudCog size={13} />事件与待办同源于运营投影，两处口径一致。</p>
+            <p className="mt-3 flex items-center gap-1.5 border-t border-line pt-3 text-meta text-muted"><CloudCog size={13} />事件与待办同源于运营投影，两处口径一致。</p>
           </div>
         </Panel>
       </div>

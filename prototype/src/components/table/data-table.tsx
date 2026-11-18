@@ -137,7 +137,7 @@ export function DataTable<TData extends RowData>({
     <div className={cn('min-w-0', className)}>
       <div className="overflow-x-auto">
         <table className="w-full border-collapse text-left text-body-sm whitespace-nowrap">
-          <thead className="bg-wash text-[#7b8592]">
+          <thead className="bg-wash text-muted">
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
@@ -146,7 +146,7 @@ export function DataTable<TData extends RowData>({
                     scope="col"
                     style={header.column.id === '__select' ? { width: 40 } : header.column.columnDef.size ? { width: header.column.columnDef.size } : undefined}
                     className={cn(
-                      'h-[39px] border-y border-[#e9ecf1] px-[15px] text-label font-normal',
+                      'h-10 border-y border-line px-4 text-label font-medium',
                       header.column.id === '__select' && 'pt-[9px] pr-0 pb-[9px] pl-[18px]',
                     )}
                   >
@@ -164,9 +164,16 @@ export function DataTable<TData extends RowData>({
                   key={row.id}
                   aria-label={rowLabel ? rowLabel(row.original) : undefined}
                   onClick={canClick ? () => onRowClick?.(row.original) : undefined}
+                  tabIndex={canClick ? 0 : undefined}
+                  onKeyDown={canClick ? (event) => {
+                    if (event.target !== event.currentTarget || (event.key !== 'Enter' && event.key !== ' ')) return
+                    event.preventDefault()
+                    onRowClick?.(row.original)
+                  } : undefined}
                   className={cn(
-                    'border-b border-line-soft last:border-b-0 hover:bg-[#fafbfe]',
-                    row.getIsSelected() && 'bg-[#f1f6ff]',
+                    'border-b border-line-soft last:border-b-0 hover:bg-wash',
+                    row.getIsSelected() && 'bg-blue-soft',
+                    canClick && 'focus-visible:outline-2 focus-visible:outline-blue focus-visible:outline-offset-[-2px]',
                     canClick && 'cursor-pointer',
                   )}
                 >
@@ -174,7 +181,7 @@ export function DataTable<TData extends RowData>({
                     <td
                       key={cell.id}
                       className={cn(
-                        'h-14 px-[15px] text-[#576171]',
+                        'h-14 px-4 text-ink-soft',
                         cell.column.id === '__select' && 'pt-[9px] pr-0 pb-[9px] pl-[18px]',
                         cell.column.columnDef.meta && (cell.column.columnDef.meta as { align?: string }).align === 'right' && 'text-right tabular-nums',
                       )}
@@ -347,21 +354,21 @@ export function TablePagination({
           aria-label="上一页"
           disabled={current <= 0}
           onClick={() => onPageChange(current - 1)}
-          className="inline-flex h-[27px] min-w-[27px] items-center justify-center rounded-chip border border-[#e1e6ee] px-1.5 text-label disabled:opacity-40"
+          className="inline-flex h-[27px] min-w-[27px] items-center justify-center rounded-chip border border-line px-1.5 text-label disabled:opacity-40"
         >
           ‹
         </button>
         {pageWindow(current, pageCount).map((item, index) => item === '…'
           ? <span key={`e-${index}`} className="px-0.5">…</span>
           : item === current
-            ? <span key={item} aria-current="page" className="inline-flex h-[27px] min-w-[27px] items-center justify-center rounded-chip border border-[#c6d9fa] bg-[#edf3ff] px-1.5 text-label text-blue">{item + 1}</span>
-            : <button key={item} type="button" onClick={() => onPageChange(item)} className="inline-flex h-[27px] min-w-[27px] items-center justify-center rounded-chip border border-[#e1e6ee] px-1.5 text-label hover:bg-wash">{item + 1}</button>)}
+            ? <span key={item} aria-current="page" className="inline-flex h-[27px] min-w-[27px] items-center justify-center rounded-chip border border-blue-line bg-blue-soft px-1.5 text-label text-blue">{item + 1}</span>
+            : <button key={item} type="button" onClick={() => onPageChange(item)} className="inline-flex h-[27px] min-w-[27px] items-center justify-center rounded-chip border border-line px-1.5 text-label hover:bg-wash">{item + 1}</button>)}
         <button
           type="button"
           aria-label="下一页"
           disabled={current >= pageCount - 1}
           onClick={() => onPageChange(current + 1)}
-          className="inline-flex h-[27px] min-w-[27px] items-center justify-center rounded-chip border border-[#e1e6ee] px-1.5 text-label disabled:opacity-40"
+          className="inline-flex h-[27px] min-w-[27px] items-center justify-center rounded-chip border border-line px-1.5 text-label disabled:opacity-40"
         >
           ›
         </button>
@@ -374,7 +381,7 @@ export function TablePagination({
 export function SelectionBar({ count, children }: { count: number; children?: ReactNode }) {
   if (count <= 0) return null
   return (
-    <div className="flex items-center gap-3.5 border-t border-[#e0e9fa] bg-[#f0f5ff] px-[18px] py-[7px] text-label text-[#3c65ae]">
+    <div className="flex items-center gap-3.5 border-t border-blue-line bg-blue-soft px-[18px] py-[7px] text-label text-blue">
       <span>已选择 {count} 项</span>
       {children}
     </div>

@@ -72,11 +72,11 @@ export function issueStatusTone(status: string): Tone {
 }
 
 export function severityLabel(value: string): string {
-  return ({ HIGH: '高', MEDIUM: '中', LOW: '低' } as Record<string, string>)[value] ?? value
+  return ({ CRITICAL: '阻断', HIGH: '高', MEDIUM: '中', LOW: '低' } as Record<string, string>)[value] ?? value
 }
 
 export function severityTone(value: string): Tone {
-  if (value === 'HIGH') return 'danger'
+  if (value === 'CRITICAL' || value === 'HIGH') return 'danger'
   if (value === 'MEDIUM') return 'warning'
   return 'neutral'
 }

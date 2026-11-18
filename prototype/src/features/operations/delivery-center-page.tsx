@@ -139,8 +139,8 @@ export function DeliveryCenterPage() {
       header: '交付项目',
       cell: ({ row }) => (
         <div>
-          <div className="text-body-sm font-medium text-[#313c4d]">{row.original.name}</div>
-          <div className="font-mono text-meta text-[#8b94a1]">{row.original.code}</div>
+          <div className="text-body-sm font-medium text-ink">{row.original.name}</div>
+          <div className="font-mono text-meta text-muted">{row.original.code}</div>
         </div>
       ),
     }),
@@ -151,8 +151,8 @@ export function DeliveryCenterPage() {
 
   const itemColumns = itemHelper.columns([
     itemHelper.display({ id: 'type', header: '类型', size: 120, cell: ({ row }) => <Badge>{REF_TYPE_LABEL[row.original.refType as DeliveryRefType] ?? row.original.refType}</Badge> }),
-    itemHelper.display({ id: 'ref', header: '引用', cell: ({ row }) => <span className="font-mono text-label text-[#6b778a]">{row.original.refId}</span> }),
-    itemHelper.display({ id: 'note', header: '备注', size: 200, cell: ({ row }) => <span className="text-label text-[#8b94a1]">{row.original.note || '—'}</span> }),
+    itemHelper.display({ id: 'ref', header: '引用', cell: ({ row }) => <span className="font-mono text-label text-muted">{row.original.refId}</span> }),
+    itemHelper.display({ id: 'note', header: '备注', size: 200, cell: ({ row }) => <span className="text-label text-muted">{row.original.note || '—'}</span> }),
     itemHelper.display({
       id: 'actions',
       header: '操作',
@@ -170,8 +170,8 @@ export function DeliveryCenterPage() {
       header: '说明',
       cell: ({ row }) => (
         <div>
-          <div className="text-label text-[#6b7789]">{row.original.detail}</div>
-          <div className="text-meta text-[#98a2ae]">{row.original.actor} · {formatDateTime(row.original.createdAt)}</div>
+          <div className="text-label text-muted">{row.original.detail}</div>
+          <div className="text-meta text-muted">{row.original.actor} · {formatDateTime(row.original.createdAt)}</div>
         </div>
       ),
     }),
@@ -221,10 +221,10 @@ export function DeliveryCenterPage() {
                       className={`mb-1 w-full rounded-control px-2.5 py-2 text-left ${active ? 'bg-blue-soft' : 'hover:bg-wash'}`}
                     >
                       <span className="flex items-center justify-between gap-2">
-                        <span className="truncate text-body-sm text-[#43546e]">{project.name}</span>
+                        <span className="truncate text-body-sm text-ink-soft">{project.name}</span>
                         <Badge tone={toneOf(project.status)}>{STATUS_LABEL[project.status as keyof typeof STATUS_LABEL] ?? project.status}</Badge>
                       </span>
-                      <span className="mt-0.5 block font-mono text-meta text-[#8b94a1]">{project.code}</span>
+                      <span className="mt-0.5 block font-mono text-meta text-muted">{project.code}</span>
                     </button>
                   </li>
                 )
@@ -245,11 +245,11 @@ export function DeliveryCenterPage() {
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <Badge tone={toneOf(current.status)}>{STATUS_LABEL[current.status as keyof typeof STATUS_LABEL] ?? current.status}</Badge>
-                        <span className="font-mono text-meta text-[#8b94a1]">{current.code}</span>
+                        <span className="font-mono text-meta text-muted">{current.code}</span>
                       </div>
-                      <h2 className="mt-1.5 text-subject font-semibold text-[#2c3a4d]">{current.name}</h2>
+                      <h2 className="mt-1.5 text-subject font-semibold text-ink">{current.name}</h2>
                       <p className="mt-1 text-label text-muted">{current.scope || '未填写交付范围'} · 负责人 {current.owner} · 目标日 {current.targetDate || '未定'}</p>
-                      {current.acceptedSnapshotId ? <p className="mt-1 text-meta text-[#98a2ae]">验收快照 {current.acceptedSnapshotId.slice(0, 12)}…</p> : null}
+                      {current.acceptedSnapshotId ? <p className="mt-1 text-meta text-muted">验收快照 {current.acceptedSnapshotId.slice(0, 12)}…</p> : null}
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                       <Button size="sm" onClick={() => { setItemError(null); setItemOpen(true) }} disabled={current.status === 'ACCEPTED' || current.status === 'ARCHIVED'}>引用交付对象</Button>
@@ -262,7 +262,7 @@ export function DeliveryCenterPage() {
                   </div>
 
                   {blockers && blockers.length > 0 ? (
-                    <div role="alert" className="border-b border-line bg-[#fdf9ef] px-5 py-3 text-label text-[#8e7040]">
+                    <div role="alert" className="border-b border-line bg-[#fdf9ef] px-5 py-3 text-label text-amber">
                       <strong>提交被阻断：</strong>以下交付项尚不可交付
                       <ul className="mt-1 space-y-1">
                         {blockers.map((blocker) => (
@@ -276,10 +276,10 @@ export function DeliveryCenterPage() {
 
                   <div className="px-5 py-4">
                     {detailRequest.isPending ? <Skeleton rows={3} /> : null}
-                    {detailRequest.isError ? <p className="text-label text-[#b04747]">交付详情读取失败，请刷新后重试。</p> : null}
+                    {detailRequest.isError ? <p className="text-label text-red">交付详情读取失败，请刷新后重试。</p> : null}
                     {detail ? (
                       <>
-                        <h3 className="mb-1.5 text-label font-medium text-[#566173]">交付对象<Count>{detail.items.length}</Count></h3>
+                        <h3 className="mb-1.5 text-label font-medium text-ink-soft">交付对象<Count>{detail.items.length}</Count></h3>
                         <DataTable
                           columns={itemColumns}
                           data={detail.items}
@@ -298,8 +298,8 @@ export function DeliveryCenterPage() {
                       <ol className="m-0 list-none px-4 pb-4">
                         {detail.snapshots.map((snap) => (
                           <li key={snap.id} className="border-b border-line-soft py-1.5 text-label last:border-b-0">
-                            <span className="font-mono text-meta text-[#6b778a]">{snap.id.slice(0, 12)}…</span>
-                            <span className="ml-2 text-[#8b94a1]">checksum {snap.checksum.slice(0, 10)}… · {formatDateTime(snap.createdAt)} · {snap.createdBy}</span>
+                            <span className="font-mono text-meta text-muted">{snap.id.slice(0, 12)}…</span>
+                            <span className="ml-2 text-muted">checksum {snap.checksum.slice(0, 10)}… · {formatDateTime(snap.createdAt)} · {snap.createdBy}</span>
                           </li>
                         ))}
                         {detail.snapshots.length === 0 ? <li className="py-2 text-label text-muted">还没有证据快照。</li> : null}
@@ -342,7 +342,7 @@ export function DeliveryCenterPage() {
           <FormField label="负责人" required htmlFor="delivery-owner"><Input id="delivery-owner" value={createForm.owner} onChange={(event) => setCreateForm({ ...createForm, owner: event.target.value })} placeholder="责任人" /></FormField>
         </FormGrid>
         <FormField label="目标日期" htmlFor="delivery-target"><Input id="delivery-target" type="date" value={createForm.targetDate} onChange={(event) => setCreateForm({ ...createForm, targetDate: event.target.value })} className="w-[200px]" /></FormField>
-        {createError ? <p role="alert" className="mt-2 text-body-sm text-[#b04747]">{createError}</p> : null}
+        {createError ? <p role="alert" className="mt-2 text-body-sm text-red">{createError}</p> : null}
       </Dialog>
 
       <Dialog
@@ -371,7 +371,7 @@ export function DeliveryCenterPage() {
           <FormField label="对象标识" required htmlFor="item-ref"><Input id="item-ref" value={itemForm.refId} onChange={(event) => setItemForm({ ...itemForm, refId: event.target.value })} placeholder="资产 FQN / 看板 id / 服务代码 / 产品 id" /></FormField>
         </FormGrid>
         <FormField label="备注" htmlFor="item-note"><Input id="item-note" value={itemForm.note} onChange={(event) => setItemForm({ ...itemForm, note: event.target.value })} placeholder="引用口径或验收说明" /></FormField>
-        {itemError ? <p role="alert" className="mt-2 text-body-sm text-[#b04747]">{itemError}</p> : null}
+        {itemError ? <p role="alert" className="mt-2 text-body-sm text-red">{itemError}</p> : null}
       </Dialog>
 
       <Confirm

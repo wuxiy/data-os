@@ -90,7 +90,7 @@ function RouteErrorPage({ error }: { error: unknown }) {
           </div>
         }
       />
-      <p className="px-10 pb-6 text-center font-mono text-meta text-[#98a2ae]">{message}</p>
+      <p className="px-10 pb-6 text-center font-mono text-meta text-muted">{message}</p>
     </section>
   )
 }

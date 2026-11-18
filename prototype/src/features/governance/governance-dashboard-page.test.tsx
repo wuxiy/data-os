@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { RouterProvider, createMemoryHistory, createRootRoute, createRoute, createRouter } from '@tanstack/react-router'
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { installBrowserApiStubs } from '../../test-support/browser-apis'
 
@@ -25,7 +25,7 @@ const summary = {
     { key: 'standard-coverage', label: '标准覆盖率', value: 82.5, unit: '%', target: 90, detail: '已发布标准覆盖的资产比例', tone: 'warning' as const },
   ],
   issues: [
-    { id: 'DQ-2', title: '患者证件号完整性校验未通过', severity: 'CRITICAL', status: 'RECHECKING', datasetId: 'mpi_source_identity', ruleId: 'q.mpi.missing', ownerDepartment: '病案管理科', ownerName: '李老师', ticketId: '', impact: '患者主索引 / 12 张表', dueAt: '2026-11-14T09:00:00Z', updatedAt: '2026-11-16T02:00:00Z' },
+    { id: 'DQ-2', title: '患者证件号完整性校验未通过', severity: 'CRITICAL', status: 'RECHECKING', datasetId: 'mpi_source_identity', ruleId: 'q.mpi.missing', ownerDepartment: '病案管理科', ownerId: 'owner-42', ownerName: '李老师', ticketId: '', impact: '患者主索引 / 12 张表', dueAt: '2026-11-14T09:00:00Z', updatedAt: '2026-11-16T02:00:00Z' },
     { id: 'DQ-1', title: '药品编码不符合院级标准', severity: 'HIGH', status: 'IN_PROGRESS', datasetId: 'ods_ep.ep_order', ruleId: 'q.ep.paystatus', ownerDepartment: '药学部', ownerName: '王药师', ticketId: 'TICKET-001', impact: '门诊医疗 / 38 张表', dueAt: '2026-11-15T09:00:00Z', updatedAt: '2026-11-16T01:20:00Z' },
     { id: 'DQ-0', title: '就诊类型枚举值不规范', severity: 'LOW', status: 'CLOSED', datasetId: 'ods_outpatient_visit', ruleId: 'q.visit.enum', ownerDepartment: '信息中心', ownerName: '陈老师', ticketId: '', impact: '门诊医疗 / 6 张表', dueAt: '2026-11-10T09:00:00Z', updatedAt: '2026-11-10T10:00:00Z' },
   ],
@@ -88,6 +88,10 @@ describe('治理驾驶舱', () => {
     expect(screen.getByText('q.mpi.missing')).toBeTruthy()
     expect(screen.getByText('病案管理科 · 李老师')).toBeTruthy()
     expect(screen.getByText('尚未关联工单')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: /打开 DQ-2 的责任链/ }))
+    expect(await screen.findByText('datasetId: mpi_source_identity')).toBeTruthy()
+    expect(screen.getByText('ownerId: owner-42')).toBeTruthy()
+    expect(screen.queryByText(/assetId:/)).toBeNull()
   })
 
   it('摘要不可用时显示真实不可用态，不补静态样例', async () => {

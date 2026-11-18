@@ -164,7 +164,7 @@ export function JobDetailPage({ jobId }: { jobId: string }) {
               <Badge tone={job.configured ? 'blue' : 'warn'}>{job.configured ? `${job.templateKey ?? '自定义'} v${job.templateVersion ?? 1}` : '未配置'}</Badge>
               {latestStatus ? <StatusText tone={runStatusView(latestStatus).tone === 'healthy' ? 'good' : runStatusView(latestStatus).tone === 'danger' ? 'bad' : 'running'}>{runStatusView(latestStatus).label}</StatusText> : null}
               {activeRun ? <Badge tone="warn">运行观察中（5 秒刷新）</Badge> : null}
-              <span className="text-meta text-[#8b94a1]">创建于 {formatDateTime(job.createdAt)}</span>
+              <span className="text-meta text-muted">创建于 {formatDateTime(job.createdAt)}</span>
             </div>
 
             <dl className="grid grid-cols-4 gap-4 rounded-panel border border-line bg-wash px-4 py-3 max-[1100px]:grid-cols-2">
@@ -236,8 +236,8 @@ export function JobDetailPage({ jobId }: { jobId: string }) {
 function Fact({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="mb-1 text-meta text-[#8a929e]">{label}</dt>
-      <dd className="m-0 text-body-sm text-[#4a5666]">{value}</dd>
+      <dt className="mb-1 text-meta text-muted">{label}</dt>
+      <dd className="m-0 text-body-sm text-ink-soft">{value}</dd>
     </div>
   )
 }
@@ -277,13 +277,13 @@ function RunsTable({
           <li key={run.id} className="border-b border-line-soft px-5 py-3 last:border-b-0">
             <div className="flex flex-wrap items-center gap-2.5">
               <StatusText tone={status.tone === 'healthy' ? 'good' : status.tone === 'danger' ? 'bad' : status.tone === 'warning' ? 'running' : 'neutral'}>{status.label}</StatusText>
-              <span className="text-meta text-[#8b94a1]">{formatDateTime(run.submittedAt)}</span>
-              {run.finishedAt ? <span className="text-meta text-[#8b94a1]">完成 {formatDateTime(run.finishedAt)}</span> : null}
-              <span className="ml-auto font-mono text-meta text-[#8b94a1]">{run.id.slice(0, 12)}</span>
+              <span className="text-meta text-muted">{formatDateTime(run.submittedAt)}</span>
+              {run.finishedAt ? <span className="text-meta text-muted">完成 {formatDateTime(run.finishedAt)}</span> : null}
+              <span className="ml-auto font-mono text-meta text-muted">{run.id.slice(0, 12)}</span>
             </div>
-            <p className="mt-1 text-label leading-relaxed text-[#6b7789]">{businessMessage(run.message)}</p>
+            <p className="mt-1 text-label leading-relaxed text-muted">{businessMessage(run.message)}</p>
             {manual ? (
-              <div role="status" className="mt-2 rounded-control border border-[#eee2c5] bg-[#fdf9ef] px-3 py-2 text-label text-[#8e7040]">
+              <div role="status" className="mt-2 rounded-control border border-[#eee2c5] bg-[#fdf9ef] px-3 py-2 text-label text-amber">
                 <strong>待人工对账：</strong>{run.reconciliationMessage ?? '请先确认外部运行不存在后再重试。'}
                 <div className="mt-1.5 flex gap-2">
                   <Button size="sm" disabled={acting} onClick={() => onSync(run)}>重新查询</Button>
@@ -300,7 +300,7 @@ function RunsTable({
           </li>
         )
       })}
-      {runs.length > 10 ? <li className="px-5 py-3 text-meta text-[#98a2ae]">仅显示最近 10 次运行。</li> : null}
+      {runs.length > 10 ? <li className="px-5 py-3 text-meta text-muted">仅显示最近 10 次运行。</li> : null}
     </ol>
   )
 }

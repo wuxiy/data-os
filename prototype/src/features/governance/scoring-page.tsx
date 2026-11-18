@@ -151,12 +151,12 @@ export function ScoringPage() {
             ))}
             {grades.length === 0 ? <p className="py-6 text-center text-label text-muted">至少保留一个等级；等级名称不能重复。</p> : null}
 
-            <div className="mt-4 rounded-control border border-line bg-wash px-3 py-2.5 text-label text-[#6b7889]">
-              <strong className="block text-body-sm text-[#566173]">保存影响</strong>
+            <div className="mt-4 rounded-control border border-line bg-wash px-3 py-2.5 text-label text-muted">
+              <strong className="block text-body-sm text-ink-soft">保存影响</strong>
               <p className="mt-1">保存后立即按新标准重算总分与等级；<Badge tone="warn">受影响</Badge> 只影响评分读数，不重跑规则、不改变已产生的治理问题。</p>
             </div>
 
-            {error ? <p role="alert" className="mt-3 text-body-sm text-[#b04747]">{error}</p> : null}
+            {error ? <p role="alert" className="mt-3 text-body-sm text-red">{error}</p> : null}
             <div className="mt-4 flex justify-end gap-2 border-t border-line pt-4">
               <Button onClick={leave}>取消</Button>
               <Button variant="primary" disabled={mutation.isPending || !initialized} onClick={submit}>

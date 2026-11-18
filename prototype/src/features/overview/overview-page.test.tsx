@@ -99,6 +99,7 @@ describe('总览（真实运营投影）', () => {
     vi.mocked(fetchWorkItems).mockRejectedValue(new Error('work items down'))
     renderPage()
     expect(await screen.findByText('运营待办投影暂不可用')).toBeTruthy()
+    expect(screen.getByRole('heading', { name: '优先处理' }).textContent).toBe('优先处理')
     expect(screen.getByText('组件覆盖 7/7 · 全部就绪')).toBeTruthy()
     expect(await screen.findByText('检验报告结果采集完成（12,860 行）')).toBeTruthy()
   })

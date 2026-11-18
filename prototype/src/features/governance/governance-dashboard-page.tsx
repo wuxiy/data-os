@@ -40,16 +40,12 @@ function todaysIssues(issues: GovernanceApiIssue[]) {
     .slice(0, 5)
 }
 
-function datasetDisplay(issue: GovernanceApiIssue): string {
-  const topic = (issue.impact || '').split('/')[0]?.trim()
-  return topic || issue.datasetId || '未标注数据集'
-}
-
 function riskRankingFromIssues(issues: GovernanceApiIssue[]) {
-  const byDataset = new Map<string, { system: string; owner: string; count: number; overdue: number }>()
+  const byDataset = new Map<string, { dataset: string; owners: Set<string>; count: number; overdue: number }>()
   for (const issue of issues) {
     if (issue.status === 'CLOSED') continue
-    const entry = byDataset.get(issue.datasetId) ?? { system: datasetDisplay(issue), owner: issue.ownerDepartment, count: 0, overdue: 0 }
+    const entry = byDataset.get(issue.datasetId) ?? { dataset: issue.datasetId || '未标注数据集', owners: new Set<string>(), count: 0, overdue: 0 }
+    if (issue.ownerDepartment) entry.owners.add(issue.ownerDepartment)
     entry.count += 1
     if (isIssueOverdue(issue)) entry.overdue += 1
     byDataset.set(issue.datasetId, entry)
@@ -57,8 +53,8 @@ function riskRankingFromIssues(issues: GovernanceApiIssue[]) {
   return Array.from(byDataset.values())
     .sort((a, b) => (b.overdue - a.overdue) || (b.count - a.count))
     .slice(0, 4)
-    .map(({ system, owner, count, overdue }) => ({
-      system, owner, overdue,
+    .map(({ dataset, owners, count, overdue }) => ({
+      dataset, owner: Array.from(owners).join('、') || '责任部门未提供', overdue,
       value: overdue > 0 ? `${count} 项 · ${overdue} 逾期` : `${count} 项`,
     }))
 }
@@ -69,7 +65,7 @@ const todoColumns = helper.columns([
     id: 'title',
     header: '问题',
     cell: ({ row }) => (
-      <span className="text-body-sm text-[#313c4d]">
+      <span className="text-body-sm text-ink">
         {row.original.title}
         {isIssueOverdue(row.original) ? <span className="ml-2 rounded-chip bg-red-soft px-1 py-px text-meta text-red">SLA 逾期</span> : null}
       </span>
@@ -199,9 +195,9 @@ export function GovernanceDashboardPage() {
             {chainTodo ? (
               <div className="px-5 pb-5">
                 <div className="mb-3 rounded-control border border-line bg-wash px-3.5 py-3">
-                  <span className="text-meta text-[#8b94a1]">优先跟进</span>
-                  <strong className="mt-1 block text-body-sm text-[#43546e]">{chainTodo.title}</strong>
-                  <span className="mt-0.5 block text-meta text-[#8b94a1]">{chainTodo.id} · 更新于 {formatDateTime(chainTodo.updatedAt ?? null)}</span>
+                  <span className="text-meta text-muted">优先跟进</span>
+                  <strong className="mt-1 block text-body-sm text-ink-soft">{chainTodo.title}</strong>
+                  <span className="mt-0.5 block text-meta text-muted">{chainTodo.id} · 更新于 {formatDateTime(chainTodo.updatedAt ?? null)}</span>
                 </div>
                 <dl className="grid grid-cols-4 gap-4 max-[1100px]:grid-cols-2">
                   <Fact label="影响对象" value={chainTodo.objectLabel || chainTodo.impact || chainTodo.datasetId} />
@@ -217,16 +213,16 @@ export function GovernanceDashboardPage() {
 
           <div className="mb-3.5 grid grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] gap-3.5 max-[1100px]:grid-cols-1">
             <Panel>
-              <PanelHead title="高风险系统排行" description="按逾期与未闭环问题综合排序" actions={<Button variant="text" onClick={() => navigate('/governance/quality')}>查看全部<ChevronRight size={13} /></Button>} />
+              <PanelHead title="数据集风险排行" description="按数据集聚合，依逾期与未闭环问题排序" actions={<Button variant="text" onClick={() => navigate('/governance/quality')}>查看全部<ChevronRight size={13} /></Button>} />
               <ol className="m-0 list-none px-5 pb-4">
                 {riskRanking.map((item, index) => (
-                  <li key={item.system} className="flex items-center gap-3 border-b border-line-soft py-2.5 last:border-b-0">
-                    <span className="flex size-6 items-center justify-center rounded-chip border border-[#e7ebf2] bg-[#f7f9fc] text-label text-[#8290a4]">{String(index + 1).padStart(2, '0')}</span>
+                  <li key={item.dataset} className="flex items-center gap-3 border-b border-line-soft py-2.5 last:border-b-0">
+                    <span className="flex size-6 items-center justify-center rounded-chip border border-line bg-[#f7f9fc] text-label text-muted">{String(index + 1).padStart(2, '0')}</span>
                     <div className="min-w-0 flex-1">
-                      <strong className="block truncate text-body-sm font-medium text-[#46536a]">{item.system}</strong>
-                      <span className="block text-meta text-[#6c798c]">{item.owner}</span>
+                      <strong className="block truncate text-body-sm font-medium text-ink-soft">{item.dataset}</strong>
+                      <span className="block text-meta text-muted">{item.owner}</span>
                     </div>
-                    <span className={`text-label ${item.overdue > 0 ? 'text-red' : 'text-[#53647f]'}`}>{item.value}</span>
+                    <span className={`text-label ${item.overdue > 0 ? 'text-red' : 'text-ink-soft'}`}>{item.value}</span>
                   </li>
                 ))}
                 {riskRanking.length === 0 ? <li className="py-6 text-center text-label text-muted">当前没有未闭环风险问题</li> : null}
@@ -245,8 +241,8 @@ export function GovernanceDashboardPage() {
 function Fact({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="mb-1 text-meta text-[#8a929e]">{label}</dt>
-      <dd className="m-0 text-body-sm text-[#4a5666]">{value}</dd>
+      <dt className="mb-1 text-meta text-muted">{label}</dt>
+      <dd className="m-0 text-body-sm text-ink-soft">{value}</dd>
     </div>
   )
 }

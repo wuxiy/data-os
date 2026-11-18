@@ -228,8 +228,8 @@ export function IngestionPage() {
       header: '数据源',
       cell: ({ row }) => (
         <div>
-          <div className="text-body-sm font-medium text-[#313c4d]">{sourceDisplayName(row.original)}</div>
-          <div className="mt-0.5 text-meta text-[#707c8c]">{row.original.id.slice(0, 12)}</div>
+          <div className="text-body-sm font-medium text-ink">{sourceDisplayName(row.original)}</div>
+          <div className="mt-0.5 text-meta text-muted">{row.original.id.slice(0, 12)}</div>
         </div>
       ),
     }),
@@ -255,8 +255,8 @@ export function IngestionPage() {
       cell: ({ row }) => row.original.lastCheckedAt
         ? (
           <div>
-            <div className="text-label text-[#576171]">{formatDateTime(row.original.lastCheckedAt)}</div>
-            {row.original.lastCheckMessage ? <div className="mt-0.5 max-w-[220px] truncate text-meta text-[#8b94a1]" title={row.original.lastCheckMessage}>{row.original.lastCheckMessage}</div> : null}
+            <div className="text-label text-ink-soft">{formatDateTime(row.original.lastCheckedAt)}</div>
+            {row.original.lastCheckMessage ? <div className="mt-0.5 max-w-[220px] truncate text-meta text-muted" title={row.original.lastCheckMessage}>{row.original.lastCheckMessage}</div> : null}
           </div>
         )
         : <span className="text-label text-faint">未检查</span>,
@@ -286,12 +286,12 @@ export function IngestionPage() {
       cell: ({ row }) => (
         <div>
           <div className="flex items-center gap-2">
-            <span className="text-body-sm font-medium text-[#313c4d]">{row.original.name}</span>
+            <span className="text-body-sm font-medium text-ink">{row.original.name}</span>
             <Badge tone={row.original.configured ? 'blue' : 'warn'}>
               {row.original.configured ? `${row.original.templateKey ?? '自定义'} v${row.original.templateVersion ?? 1}` : '未配置'}
             </Badge>
           </div>
-          <div className="mt-0.5 text-meta text-[#707c8c]">{row.original.id.slice(0, 12)}</div>
+          <div className="mt-0.5 text-meta text-muted">{row.original.id.slice(0, 12)}</div>
         </div>
       ),
     }),
@@ -322,7 +322,7 @@ export function IngestionPage() {
         return (
           <div>
             <StatusText tone={status.tone === 'healthy' ? 'good' : status.tone === 'danger' ? 'bad' : status.tone === 'warning' ? 'running' : 'neutral'}>{status.label}</StatusText>
-            {run ? <div className="mt-0.5 max-w-[200px] truncate text-meta text-[#8b94a1]" title={businessMessage(run.message)}>{businessMessage(run.message)}</div> : null}
+            {run ? <div className="mt-0.5 max-w-[200px] truncate text-meta text-muted" title={businessMessage(run.message)}>{businessMessage(run.message)}</div> : null}
           </div>
         )
       },
@@ -426,8 +426,8 @@ export function IngestionPage() {
       header: '执行批次 / 任务',
       cell: ({ row }) => (
         <div>
-          <div className="text-body-sm font-medium text-[#313c4d]">{row.original.job.name}</div>
-          <div className="mt-0.5 text-meta text-[#707c8c]">{row.original.run.id.slice(0, 12)}</div>
+          <div className="text-body-sm font-medium text-ink">{row.original.job.name}</div>
+          <div className="mt-0.5 text-meta text-muted">{row.original.run.id.slice(0, 12)}</div>
         </div>
       ),
     }),
@@ -452,7 +452,7 @@ export function IngestionPage() {
       id: 'submitted',
       header: '提交时间',
       size: 140,
-      cell: ({ row }) => <span className="text-label text-[#576171]">{formatDateTime(row.original.run.submittedAt)}</span>,
+      cell: ({ row }) => <span className="text-label text-ink-soft">{formatDateTime(row.original.run.submittedAt)}</span>,
     }),
     runHelper.display({
       id: 'actions',
@@ -532,7 +532,7 @@ export function IngestionPage() {
               role="tab"
               aria-selected={tab === item.value}
               onClick={() => { setTab(item.value); setKeyword(''); setStatusFilter(''); setModeFilter('') }}
-              className={`-mb-px border-b-2 px-px pt-[13px] pb-3 text-body-sm transition-colors ${tab === item.value ? 'border-blue font-medium text-blue' : 'border-transparent text-[#75808e] hover:text-ink'}`}
+              className={`-mb-px border-b-2 px-px pt-[13px] pb-3 text-body-sm transition-colors ${tab === item.value ? 'border-blue font-medium text-blue' : 'border-transparent text-muted hover:text-ink'}`}
             >
               {item.label}<Count>{item.count}</Count>
             </button>
@@ -672,10 +672,10 @@ export function IngestionPage() {
 function SummaryCell({ label, value, note, icon }: { label: string; value: string; note: string; icon: ReactNode }) {
   return (
     <div className="flex items-center gap-3 border-r border-line px-[21px] last:border-r-0">
-      <span className="text-[#8e9bab]">{icon}</span>
+      <span className="text-muted">{icon}</span>
       <div>
-        <small className="block text-label text-[#85909e]">{label}</small>
-        <strong className="text-[22px] leading-tight font-medium text-[#3d4c62]">{value}<span className="ml-1.5 text-meta font-normal text-[#8b96a4]">{note}</span></strong>
+        <small className="block text-label text-muted">{label}</small>
+        <strong className="text-[22px] leading-tight font-medium text-ink">{value}<span className="ml-1.5 text-meta font-normal text-muted">{note}</span></strong>
       </div>
     </div>
   )

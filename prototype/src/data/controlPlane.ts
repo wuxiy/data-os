@@ -18,6 +18,7 @@ export interface GovernanceApiIssue {
   datasetId: string
   ruleId: string
   ownerDepartment: string
+  ownerId?: string | null
   ownerName: string
   ticketId: string
   impact: string

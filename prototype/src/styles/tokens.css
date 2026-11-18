@@ -1,5 +1,5 @@
 /*
- * 新主题唯一来源：批准原型 v0.2 的浅色蓝灰令牌（FE7 起全站唯一主题）。
+ * 主题唯一来源：深石墨导航与浅色工作面的极简令牌。
  * Tailwind 4 官方拆分导入——不导入 preflight；基础元素样式由本文件的 base 层
  * 显式提供（收口后的唯一主题）。任何新色值先进本文件，不在组件里散落裸色。
  */
@@ -9,65 +9,72 @@
 
 @theme {
   /* 画布与文本 */
-  --color-canvas: #f6f7f9;
+  --color-canvas: #f5f6f4;
   --color-paper: #ffffff;
-  --color-shell: #fcfcfd;
-  --color-wash: #f8f9fb;
-  --color-ink: #202631;
-  --color-ink-soft: #4a5666;
-  --color-muted: #687281;
-  --color-faint: #737e8d;
-  --color-line: #e5e8ed;
-  --color-line-strong: #dae1e9;
-  --color-line-soft: #edf0f4;
+  --color-shell: #f8f9f7;
+  --color-wash: #f3f5f3;
+  --color-ink: #1f2b29;
+  --color-ink-soft: #485853;
+  --color-muted: #64736d;
+  --color-faint: #687970;
+  --color-line: #e0e6e1;
+  --color-line-strong: #cdd8d1;
+  --color-line-soft: #e9eeea;
+  --color-sidebar: #1e302d;
+  --color-sidebar-text: #dce8e2;
+  --color-sidebar-muted: #aebfb8;
+  --color-sidebar-bright: #ffffff;
+  --color-sidebar-hover: #2b423b;
+  --color-sidebar-active: #336e5f;
+  --color-sidebar-line: #465c54;
 
   /* 主动作与状态 */
-  --color-blue: #376ed6;
-  --color-blue-hover: #2c5fc3;
-  --color-blue-soft: #eaf1fe;
-  --color-blue-line: #d2e0fa;
-  --color-red: #bb4848;
-  --color-red-deep: #a63838;
-  --color-red-soft: #fceeee;
-  --color-red-line: #f4dbdb;
-  --color-amber: #936111;
-  --color-amber-soft: #fbf3e3;
-  --color-amber-line: #f0e2bd;
-  --color-green: #3d7b61;
-  --color-green-soft: #edf6f0;
-  --color-green-line: #d7e9df;
+  --color-blue: #286653;
+  --color-blue-hover: #1f5143;
+  --color-blue-soft: #e6f1e9;
+  --color-blue-line: #c9ded0;
+  --color-red: #a53d37;
+  --color-red-deep: #872f2c;
+  --color-red-soft: #faeeec;
+  --color-red-line: #efd7d3;
+  --color-amber: #875812;
+  --color-amber-soft: #faf2e4;
+  --color-amber-line: #eadcbd;
+  --color-green: #286c4f;
+  --color-green-soft: #e8f3eb;
+  --color-green-line: #cee4d4;
 
   /* 字体：院内离线部署，只用本地回退，不加载在线字体 */
-  --font-sans: "Geist", "Inter", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-sans: "Avenir Next", "PingFang SC", "Microsoft YaHei", sans-serif;
   --font-mono: "SFMono-Regular", "Consolas", "Liberation Mono", monospace;
 
   /* 语义字号：批准原型以 13px 为正文基准，比 Tailwind 默认更紧凑 */
-  --text-meta: 10px;
-  --text-label: 11px;
-  --text-body-sm: 12px;
-  --text-body: 13px;
-  --text-title: 14px;
-  --text-subject: 17px;
-  --text-heading: 23px;
+  --text-meta: 11px;
+  --text-label: 12px;
+  --text-body-sm: 13px;
+  --text-body: 14px;
+  --text-title: 15px;
+  --text-subject: 18px;
+  --text-heading: 26px;
   --text-metric: 28px;
 
   /* 圆角：面板 8、控件 6、标签 4、外框 9 */
   --radius-chip: 4px;
   --radius-control: 6px;
-  --radius-panel: 8px;
-  --radius-shell: 9px;
+  --radius-panel: 6px;
+  --radius-shell: 6px;
   --radius-modal: 10px;
 
   /* 阴影只在浮层使用 */
-  --shadow-panel: 0 10px 30px -10px #1c294d26;
-  --shadow-sheet: -6px 0 30px #1c294d14;
-  --shadow-focus: 0 1px 3px #172b4910;
+  --shadow-panel: 0 12px 32px -12px #192d2726;
+  --shadow-sheet: -6px 0 30px #192d2714;
+  --shadow-focus: 0 1px 3px #192d2710;
 
   /* 布局尺寸 */
   --spacing-sidebar: 256px;
   --spacing-sidebar-narrow: 232px;
   --spacing-sidebar-collapsed: 68px;
-  --spacing-topbar: 48px;
+  --spacing-topbar: 56px;
 }
 
 @layer base {
@@ -149,9 +156,17 @@
     outline-offset: 3px;
   }
 
+  aside[aria-label="主导航"] :focus-visible {
+    outline-color: var(--color-sidebar-bright);
+  }
+
+  aside[aria-label="主导航"] ::-webkit-scrollbar-thumb {
+    background: var(--color-sidebar-line);
+  }
+
   ::selection {
-    color: #173b7a;
-    background: #d8e6ff;
+    color: var(--color-ink);
+    background: var(--color-blue-line);
   }
 
   ::-webkit-scrollbar {
@@ -161,7 +176,7 @@
 
   ::-webkit-scrollbar-thumb {
     border-radius: 4px;
-    background: #cdd3dc;
+    background: var(--color-line-strong);
   }
 
   ::-webkit-scrollbar-track {

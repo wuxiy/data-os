@@ -269,8 +269,8 @@ export function JobConfigurationEditor({ jobId }: { jobId?: string }) {
 
       <div className="grid grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] gap-0 overflow-clip rounded-panel border border-line bg-paper max-[1100px]:grid-cols-1">
         <section className="border-r border-line px-6 py-5 max-[1100px]:border-r-0 max-[1100px]:border-b">
-          <h2 className="text-title font-semibold text-[#3c4e69]">来源与策略</h2>
-          <p className="mt-1.5 mb-5 text-label leading-relaxed text-[#738199]">选择来源、命名任务并确定执行通道；结构化与 JSON 是同一任务的两种配置形态。</p>
+          <h2 className="text-title font-semibold text-ink-soft">来源与策略</h2>
+          <p className="mt-1.5 mb-5 text-label leading-relaxed text-muted">选择来源、命名任务并确定执行通道；结构化与 JSON 是同一任务的两种配置形态。</p>
 
           {jobId ? null : (
             <FormGrid>
@@ -324,7 +324,7 @@ export function JobConfigurationEditor({ jobId }: { jobId?: string }) {
           ) : (
             <>
               <FormField label="配置方式">
-                <div role="radiogroup" aria-label="配置方式" className="inline-flex gap-1 rounded-control border border-[#e3e7ee] bg-wash p-0.5">
+                <div role="radiogroup" aria-label="配置方式" className="inline-flex gap-1 rounded-control border border-line bg-wash p-0.5">
                   {([
                     { value: 'structured' as const, label: '结构化表单' },
                     { value: 'json' as const, label: '模板 JSON' },
@@ -336,7 +336,7 @@ export function JobConfigurationEditor({ jobId }: { jobId?: string }) {
                       aria-checked={configMode === option.value}
                       disabled={option.value === 'structured' && !structuredReady && !editingStructured}
                       onClick={() => setConfigMode(option.value)}
-                      className={`rounded-chip px-2.5 py-1 text-label ${configMode === option.value ? 'bg-paper text-blue shadow-focus' : 'text-[#7a8491] hover:text-ink'} disabled:opacity-50`}
+                      className={`rounded-chip px-2.5 py-1 text-label ${configMode === option.value ? 'bg-paper text-blue shadow-focus' : 'text-muted hover:text-ink'} disabled:opacity-50`}
                     >
                       {option.label}{option.value === 'structured' && !structuredReady ? '（需先登记连接）' : ''}
                     </button>
@@ -391,12 +391,12 @@ export function JobConfigurationEditor({ jobId }: { jobId?: string }) {
               </Button>
             </div>
           )}
-          {error ? <p role="alert" className="mt-3 text-body-sm leading-relaxed text-[#b04747]">{error}</p> : null}
+          {error ? <p role="alert" className="mt-3 text-body-sm leading-relaxed text-red">{error}</p> : null}
         </section>
 
-        <section className="bg-[#fcfdff] px-6 py-5">
-          <h2 className="text-title font-semibold text-[#3c4e69]">{dolphin ? '工作流绑定' : configMode === 'json' ? '采集配置 JSON' : '结构化意图'}</h2>
-          <p className="mt-1.5 mb-4 text-label leading-relaxed text-[#738199]">
+        <section className="bg-wash px-6 py-5">
+          <h2 className="text-title font-semibold text-ink-soft">{dolphin ? '工作流绑定' : configMode === 'json' ? '采集配置 JSON' : '结构化意图'}</h2>
+          <p className="mt-1.5 mb-4 text-label leading-relaxed text-muted">
             {dolphin
               ? '绑定失败会如实回显；周期调度随工作流生效，不受此处影响。'
               : configMode === 'json'
@@ -405,15 +405,15 @@ export function JobConfigurationEditor({ jobId }: { jobId?: string }) {
           </p>
 
           {dolphin ? (
-            <div className="space-y-2 text-label text-[#5b6b80]">
+            <div className="space-y-2 text-label text-ink-soft">
               <p>· 项目与工作流编号来自平台调度，需为真实存在且已发布的对象。</p>
               <p>· 创建后可在任务详情「调度」页配置 CRON、上下线、补数与实例。</p>
               <p>· 门户发起的运行进入任务运行记录；平台定时触发的实例在调度实例中查看。</p>
             </div>
           ) : configMode === 'json' ? (
             <details open className="rounded-control border border-line bg-paper">
-              <summary className="cursor-pointer border-b border-line px-3 py-2 text-label font-medium text-[#566173]">
-                配置内容 <span className="ml-1 font-normal text-[#8b94a1]">默认展开 · 可编辑</span>
+              <summary className="cursor-pointer border-b border-line px-3 py-2 text-label font-medium text-ink-soft">
+                配置内容 <span className="ml-1 font-normal text-muted">默认展开 · 可编辑</span>
               </summary>
               <div className="p-3">
                 <CodeTextarea

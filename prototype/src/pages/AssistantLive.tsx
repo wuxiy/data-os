@@ -160,14 +160,14 @@ function AssistantWorkspace({
                   onClick={() => selectQuestion(question)}
                   className={`mb-1 w-full rounded-control px-2.5 py-2 text-left ${question.code === selectedCode ? 'bg-blue-soft' : 'hover:bg-wash'}`}
                 >
-                  <span className="block text-body-sm text-[#43546e]">{question.question}</span>
-                  <span className="mt-0.5 block font-mono text-meta text-[#8b94a1]">{question.serviceCode}</span>
+                  <span className="block text-body-sm text-ink-soft">{question.question}</span>
+                  <span className="mt-0.5 block font-mono text-meta text-muted">{question.serviceCode}</span>
                 </button>
               </li>
             ))}
             {questions.length === 0 && questionsRequest.isSuccess ? <li className="px-3 py-6 text-center text-label text-muted">当前租户暂无已发布的已验证问题。</li> : null}
           </ul>
-          <div className="border-t border-line px-3 py-2 text-meta leading-relaxed text-[#98a2ae]">
+          <div className="border-t border-line px-3 py-2 text-meta leading-relaxed text-muted">
             同义表达命中同一问题代码；未知问题明确拒答，不生成任意 SQL。
           </div>
         </Panel>
@@ -177,8 +177,8 @@ function AssistantWorkspace({
             <div className="flex items-center gap-2">
               <span className="flex size-7 items-center justify-center rounded-chip bg-blue-soft text-blue"><MessageSquareText size={15} /></span>
               <div>
-                <strong className="block text-body-sm text-[#43546e]">医疗运营问数助手</strong>
-                <span className="block text-meta text-[#8b94a1]">已验证问题 → 已发布数据服务</span>
+                <strong className="block text-body-sm text-ink-soft">医疗运营问数助手</strong>
+                <span className="block text-meta text-muted">已验证问题 → 已发布数据服务</span>
               </div>
             </div>
             <Badge tone="success">只读模式</Badge>
@@ -199,7 +199,7 @@ function AssistantWorkspace({
                 const label = assistantParamLabel(contract.name, contract.description)
                 return (
                   <label key={contract.name} className="min-w-[140px]">
-                    <span className="mb-1 block text-meta text-[#6b788b]">{label}{contract.required ? ' *' : ''}</span>
+                    <span className="mb-1 block text-meta text-muted">{label}{contract.required ? ' *' : ''}</span>
                     {contract.type === 'date' ? (
                       <Input
                         type="date"
@@ -249,17 +249,17 @@ function AssistantWorkspace({
           <div aria-live="polite" aria-busy={asking} className="min-h-[280px] flex-1 px-4 py-4">
             {displayQuestion ? (
               <div className="mb-3 flex justify-end">
-                <div className="max-w-[80%] rounded-panel rounded-br-chip bg-blue-soft px-3 py-2 text-body-sm text-[#28456f]">{displayQuestion}</div>
+                <div className="max-w-[80%] rounded-panel rounded-br-chip bg-blue-soft px-3 py-2 text-body-sm text-blue">{displayQuestion}</div>
               </div>
             ) : (
               <div className="rounded-panel border border-line bg-wash px-4 py-4">
-                <h2 className="text-title font-semibold text-[#43546e]">{questions.length === 0 && questionsRequest.isSuccess ? '还没有可执行的问题' : '从一个已验证问题开始'}</h2>
-                <p className="mt-1.5 text-label leading-relaxed text-[#738199]">
+                <h2 className="text-title font-semibold text-ink-soft">{questions.length === 0 && questionsRequest.isSuccess ? '还没有可执行的问题' : '从一个已验证问题开始'}</h2>
+                <p className="mt-1.5 text-label leading-relaxed text-muted">
                   {questions.length === 0 && questionsRequest.isSuccess
                     ? '当前租户暂无已发布问题。请联系治理人员完成配置、试运行和发布后再查询。'
                     : '选择左侧问题，再按业务范围调整参数。结果和执行证据会在同一工作区展示。'}
                 </p>
-                <ol className="mt-3 list-decimal space-y-1 pl-5 text-label text-[#6b7789]">
+                <ol className="mt-3 list-decimal space-y-1 pl-5 text-label text-muted">
                   <li><strong>选问题</strong>，确认业务口径与受控数据服务。</li>
                   <li><strong>定范围</strong>，填写时间等必需参数后执行。</li>
                   <li><strong>核对结果</strong>，查看明细、统计窗口与审计号。</li>
@@ -279,11 +279,11 @@ function AssistantWorkspace({
               <article className="mt-3 rounded-panel border border-[#eee2c5] bg-[#fdf9ef] px-4 py-3">
                 <div className="flex items-center gap-2">
                   <Ban size={16} className="text-amber" />
-                  <strong className="text-body-sm text-[#8e7040]">拒答</strong>
-                  <span className="text-label text-[#9a7a45]">{REFUSAL_LABEL[answer.outcome ?? ''] ?? answer.outcome}</span>
+                  <strong className="text-body-sm text-amber">拒答</strong>
+                  <span className="text-label text-amber">{REFUSAL_LABEL[answer.outcome ?? ''] ?? answer.outcome}</span>
                 </div>
-                <p className="mt-2 text-label leading-relaxed text-[#8e7040]">{answer.reason}</p>
-                {(answer.supportedQuestions ?? []).length > 0 ? <p className="mt-2 text-label text-[#9a7a45]"><strong>可问清单：</strong>{(answer.supportedQuestions ?? []).join('；')}</p> : null}
+                <p className="mt-2 text-label leading-relaxed text-amber">{answer.reason}</p>
+                {(answer.supportedQuestions ?? []).length > 0 ? <p className="mt-2 text-label text-amber"><strong>可问清单：</strong>{(answer.supportedQuestions ?? []).join('；')}</p> : null}
               </article>
             ) : null}
 
@@ -293,20 +293,20 @@ function AssistantWorkspace({
                   <div className="flex items-center gap-2">
                     <span className="flex size-7 items-center justify-center rounded-chip bg-[#edf6f0] text-green"><MessageSquareText size={15} /></span>
                     <div>
-                      <strong className="block text-body-sm text-[#43546e]">分析结果</strong>
-                      <span className="block text-meta text-[#8b94a1]">{answer.evidence?.serviceCode} {answer.evidence?.serviceVersion} · 受控执行</span>
+                      <strong className="block text-body-sm text-ink-soft">分析结果</strong>
+                      <span className="block text-meta text-muted">{answer.evidence?.serviceCode} {answer.evidence?.serviceVersion} · 受控执行</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-1">
-                    <button type="button" className="inline-flex size-7 items-center justify-center rounded-chip text-[#6b7889] hover:bg-wash disabled:opacity-50" onClick={() => sendFeedback('helpful')} disabled={feedbackState !== 'idle'} aria-label={feedbackState === 'recorded' ? '反馈已记录' : '回答有帮助'}><ThumbsUp size={14} /></button>
-                    <button type="button" className="inline-flex size-7 items-center justify-center rounded-chip text-[#6b7889] hover:bg-wash disabled:opacity-50" onClick={() => sendFeedback('not_helpful')} disabled={feedbackState !== 'idle'} aria-label="回答需要改进"><ThumbsDown size={14} /></button>
+                    <button type="button" className="inline-flex size-7 items-center justify-center rounded-chip text-muted hover:bg-wash disabled:opacity-50" onClick={() => sendFeedback('helpful')} disabled={feedbackState !== 'idle'} aria-label={feedbackState === 'recorded' ? '反馈已记录' : '回答有帮助'}><ThumbsUp size={14} /></button>
+                    <button type="button" className="inline-flex size-7 items-center justify-center rounded-chip text-muted hover:bg-wash disabled:opacity-50" onClick={() => sendFeedback('not_helpful')} disabled={feedbackState !== 'idle'} aria-label="回答需要改进"><ThumbsDown size={14} /></button>
                   </div>
                 </header>
                 <div className="px-4 py-3">
-                  <p className="text-body-sm leading-relaxed text-[#4a5666]">{answer.answer}</p>
+                  <p className="text-body-sm leading-relaxed text-ink-soft">{answer.answer}</p>
                   {answer.truncated ? <p className="mt-2 text-label text-amber"><strong>结果截断：</strong>已按服务行数上限返回 {answer.rowCount} 行。</p> : null}
-                  {feedbackState === 'recorded' ? <p className="mt-2 text-meta text-[#98a2ae]">反馈已记录（审计 {answer.auditId.slice(0, 8)}…）。</p> : null}
-                  <h3 className="mt-3 mb-1.5 text-label font-medium text-[#566173]">核对明细</h3>
+                  {feedbackState === 'recorded' ? <p className="mt-2 text-meta text-muted">反馈已记录（审计 {answer.auditId.slice(0, 8)}…）。</p> : null}
+                  <h3 className="mt-3 mb-1.5 text-label font-medium text-ink-soft">核对明细</h3>
                   <DataTable
                     columns={resultColumns}
                     data={answer.rows ?? []}
@@ -330,7 +330,7 @@ function AssistantWorkspace({
               />
               <Button type="submit" variant="primary" size="icon" aria-label="发送问题" disabled={!draft.trim() || asking}><Send size={16} /></Button>
             </div>
-            <p className="mt-1.5 text-meta text-[#98a2ae]">回答来自已发布数据服务的受限执行；重要结论请结合口径与数据时间复核。</p>
+            <p className="mt-1.5 text-meta text-muted">回答来自已发布数据服务的受限执行；重要结论请结合口径与数据时间复核。</p>
           </form>
         </Panel>
 
@@ -343,8 +343,8 @@ function AssistantWorkspace({
             <div className="mb-3 flex items-center gap-2 rounded-control border border-line bg-wash px-3 py-2">
               <span className="flex size-7 items-center justify-center rounded-chip bg-paper text-blue"><MessageSquareText size={15} /></span>
               <div>
-                <strong className="block text-label text-[#43546e]">问数审计号</strong>
-                <span className="block font-mono text-meta text-[#8b94a1]">{answer ? `${answer.auditId.slice(0, 13)}…` : '提问后生成'}</span>
+                <strong className="block text-label text-ink-soft">问数审计号</strong>
+                <span className="block font-mono text-meta text-muted">{answer ? `${answer.auditId.slice(0, 13)}…` : '提问后生成'}</span>
               </div>
             </div>
             <dl className="space-y-2">
@@ -355,7 +355,7 @@ function AssistantWorkspace({
               <Evidence label="耗时" value={answer?.evidence ? `${answer.evidence.elapsedMs} ms` : '—'} />
               <Evidence label="执行路径" value={answer?.evidence?.executionPath ?? '—'} />
             </dl>
-            <div className="mt-3 flex items-start gap-1.5 rounded-control border border-blue-line bg-[#f3f7ff] px-3 py-2 text-meta leading-relaxed text-[#536e9b]">
+            <div className="mt-3 flex items-start gap-1.5 rounded-control border border-blue-line bg-blue-soft px-3 py-2 text-meta leading-relaxed text-blue">
               <ShieldCheck size={14} className="mt-0.5 shrink-0" />
               查询由受控服务执行；助手不能修改标准、质量规则、主数据或源系统。
             </div>
@@ -371,8 +371,8 @@ function AssistantWorkspace({
 function Evidence({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="text-meta text-[#8a929e]">{label}</dt>
-      <dd className="m-0 break-all text-label text-[#4a5666]">{value}</dd>
+      <dt className="text-meta text-muted">{label}</dt>
+      <dd className="m-0 break-all text-label text-ink-soft">{value}</dd>
     </div>
   )
 }

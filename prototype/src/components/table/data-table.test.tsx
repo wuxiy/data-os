@@ -76,6 +76,18 @@ describe('DataTable', () => {
     expect(screen.queryByText('住院病历每日同步')).toBeNull()
   })
 
+  it('可操作行支持键盘激活，行内复选框不会触发行操作', () => {
+    const onRowClick = vi.fn()
+    render(<DataTable columns={columns} data={rows} getRowId={(row) => row.id} rowLabel={(row) => row.name} onRowClick={onRowClick} selection={{ selected: new Set(), onChange: vi.fn() }} />)
+    const row = screen.getByRole('row', { name: '门诊就诊记录增量采集' })
+    expect(row.getAttribute('tabindex')).toBe('0')
+    fireEvent.keyDown(row, { key: 'Enter' })
+    fireEvent.keyDown(row, { key: ' ' })
+    expect(onRowClick).toHaveBeenCalledTimes(2)
+    fireEvent.keyDown(screen.getByLabelText('选择门诊就诊记录增量采集'), { key: ' ' })
+    expect(onRowClick).toHaveBeenCalledTimes(2)
+  })
+
   it('分页条展示真实总数与区间，并回传 0 基页码', () => {
     const onPageChange = vi.fn()
     render(

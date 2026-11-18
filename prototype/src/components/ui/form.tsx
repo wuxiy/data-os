@@ -24,13 +24,13 @@ export function FormField({
 }) {
   return (
     <div className={cn('mb-[17px]', className)}>
-      <label htmlFor={htmlFor} className="mb-[7px] block text-body-sm text-[#566173]">
+      <label htmlFor={htmlFor} className="mb-[7px] block text-body-sm text-ink-soft">
         {label}
-        {required ? <em className="ml-0.5 not-italic text-[#ba5a5a]">*</em> : null}
+        {required ? <em className="ml-0.5 not-italic text-red">*</em> : null}
       </label>
       {children}
-      {hint ? <p className="mt-[5px] text-meta leading-relaxed text-[#8b94a1]">{hint}</p> : null}
-      {error ? <p role="alert" className="mt-3 text-body-sm leading-relaxed text-[#b04747]">{error}</p> : null}
+      {hint ? <p className="mt-[5px] text-meta leading-relaxed text-muted">{hint}</p> : null}
+      {error ? <p role="alert" className="mt-3 text-body-sm leading-relaxed text-red">{error}</p> : null}
     </div>
   )
 }
@@ -43,7 +43,7 @@ export function FormGrid({ children, className }: { children: ReactNode; classNa
 /** 表单顶部说明：边界与口径先于输入。 */
 export function FormNotice({ icon, children }: { icon?: ReactNode; children: ReactNode }) {
   return (
-    <div className="mb-4 flex items-start gap-2 rounded-control border border-blue-line bg-[#f3f7ff] px-3 py-[11px] text-label leading-relaxed text-[#536e9b]">
+    <div className="mb-4 flex items-start gap-2 rounded-control border border-blue-line bg-blue-soft px-3 py-[11px] text-label leading-relaxed text-blue">
       {icon ? <span className="mt-0.5 [&_svg]:size-4">{icon}</span> : null}
       <span className="min-w-0">{children}</span>
     </div>

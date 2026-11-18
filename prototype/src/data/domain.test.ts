@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { eventTone, executorOutputView, formatDateTime, formatInlineDateTimes, isRecheckRetryEvent, looksLikeExecutorOutput, shortBatchId, standardEventLabel } from './domain'
+import { eventTone, executorOutputView, formatDateTime, formatInlineDateTimes, isRecheckRetryEvent, looksLikeExecutorOutput, severityLabel, severityTone, shortBatchId, standardEventLabel } from './domain'
+
+describe('质量问题严重度', () => {
+  it('阻断级问题使用中文和危险状态，未知值保留原文', () => {
+    expect(severityLabel('CRITICAL')).toBe('阻断')
+    expect(severityTone('CRITICAL')).toBe('danger')
+    expect(severityLabel('OTHER')).toBe('OTHER')
+    expect(severityTone('OTHER')).toBe('neutral')
+  })
+})
 
 describe('执行器输出治理（critique P0-2）', () => {
   it('识别执行器输出指纹（dbt 全文与后端摘要形态）', () => {

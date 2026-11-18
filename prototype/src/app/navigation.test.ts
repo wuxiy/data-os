@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { routePaths, workPaths } from '../data/routes'
-import { portalRoutes, activeNavKey, governanceChildren } from './navigation'
+import { portalRoutes, activeNavKey, governanceChildren, routeForPath } from './navigation'
 
 /**
  * 路由覆盖锁：17 个既有入口的 pathname 不重命名、不丢失；
@@ -41,9 +41,15 @@ describe('路由登记', () => {
   it('侧栏高亮归属：深链仍保持父入口激活', () => {
     expect(activeNavKey('/')).toBe('management')
     expect(activeNavKey('/ingestion/jobs/COL-001')).toBe('ingestion')
+    expect(activeNavKey('/assets')).toBe('assets')
     expect(activeNavKey('/assets/technical')).toBe('assets')
     expect(activeNavKey('/governance/quality')).toBe('governance')
     expect(activeNavKey('/assistant/workspace/questions/VER-001')).toBe('assistant')
+  })
+
+  it('共享入口的页面标题使用独立工作区名称', () => {
+    expect(routeForPath('/data-services')?.label).toBe('数据服务')
+    expect(routeForPath('/governance/standards')?.label).toBe('数据标准')
   })
 
   it('治理子导航保留六类入口且不出现重复路由', () => {

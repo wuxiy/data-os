@@ -178,7 +178,7 @@ export function SchedulePanel({ jobId, jobName }: { jobId: string; jobName: stri
   const busy = saveMutation.isPending || stateMutation.isPending
 
   const instanceColumns = instanceHelper.columns([
-    instanceHelper.accessor('name', { header: '实例', cell: ({ row }) => <span className="text-body-sm text-[#313c4d]">{row.original.name}</span> }),
+    instanceHelper.accessor('name', { header: '实例', cell: ({ row }) => <span className="text-body-sm text-ink">{row.original.name}</span> }),
     instanceHelper.display({
       id: 'state',
       header: '状态',
@@ -189,13 +189,13 @@ export function SchedulePanel({ jobId, jobName }: { jobId: string; jobName: stri
       id: 'start',
       header: '开始时间',
       size: 150,
-      cell: ({ row }) => <span className="text-label text-[#576171]">{formatDateTime(row.original.startTime)}</span>,
+      cell: ({ row }) => <span className="text-label text-ink-soft">{formatDateTime(row.original.startTime)}</span>,
     }),
     instanceHelper.display({
       id: 'end',
       header: '结束时间',
       size: 150,
-      cell: ({ row }) => <span className="text-label text-[#576171]">{formatDateTime(row.original.endTime)}</span>,
+      cell: ({ row }) => <span className="text-label text-ink-soft">{formatDateTime(row.original.endTime)}</span>,
     }),
     instanceHelper.display({
       id: 'actions',
@@ -227,7 +227,7 @@ export function SchedulePanel({ jobId, jobName }: { jobId: string; jobName: stri
           </FormNotice>
 
           {scheduleRequest.isPending ? <LoadingInline>正在读取当前调度状态…</LoadingInline> : null}
-          {scheduleRequest.isError ? <p role="alert" className="text-body-sm text-[#b04747]">{errorMessage(scheduleRequest.error, '调度状态读取失败')}</p> : null}
+          {scheduleRequest.isError ? <p role="alert" className="text-body-sm text-red">{errorMessage(scheduleRequest.error, '调度状态读取失败')}</p> : null}
 
           {schedule ? (
             <>
@@ -254,7 +254,7 @@ export function SchedulePanel({ jobId, jobName }: { jobId: string; jobName: stri
                     <option value="once">延迟一次 · 指定时刻触发</option>
                     {advanced ? <option value="advanced">高级模式 · 直编 CRON</option> : null}
                   </NativeSelect>
-                  <label className="flex items-center gap-2 text-label text-[#5b6b80]">
+                  <label className="flex items-center gap-2 text-label text-ink-soft">
                     <input type="checkbox" className="size-[13px] accent-blue" checked={advanced} onChange={(event) => setAdvanced(event.target.checked)} />
                     高级模式（直接编辑 CRON）
                   </label>
@@ -297,14 +297,14 @@ export function SchedulePanel({ jobId, jobName }: { jobId: string; jobName: stri
               ) : null}
 
               <FormField label="编译结果">
-                <code className="font-mono text-label text-[#52667e]">{composedCrontab || '（待填写）'}</code>
-                {composedStart ? <small className="ml-2 text-meta text-[#8b94a1]">生效 {toDsTime(composedStart)} ~ {toDsTime(composedEnd ?? '')}</small> : null}
+                <code className="font-mono text-label text-ink-soft">{composedCrontab || '（待填写）'}</code>
+                {composedStart ? <small className="ml-2 text-meta text-muted">生效 {toDsTime(composedStart)} ~ {toDsTime(composedEnd ?? '')}</small> : null}
               </FormField>
 
               {preview ? (
                 <div className="mb-3 rounded-control border border-line bg-wash px-3 py-2.5">
                   <Badge tone={preview.source === 'DS' ? 'success' : 'warn'}>{preview.source === 'DS' ? '平台调度引擎计算' : '引擎不可达 · 本地估算'}</Badge>
-                  <ul className="mt-2 space-y-1 text-label text-[#5b6b80]">
+                  <ul className="mt-2 space-y-1 text-label text-ink-soft">
                     {preview.fireTimes.map((time) => <li key={time}>{formatDateTime(time)}</li>)}
                     {preview.fireTimes.length === 0 ? <li>生效窗口内无触发时刻</li> : null}
                   </ul>
@@ -340,11 +340,11 @@ export function SchedulePanel({ jobId, jobName }: { jobId: string; jobName: stri
         <div className="px-5 pb-2">
           <div className="mb-3 flex flex-wrap items-end gap-2 rounded-control border border-line bg-wash px-3 py-2.5">
             <div>
-              <label htmlFor="backfill-start" className="mb-1 block text-meta text-[#6b788b]">补数开始日期</label>
+              <label htmlFor="backfill-start" className="mb-1 block text-meta text-muted">补数开始日期</label>
               <Input id="backfill-start" type="date" value={backfillStart} onChange={(event) => setBackfillStart(event.target.value)} className="w-[150px]" />
             </div>
             <div>
-              <label htmlFor="backfill-end" className="mb-1 block text-meta text-[#6b788b]">补数结束日期</label>
+              <label htmlFor="backfill-end" className="mb-1 block text-meta text-muted">补数结束日期</label>
               <Input id="backfill-end" type="date" value={backfillEnd} onChange={(event) => setBackfillEnd(event.target.value)} className="w-[150px]" />
             </div>
             <Button
@@ -354,7 +354,7 @@ export function SchedulePanel({ jobId, jobName }: { jobId: string; jobName: stri
             >
               <CalendarClock size={13} />{backfillMutation.isPending ? '提交中…' : '提交补数'}
             </Button>
-            <span className="ml-auto text-meta text-[#98a2ae]">补数按日期逐日触发，与手动运行分开记录。</span>
+            <span className="ml-auto text-meta text-muted">补数按日期逐日触发，与手动运行分开记录。</span>
           </div>
         </div>
         <DataTable
@@ -368,15 +368,15 @@ export function SchedulePanel({ jobId, jobName }: { jobId: string; jobName: stri
         />
         {expandedInstance !== null ? (
           <div className="border-t border-line bg-[#fbfcfe] px-5 py-3">
-            <div className="mb-2 flex items-center gap-2 text-label font-medium text-[#566173]">任务实例</div>
+            <div className="mb-2 flex items-center gap-2 text-label font-medium text-ink-soft">任务实例</div>
             {tasksRequest.isPending ? <LoadingInline>正在读取任务…</LoadingInline> : null}
             {tasksRequest.data?.length === 0 ? <p className="text-label text-muted">该实例还没有任务记录。</p> : null}
             <ul className="space-y-1.5">
               {(tasksRequest.data ?? []).map((task) => (
                 <li key={task.id} className="flex flex-wrap items-center gap-3 rounded-control border border-line bg-paper px-3 py-2 text-label">
-                  <span className="text-[#43546e]">{task.name}</span>
+                  <span className="text-ink-soft">{task.name}</span>
                   <StatusText tone={instanceTone(task.state)}>{instanceLabel(task.state)}</StatusText>
-                  <span className="text-meta text-[#8b94a1]">{formatDateTime(task.startTime)} → {formatDateTime(task.endTime)}</span>
+                  <span className="text-meta text-muted">{formatDateTime(task.startTime)} → {formatDateTime(task.endTime)}</span>
                   <Button
                     variant="text"
                     className="ml-auto"
@@ -390,7 +390,7 @@ export function SchedulePanel({ jobId, jobName }: { jobId: string; jobName: stri
             {logTask ? (
               <div className="mt-2">
                 {logRequest.isPending ? <LoadingInline>正在读取日志…</LoadingInline> : null}
-                {logRequest.isError ? <p className="text-body-sm text-[#b04747]">{errorMessage(logRequest.error, '日志读取失败')}</p> : null}
+                {logRequest.isError ? <p className="text-body-sm text-red">{errorMessage(logRequest.error, '日志读取失败')}</p> : null}
                 {logRequest.data ? (
                   <pre className="max-h-[240px] overflow-auto rounded-control border border-line bg-[#1d2733] p-3 font-mono text-[11px] leading-relaxed text-[#d7e0ea]">{logRequest.data.logText || '（日志为空）'}</pre>
                 ) : null}

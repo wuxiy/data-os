@@ -45,9 +45,9 @@ export function AssetTechnicalPage() {
   const backPath = deepLinks.asset(detail?.fullyQualifiedName || fqn)
 
   const columns = columnHelper.columns([
-    columnHelper.accessor('name', { header: '物理字段', cell: ({ row }) => <code className="font-mono text-label text-[#6b778a]">{row.original.name}</code> }),
+    columnHelper.accessor('name', { header: '物理字段', cell: ({ row }) => <code className="font-mono text-label text-muted">{row.original.name}</code> }),
     columnHelper.accessor('dataType', { header: '类型', size: 180 }),
-    columnHelper.display({ id: 'description', header: '说明', cell: ({ row }) => <span className="text-label text-[#6b7789]">{row.original.description || '—'}</span> }),
+    columnHelper.display({ id: 'description', header: '说明', cell: ({ row }) => <span className="text-label text-muted">{row.original.description || '—'}</span> }),
   ])
 
   const pickerAssets = (catalogRequest.data?.assets ?? []).filter((asset) => {
@@ -84,10 +84,10 @@ export function AssetTechnicalPage() {
                       className="flex w-full items-center justify-between gap-3 rounded-control px-2 py-2 text-left hover:bg-wash"
                     >
                       <span className="min-w-0">
-                        <span className="block truncate text-body-sm text-[#43546e]">{asset.displayName || asset.name}</span>
-                        <span className="block truncate font-mono text-meta text-[#8b94a1]">{asset.fullyQualifiedName}</span>
+                        <span className="block truncate text-body-sm text-ink-soft">{asset.displayName || asset.name}</span>
+                        <span className="block truncate font-mono text-meta text-muted">{asset.fullyQualifiedName}</span>
                       </span>
-                      <span className="shrink-0 text-meta text-[#6c798c]">{asset.columnCount} 列</span>
+                      <span className="shrink-0 text-meta text-muted">{asset.columnCount} 列</span>
                     </button>
                   </li>
                 ))}
@@ -132,11 +132,11 @@ export function AssetTechnicalPage() {
           <Panel>
             <div className="flex flex-wrap items-start justify-between gap-4 px-5 py-4">
               <div className="flex items-start gap-3">
-                <span className="flex size-9 items-center justify-center rounded-panel border border-line bg-wash text-[#8098bc]"><TableProperties size={18} /></span>
+                <span className="flex size-9 items-center justify-center rounded-panel border border-line bg-wash text-muted"><TableProperties size={18} /></span>
                 <div>
-                  <span className="font-mono text-meta text-[#8b94a1]">{detail.fullyQualifiedName}</span>
-                  <h2 className="mt-0.5 text-title font-semibold text-[#2c3a4d]">{detail.displayName || detail.name}</h2>
-                  <p className="mt-0.5 text-meta text-[#98a2ae]">技术元数据快照 · 元数据中心摄取</p>
+                  <span className="font-mono text-meta text-muted">{detail.fullyQualifiedName}</span>
+                  <h2 className="mt-0.5 text-title font-semibold text-ink">{detail.displayName || detail.name}</h2>
+                  <p className="mt-0.5 text-meta text-muted">技术元数据快照 · 元数据中心摄取</p>
                 </div>
               </div>
               <Badge tone="success">元数据已摄取</Badge>
@@ -151,7 +151,7 @@ export function AssetTechnicalPage() {
 
           <div className="grid grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] gap-3.5 max-[1100px]:grid-cols-1">
             <Panel>
-              <PanelHead title="字段结构" description="物理字段、类型与业务说明" actions={<Rows3 size={16} className="text-[#8b94a1]" />} />
+              <PanelHead title="字段结构" description="物理字段、类型与业务说明" actions={<Rows3 size={16} className="text-muted" />} />
               <div className="px-5 pb-5">
                 <DataTable columns={columns} data={detail.columns} getRowId={(column) => column.name} empty={<p className="py-3 text-label text-muted">当前资产尚无字段结构。</p>} />
               </div>
@@ -163,18 +163,18 @@ export function AssetTechnicalPage() {
                 {lineageRequest.isPending ? <LoadingBlock className="min-h-[160px]">正在读取血缘…</LoadingBlock> : null}
                 {lineageRequest.isError ? (
                   <div className="py-6 text-center">
-                    <p className="text-body-sm text-[#59677d]">血缘暂不可读</p>
+                    <p className="text-body-sm text-ink-soft">血缘暂不可读</p>
                     <Button size="sm" className="mt-2" onClick={() => void lineageRequest.refetch()}>重新读取</Button>
                   </div>
                 ) : null}
                 {lineage ? (
                   <>
-                    <h3 className="mb-1 text-label font-medium text-[#566173]">上游（{lineage.upstreams.length}）</h3>
+                    <h3 className="mb-1 text-label font-medium text-ink-soft">上游（{lineage.upstreams.length}）</h3>
                     <ul className="m-0 mb-3 list-none space-y-1 p-0">
                       {lineage.upstreams.map((node) => <NodeRow key={node.fullyQualifiedName} label={lineageNodeKindLabel[node.type]} name={node.displayName || shortNodeName(node)} fqn={node.fullyQualifiedName} mappings={node.columnMappings.length} />)}
                       {lineage.upstreams.length === 0 ? <li className="text-label text-muted">暂无上游登记。</li> : null}
                     </ul>
-                    <h3 className="mb-1 text-label font-medium text-[#566173]">下游（{lineage.downstreams.length}）</h3>
+                    <h3 className="mb-1 text-label font-medium text-ink-soft">下游（{lineage.downstreams.length}）</h3>
                     <ul className="m-0 list-none space-y-1 p-0">
                       {lineage.downstreams.map((node) => <NodeRow key={node.fullyQualifiedName} label={lineageNodeKindLabel[node.type]} name={node.displayName || shortNodeName(node)} fqn={node.fullyQualifiedName} mappings={node.columnMappings.length} />)}
                       {lineage.downstreams.length === 0 ? <li className="text-label text-muted">暂无下游登记。</li> : null}
@@ -193,9 +193,9 @@ export function AssetTechnicalPage() {
 function Fact({ label, value, hint }: { label: string; value: string; hint: string }) {
   return (
     <div>
-      <dt className="text-meta text-[#8a929e]">{label}</dt>
-      <dd className="m-0 mt-0.5 text-body-sm font-medium text-[#4a5666]">{value}</dd>
-      <small className="text-meta text-[#98a2ae]">{hint}</small>
+      <dt className="text-meta text-muted">{label}</dt>
+      <dd className="m-0 mt-0.5 text-body-sm font-medium text-ink-soft">{value}</dd>
+      <small className="text-meta text-muted">{hint}</small>
     </div>
   )
 }
@@ -204,9 +204,9 @@ function NodeRow({ label, name, fqn, mappings }: { label: string; name: string; 
   return (
     <li className="flex items-center gap-2 rounded-control border border-line px-2.5 py-1.5 text-label">
       <Badge>{label}</Badge>
-      <span className="min-w-0 flex-1 truncate text-[#4a5666]" title={fqn}>{name}</span>
-      {mappings > 0 ? <span className="shrink-0 text-meta text-[#7c8795]">{mappings} 条列映射</span> : null}
-      <span className="shrink-0 font-mono text-meta text-[#a3adb9]">{fqn.split('.')[0]}</span>
+      <span className="min-w-0 flex-1 truncate text-ink-soft" title={fqn}>{name}</span>
+      {mappings > 0 ? <span className="shrink-0 text-meta text-muted">{mappings} 条列映射</span> : null}
+      <span className="shrink-0 font-mono text-meta text-muted">{fqn.split('.')[0]}</span>
     </li>
   )
 }

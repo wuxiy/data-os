@@ -149,7 +149,7 @@ export function RuleEditorPage({ ruleId }: { ruleId?: string }) {
           </FormGrid>
 
           {form.ruleType === 'NOT_NULL' ? (
-            <label className="mb-4 flex items-center gap-2 text-body-sm text-[#566173]">
+            <label className="mb-4 flex items-center gap-2 text-body-sm text-ink-soft">
               <input type="checkbox" className="size-[13px] accent-blue" checked={form.checkBlank} onChange={(event) => update({ checkBlank: event.target.checked })} />
               空字符串也算失败（checkBlank）
             </label>
@@ -282,7 +282,7 @@ export function RuleEditorPage({ ruleId }: { ruleId?: string }) {
           ) : (
             <div className="mb-4">
               <div className="mb-1.5 flex items-center justify-between">
-                <span className="text-body-sm text-[#566173]">证据列白名单（失败样本展示 + 脱敏分类）</span>
+                <span className="text-body-sm text-ink-soft">证据列白名单（失败样本展示 + 脱敏分类）</span>
                 <Button size="sm" variant="text" onClick={() => update({ evidenceColumns: [...form.evidenceColumns, { name: '', classification: 'REDACTED' }] })}>
                   <Plus size={13} />添加证据列
                 </Button>
@@ -309,10 +309,10 @@ export function RuleEditorPage({ ruleId }: { ruleId?: string }) {
             </div>
           )}
 
-          {error ? <p role="alert" className="mb-3 text-body-sm leading-relaxed text-[#b04747]">{error}</p> : null}
+          {error ? <p role="alert" className="mb-3 text-body-sm leading-relaxed text-red">{error}</p> : null}
 
           <div className="flex items-center justify-between gap-3 border-t border-line pt-4">
-            <span className="text-meta text-[#788495]"><Badge tone="blue">保存即推送</Badge> 执行器对目标表列做实校验</span>
+            <span className="text-meta text-muted"><Badge tone="blue">保存即推送</Badge> 执行器对目标表列做实校验</span>
             <div className="flex items-center gap-2">
               <Button onClick={() => navigate('/governance/quality')}>取消</Button>
               <Button variant="primary" disabled={mutation.isPending} onClick={submit}>

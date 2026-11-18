@@ -93,7 +93,7 @@ export function SourceRegisterDialog({
           </NativeSelect>
         </FormField>
       </div>
-      {error ? <p role="alert" className="mt-3 text-body-sm text-[#b04747]">{error}</p> : null}
+      {error ? <p role="alert" className="mt-3 text-body-sm text-red">{error}</p> : null}
     </Dialog>
   )
 }
@@ -170,14 +170,14 @@ export function SourceCheckDialog({
           className="min-h-[200px]"
         />
       </FormField>
-      {error ? <p role="alert" className="mb-3 text-body-sm text-[#b04747]">{error}</p> : null}
+      {error ? <p role="alert" className="mb-3 text-body-sm text-red">{error}</p> : null}
       {source?.lastCheckMessage ? (
         <div className="rounded-control border border-line bg-wash px-3 py-2.5">
           <div className="flex items-center gap-2">
             {status ? <Badge tone={status.tone}>{status.label}</Badge> : null}
-            <span className="text-label text-[#5b6b80]">{source.lastCheckMessage}</span>
+            <span className="text-label text-ink-soft">{source.lastCheckMessage}</span>
           </div>
-          <p className="mt-1 text-meta text-[#8b94a1]">最近检查：{formatDateTime(source.lastCheckedAt)}</p>
+          <p className="mt-1 text-meta text-muted">最近检查：{formatDateTime(source.lastCheckedAt)}</p>
         </div>
       ) : null}
     </Dialog>
@@ -257,7 +257,7 @@ export function CopyJobDialog({
           <Input id="copy-name" value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} />
         </FormField>
       </div>
-      {error ? <p role="alert" className="mt-3 text-body-sm text-[#b04747]">{error}</p> : null}
+      {error ? <p role="alert" className="mt-3 text-body-sm text-red">{error}</p> : null}
     </Dialog>
   )
 }

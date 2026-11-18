@@ -89,7 +89,9 @@ export const governanceChildren: { label: string; path: string; match: (pathname
 
 /** 按 pathname 找路由展示信息（含参数化工作页）。 */
 export function routeForPath(pathname: string): PortalRoute | undefined {
-  const exact = portalRoutes.find((route) => route.path === pathname)
+  // 同一路径同时作为治理子项和独立页面时，标题取独立页面名称。
+  const exact = portalRoutes.find((route) => route.path === pathname && !route.sub)
+    ?? portalRoutes.find((route) => route.path === pathname)
   if (exact) return exact
   return portalRoutes.find((route) => route.pattern?.test(pathname))
 }
@@ -97,6 +99,7 @@ export function routeForPath(pathname: string): PortalRoute | undefined {
 /** 当前页面在侧栏应高亮的入口。 */
 export function activeNavKey(pathname: string): string {
   if (pathname.startsWith('/ingestion')) return 'ingestion'
+  if (pathname === '/assets') return 'assets'
   if (pathname.startsWith('/assets/technical')) return 'assets'
   if (pathname.startsWith('/governance')) return 'governance'
   if (pathname.startsWith('/mpi')) return 'mpi'

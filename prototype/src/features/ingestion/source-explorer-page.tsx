@@ -140,7 +140,7 @@ function ExplorerWorkspace({ source }: { source: SourceApiItem }) {
   })
 
   const columnColumns = columnHelper.columns([
-    columnHelper.accessor('name', { header: '字段', cell: ({ row }) => <span className="font-medium text-[#313c4d]">{row.original.name}</span> }),
+    columnHelper.accessor('name', { header: '字段', cell: ({ row }) => <span className="font-medium text-ink">{row.original.name}</span> }),
     columnHelper.accessor('typeName', { header: '类型' }),
     columnHelper.display({ id: 'nullable', header: '可空', size: 80, cell: ({ row }) => row.original.nullable ? '是' : '否' }),
     columnHelper.display({ id: 'remark', header: '注释', cell: ({ row }) => row.original.remark || '—' }),
@@ -158,7 +158,7 @@ function ExplorerWorkspace({ source }: { source: SourceApiItem }) {
   return (
     <div className="grid grid-cols-[220px_minmax(0,1fr)] gap-0 overflow-clip rounded-panel border border-line bg-paper max-[1100px]:grid-cols-1">
       <aside className="border-r border-line bg-[#fdfdfe] px-3 py-4 max-[1100px]:border-r-0 max-[1100px]:border-b">
-        <h2 className="px-2 pb-3 text-label font-medium text-[#7c8795]">库与表</h2>
+        <h2 className="px-2 pb-3 text-label font-medium text-muted">库与表</h2>
         {catalogsRequest.isPending ? <LoadingInline>正在读取库清单…</LoadingInline> : null}
         {catalogsRequest.isError ? (
           <div role="alert" className="rounded-control border border-red-line bg-red-soft px-2.5 py-2 text-label text-red">
@@ -179,14 +179,14 @@ function ExplorerWorkspace({ source }: { source: SourceApiItem }) {
                   type="button"
                   aria-expanded={expanded}
                   onClick={() => { setExpandedCatalog(expanded ? null : catalog); setSelectedTable(null) }}
-                  className="flex w-full items-center gap-1.5 rounded-control px-2 py-1.5 text-left text-label text-[#52627a] hover:bg-[#f0f3f7]"
+                  className="flex w-full items-center gap-1.5 rounded-control px-2 py-1.5 text-left text-label text-ink-soft hover:bg-wash"
                 >
                   {expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
                   <Database size={13} />
                   <span className="truncate">{catalog}</span>
                 </button>
                 {expanded ? (
-                  <div className="mb-1 ml-5 border-l border-[#e2e8f0] pl-2">
+                  <div className="mb-1 ml-5 border-l border-line pl-2">
                     {tablesRequest.isPending ? <p className="px-1 py-1 text-meta text-muted">正在读取表清单…</p> : null}
                     {tablesRequest.isError ? <p className="px-1 py-1 text-meta text-red">表清单读取失败</p> : null}
                     {(tablesRequest.data?.tables ?? []).map((table) => {
@@ -197,7 +197,7 @@ function ExplorerWorkspace({ source }: { source: SourceApiItem }) {
                           type="button"
                           title={table.remark || table.type}
                           onClick={() => setSelectedTable({ catalog, table: table.name })}
-                          className={`flex w-full items-center gap-1.5 rounded-chip px-1.5 py-1 text-left text-meta ${active ? 'bg-blue-soft text-blue' : 'text-[#5b6b80] hover:bg-wash'}`}
+                          className={`flex w-full items-center gap-1.5 rounded-chip px-1.5 py-1 text-left text-meta ${active ? 'bg-blue-soft text-blue' : 'text-ink-soft hover:bg-wash'}`}
                         >
                           <Table2 size={12} />
                           <span className="truncate">{table.name}</span>
@@ -217,8 +217,8 @@ function ExplorerWorkspace({ source }: { source: SourceApiItem }) {
         <ScopeNote>浏览使用只读账号；查询仅限单条 SELECT/WITH，返回行数上限 200。</ScopeNote>
         {selectedTable ? (
           <div className="border-b border-line">
-            <div className="flex items-center gap-2 px-4 pt-3 text-label text-[#566173]">
-              <Table2 size={13} /><strong>{selectedTable.table}</strong><span className="text-[#8b94a1]">字段清单</span>
+            <div className="flex items-center gap-2 px-4 pt-3 text-label text-ink-soft">
+              <Table2 size={13} /><strong>{selectedTable.table}</strong><span className="text-muted">字段清单</span>
             </div>
             {columnsRequest.isPending ? <div className="px-4 py-3"><LoadingInline>正在读取字段…</LoadingInline></div> : null}
             {columnsRequest.isError ? <p className="px-4 py-3 text-label text-red">字段清单读取失败</p> : null}
@@ -236,9 +236,9 @@ function ExplorerWorkspace({ source }: { source: SourceApiItem }) {
         )}
 
         <div className="px-4 py-4">
-          <div className="mb-2 flex items-center gap-2 text-label text-[#566173]">
-            <Play size={13} /><strong>SQL 工作台</strong><span className="text-[#8b94a1]">只读 · 单条查询 · 行数上限 200</span>
-            {selectedTable ? <span className="ml-auto text-meta text-[#98a2ae]">当前库：{selectedTable.catalog}</span> : null}
+          <div className="mb-2 flex items-center gap-2 text-label text-ink-soft">
+            <Play size={13} /><strong>SQL 工作台</strong><span className="text-muted">只读 · 单条查询 · 行数上限 200</span>
+            {selectedTable ? <span className="ml-auto text-meta text-muted">当前库：{selectedTable.catalog}</span> : null}
           </div>
           <CodeTextarea
             aria-label="SQL 查询语句"
@@ -252,22 +252,22 @@ function ExplorerWorkspace({ source }: { source: SourceApiItem }) {
             <Button size="sm" variant="primary" disabled={!sql.trim() || queryMutation.isPending} onClick={() => queryMutation.mutate()}>
               <Play size={13} />{queryMutation.isPending ? '查询中…' : '执行查询'}
             </Button>
-            <span className="text-meta text-[#98a2ae]">使用只读账号；结果不写入任何业务表。</span>
+            <span className="text-meta text-muted">使用只读账号；结果不写入任何业务表。</span>
           </div>
-          {queryMutation.isError ? <p role="alert" className="mt-2 text-body-sm text-[#b04747]">{errorMessage(queryMutation.error, '查询执行失败')}</p> : null}
+          {queryMutation.isError ? <p role="alert" className="mt-2 text-body-sm text-red">{errorMessage(queryMutation.error, '查询执行失败')}</p> : null}
           {result ? (
             <div className="mt-3">
               {result.truncated ? <p role="status" className="mb-2 text-meta text-amber">结果超出返回上限，已截断显示前 {result.rows.length} 行。</p> : null}
               {result.rows.length === 0 ? <p className="text-label text-muted">查询没有返回数据行。</p> : (
                 <div className="overflow-x-auto rounded-control border border-line">
                   <table className="w-full border-collapse text-left text-label">
-                    <thead className="bg-wash text-[#7b8592]">
+                    <thead className="bg-wash text-muted">
                       <tr>{resultColumns.map((column) => <th key={column.id} className="border-b border-line px-3 py-2 font-normal">{column.header}</th>)}</tr>
                     </thead>
                     <tbody>
                       {result.rows.map((row, rowIndex) => (
                         <tr key={rowIndex} className="border-b border-line-soft last:border-b-0">
-                          {resultColumns.map((column) => <td key={column.id} className="px-3 py-2 font-mono text-meta text-[#576171]">{column.cell(row)}</td>)}
+                          {resultColumns.map((column) => <td key={column.id} className="px-3 py-2 font-mono text-meta text-ink-soft">{column.cell(row)}</td>)}
                         </tr>
                       ))}
                     </tbody>

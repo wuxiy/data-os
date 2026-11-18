@@ -186,7 +186,7 @@ export function StructuredTaskFields({
       ) : null}
 
       <FormField label="任务形态">
-        <div role="radiogroup" aria-label="任务形态" className="inline-flex gap-1 rounded-control border border-[#e3e7ee] bg-wash p-0.5">
+        <div role="radiogroup" aria-label="任务形态" className="inline-flex gap-1 rounded-control border border-line bg-wash p-0.5">
           {([
             { value: 'TABLE' as const, label: '表任务', icon: <Table2 size={13} /> },
             { value: 'SQL' as const, label: 'SQL 任务', icon: <Play size={13} /> },
@@ -202,7 +202,7 @@ export function StructuredTaskFields({
                 onClick={() => form.setFieldValue('form', option.value)}
                 className={cn(
                   'inline-flex items-center gap-1.5 rounded-chip px-2.5 py-1 text-label',
-                  active ? 'bg-paper text-blue shadow-focus' : 'text-[#7a8491] hover:text-ink',
+                  active ? 'bg-paper text-blue shadow-focus' : 'text-muted hover:text-ink',
                   editLocked && 'opacity-60',
                 )}
               >
@@ -258,8 +258,8 @@ export function StructuredTaskFields({
                       aria-pressed={values.tables.includes(table.name)}
                       onClick={() => toggleTable(table.name)}
                       className={cn(
-                        'inline-flex items-center gap-1 rounded-chip border border-line px-2 py-1 text-label hover:border-[#c7d4e8]',
-                        values.tables.includes(table.name) ? 'border-blue-line bg-blue-soft text-blue' : 'bg-paper text-[#5b6b80]',
+                        'inline-flex items-center gap-1 rounded-chip border border-line px-2 py-1 text-label hover:border-blue-line',
+                        values.tables.includes(table.name) ? 'border-blue-line bg-blue-soft text-blue' : 'bg-paper text-ink-soft',
                       )}
                     >
                       <Table2 size={12} />{table.name}
@@ -276,7 +276,7 @@ export function StructuredTaskFields({
             <FormField label={`字段白名单（不选 = 全部字段）${columnsQuery.isFetching ? ' · 读取中…' : ''}`}>
               <div className="flex max-h-[220px] flex-wrap gap-1.5 overflow-y-auto rounded-control border border-line bg-wash p-2.5">
                 {activeColumns.map((column) => (
-                  <label key={column.name} className="inline-flex items-center gap-1.5 rounded-chip bg-paper px-2 py-1 text-label text-[#5b6b80]">
+                  <label key={column.name} className="inline-flex items-center gap-1.5 rounded-chip bg-paper px-2 py-1 text-label text-ink-soft">
                     <input
                       type="checkbox"
                       className="size-[13px] accent-blue"
@@ -284,7 +284,7 @@ export function StructuredTaskFields({
                       onChange={() => toggleColumn(column.name)}
                     />
                     <span>{column.name}</span>
-                    <small className="text-meta text-[#98a2ae]">{column.typeName}</small>
+                    <small className="text-meta text-muted">{column.typeName}</small>
                   </label>
                 ))}
               </div>
@@ -360,12 +360,12 @@ export function StructuredTaskFields({
 
       <form.Subscribe selector={(state) => state.errors}>
         {(errors) => errors.length > 0
-          ? <p role="alert" className="mb-3 text-body-sm text-[#b04747]">{errors[0]}</p>
+          ? <p role="alert" className="mb-3 text-body-sm text-red">{errors[0]}</p>
           : null}
       </form.Subscribe>
 
       <div className="flex items-center justify-between gap-3 border-t border-line pt-4">
-        <span className="text-meta text-[#788495]">{submitHint ?? '凭据只保存引用；编译后的作业 JSON 由控制面持有'}</span>
+        <span className="text-meta text-muted">{submitHint ?? '凭据只保存引用；编译后的作业 JSON 由控制面持有'}</span>
         <div className="flex items-center gap-2">
           {onCancel ? <Button onClick={onCancel} disabled={saving}>取消</Button> : null}
           <Button type="submit" variant="primary" disabled={!canSubmit || saving}>
@@ -373,7 +373,7 @@ export function StructuredTaskFields({
           </Button>
         </div>
       </div>
-      <p className="mt-2 text-meta text-[#98a2ae]">
+      <p className="mt-2 text-meta text-muted">
         <Badge tone="blue">结构化意图</Badge> 表单只声明采集口径，库表与字段由控制面对源实校验后编译。
       </p>
     </form>

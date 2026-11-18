@@ -24,7 +24,7 @@ export function PanelHead({
   className?: string
 }) {
   return (
-    <div className={cn('flex items-center justify-between gap-3 px-[19px] pt-[15px] pb-2.5', className)}>
+    <div className={cn('flex items-center justify-between gap-3 px-5 pt-[18px] pb-3', className)}>
       <div className="min-w-0">
         <h2 className="text-title font-semibold tracking-[-0.2px]">
           {title}
@@ -39,7 +39,7 @@ export function PanelHead({
 
 /** 数量角标：跟在标题后的小方框数字。 */
 export function Count({ children }: { children: ReactNode }) {
-  return <span className="ml-1.5 rounded-chip border border-[#e4e8ed] bg-wash px-1 text-meta font-medium text-[#6b7687]">{children}</span>
+  return <span className="ml-1.5 rounded-chip border border-line bg-wash px-1 text-meta font-medium text-muted">{children}</span>
 }
 
 /** 键值事实表：两列网格，上下细分隔线。 */
@@ -50,15 +50,15 @@ export function Facts({ children, className }: { children: ReactNode; className?
 export function Fact({ label, children }: { label: ReactNode; children: ReactNode }) {
   return (
     <div>
-      <dt className="mb-1 text-meta text-[#8a929e]">{label}</dt>
+      <dt className="mb-1 text-meta text-muted">{label}</dt>
       <dd className="m-0 text-body-sm text-ink-soft">{children}</dd>
     </div>
   )
 }
 
 const noticeTones = {
-  info: 'border-[#dae5f8] bg-[#f3f7ff] text-[#536e9b] [&_svg]:text-blue',
-  warn: 'border-[#eee2c5] bg-[#fdf9ef] text-[#8e7040] [&_svg]:text-amber',
+  info: 'border-[#dae5f8] bg-blue-soft text-blue [&_svg]:text-blue',
+  warn: 'border-[#eee2c5] bg-[#fdf9ef] text-amber [&_svg]:text-amber',
 } as const
 
 /** 页内说明：不阻断操作，用于边界声明、结果提示与恢复入口。 */
@@ -83,7 +83,7 @@ export function InlineNotice({
 
 /** 范围声明行：列表顶部的浅底口径说明。 */
 export function ScopeNote({ children }: { children: ReactNode }) {
-  return <div className="border-b border-line bg-[#fbfcfe] px-[18px] py-2 text-meta text-[#8f9aa9]">{children}</div>
+  return <div className="border-b border-line bg-wash px-[18px] py-2 text-meta text-muted">{children}</div>
 }
 
 export function Subtle({ children, className }: { children: ReactNode; className?: string }) {
@@ -92,5 +92,5 @@ export function Subtle({ children, className }: { children: ReactNode; className
 
 /** 键盘提示：顶栏搜索与命令面板复用。 */
 export function Kbd({ children }: { children: ReactNode }) {
-  return <kbd className="rounded-chip border border-line bg-canvas px-1 py-px font-sans text-meta text-[#7c8592]">{children}</kbd>
+  return <kbd className="rounded-chip border border-line bg-canvas px-1 py-px font-sans text-meta text-muted">{children}</kbd>
 }

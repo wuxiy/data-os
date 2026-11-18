@@ -2,11 +2,11 @@ import type { ComponentProps, ReactNode } from 'react'
 import { cn } from '../../lib/utils'
 
 const badgeTones = {
-  neutral: 'border-[#e4e8ee] bg-[#f4f6f9] text-[#657181]',
+  neutral: 'border-line bg-wash text-muted',
   warn: 'border-amber-line bg-amber-soft text-amber',
   danger: 'border-red-line bg-red-soft text-red',
   success: 'border-green-line bg-green-soft text-green',
-  blue: 'border-[#d9e5fb] bg-[#eef4ff] text-[#3162ba]',
+  blue: 'border-blue-line bg-blue-soft text-blue',
 } as const
 
 export type BadgeTone = keyof typeof badgeTones
@@ -24,17 +24,17 @@ export function Badge({ tone = 'neutral', className, children, ...props }: Compo
 }
 
 const dotTones = {
-  neutral: 'text-[#647180]',
+  neutral: 'text-muted',
   good: 'text-green',
   bad: 'text-red',
-  running: 'text-[#3b6abb]',
+  running: 'text-blue',
 } as const
 
 const dotColors = {
-  neutral: 'bg-[#929daa]',
-  good: 'bg-[#4d8c6e]',
-  bad: 'bg-[#c45757]',
-  running: 'bg-[#4979cf]',
+  neutral: 'bg-muted',
+  good: 'bg-green',
+  bad: 'bg-red',
+  running: 'bg-blue',
 } as const
 
 export type StatusTone = keyof typeof dotTones

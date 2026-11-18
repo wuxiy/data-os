@@ -132,16 +132,16 @@ export function PlatformOperationsPage() {
       header: '前置机',
       cell: ({ row }) => (
         <div>
-          <div className="text-body-sm font-medium text-[#313c4d]">{row.original.name}</div>
-          <div className="text-meta text-[#8b94a1]">{row.original.groupName || '未分组'} · {row.original.site || '未标注站点'}</div>
+          <div className="text-body-sm font-medium text-ink">{row.original.name}</div>
+          <div className="text-meta text-muted">{row.original.groupName || '未分组'} · {row.original.site || '未标注站点'}</div>
         </div>
       ),
     }),
-    nodeHelper.display({ id: 'addr', header: '地址', size: 200, cell: ({ row }) => <span className="font-mono text-label text-[#6b778a]">{row.original.host}:{row.original.port}</span> }),
+    nodeHelper.display({ id: 'addr', header: '地址', size: 200, cell: ({ row }) => <span className="font-mono text-label text-muted">{row.original.host}:{row.original.port}</span> }),
     nodeHelper.display({ id: 'version', header: '版本', size: 100, cell: ({ row }) => <span className="font-mono text-label">{row.original.version || '—'}</span> }),
     nodeHelper.display({ id: 'state', header: '状态', size: 100, cell: ({ row }) => <Badge tone={nodeTone(row.original.state)}>{row.original.state === 'ONLINE' ? '在线' : row.original.state === 'OFFLINE' ? '离线' : '未知'}</Badge> }),
     nodeHelper.display({ id: 'probe', header: '最近探活', size: 170, cell: ({ row }) => row.original.lastProbeAt
-      ? <span className="text-label text-[#6b7789]">{formatDateTime(row.original.lastProbeAt)}{row.original.lastProbeOk === false ? ' · 失败' : ''}</span>
+      ? <span className="text-label text-muted">{formatDateTime(row.original.lastProbeAt)}{row.original.lastProbeOk === false ? ' · 失败' : ''}</span>
       : <span className="text-label text-faint">未探活</span> }),
     nodeHelper.display({
       id: 'actions',
@@ -160,16 +160,16 @@ export function PlatformOperationsPage() {
 
   const deploymentColumns = deploymentHelper.columns([
     deploymentHelper.accessor('version', { header: '版本', size: 100, cell: ({ row }) => <span className="font-mono text-label">{row.original.version}</span> }),
-    deploymentHelper.display({ id: 'artifact', header: '制品引用', cell: ({ row }) => <span className="font-mono text-meta text-[#6b778a]">{row.original.artifactRef || '—'}</span> }),
-    deploymentHelper.display({ id: 'note', header: '说明', cell: ({ row }) => <span className="text-label text-[#8b94a1]">{row.original.note || '—'}</span> }),
-    deploymentHelper.display({ id: 'at', header: '登记时间', size: 140, cell: ({ row }) => <span className="text-meta text-[#98a2ae]">{formatDateTime(row.original.deployedAt)} · {row.original.deployedBy}</span> }),
+    deploymentHelper.display({ id: 'artifact', header: '制品引用', cell: ({ row }) => <span className="font-mono text-meta text-muted">{row.original.artifactRef || '—'}</span> }),
+    deploymentHelper.display({ id: 'note', header: '说明', cell: ({ row }) => <span className="text-label text-muted">{row.original.note || '—'}</span> }),
+    deploymentHelper.display({ id: 'at', header: '登记时间', size: 140, cell: ({ row }) => <span className="text-meta text-muted">{formatDateTime(row.original.deployedAt)} · {row.original.deployedBy}</span> }),
   ])
 
   const watermarkColumns = watermarkHelper.columns([
-    watermarkHelper.display({ id: 'dataset', header: '数据集', cell: ({ row }) => <span className="font-mono text-label text-[#313c4d]">{row.original.dataset}</span> }),
+    watermarkHelper.display({ id: 'dataset', header: '数据集', cell: ({ row }) => <span className="font-mono text-label text-ink">{row.original.dataset}</span> }),
     watermarkHelper.display({ id: 'rows', header: '总行数', size: 120, meta: { align: 'right' }, cell: ({ row }) => <span className="tabular-nums text-label">{row.original.totalRows.toLocaleString()}</span> }),
-    watermarkHelper.display({ id: 'latest', header: '最近写入', size: 150, cell: ({ row }) => <span className="text-label text-[#6b7789]">{formatDateTime(row.original.latestWriteAt)}</span> }),
-    watermarkHelper.display({ id: 'daily', header: '近 7 日', size: 220, cell: ({ row }) => <span className="text-meta text-[#98a2ae]">{row.original.dailyCounts.map((item) => `${item.date.slice(5)}:${item.count}`).join(' · ') || '—'}</span> }),
+    watermarkHelper.display({ id: 'latest', header: '最近写入', size: 150, cell: ({ row }) => <span className="text-label text-muted">{formatDateTime(row.original.latestWriteAt)}</span> }),
+    watermarkHelper.display({ id: 'daily', header: '近 7 日', size: 220, cell: ({ row }) => <span className="text-meta text-muted">{row.original.dailyCounts.map((item) => `${item.date.slice(5)}:${item.count}`).join(' · ') || '—'}</span> }),
   ])
 
   if (forbidden || (platformRequest.isError && !platform)) {
@@ -212,12 +212,12 @@ export function PlatformOperationsPage() {
             {platform.services.map((service) => (
               <li key={service.key} className="rounded-control border border-line px-3 py-2.5">
                 <div className="flex items-center justify-between gap-2">
-                  <strong className="text-body-sm text-[#43546e]">{service.name}</strong>
+                  <strong className="text-body-sm text-ink-soft">{service.name}</strong>
                   <Badge tone={service.status === 'UP' ? 'success' : service.status === 'DOWN' ? 'danger' : 'neutral'}>
                     {service.status === 'UP' ? '正常' : service.status === 'DOWN' ? '不可达' : '未配置'}
                   </Badge>
                 </div>
-                <p className="mt-1 text-meta text-[#8b94a1]">{service.role}</p>
+                <p className="mt-1 text-meta text-muted">{service.role}</p>
               </li>
             ))}
           </ul>
@@ -236,7 +236,7 @@ export function PlatformOperationsPage() {
         </FormNotice>
         <div className="px-4 pb-4">
           {nodesRequest.isPending ? <LoadingBlock className="min-h-[160px]">正在读取前置机…</LoadingBlock> : null}
-          {nodesRequest.isError ? <p role="alert" className="py-2 text-label text-[#b04747]">前置机清单读取失败，请稍后重试。</p> : null}
+          {nodesRequest.isError ? <p role="alert" className="py-2 text-label text-red">前置机清单读取失败，请稍后重试。</p> : null}
           {nodesRequest.isSuccess ? (
             <DataTable
               columns={nodeColumns}
@@ -250,7 +250,7 @@ export function PlatformOperationsPage() {
       </Panel>
 
       <Panel>
-        <PanelHead title="采集水位" count={watermarksRequest.data?.tables.length} description="只读聚合：总行数、最近写入与近 7 日计数" actions={watermarksRequest.data ? <span className="text-meta text-[#98a2ae]">统计于 {formatDateTime(watermarksRequest.data.asOf)}</span> : null} />
+        <PanelHead title="采集水位" count={watermarksRequest.data?.tables.length} description="只读聚合：总行数、最近写入与近 7 日计数" actions={watermarksRequest.data ? <span className="text-meta text-muted">统计于 {formatDateTime(watermarksRequest.data.asOf)}</span> : null} />
         <div className="px-4 pb-4">
           {watermarksRequest.isPending ? <LoadingBlock className="min-h-[140px]">正在读取水位…</LoadingBlock> : null}
           {watermarksRequest.isError ? (
@@ -297,7 +297,7 @@ export function PlatformOperationsPage() {
         <FormField label="转发前缀（可选）" htmlFor="edge-prefix" hint="院内代理的受控转发路径前缀；不是地址或凭据。">
           <Input id="edge-prefix" value={form.relayPrefix} onChange={(event) => setForm({ ...form, relayPrefix: event.target.value })} placeholder="例如：/edge/outpatient" />
         </FormField>
-        {formError ? <p role="alert" className="mt-2 text-body-sm text-[#b04747]">{formError}</p> : null}
+        {formError ? <p role="alert" className="mt-2 text-body-sm text-red">{formError}</p> : null}
       </Dialog>
 
       <Sheet
@@ -311,32 +311,32 @@ export function PlatformOperationsPage() {
         <SheetBody>
           <div className="mb-3 rounded-control border border-line bg-wash px-3 py-2.5">
             <div className="flex items-center justify-between">
-              <span className="text-label text-[#6b7889]">当前版本</span>
-              <span className="font-mono text-body-sm text-[#43546e]">{historyNode?.version || '未登记'}</span>
+              <span className="text-label text-muted">当前版本</span>
+              <span className="font-mono text-body-sm text-ink-soft">{historyNode?.version || '未登记'}</span>
             </div>
             <div className="mt-1 flex items-center justify-between">
-              <span className="text-label text-[#6b7889]">最近探活</span>
-              <span className="text-label text-[#43546e]">{historyNode?.lastProbeAt ? `${formatDateTime(historyNode.lastProbeAt)}${historyNode.lastProbeOk === false ? ' · 失败' : ' · 正常'}` : '未探活'}</span>
+              <span className="text-label text-muted">最近探活</span>
+              <span className="text-label text-ink-soft">{historyNode?.lastProbeAt ? `${formatDateTime(historyNode.lastProbeAt)}${historyNode.lastProbeOk === false ? ' · 失败' : ' · 正常'}` : '未探活'}</span>
             </div>
-            {historyNode?.lastProbeMessage ? <p className="mt-1 text-meta text-[#8b94a1]">{historyNode.lastProbeMessage}</p> : null}
+            {historyNode?.lastProbeMessage ? <p className="mt-1 text-meta text-muted">{historyNode.lastProbeMessage}</p> : null}
           </div>
 
-          <h3 className="mb-1.5 text-label font-medium text-[#566173]">追加版本记录</h3>
+          <h3 className="mb-1.5 text-label font-medium text-ink-soft">追加版本记录</h3>
           <FormGrid>
             <FormField label="版本" required htmlFor="deploy-version"><Input id="deploy-version" value={deployForm.version} onChange={(event) => setDeployForm({ ...deployForm, version: event.target.value })} placeholder="例如：1.4.3" /></FormField>
             <FormField label="制品引用" htmlFor="deploy-artifact"><Input id="deploy-artifact" value={deployForm.artifactRef} onChange={(event) => setDeployForm({ ...deployForm, artifactRef: event.target.value })} placeholder="构建号/镜像标签" /></FormField>
           </FormGrid>
           <FormField label="说明" htmlFor="deploy-note"><Input id="deploy-note" value={deployForm.note} onChange={(event) => setDeployForm({ ...deployForm, note: event.target.value })} placeholder="变更内容或回滚依据" /></FormField>
-          {deployError ? <p role="alert" className="mb-2 text-body-sm text-[#b04747]">{deployError}</p> : null}
+          {deployError ? <p role="alert" className="mb-2 text-body-sm text-red">{deployError}</p> : null}
           <div className="mb-4 flex justify-end">
             <Button size="sm" variant="primary" disabled={!deployForm.version.trim() || recordDeployment.isPending} onClick={() => { setDeployError(null); recordDeployment.mutate() }}>
               {recordDeployment.isPending ? '登记中…' : '追加记录'}
             </Button>
           </div>
 
-          <h3 className="mb-1.5 text-label font-medium text-[#566173]">发布历史</h3>
+          <h3 className="mb-1.5 text-label font-medium text-ink-soft">发布历史</h3>
           {deploymentsRequest.isPending ? <LoadingBlock className="min-h-[120px]">正在读取历史…</LoadingBlock> : null}
-          {deploymentsRequest.isError ? <p className="text-label text-[#b04747]">版本历史读取失败。</p> : null}
+          {deploymentsRequest.isError ? <p className="text-label text-red">版本历史读取失败。</p> : null}
           {deploymentsRequest.isSuccess ? (
             <DataTable
               columns={deploymentColumns}
