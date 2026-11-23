@@ -2,7 +2,7 @@ import { Link, Outlet, createRootRoute, createRoute, createRouter, useRouter } f
 import { TriangleAlert } from 'lucide-react'
 import { Suspense, lazy } from 'react'
 import { EmptyState } from '../components/kit/states'
-import { Button } from '../components/kit/button'
+import { Button } from '@/components/ui/button'
 import { AppShell } from './shell/app-shell'
 
 /**
@@ -85,7 +85,7 @@ function RouteErrorPage({ error }: { error: unknown }) {
         description="当前工作区渲染出错。可以返回总览或重试；若持续失败，请联系平台管理员并提供页面地址。"
         action={
           <div className="flex items-center gap-2">
-            <Button onClick={() => { void router.invalidate() }}>重新加载</Button>
+            <Button variant="outline" onClick={() => { void router.invalidate() }}>重新加载</Button>
             <Link to="/" className="inline-flex min-h-[33px] items-center rounded-control border border-line-strong bg-paper px-3 text-body-sm text-ink-soft">返回总览</Link>
           </div>
         }

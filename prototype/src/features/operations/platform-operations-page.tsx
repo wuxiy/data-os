@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CloudCog, History, LockKeyhole, RefreshCw, Server, ShieldCheck, TriangleAlert } from 'lucide-react'
 import { useState } from 'react'
 import { Badge } from '../../components/kit/badge'
-import { Button } from '../../components/kit/button'
+import { Button } from '@/components/ui/button'
 import { FormField, FormGrid, FormNotice } from '../../components/kit/form'
 import { Input, NativeSelect } from '../../components/kit/input'
 import { Confirm, Dialog, DialogFooter, Sheet, SheetBody, SheetFooterActions } from '../../components/kit/overlay'
@@ -149,10 +149,10 @@ export function PlatformOperationsPage() {
       size: 280,
       cell: ({ row }) => (
         <div className="flex flex-wrap items-center gap-2" onClick={(event) => event.stopPropagation()}>
-          <Button size="sm" disabled={probe.isPending} onClick={() => probe.mutate(row.original)}>探活</Button>
-          <Button size="sm" onClick={() => openEdit(row.original)}>编辑</Button>
-          <Button size="sm" onClick={() => setHistoryNode(row.original)}><History size={12} />版本</Button>
-          <Button size="sm" variant="danger-outline" onClick={() => setDeleteTarget(row.original)}>删除</Button>
+          <Button variant="outline" size="sm" disabled={probe.isPending} onClick={() => probe.mutate(row.original)}>探活</Button>
+          <Button variant="outline" size="sm" onClick={() => openEdit(row.original)}>编辑</Button>
+          <Button variant="outline" size="sm" onClick={() => setHistoryNode(row.original)}><History size={12} />版本</Button>
+          <Button size="sm" variant="destructive-outline" onClick={() => setDeleteTarget(row.original)}>删除</Button>
         </div>
       ),
     }),
@@ -183,7 +183,7 @@ export function PlatformOperationsPage() {
             icon={<LockKeyhole />}
             title="无技术域访问权限"
             description="当前身份未被授予技术域访问权限；如需排查，请联系平台管理员。"
-            action={<Button onClick={() => navigate('/')}>返回总览</Button>}
+            action={<Button variant="outline" onClick={() => navigate('/')}>返回总览</Button>}
           />
         </Panel>
       </div>
@@ -196,7 +196,7 @@ export function PlatformOperationsPage() {
       <PageHeading
         title="平台运维"
         description="组件探针、前置机登记与版本历史、采集水位；技术角色可见。"
-        actions={<Button onClick={() => void platformRequest.refetch()} disabled={platformRequest.isFetching}><RefreshCw size={14} className={platformRequest.isFetching ? 'animate-spin' : undefined} />刷新</Button>}
+        actions={<Button variant="outline" onClick={() => void platformRequest.refetch()} disabled={platformRequest.isFetching}><RefreshCw size={14} className={platformRequest.isFetching ? 'animate-spin' : undefined} />刷新</Button>}
       />
 
       {platformRequest.isPending ? <LoadingBlock>正在读取平台组件状态…</LoadingBlock> : null}
@@ -229,7 +229,7 @@ export function PlatformOperationsPage() {
           title="前置机节点"
           count={nodes.length}
           description="登记、探活与版本历史；凭据只以引用形式保存"
-          actions={<Button size="sm" variant="primary" onClick={openCreate}><Server size={13} />登记前置机</Button>}
+          actions={<Button size="sm" onClick={openCreate}><Server size={13} />登记前置机</Button>}
         />
         <FormNotice icon={<ShieldCheck />}>
           前置机是院内采集代理的受控入口；门户只保存地址与版本，不含任何连接口令或令牌。
@@ -243,7 +243,7 @@ export function PlatformOperationsPage() {
               data={nodes}
               getRowId={(node) => node.id}
               rowLabel={(node) => node.name}
-              empty={<EmptyState minHeight={180} icon={<Server />} title="还没有前置机节点" description="登记院内部署的采集代理后，可探活并记录版本。" action={<Button onClick={openCreate}>登记前置机</Button>} />}
+              empty={<EmptyState minHeight={180} icon={<Server />} title="还没有前置机节点" description="登记院内部署的采集代理后，可探活并记录版本。" action={<Button variant="outline" onClick={openCreate}>登记前置机</Button>} />}
             />
           ) : null}
         </div>
@@ -279,8 +279,8 @@ export function PlatformOperationsPage() {
         dirty={Boolean(form.name.trim() || form.host.trim()) && !save.isPending}
         footer={
           <DialogFooter note="不含口令与令牌">
-            <Button onClick={() => setFormOpen(false)} disabled={save.isPending}>取消</Button>
-            <Button variant="primary" disabled={save.isPending || !form.name.trim() || !form.host.trim()} onClick={() => { setFormError(null); save.mutate() }}>
+            <Button variant="outline" onClick={() => setFormOpen(false)} disabled={save.isPending}>取消</Button>
+            <Button disabled={save.isPending || !form.name.trim() || !form.host.trim()} onClick={() => { setFormError(null); save.mutate() }}>
               {save.isPending ? '保存中…' : '保存前置机'}
             </Button>
           </DialogFooter>
@@ -306,7 +306,7 @@ export function PlatformOperationsPage() {
         title="版本登记与历史"
         subtitle={historyNode ? `${historyNode.name} · ${historyNode.host}:${historyNode.port}` : undefined}
         width={560}
-        footer={<SheetFooterActions hint="版本记录只追加，不删除历史。"><Button onClick={() => setHistoryNode(null)}>关闭</Button></SheetFooterActions>}
+        footer={<SheetFooterActions hint="版本记录只追加，不删除历史。"><Button variant="outline" onClick={() => setHistoryNode(null)}>关闭</Button></SheetFooterActions>}
       >
         <SheetBody>
           <div className="mb-3 rounded-control border border-line bg-wash px-3 py-2.5">
@@ -329,7 +329,7 @@ export function PlatformOperationsPage() {
           <FormField label="说明" htmlFor="deploy-note"><Input id="deploy-note" value={deployForm.note} onChange={(event) => setDeployForm({ ...deployForm, note: event.target.value })} placeholder="变更内容或回滚依据" /></FormField>
           {deployError ? <p role="alert" className="mb-2 text-body-sm text-red">{deployError}</p> : null}
           <div className="mb-4 flex justify-end">
-            <Button size="sm" variant="primary" disabled={!deployForm.version.trim() || recordDeployment.isPending} onClick={() => { setDeployError(null); recordDeployment.mutate() }}>
+            <Button size="sm" disabled={!deployForm.version.trim() || recordDeployment.isPending} onClick={() => { setDeployError(null); recordDeployment.mutate() }}>
               {recordDeployment.isPending ? '登记中…' : '追加记录'}
             </Button>
           </div>

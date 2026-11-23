@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Gauge, Plus, Save } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Badge } from '../../components/kit/badge'
-import { Button } from '../../components/kit/button'
+import { Button } from '@/components/ui/button'
 import { FormField, FormGrid, FormNotice } from '../../components/kit/form'
 import { Input } from '../../components/kit/input'
 import { Dialog, DialogFooter } from '../../components/kit/overlay'
@@ -91,7 +91,7 @@ export function ScoringPage() {
       <PageHeading
         title="质量评分设置"
         description="维度分 = 维度内规则得分均值；总分 = 维度加权平均；等级按最低分阈值从高到低判定。"
-        actions={<Button onClick={leave}>返回质量工作台</Button>}
+        actions={<Button variant="outline" onClick={leave}>返回质量工作台</Button>}
       />
 
       <div className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] gap-3.5 max-[1100px]:grid-cols-1">
@@ -127,7 +127,7 @@ export function ScoringPage() {
             title="等级表"
             count={grades.length}
             description="按最低分从高到低判定"
-            actions={<Button size="sm" onClick={() => setGrades((current) => [...current, { grade: '', lowScore: 0 }])}><Plus size={13} />添加等级</Button>}
+            actions={<Button variant="outline" size="sm" onClick={() => setGrades((current) => [...current, { grade: '', lowScore: 0 }])}><Plus size={13} />添加等级</Button>}
           />
           <div className="px-5 pb-5">
             {grades.map((grade, index) => (
@@ -146,7 +146,7 @@ export function ScoringPage() {
                   value={grade.lowScore}
                   onChange={(event) => setGrades((current) => current.map((item, i) => i === index ? { ...item, lowScore: Number(event.target.value) } : item))}
                 />
-                <Button size="sm" variant="text" disabled={grades.length <= 1} aria-label={`移除等级 ${index + 1}`} onClick={() => setGrades((current) => current.filter((_, i) => i !== index))}>移除</Button>
+                <Button size="sm" variant="link" disabled={grades.length <= 1} aria-label={`移除等级 ${index + 1}`} onClick={() => setGrades((current) => current.filter((_, i) => i !== index))}>移除</Button>
               </div>
             ))}
             {grades.length === 0 ? <p className="py-6 text-center text-label text-muted-foreground">至少保留一个等级；等级名称不能重复。</p> : null}
@@ -158,8 +158,8 @@ export function ScoringPage() {
 
             {error ? <p role="alert" className="mt-3 text-body-sm text-red">{error}</p> : null}
             <div className="mt-4 flex justify-end gap-2 border-t border-line pt-4">
-              <Button onClick={leave}>取消</Button>
-              <Button variant="primary" disabled={mutation.isPending || !initialized} onClick={submit}>
+              <Button variant="outline" onClick={leave}>取消</Button>
+              <Button disabled={mutation.isPending || !initialized} onClick={submit}>
                 <Save size={14} />{mutation.isPending ? '保存中…' : '保存并重算'}
               </Button>
             </div>
@@ -175,8 +175,8 @@ export function ScoringPage() {
         width={460}
         footer={
           <DialogFooter>
-            <Button onClick={() => setDiscardOpen(false)}>继续编辑</Button>
-            <Button variant="danger" onClick={() => { setDiscardOpen(false); navigate('/governance/quality') }}>放弃修改</Button>
+            <Button variant="outline" onClick={() => setDiscardOpen(false)}>继续编辑</Button>
+            <Button variant="destructive" onClick={() => { setDiscardOpen(false); navigate('/governance/quality') }}>放弃修改</Button>
           </DialogFooter>
         }
       />

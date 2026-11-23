@@ -1,5 +1,5 @@
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
-import { Button } from '../../components/kit/button'
+import { Button } from '@/components/ui/button'
 import { useNotice } from '../../components/kit/toast'
 import { MpiReviewLive } from '../../pages/MpiReviewLive'
 import { usePortalNavigate } from '../../app/navigate'
@@ -17,7 +17,7 @@ export function MpiReviewPage() {
       <PageHeading
         title="患者主索引"
         description="逐条复核候选身份，弱证据冲突一律人工决策；决策即审计。"
-        actions={<Button onClick={() => navigate('/assets')}>查看资产目录</Button>}
+        actions={<Button variant="outline" onClick={() => navigate('/assets')}>查看资产目录</Button>}
       />
       <MpiReviewLive onNotice={notify} />
     </div>

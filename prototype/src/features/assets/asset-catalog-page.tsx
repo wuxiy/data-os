@@ -3,7 +3,7 @@ import { ChartNoAxesCombined, Database, Download, RefreshCw, Search, Table2 } fr
 import { useEffect, useMemo, useState } from 'react'
 import { useSearch } from '@tanstack/react-router'
 import { Badge } from '../../components/kit/badge'
-import { Button } from '../../components/kit/button'
+import { Button } from '@/components/ui/button'
 import { SearchField } from '../../components/kit/input'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Count, Panel, PanelHead } from '../../components/kit/panel'
@@ -139,13 +139,13 @@ export function AssetCatalogPage() {
         description="围绕同一资产查看业务定义、字段结构、质量结果与消费影响。"
         actions={
           <>
-            <Button onClick={exportCatalog} disabled={visible.length === 0 || catalogRequest.isFetching}>
+            <Button variant="outline" onClick={exportCatalog} disabled={visible.length === 0 || catalogRequest.isFetching}>
               <Download size={14} />导出目录
             </Button>
-            <Button onClick={() => { void catalogRequest.refetch(); void detailRequest.refetch() }} disabled={catalogRequest.isFetching}>
+            <Button variant="outline" onClick={() => { void catalogRequest.refetch(); void detailRequest.refetch() }} disabled={catalogRequest.isFetching}>
               <RefreshCw size={14} className={catalogRequest.isFetching ? 'animate-spin' : undefined} />刷新目录
             </Button>
-            <Button onClick={() => { if (effectiveFqn) navigate(deepLinks.technicalAsset(effectiveFqn)) }} disabled={!effectiveFqn}>技术视图</Button>
+            <Button variant="outline" onClick={() => { if (effectiveFqn) navigate(deepLinks.technicalAsset(effectiveFqn)) }} disabled={!effectiveFqn}>技术视图</Button>
           </>
         }
       />
@@ -158,7 +158,7 @@ export function AssetCatalogPage() {
             icon={<Database />}
             title="资产目录暂不可用"
             description="暂时无法读取当前库的资产。可重新读取；持续不可用时请联系平台运维核对元数据接入。"
-            action={<Button onClick={() => void catalogRequest.refetch()}>重新读取</Button>}
+            action={<Button variant="outline" onClick={() => void catalogRequest.refetch()}>重新读取</Button>}
           />
         </Panel>
       ) : null}
@@ -212,7 +212,7 @@ export function AssetCatalogPage() {
               {visible.length === 0 ? (
                 <li className="px-3 py-6 text-center text-label text-muted-foreground">
                   {assets.length ? '没有匹配的数据资产。' : '当前库暂无已摄取的资产，可切换资产库查看。'}
-                  {keyword ? <Button variant="text" size="sm" className="ml-1" onClick={() => { setKeyword(''); setPage(0) }}>清空搜索</Button> : null}
+                  {keyword ? <Button variant="link" size="sm" className="ml-1" onClick={() => { setKeyword(''); setPage(0) }}>清空搜索</Button> : null}
                 </li>
               ) : null}
             </ul>
@@ -229,7 +229,7 @@ export function AssetCatalogPage() {
                 icon={<Table2 />}
                 title={fqn ? '未找到指定资产' : '当前库暂无资产'}
                 description={fqn ? `当前库中没有 ${fqn}，请核对深链或从目录选择资产。` : '资产完成结构元数据摄取后，会在这里显示字段、质量与血缘证据。'}
-                action={<Button onClick={() => void catalogRequest.refetch()}>刷新资产目录</Button>}
+                action={<Button variant="outline" onClick={() => void catalogRequest.refetch()}>刷新资产目录</Button>}
               />
             ) : (
               <>
@@ -257,7 +257,7 @@ export function AssetCatalogPage() {
                       <div className="py-6 text-center">
                         <p className="text-body-sm text-ink-soft">字段结构暂不可读</p>
                         <p className="mt-1 text-label text-muted-foreground">目录仍可切换；可以重新读取当前资产。</p>
-                        <Button size="sm" className="mt-2" onClick={() => void detailRequest.refetch()}>重新读取当前资产</Button>
+                        <Button variant="outline" size="sm" className="mt-2" onClick={() => void detailRequest.refetch()}>重新读取当前资产</Button>
                       </div>
                     ) : null}
                     {detail ? (
@@ -282,7 +282,7 @@ export function AssetCatalogPage() {
                       <div className="py-6 text-center">
                         <p className="text-body-sm text-ink-soft">质量结果暂不可读</p>
                         <p className="mt-1 text-label text-muted-foreground">不能据此判断当前资产的质量状态。</p>
-                        <Button size="sm" className="mt-2" onClick={() => void qualityRequest.refetch()}>重新读取质量证据</Button>
+                        <Button variant="outline" size="sm" className="mt-2" onClick={() => void qualityRequest.refetch()}>重新读取质量证据</Button>
                       </div>
                     ) : null}
                     {qualityRequest.isSuccess ? (
@@ -302,7 +302,7 @@ export function AssetCatalogPage() {
                     {lineageRequest.isError ? (
                       <div className="py-6 text-center">
                         <p className="text-body-sm text-ink-soft">血缘暂不可读</p>
-                        <Button size="sm" className="mt-2" onClick={() => void lineageRequest.refetch()}>重新读取血缘</Button>
+                        <Button variant="outline" size="sm" className="mt-2" onClick={() => void lineageRequest.refetch()}>重新读取血缘</Button>
                       </div>
                     ) : null}
                     {lineage ? (

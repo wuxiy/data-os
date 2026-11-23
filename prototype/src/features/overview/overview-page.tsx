@@ -6,7 +6,7 @@ import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { MetricCard, MetricStrip } from '../../components/app/metric'
 import { Count, Panel, PanelHead } from '../../components/kit/panel'
 import { LoadingBlock, Skeleton } from '../../components/kit/states'
-import { Button } from '../../components/kit/button'
+import { Button } from '@/components/ui/button'
 import { DataTable, listColumnHelper } from '../../components/table/data-table'
 import { EmptyState } from '../../components/kit/states'
 import { formatDateTime } from '../../data/domain'
@@ -139,10 +139,10 @@ export function OverviewPage() {
         description="从数据接入到可信使用，掌握每一条数据链路。"
         actions={
           <>
-            <Button onClick={refresh} disabled={refreshing}>
+            <Button variant="outline" onClick={refresh} disabled={refreshing}>
               <RefreshCw size={14} className={refreshing ? 'animate-spin' : undefined} />刷新
             </Button>
-            <Button variant="primary" onClick={() => navigate('/governance')}>查看待办</Button>
+            <Button onClick={() => navigate('/governance')}>查看待办</Button>
           </>
         }
       />
@@ -160,7 +160,7 @@ export function OverviewPage() {
             <h2 className="text-title font-semibold text-ink">运营投影暂不可用</h2>
             <p className="mt-1 text-body-sm text-ink-soft">控制面运营摘要不可达，暂无法展示真实指标；请恢复连接后重新读取。</p>
           </div>
-          <Button onClick={() => void summaryQuery.refetch()}>重新加载</Button>
+          <Button variant="outline" onClick={() => void summaryQuery.refetch()}>重新加载</Button>
         </section>
       ) : (
         <MetricStrip>
@@ -193,7 +193,7 @@ export function OverviewPage() {
           <Badge tone={components?.state === 'READY' ? 'success' : components?.state === 'DEGRADED' ? 'warn' : 'neutral'}>
             {components?.state === 'READY' ? '全部就绪' : components?.state === 'DEGRADED' ? '存在降级' : '状态未知'}
           </Badge>
-          <Button size="sm" onClick={refresh}>刷新</Button>
+          <Button variant="outline" size="sm" onClick={refresh}>刷新</Button>
         </div>
       </section>
 
@@ -203,7 +203,7 @@ export function OverviewPage() {
             title="优先处理"
             count={workItemsQuery.data?.length}
             description="按严重度排序 · 完整清单在运营中心"
-            actions={<Button variant="text" onClick={() => navigate('/operations-center')}>查看全部<ChevronRight size={13} /></Button>}
+            actions={<Button variant="link" onClick={() => navigate('/operations-center')}>查看全部<ChevronRight size={13} /></Button>}
           />
           <DataTable
             columns={workItemColumns}
@@ -213,7 +213,7 @@ export function OverviewPage() {
             loading={workItemsQuery.isPending}
             onRowClick={openWorkItem}
             empty={workItemsQuery.isError
-              ? <EmptyState minHeight={220} icon={<CloudCog />} title="运营待办投影暂不可用" description="可以重新加载；本页不显示静态回退。" action={<Button onClick={() => void workItemsQuery.refetch()}>重新加载</Button>} />
+              ? <EmptyState minHeight={220} icon={<CloudCog />} title="运营待办投影暂不可用" description="可以重新加载；本页不显示静态回退。" action={<Button variant="outline" onClick={() => void workItemsQuery.refetch()}>重新加载</Button>} />
               : <EmptyState minHeight={220} icon={<Inbox />} title="当前没有待处理的跨域事项" description="待办来自各业务域的真实记录。" />}
           />
         </Panel>
@@ -226,7 +226,7 @@ export function OverviewPage() {
               <div className="space-y-2 py-6 text-center">
                 <p className="text-body-sm font-medium text-ink-soft">事件暂不可用</p>
                 <p className="text-label text-muted-foreground">无法读取近期事件，可重新加载。</p>
-                <Button size="sm" onClick={() => void eventsQuery.refetch()}>重新加载</Button>
+                <Button variant="outline" size="sm" onClick={() => void eventsQuery.refetch()}>重新加载</Button>
               </div>
             ) : null}
             {eventsQuery.isSuccess && (eventsQuery.data?.length ?? 0) === 0 ? <p className="py-8 text-center text-label text-muted-foreground">近 48 小时无跨域事件。</p> : null}

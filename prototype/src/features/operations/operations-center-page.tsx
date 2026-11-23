@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Inbox, RefreshCw } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Badge } from '../../components/kit/badge'
-import { Button } from '../../components/kit/button'
+import { Button } from '@/components/ui/button'
 import { NativeSelect } from '../../components/kit/input'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel, PanelHead } from '../../components/kit/panel'
@@ -84,13 +84,13 @@ export function OperationsCenterPage() {
       <PageHeading
         title="运营中心"
         description="跨域待办与事件流；每项待办带来源与深链，可直接进入对应工作台。"
-        actions={<Button onClick={() => { void workItemsRequest.refetch(); void eventsRequest.refetch(); void summaryRequest.refetch() }} disabled={workItemsRequest.isFetching}><RefreshCw size={14} className={workItemsRequest.isFetching ? 'animate-spin' : undefined} />刷新</Button>}
+        actions={<Button variant="outline" onClick={() => { void workItemsRequest.refetch(); void eventsRequest.refetch(); void summaryRequest.refetch() }} disabled={workItemsRequest.isFetching}><RefreshCw size={14} className={workItemsRequest.isFetching ? 'animate-spin' : undefined} />刷新</Button>}
       />
 
       {workItemsRequest.isPending ? <LoadingBlock>正在读取运营待办…</LoadingBlock> : null}
       {workItemsRequest.isError ? (
         <Panel>
-          <EmptyState minHeight={240} icon={<Inbox />} title="运营待办投影暂不可用" description="控制面运营投影不可达；本页不显示静态回退。" action={<Button onClick={() => void workItemsRequest.refetch()}>重试</Button>} />
+          <EmptyState minHeight={240} icon={<Inbox />} title="运营待办投影暂不可用" description="控制面运营投影不可达；本页不显示静态回退。" action={<Button variant="outline" onClick={() => void workItemsRequest.refetch()}>重试</Button>} />
         </Panel>
       ) : null}
 

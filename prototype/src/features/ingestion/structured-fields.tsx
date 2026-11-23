@@ -3,7 +3,7 @@ import { useForm } from '@tanstack/react-form'
 import { CircleAlert, FlaskConical, Play, Table2 } from 'lucide-react'
 import { useEffect, useMemo, useRef } from 'react'
 import { Badge } from '../../components/kit/badge'
-import { Button } from '../../components/kit/button'
+import { Button } from '@/components/ui/button'
 import { FormField, FormGrid, FormNotice } from '../../components/kit/form'
 import { CodeTextarea, Input, NativeSelect } from '../../components/kit/input'
 import { LoadingInline } from '../../components/kit/states'
@@ -318,7 +318,7 @@ export function StructuredTaskFields({
             <div className="mb-1.5 flex justify-end">
               <Button
                 size="sm"
-                variant="text"
+                variant="link"
                 disabled={!values.customSql.trim() || sqlTest.isPending}
                 onClick={() => sqlTest.mutate(values.customSql)}
               >
@@ -367,8 +367,8 @@ export function StructuredTaskFields({
       <div className="flex items-center justify-between gap-3 border-t border-line pt-4">
         <span className="text-meta text-muted-foreground">{submitHint ?? '凭据只保存引用；编译后的作业 JSON 由控制面持有'}</span>
         <div className="flex items-center gap-2">
-          {onCancel ? <Button onClick={onCancel} disabled={saving}>取消</Button> : null}
-          <Button type="submit" variant="primary" disabled={!canSubmit || saving}>
+          {onCancel ? <Button variant="outline" onClick={onCancel} disabled={saving}>取消</Button> : null}
+          <Button type="submit" disabled={!canSubmit || saving}>
             {saving ? '保存中…' : submitLabel}
           </Button>
         </div>

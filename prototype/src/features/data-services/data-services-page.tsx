@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, RefreshCw, ShieldCheck } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Badge } from '../../components/kit/badge'
-import { Button } from '../../components/kit/button'
+import { Button } from '@/components/ui/button'
 import { NativeSelect, SearchField } from '../../components/kit/input'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Count, Panel, PanelHead } from '../../components/kit/panel'
@@ -160,8 +160,8 @@ export function DataServicesPage() {
         description="ToB 数据 API 的定义、Key 与调用审计工作台。"
         actions={
           <>
-            <Button onClick={() => { void listRequest.refetch(); void detailRequest.refetch() }} disabled={listRequest.isFetching}><RefreshCw size={14} className={listRequest.isFetching ? 'animate-spin' : undefined} />刷新</Button>
-            <Button variant="primary" onClick={() => navigate(workLinks.dataServiceNew())}><Plus size={14} />新建数据服务</Button>
+            <Button variant="outline" onClick={() => { void listRequest.refetch(); void detailRequest.refetch() }} disabled={listRequest.isFetching}><RefreshCw size={14} className={listRequest.isFetching ? 'animate-spin' : undefined} />刷新</Button>
+            <Button onClick={() => navigate(workLinks.dataServiceNew())}><Plus size={14} />新建数据服务</Button>
           </>
         }
       />
@@ -169,7 +169,7 @@ export function DataServicesPage() {
       {listRequest.isPending ? <LoadingBlock>正在读取数据服务…</LoadingBlock> : null}
       {listRequest.isError ? (
         <Panel>
-          <EmptyState minHeight={220} icon={<ShieldCheck />} title="数据服务目录暂不可用" description="暂时无法读取服务目录。请重新读取，持续失败时联系平台运维核对服务连接。" action={<Button onClick={() => void listRequest.refetch()}>重新读取</Button>} />
+          <EmptyState minHeight={220} icon={<ShieldCheck />} title="数据服务目录暂不可用" description="暂时无法读取服务目录。请重新读取，持续失败时联系平台运维核对服务连接。" action={<Button variant="outline" onClick={() => void listRequest.refetch()}>重新读取</Button>} />
         </Panel>
       ) : null}
 
@@ -217,7 +217,7 @@ export function DataServicesPage() {
 
           <Panel>
             {!selected ? (
-              <EmptyState minHeight={320} icon={<ShieldCheck />} title="还没有数据服务" description="创建服务定义并发布后，才能给调用方发放 Key。" action={<Button onClick={() => navigate(workLinks.dataServiceNew())}>新建数据服务</Button>} />
+              <EmptyState minHeight={320} icon={<ShieldCheck />} title="还没有数据服务" description="创建服务定义并发布后，才能给调用方发放 Key。" action={<Button variant="outline" onClick={() => navigate(workLinks.dataServiceNew())}>新建数据服务</Button>} />
             ) : (
               <>
                 <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line px-5 py-4">
@@ -230,9 +230,9 @@ export function DataServicesPage() {
                     <p className="mt-1 text-label text-muted-foreground">{selected.description || '暂无服务描述。'} · 负责人 {selected.owner}</p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
-                    {selected.status === 'DRAFT' ? <Button size="sm" variant="primary" disabled={publish.isPending} onClick={() => publish.mutate(selected)}>发布</Button> : null}
-                    {selected.status === 'PUBLISHED' ? <Button size="sm" variant="danger-outline" onClick={() => setDeprecateTarget(selected)}>下线</Button> : null}
-                    <Button size="sm" onClick={() => navigate(workLinks.dataServiceNew())}>定义参考</Button>
+                    {selected.status === 'DRAFT' ? <Button size="sm" disabled={publish.isPending} onClick={() => publish.mutate(selected)}>发布</Button> : null}
+                    {selected.status === 'PUBLISHED' ? <Button size="sm" variant="destructive-outline" onClick={() => setDeprecateTarget(selected)}>下线</Button> : null}
+                    <Button variant="outline" size="sm" onClick={() => navigate(workLinks.dataServiceNew())}>定义参考</Button>
                   </div>
                 </div>
 
@@ -330,7 +330,7 @@ function KeyPanel({ service }: { service: DataService }) {
           <strong className="block text-body-sm text-amber">新 Key（只显示这一次）</strong>
           <code className="mt-1 block break-all rounded-chip bg-paper px-2 py-1.5 font-mono text-label text-ink-soft">{issuedKey}</code>
           <p className="mt-1 text-meta text-amber">离开本页后无法再次查看；请立即转交调用方并妥善保管。</p>
-          <div className="mt-1.5 flex justify-end"><Button size="sm" onClick={() => setIssuedKey('')}>我已保存</Button></div>
+          <div className="mt-1.5 flex justify-end"><Button variant="outline" size="sm" onClick={() => setIssuedKey('')}>我已保存</Button></div>
         </div>
       ) : null}
 
@@ -347,7 +347,7 @@ function KeyPanel({ service }: { service: DataService }) {
           <span className="mb-1 block text-meta text-muted-foreground">允许机构（* 或逗号分隔）</span>
           <input aria-label="允许机构" value={hospitals} onChange={(event) => setHospitals(event.target.value)} className="min-h-[32px] w-full rounded-control border border-line-strong bg-paper px-2 text-label" />
         </label>
-        <Button size="sm" variant="primary" disabled={!callerName.trim() || issue.isPending} onClick={() => issue.mutate()}>
+        <Button size="sm" disabled={!callerName.trim() || issue.isPending} onClick={() => issue.mutate()}>
           {issue.isPending ? '发放中…' : '发放 Key'}
         </Button>
       </div>
@@ -374,7 +374,7 @@ function KeyPanel({ service }: { service: DataService }) {
               <td className="px-3 py-2"><Badge tone={key.status === 'ACTIVE' ? 'success' : 'neutral'}>{key.status === 'ACTIVE' ? '生效' : '已吊销'}</Badge></td>
               <td className="px-3 py-2 text-faint">{key.lastUsedAt ? formatDateTime(key.lastUsedAt) : '—'}</td>
               <td className="px-3 py-2">
-                {key.status === 'ACTIVE' ? <Button size="sm" variant="text" className="text-red" onClick={() => setRevokeTarget(key.id)}>吊销</Button> : null}
+                {key.status === 'ACTIVE' ? <Button size="sm" variant="link" className="text-red" onClick={() => setRevokeTarget(key.id)}>吊销</Button> : null}
               </td>
             </tr>
           ))}

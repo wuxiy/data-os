@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Save, Shield } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Badge } from '../../components/kit/badge'
-import { Button } from '../../components/kit/button'
+import { Button } from '@/components/ui/button'
 import { FormField, FormGrid, FormNotice } from '../../components/kit/form'
 import { CodeTextarea, Input, NativeSelect } from '../../components/kit/input'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
@@ -97,7 +97,7 @@ export function RuleEditorPage({ ruleId }: { ruleId?: string }) {
           icon={<Shield />}
           title="质量规则不存在"
           description="该规则可能已被删除，或当前账号没有访问权限。"
-          action={<Button onClick={() => navigate('/governance/quality')}>返回质量工作台</Button>}
+          action={<Button variant="outline" onClick={() => navigate('/governance/quality')}>返回质量工作台</Button>}
         />
       </Panel>
     )
@@ -116,7 +116,7 @@ export function RuleEditorPage({ ruleId }: { ruleId?: string }) {
       <PageHeading
         title={ruleId ? '编辑质量规则' : '新建质量规则'}
         description="规则语义由质量规则执行器编译校验：标识符与 SQL 只读约束在保存时实校验，失败原因会如实返回。"
-        actions={<Button onClick={() => navigate('/governance/quality')}>返回</Button>}
+        actions={<Button variant="outline" onClick={() => navigate('/governance/quality')}>返回</Button>}
       />
 
       <Panel className="max-w-[880px]">
@@ -283,7 +283,7 @@ export function RuleEditorPage({ ruleId }: { ruleId?: string }) {
             <div className="mb-4">
               <div className="mb-1.5 flex items-center justify-between">
                 <span className="text-body-sm text-ink-soft">证据列白名单（失败样本展示 + 脱敏分类）</span>
-                <Button size="sm" variant="text" onClick={() => update({ evidenceColumns: [...form.evidenceColumns, { name: '', classification: 'REDACTED' }] })}>
+                <Button size="sm" variant="link" onClick={() => update({ evidenceColumns: [...form.evidenceColumns, { name: '', classification: 'REDACTED' }] })}>
                   <Plus size={13} />添加证据列
                 </Button>
               </div>
@@ -303,7 +303,7 @@ export function RuleEditorPage({ ruleId }: { ruleId?: string }) {
                   >
                     {CLASSIFICATIONS.map((classification) => <option key={classification} value={classification}>{CLASSIFICATION_LABELS[classification]}</option>)}
                   </NativeSelect>
-                  <Button size="sm" variant="text" disabled={form.evidenceColumns.length <= 1} onClick={() => update({ evidenceColumns: form.evidenceColumns.filter((_, i) => i !== index) })}>移除</Button>
+                  <Button size="sm" variant="link" disabled={form.evidenceColumns.length <= 1} onClick={() => update({ evidenceColumns: form.evidenceColumns.filter((_, i) => i !== index) })}>移除</Button>
                 </div>
               ))}
             </div>
@@ -314,8 +314,8 @@ export function RuleEditorPage({ ruleId }: { ruleId?: string }) {
           <div className="flex items-center justify-between gap-3 border-t border-line pt-4">
             <span className="text-meta text-muted-foreground"><Badge tone="blue">保存即推送</Badge> 执行器对目标表列做实校验</span>
             <div className="flex items-center gap-2">
-              <Button onClick={() => navigate('/governance/quality')}>取消</Button>
-              <Button variant="primary" disabled={mutation.isPending} onClick={submit}>
+              <Button variant="outline" onClick={() => navigate('/governance/quality')}>取消</Button>
+              <Button disabled={mutation.isPending} onClick={submit}>
                 <Save size={14} />{mutation.isPending ? '保存中…' : '保存并推送'}
               </Button>
             </div>

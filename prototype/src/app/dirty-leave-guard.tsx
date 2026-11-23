@@ -1,6 +1,6 @@
 import { useBlocker } from '@tanstack/react-router'
 import { useCallback, useRef } from 'react'
-import { Button } from '../components/kit/button'
+import { Button } from '@/components/ui/button'
 import { Dialog, DialogFooter } from '../components/kit/overlay'
 
 /**
@@ -33,8 +33,8 @@ export function useDirtyLeaveGuard(dirty: boolean) {
       width={460}
       footer={
         <DialogFooter>
-          <Button onClick={() => reset?.()}>继续编辑</Button>
-          <Button variant="danger" onClick={() => proceed?.()}>放弃修改</Button>
+          <Button variant="outline" onClick={() => reset?.()}>继续编辑</Button>
+          <Button variant="destructive" onClick={() => proceed?.()}>放弃修改</Button>
         </DialogFooter>
       }
     />

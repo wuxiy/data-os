@@ -3,7 +3,7 @@ import { useSearch } from '@tanstack/react-router'
 import { AlertTriangle, Boxes, FlaskConical, MessageSquareText, Plus, RefreshCw, ShieldCheck } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Badge } from '../../components/kit/badge'
-import { Button } from '../../components/kit/button'
+import { Button } from '@/components/ui/button'
 import { FormField, FormGrid, FormNotice } from '../../components/kit/form'
 import { CodeTextarea, Input, NativeSelect, SearchField } from '../../components/kit/input'
 import { Dialog, DialogFooter, Confirm } from '../../components/kit/overlay'
@@ -289,8 +289,8 @@ export function AIDataPage() {
       cell: ({ row }) => row.original.decision === 'PENDING'
         ? (
           <div className="flex items-center gap-2" onClick={(event) => event.stopPropagation()}>
-            <Button size="sm" variant="primary" disabled={decide.isPending} onClick={() => decide.mutate({ request: row.original, approve: true })}>批准</Button>
-            <Button size="sm" variant="danger-outline" disabled={decide.isPending} onClick={() => decide.mutate({ request: row.original, approve: false })}>退回</Button>
+            <Button size="sm" disabled={decide.isPending} onClick={() => decide.mutate({ request: row.original, approve: true })}>批准</Button>
+            <Button size="sm" variant="destructive-outline" disabled={decide.isPending} onClick={() => decide.mutate({ request: row.original, approve: false })}>退回</Button>
           </div>
         )
         : <span className="text-label text-faint">—</span>,
@@ -310,8 +310,8 @@ export function AIDataPage() {
       cell: ({ row }) => row.original.status === 'CREATED'
         ? (
           <div className="flex items-center gap-2" onClick={(event) => event.stopPropagation()}>
-            <Button size="sm" disabled={feedbackResolve.isPending} onClick={() => feedbackResolve.mutate({ id: row.original.id, consume: true })}>吸收</Button>
-            <Button size="sm" variant="quiet" disabled={feedbackResolve.isPending} onClick={() => feedbackResolve.mutate({ id: row.original.id, consume: false })}>驳回</Button>
+            <Button variant="outline" size="sm" disabled={feedbackResolve.isPending} onClick={() => feedbackResolve.mutate({ id: row.original.id, consume: true })}>吸收</Button>
+            <Button size="sm" variant="ghost" disabled={feedbackResolve.isPending} onClick={() => feedbackResolve.mutate({ id: row.original.id, consume: false })}>驳回</Button>
           </div>
         )
         : <span className="text-label text-faint">—</span>,
@@ -335,8 +335,8 @@ export function AIDataPage() {
         description="面向 AI 使用的数据产品：构建、评测、人工认证与发布。"
         actions={
           <>
-            <Button onClick={() => void productsRequest.refetch()} disabled={productsRequest.isFetching}><RefreshCw size={14} className={productsRequest.isFetching ? 'animate-spin' : undefined} />刷新</Button>
-            <Button variant="primary" onClick={() => { setCreateError(null); setCreateOpen(true) }}><Plus size={14} />新建 AI 数据产品</Button>
+            <Button variant="outline" onClick={() => void productsRequest.refetch()} disabled={productsRequest.isFetching}><RefreshCw size={14} className={productsRequest.isFetching ? 'animate-spin' : undefined} />刷新</Button>
+            <Button onClick={() => { setCreateError(null); setCreateOpen(true) }}><Plus size={14} />新建 AI 数据产品</Button>
           </>
         }
       />
@@ -344,7 +344,7 @@ export function AIDataPage() {
       {productsRequest.isPending ? <LoadingBlock>正在读取 AI 数据产品…</LoadingBlock> : null}
       {productsRequest.isError ? (
         <Panel>
-          <EmptyState minHeight={220} icon={<Boxes />} title="AI Data 服务暂不可用" description="暂时无法读取产品清单与就绪度。请恢复 ai-ready-service 后重试。" action={<Button onClick={() => void productsRequest.refetch()}>重新读取</Button>} />
+          <EmptyState minHeight={220} icon={<Boxes />} title="AI Data 服务暂不可用" description="暂时无法读取产品清单与就绪度。请恢复 ai-ready-service 后重试。" action={<Button variant="outline" onClick={() => void productsRequest.refetch()}>重新读取</Button>} />
         </Panel>
       ) : null}
 
@@ -390,7 +390,7 @@ export function AIDataPage() {
 
           <Panel>
             {!product ? (
-              <EmptyState minHeight={320} icon={<Boxes />} title="还没有 AI 数据产品" description="创建产品后开始登记版本、构建与评测。" action={<Button onClick={() => setCreateOpen(true)}>新建 AI 数据产品</Button>} />
+              <EmptyState minHeight={320} icon={<Boxes />} title="还没有 AI 数据产品" description="创建产品后开始登记版本、构建与评测。" action={<Button variant="outline" onClick={() => setCreateOpen(true)}>新建 AI 数据产品</Button>} />
             ) : (
               <>
                 <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line px-5 py-4">
@@ -404,20 +404,20 @@ export function AIDataPage() {
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     {nextLifecycleTarget(product.lifecycle) ? (
-                      <Button size="sm" onClick={() => transition.mutate({ product, target: nextLifecycleTarget(product.lifecycle) as AIDataProductLifecycle })}>
+                      <Button variant="outline" size="sm" onClick={() => transition.mutate({ product, target: nextLifecycleTarget(product.lifecycle) as AIDataProductLifecycle })}>
                         推进到「{lifecycleLabel[nextLifecycleTarget(product.lifecycle) as AIDataProductLifecycle]}」
                       </Button>
                     ) : null}
                     {product.lifecycle === 'ASSESSED' ? (
-                      <Button size="sm" onClick={() => submitCert.mutate(product)} disabled={submitCert.isPending}>提交认证审批</Button>
+                      <Button variant="outline" size="sm" onClick={() => submitCert.mutate(product)} disabled={submitCert.isPending}>提交认证审批</Button>
                     ) : null}
-                    <Button size="sm" onClick={() => build.mutate(product)} disabled={build.isPending || Boolean(activeBuild)}>{activeBuild ? '构建中…' : '构建'}</Button>
-                    <Button size="sm" onClick={() => evaluate.mutate(product)} disabled={evaluate.isPending}><FlaskConical size={13} />评测</Button>
-                    <Button size="sm" onClick={() => setFeedbackOpen(true)}><MessageSquareText size={13} />反馈失败样本</Button>
+                    <Button variant="outline" size="sm" onClick={() => build.mutate(product)} disabled={build.isPending || Boolean(activeBuild)}>{activeBuild ? '构建中…' : '构建'}</Button>
+                    <Button variant="outline" size="sm" onClick={() => evaluate.mutate(product)} disabled={evaluate.isPending}><FlaskConical size={13} />评测</Button>
+                    <Button variant="outline" size="sm" onClick={() => setFeedbackOpen(true)}><MessageSquareText size={13} />反馈失败样本</Button>
                     {product.lifecycle !== 'DEPRECATED' ? (
                       <>
-                        {product.lifecycle === 'SERVING' ? <Button size="sm" variant="danger-outline" onClick={() => setDemoteTarget(product)}>撤下重评估</Button> : null}
-                        <Button size="sm" variant="danger-outline" onClick={() => setDeprecateTarget(product)}>弃用</Button>
+                        {product.lifecycle === 'SERVING' ? <Button size="sm" variant="destructive-outline" onClick={() => setDemoteTarget(product)}>撤下重评估</Button> : null}
+                        <Button size="sm" variant="destructive-outline" onClick={() => setDeprecateTarget(product)}>弃用</Button>
                       </>
                     ) : null}
                   </div>
@@ -504,9 +504,8 @@ export function AIDataPage() {
         dirty={Boolean(form.name.trim() || form.owner.trim()) && submitState !== 'saving'}
         footer={
           <DialogFooter note="创建后为草稿，不对外提供服务">
-            <Button onClick={() => setCreateOpen(false)} disabled={createProduct.isPending}>取消</Button>
+            <Button variant="outline" onClick={() => setCreateOpen(false)} disabled={createProduct.isPending}>取消</Button>
             <Button
-              variant="primary"
               disabled={createProduct.isPending || !form.name.trim() || !form.owner.trim()}
               onClick={() => { setCreateError(null); createProduct.mutate() }}
             >
@@ -538,8 +537,8 @@ export function AIDataPage() {
         dirty={Boolean(feedbackQuestion.trim()) && !feedbackSubmit.isPending}
         footer={
           <DialogFooter note="提交后进入队列，不改变当前版本">
-            <Button onClick={() => setFeedbackOpen(false)} disabled={feedbackSubmit.isPending}>取消</Button>
-            <Button variant="primary" disabled={feedbackSubmit.isPending || !feedbackQuestion.trim() || !product} onClick={() => product && feedbackSubmit.mutate({ product, question: feedbackQuestion.trim() })}>
+            <Button variant="outline" onClick={() => setFeedbackOpen(false)} disabled={feedbackSubmit.isPending}>取消</Button>
+            <Button disabled={feedbackSubmit.isPending || !feedbackQuestion.trim() || !product} onClick={() => product && feedbackSubmit.mutate({ product, question: feedbackQuestion.trim() })}>
               {feedbackSubmit.isPending ? '提交中…' : '提交反馈'}
             </Button>
           </DialogFooter>

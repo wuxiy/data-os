@@ -3,7 +3,7 @@ import { Dialog as DialogPrimitive } from '@base-ui/react/dialog'
 import { CircleAlert, Info, TriangleAlert, X } from 'lucide-react'
 import { useCallback, useRef, useState, type ReactNode } from 'react'
 import { cn } from '../../lib/utils'
-import { Button } from './button'
+import { Button } from '@/components/ui/button'
 
 /**
  * 三类容器（DESIGN.md §15 / OVERLAY-GUIDE.md）：
@@ -55,8 +55,8 @@ export function DiscardInline({
     <div role="alert" className="mb-3.5 rounded-control border border-[#ecd9b6] bg-[#fffaf0] px-3 py-[11px] text-label text-amber">
       <div>{children}离开后会丢失这些内容。</div>
       <div className="mt-2 flex justify-end gap-2">
-        <Button size="sm" onClick={onKeepEditing}>继续编辑</Button>
-        <Button size="sm" variant="danger" onClick={onDiscard}>放弃修改</Button>
+        <Button variant="outline" size="sm" onClick={onKeepEditing}>继续编辑</Button>
+        <Button size="sm" variant="destructive" onClick={onDiscard}>放弃修改</Button>
       </div>
     </div>
   )
@@ -251,12 +251,12 @@ export function Confirm({
           <div className="flex justify-end gap-[9px] border-t border-line px-[26px] pt-[15px] pb-[21px]">
             <AlertDialogPrimitive.Close
               ref={cancelRef}
-              render={<Button disabled={busy} />}
+              render={<Button variant="outline" disabled={busy} />}
             >
               {cancelLabel}
             </AlertDialogPrimitive.Close>
             <Button
-              variant={tone === 'destructive' ? 'danger' : 'primary'}
+              variant={tone === 'destructive' ? 'destructive' : 'default'}
               disabled={busy}
               onClick={onConfirm}
             >

@@ -3,7 +3,7 @@ import { Ban, MessageSquareText, Send, ShieldCheck, ThumbsDown, ThumbsUp } from 
 import { useMemo, useState, type FormEvent } from 'react'
 import { QueryBoundary } from '../app/query-boundary'
 import { Badge } from '../components/kit/badge'
-import { Button } from '../components/kit/button'
+import { Button } from '@/components/ui/button'
 import { Input, NativeSelect } from '../components/kit/input'
 import { Panel, PanelHead } from '../components/kit/panel'
 import { EmptyState, LoadingBlock, Skeleton } from '../components/kit/states'
@@ -136,7 +136,7 @@ function AssistantWorkspace({
           icon={<MessageSquareText />}
           title="问数服务暂不可用"
           description="暂时无法读取已验证问题。可重新读取；持续失败时请联系平台运维核对服务连接。"
-          action={<Button onClick={() => void questionsRequest.refetch()}>重新读取问题</Button>}
+          action={<Button variant="outline" onClick={() => void questionsRequest.refetch()}>重新读取问题</Button>}
         />
       </Panel>
     )
@@ -240,7 +240,7 @@ function AssistantWorkspace({
                   </label>
                 )
               })}
-              <Button type="submit" variant="primary" disabled={asking || !draft.trim()}>
+              <Button type="submit" disabled={asking || !draft.trim()}>
                 {asking ? '查询中…' : '按参数执行'}
               </Button>
             </form>
@@ -328,7 +328,7 @@ function AssistantWorkspace({
                 rows={1}
                 className="min-h-[38px] flex-1 resize-none rounded-control border border-line-strong bg-paper px-2.5 py-2 text-body-sm text-ink-soft"
               />
-              <Button type="submit" variant="primary" size="icon" aria-label="发送问题" disabled={!draft.trim() || asking}><Send size={16} /></Button>
+              <Button type="submit" size="icon" aria-label="发送问题" disabled={!draft.trim() || asking}><Send size={16} /></Button>
             </div>
             <p className="mt-1.5 text-meta text-muted-foreground">回答来自已发布数据服务的受限执行；重要结论请结合口径与数据时间复核。</p>
           </form>

@@ -3,7 +3,7 @@ import { Activity, Archive, Copy, Pause, Play, RefreshCw, RotateCcw, Settings2, 
 import { useMemo, useState } from 'react'
 import { useSearch } from '@tanstack/react-router'
 import { Badge, StatusText } from '../../components/kit/badge'
-import { Button } from '../../components/kit/button'
+import { Button } from '@/components/ui/button'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel } from '../../components/kit/panel'
 import { Tabs, TabPanel } from '../../components/kit/popover'
@@ -103,7 +103,7 @@ export function JobDetailPage({ jobId }: { jobId: string }) {
           icon={<TriangleAlert />}
           title="采集任务不存在"
           description="该任务可能已被删除，或当前账号没有访问权限。"
-          action={<Button onClick={() => navigate('/ingestion')}>返回数据接入</Button>}
+          action={<Button variant="outline" onClick={() => navigate('/ingestion')}>返回数据接入</Button>}
         />
       </Panel>
     )
@@ -127,13 +127,13 @@ export function JobDetailPage({ jobId }: { jobId: string }) {
         description={`${source ? sourceDisplayName(source) : '来源未登记'} · ${executorLabel(job.executor)} · ${job.mode === 'CDC' ? '增量变更' : '批量同步'}`}
         actions={
           <>
-            <Button onClick={() => navigate('/ingestion')}>返回列表</Button>
+            <Button variant="outline" onClick={() => navigate('/ingestion')}>返回列表</Button>
             {job.status === 'PAUSED' ? (
-              <Button disabled={busy} onClick={() => changeStatus.mutate({ target: job, status: 'ACTIVE' })}><Play size={14} />启用</Button>
+              <Button variant="outline" disabled={busy} onClick={() => changeStatus.mutate({ target: job, status: 'ACTIVE' })}><Play size={14} />启用</Button>
             ) : job.status === 'ACTIVE' ? (
-              <Button disabled={busy} onClick={() => changeStatus.mutate({ target: job, status: 'PAUSED' })}><Pause size={14} />暂停</Button>
+              <Button variant="outline" disabled={busy} onClick={() => changeStatus.mutate({ target: job, status: 'PAUSED' })}><Pause size={14} />暂停</Button>
             ) : null}
-            <Button variant="primary" disabled={busy || activeRun || job.status !== 'ACTIVE'} onClick={() => {
+            <Button disabled={busy || activeRun || job.status !== 'ACTIVE'} onClick={() => {
               if (!job.configured) {
                 notify('请先保存采集任务配置，再启动运行')
                 goTab('configuration')
@@ -175,15 +175,15 @@ export function JobDetailPage({ jobId }: { jobId: string }) {
             </dl>
 
             <div className="mt-4 flex flex-wrap gap-2">
-              <Button size="sm" onClick={() => goTab('configuration')}><Settings2 size={13} />任务配置</Button>
-              {dolphin ? <Button size="sm" onClick={() => goTab('scheduling')}>调度配置</Button> : null}
-              <Button size="sm" disabled={busy} onClick={() => setCopyOpen(true)}><Copy size={13} />复制任务</Button>
+              <Button variant="outline" size="sm" onClick={() => goTab('configuration')}><Settings2 size={13} />任务配置</Button>
+              {dolphin ? <Button variant="outline" size="sm" onClick={() => goTab('scheduling')}>调度配置</Button> : null}
+              <Button variant="outline" size="sm" disabled={busy} onClick={() => setCopyOpen(true)}><Copy size={13} />复制任务</Button>
               {job.status !== 'ARCHIVED' ? (
-                <Button size="sm" variant="danger-outline" disabled={busy || activeRun} onClick={() => changeStatus.mutate({ target: job, status: 'ARCHIVED' })}>
+                <Button size="sm" variant="destructive-outline" disabled={busy || activeRun} onClick={() => changeStatus.mutate({ target: job, status: 'ARCHIVED' })}>
                   <Archive size={13} />归档
                 </Button>
               ) : null}
-              <Button size="sm" onClick={() => void runsRequest.refetch()}><RefreshCw size={13} />刷新运行</Button>
+              <Button variant="outline" size="sm" onClick={() => void runsRequest.refetch()}><RefreshCw size={13} />刷新运行</Button>
             </div>
 
             {job.latestRunStatus === null && runs.length === 0 && !runsRequest.isPending ? (
@@ -286,15 +286,15 @@ function RunsTable({
               <div role="status" className="mt-2 rounded-control border border-[#eee2c5] bg-[#fdf9ef] px-3 py-2 text-label text-amber">
                 <strong>待人工对账：</strong>{run.reconciliationMessage ?? '请先确认外部运行不存在后再重试。'}
                 <div className="mt-1.5 flex gap-2">
-                  <Button size="sm" disabled={acting} onClick={() => onSync(run)}>重新查询</Button>
-                  <Button size="sm" variant="danger-outline" disabled={acting} onClick={() => onConfirmAbsent(run)}>确认不存在</Button>
+                  <Button variant="outline" size="sm" disabled={acting} onClick={() => onSync(run)}>重新查询</Button>
+                  <Button size="sm" variant="destructive-outline" disabled={acting} onClick={() => onConfirmAbsent(run)}>确认不存在</Button>
                 </div>
               </div>
             ) : null}
             <div className="mt-1.5 flex gap-2">
-              {active && !manual ? <Button variant="text" disabled={acting} onClick={() => onSync(run)}><RefreshCw size={12} />同步状态</Button> : null}
+              {active && !manual ? <Button variant="link" disabled={acting} onClick={() => onSync(run)}><RefreshCw size={12} />同步状态</Button> : null}
               {retryableRunStatus(run.status) ? (
-                <Button variant="text" disabled={acting || job.status !== 'ACTIVE'} onClick={() => onRetry(run)}><RotateCcw size={12} />重试</Button>
+                <Button variant="link" disabled={acting || job.status !== 'ACTIVE'} onClick={() => onRetry(run)}><RotateCcw size={12} />重试</Button>
               ) : null}
             </div>
           </li>

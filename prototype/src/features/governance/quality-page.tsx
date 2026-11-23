@@ -3,7 +3,7 @@ import { useSearch } from '@tanstack/react-router'
 import { AlertTriangle, CircleAlert, Plus, RefreshCw, Search, Send, Shield, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Badge } from '../../components/kit/badge'
-import { Button } from '../../components/kit/button'
+import { Button } from '@/components/ui/button'
 import { Input, SearchField, NativeSelect } from '../../components/kit/input'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Count, Panel, PanelHead, ScopeNote } from '../../components/kit/panel'
@@ -344,11 +344,11 @@ export function QualityPage() {
       size: 210,
       cell: ({ row }) => (
         <div className="flex items-center gap-2.5" onClick={(event) => event.stopPropagation()}>
-          <Button variant="text" onClick={() => navigate(workLinks.qualityRuleEdit(row.original.ruleId))}>编辑</Button>
-          <Button variant="text" disabled={ruleToggle.isPending} onClick={() => ruleToggle.mutate({ ruleId: row.original.ruleId, enabled: !row.original.enabled })}>
+          <Button variant="link" onClick={() => navigate(workLinks.qualityRuleEdit(row.original.ruleId))}>编辑</Button>
+          <Button variant="link" disabled={ruleToggle.isPending} onClick={() => ruleToggle.mutate({ ruleId: row.original.ruleId, enabled: !row.original.enabled })}>
             {row.original.enabled ? '停用' : '启用'}
           </Button>
-          <Button variant="text" className="text-red" onClick={() => setPendingDelete(row.original)}><Trash2 size={12} />删除</Button>
+          <Button variant="link" className="text-red" onClick={() => setPendingDelete(row.original)}><Trash2 size={12} />删除</Button>
         </div>
       ),
     }),
@@ -362,8 +362,8 @@ export function QualityPage() {
         description="定位质量问题，沿证据与责任链推进闭环。"
         actions={
           <>
-            <Button onClick={() => navigate('/governance/quality/scoring')}>评分标准</Button>
-            <Button variant="primary" onClick={() => navigate(workLinks.qualityRuleNew())}><Plus size={14} />新建质量规则</Button>
+            <Button variant="outline" onClick={() => navigate('/governance/quality/scoring')}>评分标准</Button>
+            <Button onClick={() => navigate(workLinks.qualityRuleNew())}><Plus size={14} />新建质量规则</Button>
           </>
         }
       />
@@ -372,7 +372,7 @@ export function QualityPage() {
         <div key={JSON.stringify([entry.issueId, entry.action])} role="alert" className="mb-3 flex flex-wrap items-center gap-2 rounded-control border border-red-line bg-red-soft px-4 py-3 text-body-sm text-red">
           <strong>问题 {entry.issueId} 的操作失败</strong>
           <span>{entry.message}</span>
-          <Button size="sm" onClick={() => select(entry.issueId)}>查看问题 {entry.issueId}</Button>
+          <Button variant="outline" size="sm" onClick={() => select(entry.issueId)}>查看问题 {entry.issueId}</Button>
         </div>
       ))}
 
@@ -385,7 +385,7 @@ export function QualityPage() {
             icon={<CircleAlert />}
             title="治理问题控制面不可用"
             description="控制面暂不可用 · 未加载治理问题。当前页面没有展示演示问题；请恢复控制面后重新加载。"
-            action={<Button onClick={() => void issuesRequest.refetch()}>重新连接</Button>}
+            action={<Button variant="outline" onClick={() => void issuesRequest.refetch()}>重新连接</Button>}
           />
         </Panel>
       ) : null}
@@ -444,7 +444,7 @@ export function QualityPage() {
               {visibleIssues.length === 0 ? (
                 <li className="px-3 py-6 text-center text-label text-muted-foreground">
                   当前范围暂无匹配的治理问题
-                  {keyword || statusFilter !== 'all' ? <Button variant="text" size="sm" className="ml-1" onClick={() => { setKeyword(''); setStatusFilter('all'); setPage(0) }}>查看全部问题</Button> : null}
+                  {keyword || statusFilter !== 'all' ? <Button variant="link" size="sm" className="ml-1" onClick={() => { setKeyword(''); setStatusFilter('all'); setPage(0) }}>查看全部问题</Button> : null}
                 </li>
               ) : null}
             </ul>
@@ -459,7 +459,7 @@ export function QualityPage() {
               <div className="px-5 py-8 text-center">
                 <p className="text-body-sm font-medium text-ink-soft">治理问题详情不可用</p>
                 <p className="mt-1 text-label text-muted-foreground">问题详情读取失败，请刷新后重试</p>
-                <Button size="sm" className="mt-3" onClick={() => void detailRequest.refetch()}>重新读取</Button>
+                <Button variant="outline" size="sm" className="mt-3" onClick={() => void detailRequest.refetch()}>重新读取</Button>
               </div>
             ) : null}
             {selected && detail ? (
@@ -477,18 +477,18 @@ export function QualityPage() {
                     <Fact label="最近更新" value={formatDateTime(selected.updatedAt ?? null)} />
                   </dl>
                   <div className="mt-3 flex flex-wrap items-center gap-2">
-                    <Button variant="primary" disabled={!canRecheck || busy} onClick={() => selected && recheckMutation.mutate(selected.id)}>
+                    <Button disabled={!canRecheck || busy} onClick={() => selected && recheckMutation.mutate(selected.id)}>
                       {recheckMutation.isPending ? '提交中…' : selected.status === 'RECHECKING' ? '复检中' : '开始复检'}
                     </Button>
                     {detail.latestRun && !isTerminalRun(detail.latestRun.status) ? (
-                      <Button disabled={busy} onClick={() => selected && detail.latestRun && syncMutation.mutate({ issueId: selected.id, runId: detail.latestRun.id })}>
+                      <Button variant="outline" disabled={busy} onClick={() => selected && detail.latestRun && syncMutation.mutate({ issueId: selected.id, runId: detail.latestRun.id })}>
                         <RefreshCw size={14} className={syncMutation.isPending ? 'animate-spin' : undefined} />{syncMutation.isPending ? '同步中…' : '同步复检结果'}
                       </Button>
                     ) : null}
-                    <Button disabled={busy || selected.status === 'CLOSED'} onClick={() => remindMutation.mutate(selected.id)}>
+                    <Button variant="outline" disabled={busy || selected.status === 'CLOSED'} onClick={() => remindMutation.mutate(selected.id)}>
                       {remindMutation.isPending ? '提醒中…' : selected.status === 'CLOSED' ? '问题已关闭' : '提醒责任人'}
                     </Button>
-                    <Button onClick={() => setChainOpen(true)}><Shield size={13} />责任链</Button>
+                    <Button variant="outline" onClick={() => setChainOpen(true)}><Shield size={13} />责任链</Button>
                     {selected.status === 'CLOSED' ? <span className="text-meta text-muted-foreground">问题已关闭，主操作停用；如需重新处理请从队列选择未闭环问题</span> : null}
                   </div>
                   {selected.status === 'RECHECKING' ? <p className="mt-2 text-label text-amber">复检请求已登记，正在等待执行器异步回写；本状态尚不代表质量规则通过。</p> : null}
@@ -556,7 +556,6 @@ export function QualityPage() {
                   />
                   <div className="mt-2 flex justify-end">
                     <Button
-                      variant="primary"
                       disabled={!canEdit || !note.trim() || busy}
                       onClick={() => selected && noteMutation.mutate({ issueId: selected.id, status: selected.status === 'CLOSED' ? 'CLOSED' : 'IN_PROGRESS', text: note.trim() })}
                     >
@@ -600,10 +599,10 @@ export function QualityPage() {
                     <strong>质量执行批次待人工对账</strong>
                     <p className="mt-1">{detail.latestRun.reconciliationMessage ?? '外部执行器未能可靠返回状态，请先重新查询；确认不存在后才允许结束本批次。'}</p>
                     <div className="mt-1.5 flex gap-2">
-                      <Button size="sm" disabled={busy} onClick={() => selected && detail.latestRun && reconcileMutation.mutate({ issueId: selected.id, runId: detail.latestRun.id })}>
+                      <Button variant="outline" size="sm" disabled={busy} onClick={() => selected && detail.latestRun && reconcileMutation.mutate({ issueId: selected.id, runId: detail.latestRun.id })}>
                         {reconcileMutation.isPending ? '查询中…' : '重新查询'}
                       </Button>
-                      <Button size="sm" variant="danger-outline" disabled={busy} onClick={() => selected && detail.latestRun && confirmAbsentMutation.mutate({ issueId: selected.id, runId: detail.latestRun.id })}>
+                      <Button size="sm" variant="destructive-outline" disabled={busy} onClick={() => selected && detail.latestRun && confirmAbsentMutation.mutate({ issueId: selected.id, runId: detail.latestRun.id })}>
                         {confirmAbsentMutation.isPending ? '确认中…' : '确认不存在'}
                       </Button>
                     </div>
@@ -633,7 +632,7 @@ export function QualityPage() {
           title="质量规则"
           count={rulesRequest.data?.total}
           description="动态规则台账：保存即推送质量执行器编译，失败原因如实回显"
-          actions={<Button size="sm" variant="primary" onClick={() => navigate(workLinks.qualityRuleNew())}><Plus size={13} />新建规则</Button>}
+          actions={<Button size="sm" onClick={() => navigate(workLinks.qualityRuleNew())}><Plus size={13} />新建规则</Button>}
         />
         <ScopeNote>删除会从执行器同步摘除规则；如需暂停执行请使用「停用」。已产生的治理问题与运行记录保留。</ScopeNote>
         <DataTable
@@ -643,7 +642,7 @@ export function QualityPage() {
           rowLabel={(rule) => rule.ruleId}
           loading={rulesRequest.isPending}
           empty={rulesRequest.isError
-            ? <EmptyState minHeight={200} icon={<CircleAlert />} title="质量规则暂不可用" description="无法读取规则台账，不能据此判断当前是否存在规则。" action={<Button onClick={() => void rulesRequest.refetch()}>重新读取规则</Button>} />
+            ? <EmptyState minHeight={200} icon={<CircleAlert />} title="质量规则暂不可用" description="无法读取规则台账，不能据此判断当前是否存在规则。" action={<Button variant="outline" onClick={() => void rulesRequest.refetch()}>重新读取规则</Button>} />
             : <EmptyState minHeight={200} icon={<Shield />} title="还没有动态质量规则" description="新建规则后保存即推送执行器；执行器对目标表列做实校验。" />}
         />
       </Panel>

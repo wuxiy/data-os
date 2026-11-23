@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, CalendarClock, FileCog, KeyRound, LoaderCircle, Save } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Badge } from '../../components/kit/badge'
-import { Button } from '../../components/kit/button'
+import { Button } from '@/components/ui/button'
 import { FormField, FormGrid, FormNotice } from '../../components/kit/form'
 import { CodeTextarea, Input, NativeSelect } from '../../components/kit/input'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
@@ -244,7 +244,7 @@ export function JobConfigurationEditor({ jobId }: { jobId?: string }) {
           icon={<AlertTriangle />}
           title="采集任务不存在"
           description="该任务可能已被删除，或当前账号没有访问权限。"
-          action={<Button onClick={() => navigate('/ingestion')}>返回数据接入</Button>}
+          action={<Button variant="outline" onClick={() => navigate('/ingestion')}>返回数据接入</Button>}
         />
       </Panel>
     )
@@ -375,18 +375,17 @@ export function JobConfigurationEditor({ jobId }: { jobId?: string }) {
             <div className="mt-2 flex items-center gap-2">
               {dolphin || configMode === 'json' || !structuredReady ? (
                 <Button
-                  variant="primary"
                   disabled={saving}
                   onClick={() => { setError(null); createMutation.mutate() }}
                 >
                   <Save size={14} />{createMutation.isPending ? '创建中…' : dolphin || configMode === 'json' ? '创建并保存配置' : '创建任务'}
                 </Button>
               ) : null}
-              <Button onClick={() => requestLeave('/ingestion')} disabled={saving}>取消</Button>
+              <Button variant="outline" onClick={() => requestLeave('/ingestion')} disabled={saving}>取消</Button>
             </div>
           ) : editingStructured ? null : (
             <div className="mt-2 flex items-center gap-2">
-              <Button variant="primary" disabled={saving} onClick={() => { setError(null); saveMutation.mutate() }}>
+              <Button disabled={saving} onClick={() => { setError(null); saveMutation.mutate() }}>
                 <Save size={14} />{saveMutation.isPending ? '保存中…' : dolphin ? '保存绑定' : '保存配置'}
               </Button>
             </div>
@@ -480,7 +479,7 @@ export function JobEditorPage({ jobId }: { jobId?: string }) {
         description={jobId
           ? '保存的是可审计的结构配置；连接密码、Token、Secret 通过凭据引用接入。'
           : '表单只收集采集意图；库表、字段与连接在保存前由控制面对数据源实校验后编译。'}
-        actions={<Button onClick={() => navigate(jobId ? workLinks.ingestionJob(jobId) : '/ingestion')}>返回</Button>}
+        actions={<Button variant="outline" onClick={() => navigate(jobId ? workLinks.ingestionJob(jobId) : '/ingestion')}>返回</Button>}
       />
       <JobConfigurationEditor jobId={jobId} />
     </div>

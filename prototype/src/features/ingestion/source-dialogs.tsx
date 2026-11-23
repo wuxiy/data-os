@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Cable, CheckCircle2, Copy } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Badge } from '../../components/kit/badge'
-import { Button } from '../../components/kit/button'
+import { Button } from '@/components/ui/button'
 import { FormField, FormNotice } from '../../components/kit/form'
 import { CodeTextarea, Input, NativeSelect } from '../../components/kit/input'
 import { Dialog, DialogFooter } from '../../components/kit/overlay'
@@ -61,9 +61,8 @@ export function SourceRegisterDialog({
       dirty={dirty && !mutation.isPending}
       footer={
         <DialogFooter note="登记与连通性检查分开呈现">
-          <Button onClick={() => onOpenChange(false)} disabled={mutation.isPending}>取消</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={mutation.isPending}>取消</Button>
           <Button
-            variant="primary"
             disabled={!form.name.trim() || mutation.isPending}
             onClick={() => { setError(null); mutation.mutate() }}
           >
@@ -154,8 +153,8 @@ export function SourceCheckDialog({
       width={540}
       footer={
         <DialogFooter note="结果回写为健康、失败或待配置">
-          <Button onClick={() => onOpenChange(false)}>关闭</Button>
-          <Button variant="primary" onClick={submit} disabled={mutation.isPending || !source}>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>关闭</Button>
+          <Button onClick={submit} disabled={mutation.isPending || !source}>
             <CheckCircle2 size={14} />{mutation.isPending ? '检查中…' : '开始检查'}
           </Button>
         </DialogFooter>
@@ -231,8 +230,8 @@ export function CopyJobDialog({
       dirty={dirty && !mutation.isPending}
       footer={
         <DialogFooter note="副本保留配置，不带运行记录">
-          <Button onClick={() => onOpenChange(false)} disabled={mutation.isPending}>取消</Button>
-          <Button variant="primary" onClick={() => { setError(null); mutation.mutate() }} disabled={mutation.isPending || !job}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={mutation.isPending}>取消</Button>
+          <Button onClick={() => { setError(null); mutation.mutate() }} disabled={mutation.isPending || !job}>
             <Copy size={14} />{mutation.isPending ? '复制中…' : '创建副本'}
           </Button>
         </DialogFooter>

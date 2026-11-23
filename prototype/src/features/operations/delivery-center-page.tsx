@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, Plus, RefreshCw, ShieldCheck, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { Badge } from '../../components/kit/badge'
-import { Button } from '../../components/kit/button'
+import { Button } from '@/components/ui/button'
 import { FormField, FormGrid, FormNotice } from '../../components/kit/form'
 import { Input, NativeSelect, SearchField } from '../../components/kit/input'
 import { Confirm, Dialog, DialogFooter } from '../../components/kit/overlay'
@@ -158,7 +158,7 @@ export function DeliveryCenterPage() {
       header: '操作',
       size: 100,
       cell: ({ row }) => current && (current.status === 'DRAFT' || current.status === 'IN_PROGRESS')
-        ? <Button size="sm" variant="text" disabled={removeItem.isPending} onClick={() => removeItem.mutate(row.original.id)}><Trash2 size={12} />移除</Button>
+        ? <Button size="sm" variant="link" disabled={removeItem.isPending} onClick={() => removeItem.mutate(row.original.id)}><Trash2 size={12} />移除</Button>
         : null,
     }),
   ])
@@ -185,8 +185,8 @@ export function DeliveryCenterPage() {
         description="交付项目、验收证据包与交付闭环。"
         actions={
           <>
-            <Button onClick={() => void listRequest.refetch()} disabled={listRequest.isFetching}><RefreshCw size={14} className={listRequest.isFetching ? 'animate-spin' : undefined} />刷新</Button>
-            <Button variant="primary" onClick={() => { setCreateError(null); setCreateOpen(true) }}><Plus size={14} />新建交付项目</Button>
+            <Button variant="outline" onClick={() => void listRequest.refetch()} disabled={listRequest.isFetching}><RefreshCw size={14} className={listRequest.isFetching ? 'animate-spin' : undefined} />刷新</Button>
+            <Button onClick={() => { setCreateError(null); setCreateOpen(true) }}><Plus size={14} />新建交付项目</Button>
           </>
         }
       />
@@ -194,7 +194,7 @@ export function DeliveryCenterPage() {
       {listRequest.isPending ? <LoadingBlock>正在读取交付项目…</LoadingBlock> : null}
       {listRequest.isError ? (
         <Panel>
-          <EmptyState minHeight={220} icon={<ShieldCheck />} title="交付服务暂不可用" description="控制面交付模块不可达；本页不显示静态回退。" action={<Button onClick={() => void listRequest.refetch()}>重试</Button>} />
+          <EmptyState minHeight={220} icon={<ShieldCheck />} title="交付服务暂不可用" description="控制面交付模块不可达；本页不显示静态回退。" action={<Button variant="outline" onClick={() => void listRequest.refetch()}>重试</Button>} />
         </Panel>
       ) : null}
 
@@ -206,8 +206,8 @@ export function DeliveryCenterPage() {
               <SearchField value={searchInput} onValueChange={setSearchInput} placeholder="搜索项目代码/名称/负责人" className="w-full" />
             </div>
             <div className="flex items-center gap-2 px-[18px] pb-2">
-              <Button size="sm" onClick={() => setQuery(searchInput.trim())}>查询</Button>
-              {query ? <Button size="sm" variant="quiet" onClick={() => { setQuery(''); setSearchInput('') }}>清除</Button> : null}
+              <Button variant="outline" size="sm" onClick={() => setQuery(searchInput.trim())}>查询</Button>
+              {query ? <Button size="sm" variant="ghost" onClick={() => { setQuery(''); setSearchInput('') }}>清除</Button> : null}
             </div>
             <ul className="m-0 min-h-0 flex-1 list-none px-2 pb-2">
               {projects.map((project) => {
@@ -236,7 +236,7 @@ export function DeliveryCenterPage() {
           <div className="space-y-3.5">
             {!current ? (
               <Panel>
-                <EmptyState minHeight={280} icon={<ShieldCheck />} title="还没有交付项目" description="创建项目后引用资产、看板、数据服务或 AI 产品，再提交验收。" action={<Button onClick={() => setCreateOpen(true)}>新建交付项目</Button>} />
+                <EmptyState minHeight={280} icon={<ShieldCheck />} title="还没有交付项目" description="创建项目后引用资产、看板、数据服务或 AI 产品，再提交验收。" action={<Button variant="outline" onClick={() => setCreateOpen(true)}>新建交付项目</Button>} />
               </Panel>
             ) : (
               <>
@@ -252,12 +252,12 @@ export function DeliveryCenterPage() {
                       {current.acceptedSnapshotId ? <p className="mt-1 text-meta text-muted-foreground">验收快照 {current.acceptedSnapshotId.slice(0, 12)}…</p> : null}
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <Button size="sm" onClick={() => { setItemError(null); setItemOpen(true) }} disabled={current.status === 'ACCEPTED' || current.status === 'ARCHIVED'}>引用交付对象</Button>
-                      <Button size="sm" onClick={() => snapshot.mutate()} disabled={snapshot.isPending || current.status === 'ARCHIVED'}>生成证据快照</Button>
-                      <Button size="sm" variant="primary" onClick={() => submit.mutate()} disabled={submit.isPending || current.status === 'ACCEPTED' || current.status === 'ARCHIVED'}>提交验收</Button>
-                      {current.status === 'READY_FOR_ACCEPTANCE' ? <Button size="sm" variant="primary" onClick={() => accept.mutate()} disabled={accept.isPending}>验收通过</Button> : null}
-                      <Button size="sm" onClick={() => void downloadEvidenceZip(current.id).then(() => notify('证据包已开始下载')).catch((cause: unknown) => notify(cause instanceof Error ? cause.message : '证据包下载失败'))}><Download size={13} />证据包</Button>
-                      {current.status !== 'ARCHIVED' ? <Button size="sm" variant="danger-outline" onClick={() => setArchiveTarget(current)}>归档</Button> : null}
+                      <Button variant="outline" size="sm" onClick={() => { setItemError(null); setItemOpen(true) }} disabled={current.status === 'ACCEPTED' || current.status === 'ARCHIVED'}>引用交付对象</Button>
+                      <Button variant="outline" size="sm" onClick={() => snapshot.mutate()} disabled={snapshot.isPending || current.status === 'ARCHIVED'}>生成证据快照</Button>
+                      <Button size="sm" onClick={() => submit.mutate()} disabled={submit.isPending || current.status === 'ACCEPTED' || current.status === 'ARCHIVED'}>提交验收</Button>
+                      {current.status === 'READY_FOR_ACCEPTANCE' ? <Button size="sm" onClick={() => accept.mutate()} disabled={accept.isPending}>验收通过</Button> : null}
+                      <Button variant="outline" size="sm" onClick={() => void downloadEvidenceZip(current.id).then(() => notify('证据包已开始下载')).catch((cause: unknown) => notify(cause instanceof Error ? cause.message : '证据包下载失败'))}><Download size={13} />证据包</Button>
+                      {current.status !== 'ARCHIVED' ? <Button size="sm" variant="destructive-outline" onClick={() => setArchiveTarget(current)}>归档</Button> : null}
                     </div>
                   </div>
 
@@ -328,8 +328,8 @@ export function DeliveryCenterPage() {
         dirty={Boolean(createForm.name.trim() || createForm.owner.trim()) && !createMutation.isPending}
         footer={
           <DialogFooter note="证据包不含行级数据与凭据">
-            <Button onClick={() => setCreateOpen(false)} disabled={createMutation.isPending}>取消</Button>
-            <Button variant="primary" disabled={createMutation.isPending || !createForm.code.trim() || !createForm.name.trim() || !createForm.owner.trim()} onClick={() => { setCreateError(null); createMutation.mutate() }}>
+            <Button variant="outline" onClick={() => setCreateOpen(false)} disabled={createMutation.isPending}>取消</Button>
+            <Button disabled={createMutation.isPending || !createForm.code.trim() || !createForm.name.trim() || !createForm.owner.trim()} onClick={() => { setCreateError(null); createMutation.mutate() }}>
               {createMutation.isPending ? '创建中…' : '创建项目'}
             </Button>
           </DialogFooter>
@@ -354,8 +354,8 @@ export function DeliveryCenterPage() {
         dirty={Boolean(itemForm.refId.trim()) && !addItem.isPending}
         footer={
           <DialogFooter note="仅引用已存在的对象，不复制定义">
-            <Button onClick={() => setItemOpen(false)} disabled={addItem.isPending}>取消</Button>
-            <Button variant="primary" disabled={addItem.isPending || !itemForm.refId.trim()} onClick={() => { setItemError(null); addItem.mutate() }}>
+            <Button variant="outline" onClick={() => setItemOpen(false)} disabled={addItem.isPending}>取消</Button>
+            <Button disabled={addItem.isPending || !itemForm.refId.trim()} onClick={() => { setItemError(null); addItem.mutate() }}>
               {addItem.isPending ? '引用中…' : '引用对象'}
             </Button>
           </DialogFooter>

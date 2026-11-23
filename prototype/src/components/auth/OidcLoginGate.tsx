@@ -2,7 +2,7 @@ import { LogIn, ShieldCheck } from 'lucide-react'
 import { useState } from 'react'
 import type { AuthSnapshot } from '../../data/oidc'
 import { startOidcLogin } from '../../data/oidc'
-import { Button } from '../kit/button'
+import { Button } from '@/components/ui/button'
 import { LoadingBlock } from '../kit/states'
 
 /** 登录门（新主题）：未认证会话在进入任何工作区前阻断。 */
@@ -44,7 +44,7 @@ export function OidcLoginGate({ snapshot }: { snapshot: AuthSnapshot }) {
           请使用医院或区域平台统一身份认证登录。平台会根据您的组织和角色加载可用数据范围。
         </p>
         {snapshot.error ? <p role="alert" className="mb-4 rounded-control border border-red-line bg-red-soft px-3 py-2 text-label text-red">{snapshot.error}</p> : null}
-        <Button variant="primary" className="w-full" onClick={login} disabled={busy}>
+        <Button className="w-full" onClick={login} disabled={busy}>
           <LogIn size={16} />
           {busy ? '正在跳转…' : '使用统一身份认证登录'}
         </Button>

@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, FlaskConical, Pencil, Play, Plus, ShieldQuestion } from 'lucide-react'
 import { useState } from 'react'
 import { Badge } from '../../components/kit/badge'
-import { Button } from '../../components/kit/button'
+import { Button } from '@/components/ui/button'
 import { Confirm } from '../../components/kit/overlay'
 import { Panel, PanelHead } from '../../components/kit/panel'
 import { EmptyState } from '../../components/kit/states'
@@ -102,30 +102,29 @@ export function AssistantGovernanceSection({ onNotice }: { onNotice: (message: s
           <div className="flex flex-wrap items-center gap-1.5" onClick={(event) => event.stopPropagation()}>
             {question.status === 'DRAFT' ? (
               <>
-                <Button size="sm" onClick={() => navigate(workLinks.assistantQuestion(question.code, 'definition'))}><Pencil size={12} />编辑</Button>
-                <Button size="sm" onClick={() => navigate(workLinks.assistantQuestion(question.code, 'try'))}><FlaskConical size={12} />试运行</Button>
+                <Button variant="outline" size="sm" onClick={() => navigate(workLinks.assistantQuestion(question.code, 'definition'))}><Pencil size={12} />编辑</Button>
+                <Button variant="outline" size="sm" onClick={() => navigate(workLinks.assistantQuestion(question.code, 'try'))}><FlaskConical size={12} />试运行</Button>
                 <Button
                   size="sm"
-                  variant="primary"
                   disabled={!question.verified || busy}
                   title={question.verified ? '发布到问数面' : '需最近一次成功试运行晚于最后编辑'}
                   onClick={() => actionMutation.mutate({ code: question.code, action: 'publish' })}
                 >
                   发布
                 </Button>
-                <Button size="sm" variant="danger-outline" disabled={busy} onClick={() => setPendingAction({ action: 'delete', question })}>删除</Button>
+                <Button size="sm" variant="destructive-outline" disabled={busy} onClick={() => setPendingAction({ action: 'delete', question })}>删除</Button>
               </>
             ) : null}
             {question.status === 'PUBLISHED' ? (
               <>
-                <Button size="sm" onClick={() => navigate(workLinks.assistantQuestion(question.code, 'try'))}><FlaskConical size={12} />试运行</Button>
-                <Button size="sm" variant="danger-outline" disabled={busy} onClick={() => setPendingAction({ action: 'deprecate', question })}>停用</Button>
+                <Button variant="outline" size="sm" onClick={() => navigate(workLinks.assistantQuestion(question.code, 'try'))}><FlaskConical size={12} />试运行</Button>
+                <Button size="sm" variant="destructive-outline" disabled={busy} onClick={() => setPendingAction({ action: 'deprecate', question })}>停用</Button>
               </>
             ) : null}
             {question.status === 'DEPRECATED' ? (
-              <Button size="sm" disabled={busy} onClick={() => actionMutation.mutate({ code: question.code, action: 'reopen' })}><Play size={12} />重新起草</Button>
+              <Button variant="outline" size="sm" disabled={busy} onClick={() => actionMutation.mutate({ code: question.code, action: 'reopen' })}><Play size={12} />重新起草</Button>
             ) : null}
-            <Button size="sm" variant="quiet" onClick={() => navigate(workLinks.assistantQuestion(question.code, 'events'))}><ShieldQuestion size={12} />事件</Button>
+            <Button size="sm" variant="ghost" onClick={() => navigate(workLinks.assistantQuestion(question.code, 'events'))}><ShieldQuestion size={12} />事件</Button>
           </div>
         )
       },
@@ -140,9 +139,9 @@ export function AssistantGovernanceSection({ onNotice }: { onNotice: (message: s
         description="发布须最近一次成功试运行晚于最后一次编辑；停用后从问数面消失并可重新起草"
         actions={
           <>
-            <Button size="sm" onClick={() => void questionsRequest.refetch()}>刷新</Button>
-            <Button size="sm" onClick={() => navigate(workLinks.assistantAudit())}><Download size={13} />问数审计</Button>
-            <Button size="sm" variant="primary" onClick={() => navigate(workLinks.assistantQuestionNew())}><Plus size={13} />新建问题（草稿）</Button>
+            <Button variant="outline" size="sm" onClick={() => void questionsRequest.refetch()}>刷新</Button>
+            <Button variant="outline" size="sm" onClick={() => navigate(workLinks.assistantAudit())}><Download size={13} />问数审计</Button>
+            <Button size="sm" onClick={() => navigate(workLinks.assistantQuestionNew())}><Plus size={13} />新建问题（草稿）</Button>
           </>
         }
       />

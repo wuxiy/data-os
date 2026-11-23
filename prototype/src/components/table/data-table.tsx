@@ -12,7 +12,7 @@ import {
 import { Columns3, RefreshCw, Maximize2, Minimize2 } from 'lucide-react'
 import { useMemo, type ReactNode } from 'react'
 import { cn } from '../../lib/utils'
-import { Button } from '../kit/button'
+import { Button } from '@/components/ui/button'
 import { Popover, PopoverOption, PopoverTitle } from '../kit/popover'
 import { SearchField, NativeSelect } from '../kit/input'
 import { EmptyState, Skeleton } from '../kit/states'
@@ -247,13 +247,13 @@ export function TableToolbar({
       <div className="flex shrink-0 items-center gap-2">
         {actions}
         {onRefresh ? (
-          <Button size="icon" aria-label="刷新列表" title="刷新列表" onClick={onRefresh} disabled={refreshing}>
+          <Button variant="outline" size="icon" aria-label="刷新列表" title="刷新列表" onClick={onRefresh} disabled={refreshing}>
             <RefreshCw size={14} className={refreshing ? 'animate-spin' : undefined} />
           </Button>
         ) : null}
         {columnLabels && onColumnVisibilityChange ? (
           <Popover
-            trigger={<Button size="icon" aria-label="显示列" title="显示列"><Columns3 size={14} /></Button>}
+            trigger={<Button variant="outline" size="icon" aria-label="显示列" title="显示列"><Columns3 size={14} /></Button>}
           >
             <PopoverTitle>显示列</PopoverTitle>
             {Object.entries(columnLabels).map(([id, label]) => (
@@ -272,7 +272,7 @@ export function TableToolbar({
           </Popover>
         ) : null}
         {onToggleFullscreen ? (
-          <Button
+          <Button variant="outline"
             size="icon"
             aria-pressed={fullscreen}
             aria-label={fullscreen ? '退出全屏表格' : '全屏表格'}

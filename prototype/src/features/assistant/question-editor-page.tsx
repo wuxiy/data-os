@@ -3,7 +3,7 @@ import { useSearch } from '@tanstack/react-router'
 import { Download, FlaskConical, Plus, Save, ShieldQuestion, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Badge } from '../../components/kit/badge'
-import { Button } from '../../components/kit/button'
+import { Button } from '@/components/ui/button'
 import { FormField, FormGrid, FormNotice } from '../../components/kit/form'
 import { CodeTextarea, Input, NativeSelect } from '../../components/kit/input'
 import { Confirm } from '../../components/kit/overlay'
@@ -185,7 +185,7 @@ export function QuestionEditorPage({ questionCode }: { questionCode?: string }) 
           icon={<ShieldQuestion />}
           title="问题不存在"
           description="该问题可能已被删除，或当前账号没有治理权限。"
-          action={<Button onClick={() => navigate('/assistant/workspace')}>返回问数工作区</Button>}
+          action={<Button variant="outline" onClick={() => navigate('/assistant/workspace')}>返回问数工作区</Button>}
         />
       </Panel>
     )
@@ -206,8 +206,8 @@ export function QuestionEditorPage({ questionCode }: { questionCode?: string }) 
         description="发布须最近一次成功试运行晚于最后一次编辑；已发布问题只读，可继续试运行核对口径。"
         actions={
           <>
-            <Button onClick={() => navigate('/assistant/workspace')}>返回工作区</Button>
-            {questionCode ? <Button onClick={() => navigate(workLinks.assistantAudit())}><Download size={14} />问数审计</Button> : null}
+            <Button variant="outline" onClick={() => navigate('/assistant/workspace')}>返回工作区</Button>
+            {questionCode ? <Button variant="outline" onClick={() => navigate(workLinks.assistantAudit())}><Download size={14} />问数审计</Button> : null}
           </>
         }
       />
@@ -246,7 +246,7 @@ export function QuestionEditorPage({ questionCode }: { questionCode?: string }) 
             <div className="mb-4">
               <div className="mb-1.5 flex items-center justify-between">
                 <span className="text-body-sm text-ink-soft">参数 Schema（与数据服务契约一致）</span>
-                {!readOnly ? <Button size="sm" variant="text" onClick={() => setForm({ ...form, paramRows: [...form.paramRows, { name: '', type: 'string', required: false, defaultValue: '', valuesText: '' }] })}><Plus size={12} />添加参数</Button> : null}
+                {!readOnly ? <Button size="sm" variant="link" onClick={() => setForm({ ...form, paramRows: [...form.paramRows, { name: '', type: 'string', required: false, defaultValue: '', valuesText: '' }] })}><Plus size={12} />添加参数</Button> : null}
               </div>
               {form.paramRows.map((row, index) => (
                 <div key={index} className="mb-2 grid grid-cols-[minmax(0,1fr)_120px_120px_minmax(0,1fr)_minmax(0,1fr)_auto] items-center gap-2">
@@ -266,7 +266,7 @@ export function QuestionEditorPage({ questionCode }: { questionCode?: string }) 
                   </label>
                   <Input aria-label={`参数 ${index + 1} 默认值`} value={row.defaultValue} disabled={readOnly} onChange={(event) => setForm({ ...form, paramRows: form.paramRows.map((item, itemIndex) => itemIndex === index ? { ...item, defaultValue: event.target.value } : item) })} placeholder="默认值" />
                   <Input aria-label={`参数 ${index + 1} 枚举`} value={row.valuesText} disabled={readOnly} onChange={(event) => setForm({ ...form, paramRows: form.paramRows.map((item, itemIndex) => itemIndex === index ? { ...item, valuesText: event.target.value } : item) })} placeholder="枚举（逗号分隔）" />
-                  {!readOnly ? <Button size="sm" variant="text" aria-label={`移除参数 ${index + 1}`} onClick={() => setForm({ ...form, paramRows: form.paramRows.filter((_, itemIndex) => itemIndex !== index) })}><Trash2 size={12} /></Button> : null}
+                  {!readOnly ? <Button size="sm" variant="link" aria-label={`移除参数 ${index + 1}`} onClick={() => setForm({ ...form, paramRows: form.paramRows.filter((_, itemIndex) => itemIndex !== index) })}><Trash2 size={12} /></Button> : null}
                 </div>
               ))}
               {form.paramRows.length === 0 ? <p className="text-label text-muted-foreground">无参数问题可直接执行；有参数时问数面会要求填写。</p> : null}
@@ -283,18 +283,18 @@ export function QuestionEditorPage({ questionCode }: { questionCode?: string }) 
               <div className="flex flex-wrap items-center gap-2">
                 {question?.status === 'DRAFT' ? (
                   <>
-                    <Button disabled={saveMutation.isPending} onClick={() => setConfirmDelete(true)} variant="danger-outline"><Trash2 size={13} />删除草稿</Button>
-                    <Button disabled={saveMutation.isPending} onClick={() => saveMutation.mutate()}><Save size={13} />{saveMutation.isPending ? '保存中…' : '保存草稿'}</Button>
-                    <Button variant="primary" disabled={!question.verified || actionMutation.isPending} title={question.verified ? '发布到问数面' : '需最近一次成功试运行晚于最后编辑'} onClick={() => actionMutation.mutate('publish')}>发布</Button>
+                    <Button disabled={saveMutation.isPending} onClick={() => setConfirmDelete(true)} variant="destructive-outline"><Trash2 size={13} />删除草稿</Button>
+                    <Button variant="outline" disabled={saveMutation.isPending} onClick={() => saveMutation.mutate()}><Save size={13} />{saveMutation.isPending ? '保存中…' : '保存草稿'}</Button>
+                    <Button disabled={!question.verified || actionMutation.isPending} title={question.verified ? '发布到问数面' : '需最近一次成功试运行晚于最后编辑'} onClick={() => actionMutation.mutate('publish')}>发布</Button>
                   </>
                 ) : null}
                 {question?.status === 'PUBLISHED' ? (
-                  <Button variant="danger-outline" disabled={actionMutation.isPending} onClick={() => actionMutation.mutate('deprecate')}>停用</Button>
+                  <Button variant="destructive-outline" disabled={actionMutation.isPending} onClick={() => actionMutation.mutate('deprecate')}>停用</Button>
                 ) : null}
                 {question?.status === 'DEPRECATED' ? (
-                  <Button disabled={actionMutation.isPending} onClick={() => actionMutation.mutate('reopen')}>重新起草</Button>
+                  <Button variant="outline" disabled={actionMutation.isPending} onClick={() => actionMutation.mutate('reopen')}>重新起草</Button>
                 ) : null}
-                {!questionCode ? <Button variant="primary" disabled={saveMutation.isPending} onClick={() => saveMutation.mutate()}><Save size={13} />{saveMutation.isPending ? '保存中…' : '创建草稿'}</Button> : null}
+                {!questionCode ? <Button disabled={saveMutation.isPending} onClick={() => saveMutation.mutate()}><Save size={13} />{saveMutation.isPending ? '保存中…' : '创建草稿'}</Button> : null}
               </div>
             </div>
           </TabPanel>
@@ -322,7 +322,7 @@ export function QuestionEditorPage({ questionCode }: { questionCode?: string }) 
                       </label>
                     )
                   })}
-                  <Button variant="primary" disabled={testMutation.isPending} onClick={() => testMutation.mutate()}>
+                  <Button disabled={testMutation.isPending} onClick={() => testMutation.mutate()}>
                     <FlaskConical size={13} />{testMutation.isPending ? '试运行中…' : '试运行'}
                   </Button>
                 </div>

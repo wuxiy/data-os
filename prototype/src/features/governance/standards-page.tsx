@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Archive, ArrowRightLeft, Download, FileSearch, GitCompareArrows, RefreshCw, Send, ShieldCheck, UploadCloud } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Badge } from '../../components/kit/badge'
-import { Button } from '../../components/kit/button'
+import { Button } from '@/components/ui/button'
 import { FormField, FormGrid } from '../../components/kit/form'
 import { CodeTextarea, Input, NativeSelect, SearchField } from '../../components/kit/input'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
@@ -228,7 +228,7 @@ export function StandardsPage() {
       <PageHeading
         title="数据标准中心"
         description="维护院级业务定义与值域，通过评审发布可追溯的标准版本。"
-        actions={<Button onClick={() => navigate('/governance/quality')}>返回治理</Button>}
+        actions={<Button variant="outline" onClick={() => navigate('/governance/quality')}>返回治理</Button>}
       />
 
       <Panel className="mb-3.5">
@@ -239,7 +239,7 @@ export function StandardsPage() {
             <option value="">全部状态</option>
             {Object.entries(STATUS_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </NativeSelect>
-          {keyword || statusFilter ? <Button variant="text" size="sm" onClick={() => { setKeyword(''); setStatusFilter(''); setPage(0) }}>清除筛选</Button> : null}
+          {keyword || statusFilter ? <Button variant="link" size="sm" onClick={() => { setKeyword(''); setStatusFilter(''); setPage(0) }}>清除筛选</Button> : null}
         </div>
         <DataTable
           columns={listColumns}
@@ -255,14 +255,14 @@ export function StandardsPage() {
 
       {listRequest.isError ? (
         <Panel className="mb-3.5">
-          <EmptyState minHeight={200} title="控制面暂不可用" description="暂时无法读取标准清单。恢复连接后，可继续查看版本、评审记录与影响范围。" action={<Button size="sm" onClick={() => void listRequest.refetch()}>重试</Button>} />
+          <EmptyState minHeight={200} title="控制面暂不可用" description="暂时无法读取标准清单。恢复连接后，可继续查看版本、评审记录与影响范围。" action={<Button variant="outline" size="sm" onClick={() => void listRequest.refetch()}>重试</Button>} />
         </Panel>
       ) : null}
 
       {selectedId && detailRequest.isPending ? <LoadingBlock>正在读取标准详情…</LoadingBlock> : null}
       {detailRequest.isError ? (
         <Panel className="mb-3.5">
-          <EmptyState minHeight={180} title="标准详情读取失败" description="标准清单仍可使用。请重试读取所选标准的版本与数据元。" action={<Button size="sm" onClick={() => void detailRequest.refetch()}>重试详情</Button>} />
+          <EmptyState minHeight={180} title="标准详情读取失败" description="标准清单仍可使用。请重试读取所选标准的版本与数据元。" action={<Button variant="outline" size="sm" onClick={() => void detailRequest.refetch()}>重试详情</Button>} />
         </Panel>
       ) : null}
 
@@ -272,7 +272,7 @@ export function StandardsPage() {
             <PanelHead
               title={detail.standard.name}
               description={`${detail.standard.code} · ${detail.standard.owner || '未指定负责人'}`}
-              actions={<Button size="sm" disabled={busy} onClick={() => createDraft.mutate()}><GitCompareArrows size={14} />基于当前版本新建草稿</Button>}
+              actions={<Button variant="outline" size="sm" disabled={busy} onClick={() => createDraft.mutate()}><GitCompareArrows size={14} />基于当前版本新建草稿</Button>}
             />
             <div className="px-[18px] pb-3">
               <div className="flex flex-wrap items-center gap-2 text-label text-muted-foreground">
@@ -297,16 +297,16 @@ export function StandardsPage() {
               </div>
 
               <div className="mt-3 flex flex-wrap items-center gap-2">
-                {version.status === 'DRAFT' ? <Button size="sm" disabled={busy} onClick={() => versionAction.mutate({ action: 'submit', versionId: version.id })}><Send size={13} />提交评审</Button> : null}
-                {version.status === 'IN_REVIEW' ? <Button size="sm" disabled={busy} onClick={() => versionAction.mutate({ action: 'publish', versionId: version.id })}><ShieldCheck size={13} />发布（管理员）</Button> : null}
+                {version.status === 'DRAFT' ? <Button variant="outline" size="sm" disabled={busy} onClick={() => versionAction.mutate({ action: 'submit', versionId: version.id })}><Send size={13} />提交评审</Button> : null}
+                {version.status === 'IN_REVIEW' ? <Button variant="outline" size="sm" disabled={busy} onClick={() => versionAction.mutate({ action: 'publish', versionId: version.id })}><ShieldCheck size={13} />发布（管理员）</Button> : null}
                 {version.status === 'PUBLISHED' ? (
                   <>
-                    <Button size="sm" disabled={busy} onClick={() => versionAction.mutate({ action: 'deprecate', versionId: version.id })}><Archive size={13} />停用</Button>
-                    {version.syncStatus !== 'SYNCED' ? <Button size="sm" disabled={busy} onClick={() => versionAction.mutate({ action: 'sync', versionId: version.id })}><RefreshCw size={13} />重试术语投影</Button> : null}
+                    <Button variant="outline" size="sm" disabled={busy} onClick={() => versionAction.mutate({ action: 'deprecate', versionId: version.id })}><Archive size={13} />停用</Button>
+                    {version.syncStatus !== 'SYNCED' ? <Button variant="outline" size="sm" disabled={busy} onClick={() => versionAction.mutate({ action: 'sync', versionId: version.id })}><RefreshCw size={13} />重试术语投影</Button> : null}
                   </>
                 ) : null}
-                <Button size="sm" onClick={() => setImpactOpen((open) => !open)}><FileSearch size={13} />影响范围</Button>
-                <Button size="sm" onClick={downloadFhir}><Download size={13} />FHIR 导出</Button>
+                <Button variant="outline" size="sm" onClick={() => setImpactOpen((open) => !open)}><FileSearch size={13} />影响范围</Button>
+                <Button variant="outline" size="sm" onClick={downloadFhir}><Download size={13} />FHIR 导出</Button>
               </div>
 
               {impactOpen ? (
@@ -340,7 +340,7 @@ export function StandardsPage() {
                     />
                   </FormField>
                   <div className="flex justify-end">
-                    <Button size="sm" disabled={busy} onClick={() => saveDraft.mutate()}>保存草稿修改</Button>
+                    <Button variant="outline" size="sm" disabled={busy} onClick={() => saveDraft.mutate()}>保存草稿修改</Button>
                   </div>
                 </div>
               ) : null}
@@ -366,7 +366,7 @@ export function StandardsPage() {
                   <option value="">{otherVersions.length === 0 ? '没有可比版本' : '选择另一版本…'}</option>
                   {otherVersions.map((item) => <option key={item.id} value={item.id}>v{item.versionNo}（{STATUS_LABEL[item.status]}）</option>)}
                 </NativeSelect>
-                <Button
+                <Button variant="outline"
                   size="sm"
                   disabled={!compareWith}
                   onClick={() => {
@@ -428,12 +428,11 @@ export function StandardsPage() {
             />
           </FormField>
           <div className="flex items-center gap-2">
-            <Button size="sm" disabled={!importBody.trim() || importMutation.isPending} onClick={() => { setError(null); importMutation.mutate(true) }}>
+            <Button variant="outline" size="sm" disabled={!importBody.trim() || importMutation.isPending} onClick={() => { setError(null); importMutation.mutate(true) }}>
               <UploadCloud size={13} />预检（dry-run）
             </Button>
             <Button
               size="sm"
-              variant="primary"
               disabled={!importReport || importReport.dryRun === false || importReport.problems.length > 0 || importMutation.isPending}
               onClick={() => { setError(null); importMutation.mutate(false) }}
             >

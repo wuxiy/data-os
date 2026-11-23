@@ -3,7 +3,7 @@ import { useSearch } from '@tanstack/react-router'
 import { ArrowLeft, Database, Rows3, TableProperties } from 'lucide-react'
 import { useState } from 'react'
 import { Badge } from '../../components/kit/badge'
-import { Button } from '../../components/kit/button'
+import { Button } from '@/components/ui/button'
 import { SearchField } from '../../components/kit/input'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel, PanelHead } from '../../components/kit/panel'
@@ -64,7 +64,7 @@ export function AssetTechnicalPage() {
         <PageHeading
           title="技术视图"
           description="面向数据开发与运维人员的结构、血缘和同步证据；业务定义仍以资产详情为准。"
-          actions={<Button onClick={() => navigate('/assets')}>返回资产目录</Button>}
+          actions={<Button variant="outline" onClick={() => navigate('/assets')}>返回资产目录</Button>}
         />
         <Panel>
           <PanelHead title="选择资产" description={catalogRequest.data ? `${lineageSchemaLabel(catalogRequest.data.schema)} · ${pickerAssets.length} 项` : '按库浏览已摄取资产'} />
@@ -72,7 +72,7 @@ export function AssetTechnicalPage() {
             <SearchField value={keyword} onValueChange={(value) => { setKeyword(value); setPage(0) }} placeholder="搜索表名或全限定名" />
           </div>
           {catalogRequest.isPending ? <LoadingBlock>正在读取资产目录…</LoadingBlock> : null}
-          {catalogRequest.isError ? <EmptyState minHeight={200} icon={<Database />} title="资产目录暂不可用" description="恢复元数据接入后即可选择资产。" action={<Button onClick={() => void catalogRequest.refetch()}>重新读取</Button>} /> : null}
+          {catalogRequest.isError ? <EmptyState minHeight={200} icon={<Database />} title="资产目录暂不可用" description="恢复元数据接入后即可选择资产。" action={<Button variant="outline" onClick={() => void catalogRequest.refetch()}>重新读取</Button>} /> : null}
           {catalogRequest.isSuccess ? (
             <>
               <ul className="m-0 list-none px-4 pb-2">
@@ -109,7 +109,7 @@ export function AssetTechnicalPage() {
         description="技术元数据快照 · 只读结构元数据与已登记链路。"
         actions={
           <>
-            <Button onClick={() => navigate(backPath)}><ArrowLeft size={14} />返回资产详情</Button>
+            <Button variant="outline" onClick={() => navigate(backPath)}><ArrowLeft size={14} />返回资产详情</Button>
           </>
         }
       />
@@ -122,7 +122,7 @@ export function AssetTechnicalPage() {
             icon={<TableProperties />}
             title="技术元数据暂不可读"
             description="当前资产的结构或血缘读取失败。可重新读取，或返回资产目录确认当前资产。"
-            action={<div className="flex gap-2"><Button onClick={() => void detailRequest.refetch()}>重新读取</Button><Button onClick={() => navigate('/assets')}>返回资产目录</Button></div>}
+            action={<div className="flex gap-2"><Button variant="outline" onClick={() => void detailRequest.refetch()}>重新读取</Button><Button variant="outline" onClick={() => navigate('/assets')}>返回资产目录</Button></div>}
           />
         </Panel>
       ) : null}
@@ -164,7 +164,7 @@ export function AssetTechnicalPage() {
                 {lineageRequest.isError ? (
                   <div className="py-6 text-center">
                     <p className="text-body-sm text-ink-soft">血缘暂不可读</p>
-                    <Button size="sm" className="mt-2" onClick={() => void lineageRequest.refetch()}>重新读取</Button>
+                    <Button variant="outline" size="sm" className="mt-2" onClick={() => void lineageRequest.refetch()}>重新读取</Button>
                   </div>
                 ) : null}
                 {lineage ? (

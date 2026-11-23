@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { ChevronRight, RefreshCw, Shield } from 'lucide-react'
 import { useState } from 'react'
 import { Badge } from '../../components/kit/badge'
-import { Button } from '../../components/kit/button'
+import { Button } from '@/components/ui/button'
 import { MetricCard, MetricStrip } from '../../components/app/metric'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Count, Panel, PanelHead } from '../../components/kit/panel'
@@ -127,10 +127,10 @@ export function GovernanceDashboardPage() {
         description="先处理逾期风险，再追溯规则证据与责任归属。"
         actions={
           <>
-            <Button onClick={() => void query.refetch()} disabled={query.isFetching}>
+            <Button variant="outline" onClick={() => void query.refetch()} disabled={query.isFetching}>
               <RefreshCw size={14} className={query.isFetching ? 'animate-spin' : undefined} />刷新
             </Button>
-            <Button variant="primary" onClick={() => navigate('/governance/quality')}>进入质量闭环</Button>
+            <Button onClick={() => navigate('/governance/quality')}>进入质量闭环</Button>
           </>
         }
       />
@@ -144,7 +144,7 @@ export function GovernanceDashboardPage() {
             icon={<Shield />}
             title="治理控制面不可用"
             description="控制面暂不可用 · 未加载真实治理指标或问题。为避免误导，当前没有展示本地演示指标、问题或责任链样例。请恢复控制面后重新连接。"
-            action={<Button onClick={() => void query.refetch()}>重新连接</Button>}
+            action={<Button variant="outline" onClick={() => void query.refetch()}>重新连接</Button>}
           />
         </Panel>
       ) : null}
@@ -172,7 +172,7 @@ export function GovernanceDashboardPage() {
               title="治理待办"
               count={todoIssues.length}
               description="未闭环问题按 SLA 截止时间排序"
-              actions={<Button variant="text" onClick={() => navigate('/governance/quality')}>进入质量闭环<ChevronRight size={13} /></Button>}
+              actions={<Button variant="link" onClick={() => navigate('/governance/quality')}>进入质量闭环<ChevronRight size={13} /></Button>}
             />
             <DataTable
               columns={todoColumns}
@@ -189,8 +189,8 @@ export function GovernanceDashboardPage() {
               title="治理责任链 · v1"
               description="围绕同一问题核对对象、规则、责任人与处理记录"
               actions={chainTodo
-                ? <Button variant="text" onClick={() => setChainOpen(true)}>打开 {chainTodo.id} 的责任链<ChevronRight size={13} /></Button>
-                : <Button variant="text" onClick={() => navigate('/governance/quality')}>前往质量问题工作台<ChevronRight size={13} /></Button>}
+                ? <Button variant="link" onClick={() => setChainOpen(true)}>打开 {chainTodo.id} 的责任链<ChevronRight size={13} /></Button>
+                : <Button variant="link" onClick={() => navigate('/governance/quality')}>前往质量问题工作台<ChevronRight size={13} /></Button>}
             />
             {chainTodo ? (
               <div className="px-5 pb-5">
@@ -213,7 +213,7 @@ export function GovernanceDashboardPage() {
 
           <div className="mb-3.5 grid grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] gap-3.5 max-[1100px]:grid-cols-1">
             <Panel>
-              <PanelHead title="数据集风险排行" description="按数据集聚合，依逾期与未闭环问题排序" actions={<Button variant="text" onClick={() => navigate('/governance/quality')}>查看全部<ChevronRight size={13} /></Button>} />
+              <PanelHead title="数据集风险排行" description="按数据集聚合，依逾期与未闭环问题排序" actions={<Button variant="link" onClick={() => navigate('/governance/quality')}>查看全部<ChevronRight size={13} /></Button>} />
               <ol className="m-0 list-none px-5 pb-4">
                 {riskRanking.map((item, index) => (
                   <li key={item.dataset} className="flex items-center gap-3 border-b border-line-soft py-2.5 last:border-b-0">

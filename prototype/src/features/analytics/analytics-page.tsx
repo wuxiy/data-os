@@ -3,7 +3,7 @@ import { ChartNoAxesCombined, RefreshCw, ShieldCheck } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { embedDashboard } from '@superset-ui/embedded-sdk'
 import { Badge } from '../../components/kit/badge'
-import { Button } from '../../components/kit/button'
+import { Button } from '@/components/ui/button'
 import { SearchField } from '../../components/kit/input'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Count, Panel, PanelHead } from '../../components/kit/panel'
@@ -87,8 +87,8 @@ export function AnalyticsPage() {
         description="业务人员在统一门户查看结果；访问范围以当前账号授权为准。"
         actions={
           <>
-            <Button onClick={() => void catalogRequest.refetch()} disabled={catalogRequest.isFetching}><RefreshCw size={14} className={catalogRequest.isFetching ? 'animate-spin' : undefined} />刷新目录</Button>
-            <Button onClick={() => setEmbedReload((value) => value + 1)} disabled={!selected || embedState === 'mounting'}>重新加载看板</Button>
+            <Button variant="outline" onClick={() => void catalogRequest.refetch()} disabled={catalogRequest.isFetching}><RefreshCw size={14} className={catalogRequest.isFetching ? 'animate-spin' : undefined} />刷新目录</Button>
+            <Button variant="outline" onClick={() => setEmbedReload((value) => value + 1)} disabled={!selected || embedState === 'mounting'}>重新加载看板</Button>
           </>
         }
       />
@@ -96,7 +96,7 @@ export function AnalyticsPage() {
       {catalogRequest.isPending ? <LoadingBlock>正在读取已授权看板…</LoadingBlock> : null}
       {catalogRequest.isError ? (
         <Panel>
-          <EmptyState minHeight={240} icon={<ChartNoAxesCombined />} title="分析看板暂不可用" description="暂时无法读取看板目录。可重新读取；持续不可用时请联系平台运维核对服务连接。" action={<Button onClick={() => void catalogRequest.refetch()}>重新读取</Button>} />
+          <EmptyState minHeight={240} icon={<ChartNoAxesCombined />} title="分析看板暂不可用" description="暂时无法读取看板目录。可重新读取；持续不可用时请联系平台运维核对服务连接。" action={<Button variant="outline" onClick={() => void catalogRequest.refetch()}>重新读取</Button>} />
         </Panel>
       ) : null}
 
@@ -131,7 +131,7 @@ export function AnalyticsPage() {
               {visible.length === 0 ? (
                 <li className="px-3 py-6 text-center text-label text-muted-foreground">
                   没有匹配的看板。
-                  {keyword ? <Button variant="text" size="sm" className="ml-1" onClick={() => { setKeyword(''); setPage(0) }}>清空搜索</Button> : null}
+                  {keyword ? <Button variant="link" size="sm" className="ml-1" onClick={() => { setKeyword(''); setPage(0) }}>清空搜索</Button> : null}
                 </li>
               ) : null}
             </ul>
@@ -157,7 +157,7 @@ export function AnalyticsPage() {
               <div className="px-5 py-3">
                 <div role="status" className="rounded-control border border-[#eee2c5] bg-[#fdf9ef] px-3 py-2 text-label text-amber">
                   当前看板未能载入。可重新加载；持续失败时请联系平台运维核对访问配置。
-                  <div className="mt-1.5"><Button size="sm" onClick={() => setEmbedReload((value) => value + 1)}>重新加载看板</Button></div>
+                  <div className="mt-1.5"><Button variant="outline" size="sm" onClick={() => setEmbedReload((value) => value + 1)}>重新加载看板</Button></div>
                 </div>
               </div>
             ) : null}
@@ -183,7 +183,7 @@ export function AnalyticsPage() {
               </dl>
               <div className="mt-3 flex items-center justify-between gap-2 border-t border-line pt-3">
                 <span className="text-meta text-muted-foreground">离开看板后嵌入实例释放</span>
-                <Button size="sm" onClick={() => navigate('/assets')}>查看数据资产与血缘</Button>
+                <Button variant="outline" size="sm" onClick={() => navigate('/assets')}>查看数据资产与血缘</Button>
               </div>
             </div>
           </Panel>

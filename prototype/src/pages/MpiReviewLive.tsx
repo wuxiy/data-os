@@ -3,7 +3,7 @@ import { CheckCircle2, CircleAlert, GitMerge, GitPullRequestArrow, LoaderCircle,
 import { useEffect, useMemo, useState } from 'react'
 import { QueryBoundary } from '../app/query-boundary'
 import { Badge } from '../components/kit/badge'
-import { Button } from '../components/kit/button'
+import { Button } from '@/components/ui/button'
 import { SearchField } from '../components/kit/input'
 import { Confirm, Sheet, SheetBody, SheetFooterActions } from '../components/kit/overlay'
 import { Panel, PanelHead } from '../components/kit/panel'
@@ -172,7 +172,7 @@ function MpiWorkspace({ onNotice }: { onNotice: (message: string) => void }) {
             icon={<CircleAlert />}
             title="MPI 服务不可用"
             description="当前页面不展示演示候选；请恢复 mpi-service 后重新加载。"
-            action={<Button onClick={refreshQueue}>重新连接</Button>}
+            action={<Button variant="outline" onClick={refreshQueue}>重新连接</Button>}
           />
         </Panel>
       ) : null}
@@ -222,7 +222,7 @@ function MpiWorkspace({ onNotice }: { onNotice: (message: string) => void }) {
               <TablePagination page={currentPage} pageSize={8} total={candidates.length} onPageChange={setPage} label="复核候选分页" compact className="border-t-0 px-1" />
             </div>
             <div className="px-[18px] py-2">
-              <Button size="sm" onClick={() => rebuild.mutate()} disabled={rebuild.isPending}>
+              <Button variant="outline" size="sm" onClick={() => rebuild.mutate()} disabled={rebuild.isPending}>
                 <RefreshCw size={13} className={rebuild.isPending ? 'animate-spin' : undefined} />{rebuild.isPending ? '重算中…' : '重算主索引'}
               </Button>
             </div>
@@ -287,10 +287,10 @@ function MpiWorkspace({ onNotice }: { onNotice: (message: string) => void }) {
                     我已核对身份属性与证据。错误合并的临床风险高于漏合并——弱证据冲突请确认不同人。
                   </label>
                   <div className="mt-3 flex justify-end gap-2">
-                    <Button onClick={() => decision.mutate({ taskId: selected.taskId, resolution: 'DIFFERENT_PERSON' })} disabled={decision.isPending}>
+                    <Button variant="outline" onClick={() => decision.mutate({ taskId: selected.taskId, resolution: 'DIFFERENT_PERSON' })} disabled={decision.isPending}>
                       <GitPullRequestArrow size={14} />确认不同人
                     </Button>
-                    <Button variant="primary" disabled={!confirmed || decision.isPending} onClick={() => decision.mutate({ taskId: selected.taskId, resolution: 'SAME_PERSON' })}>
+                    <Button disabled={!confirmed || decision.isPending} onClick={() => decision.mutate({ taskId: selected.taskId, resolution: 'SAME_PERSON' })}>
                       {decision.isPending ? <LoaderCircle size={14} className="animate-spin" /> : <GitMerge size={14} />}确认同人并合并
                     </Button>
                   </div>
@@ -372,7 +372,7 @@ function MpiPersonSheet({
       title="黄金人详情"
       subtitle={person?.goldenName ?? '黄金人 · 身份链接与审计'}
       width={610}
-      footer={<SheetFooterActions hint="拆分是不可逆的人工决策；操作与决策源都会进入审计。"><Button onClick={onClose}>关闭</Button></SheetFooterActions>}
+      footer={<SheetFooterActions hint="拆分是不可逆的人工决策；操作与决策源都会进入审计。"><Button variant="outline" onClick={onClose}>关闭</Button></SheetFooterActions>}
     >
       <SheetBody>
         {personRequest.isPending ? <LoadingBlock className="min-h-[200px]">正在读取黄金人…</LoadingBlock> : null}
@@ -387,7 +387,7 @@ function MpiPersonSheet({
                   <Badge tone={link.decisionSource === 'MANUAL' ? 'blue' : 'neutral'}>{link.decisionSource === 'MANUAL' ? '人工' : '规则'}</Badge>
                   <Button
                     size="sm"
-                    variant="danger-outline"
+                    variant="destructive-outline"
                     disabled={!canSplit}
                     title={canSplit ? undefined : '至少保留一个有效身份'}
                     onClick={() => onRequestSplit(link.sourceIdentifier)}

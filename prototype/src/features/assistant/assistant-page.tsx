@@ -1,5 +1,5 @@
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
-import { Button } from '../../components/kit/button'
+import { Button } from '@/components/ui/button'
 import { useNotice } from '../../components/kit/toast'
 import { AssistantLive } from '../../pages/AssistantLive'
 import { useAuth } from '../../app/providers'
@@ -24,9 +24,9 @@ export function AssistantPage({ professional = false }: { professional?: boolean
           : '已验证问题 · 受控执行 · 可复核证据。'}
         actions={
           professional
-            ? <Button onClick={() => navigate('/assistant')}>返回问数面</Button>
+            ? <Button variant="outline" onClick={() => navigate('/assistant')}>返回问数面</Button>
             : assistantGovernance
-              ? <Button onClick={() => navigate('/assistant/workspace')}>专业工作区</Button>
+              ? <Button variant="outline" onClick={() => navigate('/assistant/workspace')}>专业工作区</Button>
               : null
         }
       />

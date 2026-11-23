@@ -2,7 +2,7 @@ import { useMutation } from '@tanstack/react-query'
 import { useQueryClient } from '@tanstack/react-query'
 import { Save, ShieldCheck } from 'lucide-react'
 import { useState } from 'react'
-import { Button } from '../../components/kit/button'
+import { Button } from '@/components/ui/button'
 import { FormField, FormGrid, FormNotice } from '../../components/kit/form'
 import { CodeTextarea, Input } from '../../components/kit/input'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
@@ -84,7 +84,7 @@ export function ServiceEditorPage() {
       <PageHeading
         title="新建数据服务"
         description="定义 ToB 数据 API 的 SQL、参数与列契约、返回行数与超时；创建后为草稿，发布才对调用方开放。"
-        actions={<Button onClick={() => navigate('/data-services')}>返回目录</Button>}
+        actions={<Button variant="outline" onClick={() => navigate('/data-services')}>返回目录</Button>}
       />
 
       <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3.5 max-[1100px]:grid-cols-1">
@@ -133,8 +133,8 @@ export function ServiceEditorPage() {
             <div className="flex items-center justify-between gap-3 border-t border-line pt-4">
               <span className="text-meta text-muted-foreground">创建后为草稿；发布前可继续调整</span>
               <div className="flex items-center gap-2">
-                <Button onClick={() => navigate('/data-services')} disabled={create.isPending}>取消</Button>
-                <Button variant="primary" disabled={create.isPending} onClick={submit}>
+                <Button variant="outline" onClick={() => navigate('/data-services')} disabled={create.isPending}>取消</Button>
+                <Button disabled={create.isPending} onClick={submit}>
                   <Save size={14} />{create.isPending ? '创建中…' : '创建服务（草稿）'}
                 </Button>
               </div>

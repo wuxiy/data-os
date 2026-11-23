@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Download } from 'lucide-react'
 import { useState } from 'react'
 import { Badge } from '../../components/kit/badge'
-import { Button } from '../../components/kit/button'
+import { Button } from '@/components/ui/button'
 import { NativeSelect } from '../../components/kit/input'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel, PanelHead } from '../../components/kit/panel'
@@ -86,7 +86,7 @@ export function AssistantAuditPage() {
       <PageHeading
         title="问数审计"
         description="跨问题检索与结局过滤；审计只记录问题、服务、结局、行数与耗时，不保存结果行。"
-        actions={<Button onClick={() => navigate('/assistant/workspace')}>返回工作区</Button>}
+        actions={<Button variant="outline" onClick={() => navigate('/assistant/workspace')}>返回工作区</Button>}
       />
 
       <Panel>
@@ -99,14 +99,14 @@ export function AssistantAuditPage() {
               <NativeSelect aria-label="按结局过滤" className="w-auto" value={outcome} onChange={(event) => { setOutcome(event.target.value); setPage(0) }}>
                 {AUDIT_OUTCOME_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
               </NativeSelect>
-              <Button size="sm" disabled={exporting} onClick={() => void exportCsv()}>
+              <Button variant="outline" size="sm" disabled={exporting} onClick={() => void exportCsv()}>
                 <Download size={13} />{exporting ? '导出中…' : '导出 CSV'}
               </Button>
             </div>
           }
         />
         {auditsRequest.isError ? (
-          <EmptyState minHeight={200} title="审计暂不可读" description="请确认当前角色有治理权限后重试。" action={<Button onClick={() => void auditsRequest.refetch()}>重新读取</Button>} />
+          <EmptyState minHeight={200} title="审计暂不可读" description="请确认当前角色有治理权限后重试。" action={<Button variant="outline" onClick={() => void auditsRequest.refetch()}>重新读取</Button>} />
         ) : (
           <DataTable
             columns={columns}

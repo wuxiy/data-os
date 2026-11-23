@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Archive, ArrowRightLeft, ClipboardCheck, GitCompareArrows, History, RefreshCw, ShieldCheck, UploadCloud } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Badge } from '../../components/kit/badge'
-import { Button } from '../../components/kit/button'
+import { Button } from '@/components/ui/button'
 import { FormField, FormGrid } from '../../components/kit/form'
 import { CodeTextarea, Input, NativeSelect, SearchField } from '../../components/kit/input'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
@@ -213,7 +213,7 @@ export function MappingPage() {
       <PageHeading
         title="标准映射"
         description="将源字段对齐院级标准，验证通过后评审生效，全程保留版本依据。"
-        actions={<Button onClick={() => navigate('/governance/standards')}>前往标准中心</Button>}
+        actions={<Button variant="outline" onClick={() => navigate('/governance/standards')}>前往标准中心</Button>}
       />
 
       <section className="mb-3.5 flex items-center justify-between gap-4 rounded-panel border border-line bg-paper px-5 py-3.5">
@@ -235,10 +235,10 @@ export function MappingPage() {
       </section>
 
       <Panel className="mb-3.5">
-        <PanelHead title="映射集清单" count={sets.length} description="草稿 → 验证 → 评审 → 生效；选择后核对字段与版本证据" actions={<Button size="sm" variant="primary" onClick={() => setCreateOpen((open) => !open)}><GitCompareArrows size={13} />{createOpen ? '收起新建' : '新建映射集'}</Button>} />
+        <PanelHead title="映射集清单" count={sets.length} description="草稿 → 验证 → 评审 → 生效；选择后核对字段与版本证据" actions={<Button size="sm" onClick={() => setCreateOpen((open) => !open)}><GitCompareArrows size={13} />{createOpen ? '收起新建' : '新建映射集'}</Button>} />
         <div className="flex items-center gap-2 px-[18px] pb-3">
           <SearchField value={keyword} onValueChange={(value) => { setKeyword(value); setPage(0) }} placeholder="搜索映射集代码/名称/源资产" />
-          {keyword ? <Button variant="text" size="sm" onClick={() => { setKeyword(''); setPage(0) }}>清除筛选</Button> : null}
+          {keyword ? <Button variant="link" size="sm" onClick={() => { setKeyword(''); setPage(0) }}>清除筛选</Button> : null}
         </div>
         <DataTable
           columns={setColumns}
@@ -277,10 +277,9 @@ export function MappingPage() {
               </NativeSelect>
             </FormField>
             <div className="flex justify-end gap-2">
-              <Button size="sm" onClick={() => setCreateOpen(false)}>取消</Button>
+              <Button variant="outline" size="sm" onClick={() => setCreateOpen(false)}>取消</Button>
               <Button
                 size="sm"
-                variant="primary"
                 disabled={createSet.isPending || !createForm.code.trim() || !createForm.name.trim() || !createForm.sourceAsset.trim() || !createForm.dataset.trim() || !createForm.standardId}
                 onClick={() => { setError(null); createSet.mutate() }}
               >
@@ -294,7 +293,7 @@ export function MappingPage() {
       {selectedId && detailRequest.isPending ? <LoadingBlock>正在读取映射详情…</LoadingBlock> : null}
       {detailRequest.isError ? (
         <Panel className="mb-3.5">
-          <EmptyState minHeight={180} title="映射详情读取失败" description="映射集清单仍可使用。请重试读取所选映射的版本、字段与验证证据。" action={<Button size="sm" onClick={() => void detailRequest.refetch()}>重试详情</Button>} />
+          <EmptyState minHeight={180} title="映射详情读取失败" description="映射集清单仍可使用。请重试读取所选映射的版本、字段与验证证据。" action={<Button variant="outline" size="sm" onClick={() => void detailRequest.refetch()}>重试详情</Button>} />
         </Panel>
       ) : null}
 
@@ -304,7 +303,7 @@ export function MappingPage() {
             <PanelHead
               title={detail.set.name}
               description={`${detail.set.code} · ${detail.set.sourceAsset} → ${detail.set.standard.code}（验证数据集 ${detail.set.dataset}）`}
-              actions={<Button size="sm" disabled={busy} onClick={() => createVersion.mutate()}><GitCompareArrows size={13} />基于活动版新建草稿</Button>}
+              actions={<Button variant="outline" size="sm" disabled={busy} onClick={() => createVersion.mutate()}><GitCompareArrows size={13} />基于活动版新建草稿</Button>}
             />
             <div className="px-[18px] pb-3">
               <div className="flex flex-wrap items-center gap-2 text-label text-muted-foreground">
@@ -329,11 +328,11 @@ export function MappingPage() {
               </div>
 
               <div className="mt-3 flex flex-wrap items-center gap-2">
-                {version.status === 'DRAFT' ? <Button size="sm" disabled={busy} onClick={() => versionAction.mutate({ action: 'submit', id: version.id })}>提交评审</Button> : null}
-                <Button size="sm" disabled={busy} onClick={() => versionAction.mutate({ action: 'validate', id: version.id })}><ShieldCheck size={13} />聚合验证</Button>
-                {version.status === 'IN_REVIEW' ? <Button size="sm" disabled={busy} onClick={() => versionAction.mutate({ action: 'activate', id: version.id })}><ShieldCheck size={13} />生效（管理员 · 需 PASS 证据）</Button> : null}
-                {version.status === 'ACTIVE' ? <Button size="sm" disabled={busy} onClick={() => versionAction.mutate({ action: 'retire', id: version.id })}><Archive size={13} />停用</Button> : null}
-                <Button
+                {version.status === 'DRAFT' ? <Button variant="outline" size="sm" disabled={busy} onClick={() => versionAction.mutate({ action: 'submit', id: version.id })}>提交评审</Button> : null}
+                <Button variant="outline" size="sm" disabled={busy} onClick={() => versionAction.mutate({ action: 'validate', id: version.id })}><ShieldCheck size={13} />聚合验证</Button>
+                {version.status === 'IN_REVIEW' ? <Button variant="outline" size="sm" disabled={busy} onClick={() => versionAction.mutate({ action: 'activate', id: version.id })}><ShieldCheck size={13} />生效（管理员 · 需 PASS 证据）</Button> : null}
+                {version.status === 'ACTIVE' ? <Button variant="outline" size="sm" disabled={busy} onClick={() => versionAction.mutate({ action: 'retire', id: version.id })}><Archive size={13} />停用</Button> : null}
+                <Button variant="outline"
                   size="sm"
                   disabled={busy}
                   onClick={() => {
@@ -381,7 +380,7 @@ export function MappingPage() {
                     <option value="">选择曾生效的停用版本…</option>
                     {retiredVersions.map((item) => <option key={item.id} value={item.id}>v{item.versionNo}</option>)}
                   </NativeSelect>
-                  <Button size="sm" disabled={!rollbackTo || busy} onClick={() => rollback.mutate()}><History size={13} />回退（管理员）</Button>
+                  <Button variant="outline" size="sm" disabled={!rollbackTo || busy} onClick={() => rollback.mutate()}><History size={13} />回退（管理员）</Button>
                 </div>
               ) : null}
 
@@ -390,7 +389,7 @@ export function MappingPage() {
           </Panel>
 
           <Panel>
-            <PanelHead title="审计事件" description="当前映射集 · 最近 20 条" actions={detail.events.length > 6 ? <Button variant="text" size="sm" onClick={() => setShowAllEvents((value) => !value)}>{showAllEvents ? '收起事件' : `展开全部 ${detail.events.length} 条`}</Button> : undefined} />
+            <PanelHead title="审计事件" description="当前映射集 · 最近 20 条" actions={detail.events.length > 6 ? <Button variant="link" size="sm" onClick={() => setShowAllEvents((value) => !value)}>{showAllEvents ? '收起事件' : `展开全部 ${detail.events.length} 条`}</Button> : undefined} />
             <ol className="m-0 list-none px-4 pb-4">
               {(showAllEvents ? detail.events : detail.events.slice(0, 6)).map((event) => (
                 <li key={event.id} className="border-b border-line-soft py-2 last:border-b-0">
@@ -426,12 +425,11 @@ export function MappingPage() {
               />
             </FormField>
             <div className="flex items-center gap-2">
-              <Button size="sm" disabled={!importBody.trim() || importItems.isPending} onClick={() => { setError(null); importItems.mutate(true) }}>
+              <Button variant="outline" size="sm" disabled={!importBody.trim() || importItems.isPending} onClick={() => { setError(null); importItems.mutate(true) }}>
                 <UploadCloud size={13} />预检（dry-run）
               </Button>
               <Button
                 size="sm"
-                variant="primary"
                 disabled={!importReport || !importReport.dryRun || importReport.problems.length > 0 || importItems.isPending}
                 onClick={() => { setError(null); importItems.mutate(false) }}
               >
@@ -458,7 +456,7 @@ export function MappingPage() {
               />
             </FormField>
             <div className="flex justify-end">
-              <Button size="sm" variant="primary" disabled={!itemsDraft.trim() || replaceItems.isPending} onClick={() => { setError(null); replaceItems.mutate() }}>
+              <Button size="sm" disabled={!itemsDraft.trim() || replaceItems.isPending} onClick={() => { setError(null); replaceItems.mutate() }}>
                 整体替换并重算 checksum
               </Button>
             </div>

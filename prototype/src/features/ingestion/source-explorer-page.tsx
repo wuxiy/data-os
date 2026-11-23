@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronDown, ChevronRight, Database, KeyRound, Play, Table2, TriangleAlert } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Badge } from '../../components/kit/badge'
-import { Button } from '../../components/kit/button'
+import { Button } from '@/components/ui/button'
 import { FormField, FormNotice } from '../../components/kit/form'
 import { CodeTextarea, Input } from '../../components/kit/input'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
@@ -40,7 +40,7 @@ export function SourceExplorerPage({ sourceId }: { sourceId: string }) {
           icon={<TriangleAlert />}
           title="数据源不存在"
           description="该来源可能已被删除，或当前账号没有访问权限。"
-          action={<Button onClick={() => navigate('/ingestion')}>返回数据接入</Button>}
+          action={<Button variant="outline" onClick={() => navigate('/ingestion')}>返回数据接入</Button>}
         />
       </Panel>
     )
@@ -56,7 +56,7 @@ export function SourceExplorerPage({ sourceId }: { sourceId: string }) {
         actions={
           <>
             <Badge tone={status.tone}>{status.label}</Badge>
-            <Button onClick={() => navigate('/ingestion')}>返回列表</Button>
+            <Button variant="outline" onClick={() => navigate('/ingestion')}>返回列表</Button>
           </>
         }
       />
@@ -105,10 +105,10 @@ function ConnectionForm({ source }: { source: SourceApiItem }) {
           <Input id="explorer-credential-ref" value={credentialRef} onChange={(event) => setCredentialRef(event.target.value)} placeholder="例如：cred-lis-ro" />
         </FormField>
         <div className="flex items-center gap-2">
-          <Button variant="primary" disabled={!jdbcUrl.trim() || mutation.isPending} onClick={() => mutation.mutate()}>
+          <Button disabled={!jdbcUrl.trim() || mutation.isPending} onClick={() => mutation.mutate()}>
             {mutation.isPending ? '登记中…' : '保存连接配置'}
           </Button>
-          <Button onClick={() => navigate('/ingestion')}>返回列表</Button>
+          <Button variant="outline" onClick={() => navigate('/ingestion')}>返回列表</Button>
         </div>
       </div>
     </Panel>
@@ -163,7 +163,7 @@ function ExplorerWorkspace({ source }: { source: SourceApiItem }) {
         {catalogsRequest.isError ? (
           <div role="alert" className="rounded-control border border-red-line bg-red-soft px-2.5 py-2 text-label text-red">
             库清单读取失败
-            <Button size="sm" variant="text" className="ml-1" onClick={() => void catalogsRequest.refetch()}>重试</Button>
+            <Button size="sm" variant="link" className="ml-1" onClick={() => void catalogsRequest.refetch()}>重试</Button>
           </div>
         ) : null}
         {(catalogsRequest.data?.catalogs.length ?? 0) === 0 && catalogsRequest.isSuccess ? (
@@ -249,7 +249,7 @@ function ExplorerWorkspace({ source }: { source: SourceApiItem }) {
             placeholder="例如：SELECT * FROM 表名 LIMIT 100"
           />
           <div className="mt-2 flex items-center gap-3">
-            <Button size="sm" variant="primary" disabled={!sql.trim() || queryMutation.isPending} onClick={() => queryMutation.mutate()}>
+            <Button size="sm" disabled={!sql.trim() || queryMutation.isPending} onClick={() => queryMutation.mutate()}>
               <Play size={13} />{queryMutation.isPending ? '查询中…' : '执行查询'}
             </Button>
             <span className="text-meta text-muted-foreground">使用只读账号；结果不写入任何业务表。</span>

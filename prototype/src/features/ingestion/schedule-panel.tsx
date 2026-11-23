@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarClock, Eye, ListTree, Power, RotateCcw, Save, Square, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Badge, StatusText } from '../../components/kit/badge'
-import { Button } from '../../components/kit/button'
+import { Button } from '@/components/ui/button'
 import { FormField, FormGrid, FormNotice } from '../../components/kit/form'
 import { Input, NativeSelect } from '../../components/kit/input'
 import { Confirm } from '../../components/kit/overlay'
@@ -203,13 +203,13 @@ export function SchedulePanel({ jobId, jobName }: { jobId: string; jobName: stri
       size: 220,
       cell: ({ row }) => (
         <div className="flex items-center gap-2.5" onClick={(event) => event.stopPropagation()}>
-          <Button variant="text" onClick={() => setExpandedInstance((current) => current === row.original.id ? null : row.original.id)}>
+          <Button variant="link" onClick={() => setExpandedInstance((current) => current === row.original.id ? null : row.original.id)}>
             {expandedInstance === row.original.id ? '收起任务' : '查看任务'}
           </Button>
-          <Button variant="text" disabled={instanceMutation.isPending} onClick={() => instanceMutation.mutate({ id: row.original.id, action: 'stop' })}>
+          <Button variant="link" disabled={instanceMutation.isPending} onClick={() => instanceMutation.mutate({ id: row.original.id, action: 'stop' })}>
             <Square size={12} />终止
           </Button>
-          <Button variant="text" disabled={instanceMutation.isPending} onClick={() => instanceMutation.mutate({ id: row.original.id, action: 'retry' })}>
+          <Button variant="link" disabled={instanceMutation.isPending} onClick={() => instanceMutation.mutate({ id: row.original.id, action: 'retry' })}>
             <RotateCcw size={12} />重跑
           </Button>
         </div>
@@ -312,20 +312,20 @@ export function SchedulePanel({ jobId, jobName }: { jobId: string; jobName: stri
               ) : null}
 
               <div className="flex flex-wrap items-center gap-2">
-                <Button size="sm" disabled={busy} onClick={() => previewMutation.mutate()}>
+                <Button variant="outline" size="sm" disabled={busy} onClick={() => previewMutation.mutate()}>
                   <Eye size={13} />{previewMutation.isPending ? '计算中…' : '预览触发时间'}
                 </Button>
-                <Button size="sm" variant="primary" disabled={busy || !composedCrontab} onClick={() => saveMutation.mutate()}>
+                <Button size="sm" disabled={busy || !composedCrontab} onClick={() => saveMutation.mutate()}>
                   <Save size={13} />{saveMutation.isPending ? '处理中…' : '保存调度'}
                 </Button>
-                <Button size="sm" disabled={busy || !schedule.scheduled || schedule.online} onClick={() => stateMutation.mutate(true)}>
+                <Button variant="outline" size="sm" disabled={busy || !schedule.scheduled || schedule.online} onClick={() => stateMutation.mutate(true)}>
                   <Power size={13} />上线
                 </Button>
-                <Button size="sm" disabled={busy || !schedule.online} onClick={() => stateMutation.mutate(false)}>
+                <Button variant="outline" size="sm" disabled={busy || !schedule.online} onClick={() => stateMutation.mutate(false)}>
                   <Power size={13} />下线
                 </Button>
                 {schedule.scheduled ? (
-                  <Button size="sm" variant="danger-outline" disabled={busy} onClick={() => setDeleteOpen(true)}>
+                  <Button size="sm" variant="destructive-outline" disabled={busy} onClick={() => setDeleteOpen(true)}>
                     <Trash2 size={13} />删除调度
                   </Button>
                 ) : null}
@@ -336,7 +336,7 @@ export function SchedulePanel({ jobId, jobName }: { jobId: string; jobName: stri
       </Panel>
 
       <Panel>
-        <PanelHead title="调度实例" count={instancesRequest.data?.total ?? 0} description="平台调度触发/补数产生的实例" actions={<Button size="sm" onClick={() => void instancesRequest.refetch()}>刷新</Button>} />
+        <PanelHead title="调度实例" count={instancesRequest.data?.total ?? 0} description="平台调度触发/补数产生的实例" actions={<Button variant="outline" size="sm" onClick={() => void instancesRequest.refetch()}>刷新</Button>} />
         <div className="px-5 pb-2">
           <div className="mb-3 flex flex-wrap items-end gap-2 rounded-control border border-line bg-wash px-3 py-2.5">
             <div>
@@ -347,7 +347,7 @@ export function SchedulePanel({ jobId, jobName }: { jobId: string; jobName: stri
               <label htmlFor="backfill-end" className="mb-1 block text-meta text-muted-foreground">补数结束日期</label>
               <Input id="backfill-end" type="date" value={backfillEnd} onChange={(event) => setBackfillEnd(event.target.value)} className="w-[150px]" />
             </div>
-            <Button
+            <Button variant="outline"
               size="sm"
               disabled={backfillMutation.isPending || !backfillStart || !backfillEnd}
               onClick={() => backfillMutation.mutate()}
@@ -378,7 +378,7 @@ export function SchedulePanel({ jobId, jobName }: { jobId: string; jobName: stri
                   <StatusText tone={instanceTone(task.state)}>{instanceLabel(task.state)}</StatusText>
                   <span className="text-meta text-muted-foreground">{formatDateTime(task.startTime)} → {formatDateTime(task.endTime)}</span>
                   <Button
-                    variant="text"
+                    variant="link"
                     className="ml-auto"
                     onClick={() => setLogTask((current) => current?.taskId === task.id ? null : { instanceId: expandedInstance, taskId: task.id })}
                   >

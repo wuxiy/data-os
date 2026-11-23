@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Gauge, Settings2 } from 'lucide-react'
 import { Badge } from '../../components/kit/badge'
-import { Button } from '../../components/kit/button'
+import { Button } from '@/components/ui/button'
 import { Panel, PanelHead } from '../../components/kit/panel'
 import { DataTable, listColumnHelper } from '../../components/table/data-table'
 import { LoadingBlock } from '../../components/kit/states'
@@ -61,7 +61,7 @@ export function QualityScorePanel({ compact = false }: { compact?: boolean }) {
         actions={
           <>
             {summary ? <span className="text-meta text-muted-foreground">标准更新：{formatDateTime(summary.standard.updatedAt)}</span> : null}
-            <Button size="sm" onClick={() => navigate('/governance/quality/scoring')}><Settings2 size={13} />评分标准</Button>
+            <Button variant="outline" size="sm" onClick={() => navigate('/governance/quality/scoring')}><Settings2 size={13} />评分标准</Button>
           </>
         }
       />
@@ -71,7 +71,7 @@ export function QualityScorePanel({ compact = false }: { compact?: boolean }) {
         <div role="status" className="px-5 py-8 text-center">
           <p className="text-body-sm font-medium text-ink-soft">暂时无法读取质量评分</p>
           <p className="mt-1 text-label text-muted-foreground">请恢复控制面连接后重试，评分标准与历史结果不会以演示数据补位。</p>
-          <Button size="sm" className="mt-3" onClick={() => void query.refetch()}>重试</Button>
+          <Button variant="outline" size="sm" className="mt-3" onClick={() => void query.refetch()}>重试</Button>
         </div>
       ) : null}
 
