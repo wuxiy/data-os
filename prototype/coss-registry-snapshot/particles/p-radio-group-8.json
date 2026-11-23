@@ -1,0 +1,21 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "p-radio-group-8",
+  "description": "Segmented control built with a radio group",
+  "registryDependencies": [
+    "@coss/radio-group",
+    "@coss/segmented-control"
+  ],
+  "files": [
+    {
+      "path": "registry/default/particles/p-radio-group-8.tsx",
+      "content": "\"use client\";\n\nimport {\n  RadioGroupPrimitive,\n  RadioPrimitive,\n} from \"@/registry/default/ui/radio-group\";\nimport {\n  SegmentedControl,\n  SegmentedControlItem,\n} from \"@/registry/default/ui/segmented-control\";\n\nexport default function Particle() {\n  return (\n    <SegmentedControl\n      aria-label=\"Billing period\"\n      render={<RadioGroupPrimitive defaultValue=\"monthly\" />}\n    >\n      <SegmentedControlItem\n        className=\"grow\"\n        render={<RadioPrimitive.Root value=\"monthly\" />}\n      >\n        Monthly\n      </SegmentedControlItem>\n      <SegmentedControlItem\n        className=\"grow\"\n        render={<RadioPrimitive.Root value=\"yearly\" />}\n      >\n        Yearly\n      </SegmentedControlItem>\n    </SegmentedControl>\n  );\n}\n",
+      "type": "registry:block"
+    }
+  ],
+  "categories": [
+    "radio group",
+    "segmented control"
+  ],
+  "type": "registry:block"
+}

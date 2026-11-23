@@ -3,6 +3,8 @@
  * ResizeObserver / IntersectionObserver / Element.animate，而 Surface 等
  * 基建组件在挂载即用到。幂等，可在 beforeEach 里反复调用。
  */
+import { installCookieStoreCompat } from '../lib/cookie-store-compat'
+
 export function installBrowserApiStubs() {
   if (!window.matchMedia) {
     Object.defineProperty(window, 'matchMedia', {
@@ -46,4 +48,5 @@ export function installBrowserApiStubs() {
       value: () => ({ finished: Promise.resolve(), cancel: () => {}, commit: () => {} }),
     })
   }
+  installCookieStoreCompat()
 }
