@@ -64,7 +64,7 @@ export function OperationsCenterPage() {
       cell: ({ row }) => (
         <div>
           <div className="text-body-sm text-ink">{row.original.title}</div>
-          <div className="text-meta text-muted">{row.original.type}</div>
+          <div className="text-meta text-muted-foreground">{row.original.type}</div>
         </div>
       ),
     }),
@@ -133,12 +133,12 @@ export function OperationsCenterPage() {
                   <li key={`${event.domain}-${index}`} className="border-b border-line-soft py-2 last:border-b-0">
                     <div className="flex items-start justify-between gap-2">
                       <strong className="text-label font-medium text-ink-soft">{EVENT_DOMAIN_LABEL[event.domain] ?? event.domain} · {EVENT_TYPE_LABEL[event.type] ?? event.type}</strong>
-                      <span className="shrink-0 text-meta text-muted">{formatDateTime(event.asOf)}</span>
+                      <span className="shrink-0 text-meta text-muted-foreground">{formatDateTime(event.asOf)}</span>
                     </div>
-                    <p className="mt-0.5 text-meta leading-relaxed text-muted">{event.detail}</p>
+                    <p className="mt-0.5 text-meta leading-relaxed text-muted-foreground">{event.detail}</p>
                   </li>
                 ))}
-                {eventsRequest.isSuccess && (eventsRequest.data?.length ?? 0) === 0 ? <li className="py-6 text-center text-label text-muted">近 48 小时无跨域事件。</li> : null}
+                {eventsRequest.isSuccess && (eventsRequest.data?.length ?? 0) === 0 ? <li className="py-6 text-center text-label text-muted-foreground">近 48 小时无跨域事件。</li> : null}
               </ol>
             </div>
           </Panel>

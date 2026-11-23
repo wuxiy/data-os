@@ -89,10 +89,10 @@ export function Sheet({ open, onOpenChange, title, subtitle, width = 610, dirty 
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
                 <DialogPrimitive.Title className="text-subject font-semibold">{title}</DialogPrimitive.Title>
-                {subtitle ? <p className="mt-[5px] text-label text-muted">{subtitle}</p> : null}
+                {subtitle ? <p className="mt-[5px] text-label text-muted-foreground">{subtitle}</p> : null}
               </div>
               <DialogPrimitive.Close
-                render={<button type="button" aria-label="关闭详情" title="关闭，Esc" className="inline-flex size-[30px] shrink-0 items-center justify-center rounded-chip text-muted hover:bg-wash hover:text-ink" />}
+                render={<button type="button" aria-label="关闭详情" title="关闭，Esc" className="inline-flex size-[30px] shrink-0 items-center justify-center rounded-chip text-muted-foreground hover:bg-wash hover:text-ink" />}
               >
                 <X size={16} />
               </DialogPrimitive.Close>
@@ -122,7 +122,7 @@ export function SheetBody({ className, children }: { className?: string; childre
 export function SheetFooterActions({ hint, children }: { hint?: ReactNode; children: ReactNode }) {
   return (
     <div className="flex flex-col gap-2.5">
-      {hint ? <div className="text-meta text-muted">{hint}</div> : null}
+      {hint ? <div className="text-meta text-muted-foreground">{hint}</div> : null}
       <div className="flex items-center justify-end gap-[9px]">{children}</div>
     </div>
   )
@@ -153,10 +153,10 @@ export function Dialog({ open, onOpenChange, title, description, width = 540, di
           <header className="flex items-start justify-between gap-4 px-6 pt-[22px] pb-2">
             <div className="min-w-0">
               <DialogPrimitive.Title className="text-[16px] font-semibold">{title}</DialogPrimitive.Title>
-              {description ? <DialogPrimitive.Description className="mt-2 text-body-sm leading-relaxed text-muted">{description}</DialogPrimitive.Description> : null}
+              {description ? <DialogPrimitive.Description className="mt-2 text-body-sm leading-relaxed text-muted-foreground">{description}</DialogPrimitive.Description> : null}
             </div>
             <DialogPrimitive.Close
-              render={<button type="button" aria-label="关闭对话框" className="inline-flex size-[30px] shrink-0 items-center justify-center rounded-chip text-muted hover:bg-wash hover:text-ink" />}
+              render={<button type="button" aria-label="关闭对话框" className="inline-flex size-[30px] shrink-0 items-center justify-center rounded-chip text-muted-foreground hover:bg-wash hover:text-ink" />}
             >
               <X size={16} />
             </DialogPrimitive.Close>
@@ -176,7 +176,7 @@ export function Dialog({ open, onOpenChange, title, description, width = 540, di
 export function DialogFooter({ note, children }: { note?: ReactNode; children: ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <div className="text-meta text-muted">{note}</div>
+      <div className="text-meta text-muted-foreground">{note}</div>
       <div className="flex items-center justify-end gap-[9px]">{children}</div>
     </div>
   )
@@ -238,12 +238,12 @@ export function Confirm({
             </div>
             <AlertDialogPrimitive.Title className="mb-[11px] text-subject font-semibold">{title}</AlertDialogPrimitive.Title>
             {description ? (
-              <AlertDialogPrimitive.Description className="text-body-sm leading-relaxed text-muted">{description}</AlertDialogPrimitive.Description>
+              <AlertDialogPrimitive.Description className="text-body-sm leading-relaxed text-muted-foreground">{description}</AlertDialogPrimitive.Description>
             ) : null}
             {object ? (
               <div className="mt-[17px] rounded-control border border-line bg-[#fafbfc] px-[13px] py-3">
                 <strong className="block text-body-sm font-medium text-ink-soft">{object.name}</strong>
-                {object.meta ? <span className="mt-1 block text-meta text-muted">{object.meta}</span> : null}
+                {object.meta ? <span className="mt-1 block text-meta text-muted-foreground">{object.meta}</span> : null}
               </div>
             ) : null}
             {hint ? <p className="mt-[13px] text-label leading-relaxed text-amber">{hint}</p> : null}

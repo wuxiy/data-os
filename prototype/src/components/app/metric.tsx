@@ -29,15 +29,15 @@ export function MetricCard({
   )
   const body = (
     <>
-      <span className="flex min-h-9 items-start justify-between gap-2 text-label text-muted">
+      <span className="flex min-h-9 items-start justify-between gap-2 text-label text-muted-foreground">
         {label}
-        {icon ? <span className="text-muted [&_svg]:size-[15px]">{icon}</span> : null}
+        {icon ? <span className="text-muted-foreground [&_svg]:size-[15px]">{icon}</span> : null}
       </span>
       <div className={cn('mt-2 text-metric leading-tight font-semibold tracking-[-0.8px]', valueTone)}>
         {value}
         {unit ? <small className="ml-[3px] text-[16px] font-medium">{unit}</small> : null}
       </div>
-      {note ? <div className="mt-[5px] flex items-center gap-[5px] text-meta text-muted">{note}</div> : null}
+      {note ? <div className="mt-[5px] flex items-center gap-[5px] text-meta text-muted-foreground">{note}</div> : null}
     </>
   )
   return onClick

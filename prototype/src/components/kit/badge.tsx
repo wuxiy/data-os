@@ -2,7 +2,7 @@ import type { ComponentProps, ReactNode } from 'react'
 import { cn } from '../../lib/utils'
 
 const badgeTones = {
-  neutral: 'border-line bg-wash text-muted',
+  neutral: 'border-line bg-wash text-muted-foreground',
   warn: 'border-amber-line bg-amber-soft text-amber',
   danger: 'border-red-line bg-red-soft text-red',
   success: 'border-green-line bg-green-soft text-green',
@@ -24,14 +24,14 @@ export function Badge({ tone = 'neutral', className, children, ...props }: Compo
 }
 
 const dotTones = {
-  neutral: 'text-muted',
+  neutral: 'text-muted-foreground',
   good: 'text-green',
   bad: 'text-red',
   running: 'text-blue',
 } as const
 
 const dotColors = {
-  neutral: 'bg-muted',
+  neutral: 'bg-muted-foreground',
   good: 'bg-green',
   bad: 'bg-red',
   running: 'bg-blue',

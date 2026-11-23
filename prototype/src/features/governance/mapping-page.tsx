@@ -174,7 +174,7 @@ export function MappingPage() {
   })
 
   const setColumns = setHelper.columns([
-    setHelper.display({ id: 'code', header: '映射集', size: 180, cell: ({ row }) => <div><div className="text-body-sm font-medium text-ink">{row.original.name}</div><code className="font-mono text-meta text-muted">{row.original.code}</code></div> }),
+    setHelper.display({ id: 'code', header: '映射集', size: 180, cell: ({ row }) => <div><div className="text-body-sm font-medium text-ink">{row.original.name}</div><code className="font-mono text-meta text-muted-foreground">{row.original.code}</code></div> }),
     setHelper.display({ id: 'source', header: '源资产 → 标准', cell: ({ row }) => <span className="text-label text-ink-soft">{row.original.sourceAsset} → {row.original.standard.code}</span> }),
     setHelper.display({ id: 'versions', header: '版本', size: 100, cell: ({ row }) => `${row.original.versionCount} 版` }),
     setHelper.display({
@@ -189,10 +189,10 @@ export function MappingPage() {
   ])
 
   const itemColumns = itemHelper.columns([
-    itemHelper.accessor('sourceColumn', { header: '源字段', cell: ({ row }) => <code className="font-mono text-label text-muted">{row.original.sourceColumn}</code> }),
+    itemHelper.accessor('sourceColumn', { header: '源字段', cell: ({ row }) => <code className="font-mono text-label text-muted-foreground">{row.original.sourceColumn}</code> }),
     itemHelper.accessor('targetElementCode', { header: '目标数据元' }),
     itemHelper.display({ id: 'transform', header: '转换', size: 130, cell: ({ row }) => transformLabel(row.original.transform) }),
-    itemHelper.display({ id: 'param', header: '参数', cell: ({ row }) => <span className="text-label text-muted">{row.original.transformParam || '—'}</span> }),
+    itemHelper.display({ id: 'param', header: '参数', cell: ({ row }) => <span className="text-label text-muted-foreground">{row.original.transformParam || '—'}</span> }),
     itemHelper.display({
       id: 'conclusion',
       header: '人工结论',
@@ -223,10 +223,10 @@ export function MappingPage() {
             <h2 className="text-body-sm font-semibold text-ink">
               {coverage?.coverage === null ? '映射覆盖尚未形成统计口径' : '生效映射覆盖'}
             </h2>
-            <p className="mt-1 text-label text-muted">
+            <p className="mt-1 text-label text-muted-foreground">
               {coverage ? `生效版本 ${coverage.activeMappingVersions} 个 · 已覆盖 ${coverage.coveredCodeElements} / ${coverage.publishedCodeElements} 个已发布值域数据元` : coverageRequest.isPending ? '正在读取覆盖统计…' : '覆盖统计暂不可用，映射集仍可独立查看与维护。'}
             </p>
-            {coverage ? <span className="mt-0.5 block text-meta text-muted">统计于 {formatDateTime(coverage.asOf)} · AI 就绪评估引用同一口径</span> : null}
+            {coverage ? <span className="mt-0.5 block text-meta text-muted-foreground">统计于 {formatDateTime(coverage.asOf)} · AI 就绪评估引用同一口径</span> : null}
           </div>
         </div>
         <Badge tone={coverage?.coverage == null ? 'neutral' : coverage.coverage >= 0.9 ? 'success' : 'warn'}>
@@ -307,7 +307,7 @@ export function MappingPage() {
               actions={<Button size="sm" disabled={busy} onClick={() => createVersion.mutate()}><GitCompareArrows size={13} />基于活动版新建草稿</Button>}
             />
             <div className="px-[18px] pb-3">
-              <div className="flex flex-wrap items-center gap-2 text-label text-muted">
+              <div className="flex flex-wrap items-center gap-2 text-label text-muted-foreground">
                 <strong className="text-body-sm text-ink-soft">当前查看 v{version.versionNo}</strong>
                 <Badge tone={statusTone(version.status)}>{STATUS_LABEL[version.status] ?? version.status}</Badge>
                 <span>{version.items.length} 个字段映射 · {version.status === 'DRAFT' ? '维护映射后执行聚合验证，通过后提交评审' : version.status === 'IN_REVIEW' ? '管理员生效前需核对当前内容对应的通过证据' : version.status === 'ACTIVE' ? '当前生效版本只读，变更请新建草稿' : '该版本已停用，保留历史依据'}</span>
@@ -347,7 +347,7 @@ export function MappingPage() {
               </div>
 
               {impact ? (
-                <div className="mt-3 rounded-control border border-line bg-wash px-3 py-2.5 text-label text-muted">
+                <div className="mt-3 rounded-control border border-line bg-wash px-3 py-2.5 text-label text-muted-foreground">
                   <strong className="block text-body-sm text-ink-soft">影响范围（v{impact.versionNo} · {impact.status}）</strong>
                   <p className="mt-1">映射项 {impact.itemCount} 条；源 {impact.sourceAsset}；目标标准 {impact.standard.code}。</p>
                   <p className="mt-1">已覆盖数据元：{Object.keys(impact.mappedElements).join('、') || '—'}；未覆盖值域数据元：{impact.unpublishedUncoveredElements.join('、') || '—'}。</p>
@@ -359,24 +359,24 @@ export function MappingPage() {
                   columns={itemColumns}
                   data={version.items}
                   getRowId={(item) => item.id}
-                  empty={<p className="px-1 py-3 text-label text-muted">该版本暂无映射项；可用下方导入区补齐（先预检）。</p>}
+                  empty={<p className="px-1 py-3 text-label text-muted-foreground">该版本暂无映射项；可用下方导入区补齐（先预检）。</p>}
                 />
               </div>
 
-              <div className="mt-3 rounded-control border border-line bg-wash px-3 py-2.5 text-label text-muted">
+              <div className="mt-3 rounded-control border border-line bg-wash px-3 py-2.5 text-label text-muted-foreground">
                 <strong className="block text-body-sm text-ink-soft">验证证据（最新 {version.validations.length} 次）</strong>
                 {version.validations.length > 0 ? version.validations.map((validation) => (
                   <p key={validation.id} className="mt-1">
                     <Badge tone={validation.status === 'PASS' ? 'success' : validation.status === 'FAIL' ? 'danger' : 'warn'}>{validation.status === 'PASS' ? '通过' : validation.status === 'FAIL' ? '未通过' : '需复核'}</Badge>
                     <span className="ml-1.5" title={`内容校验值 ${validation.checksum}`}>{validation.checksum === version.checksum ? '对应当前内容' : '对应历史内容'}</span>
-                    <small className="ml-1.5 text-meta text-muted">{formatDateTime(validation.dataTime || validation.createdAt)}</small>
+                    <small className="ml-1.5 text-meta text-muted-foreground">{formatDateTime(validation.dataTime || validation.createdAt)}</small>
                   </p>
                 )) : <p className="mt-1">此版本尚无聚合验证证据，执行验证后可核对结果与数据时间。</p>}
               </div>
 
               {activeVersion && retiredVersions.length > 0 ? (
                 <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <span className="text-label text-muted">回退到</span>
+                  <span className="text-label text-muted-foreground">回退到</span>
                   <NativeSelect aria-label="选择回退目标版本" className="w-[220px]" value={rollbackTo} onChange={(event) => setRollbackTo(event.target.value)}>
                     <option value="">选择曾生效的停用版本…</option>
                     {retiredVersions.map((item) => <option key={item.id} value={item.id}>v{item.versionNo}</option>)}
@@ -396,13 +396,13 @@ export function MappingPage() {
                 <li key={event.id} className="border-b border-line-soft py-2 last:border-b-0">
                   <div className="flex items-center justify-between gap-2">
                     <strong className="text-label font-medium text-ink-soft">{standardEventLabel(event.eventType)}</strong>
-                    <span className="text-meta text-muted">{actorLabel(event.actor)}</span>
+                    <span className="text-meta text-muted-foreground">{actorLabel(event.actor)}</span>
                   </div>
-                  <p className="mt-0.5 text-meta leading-relaxed text-muted">{event.detail}</p>
-                  <small className="text-meta text-muted">{formatDateTime(event.createdAt)}</small>
+                  <p className="mt-0.5 text-meta leading-relaxed text-muted-foreground">{event.detail}</p>
+                  <small className="text-meta text-muted-foreground">{formatDateTime(event.createdAt)}</small>
                 </li>
               ))}
-              {detail.events.length === 0 ? <li className="py-4 text-center text-label text-muted">暂无事件。</li> : null}
+              {detail.events.length === 0 ? <li className="py-4 text-center text-label text-muted-foreground">暂无事件。</li> : null}
             </ol>
           </Panel>
         </div>
@@ -439,7 +439,7 @@ export function MappingPage() {
               </Button>
             </div>
             {importReport ? (
-              <div className="mt-2 rounded-control border border-line bg-wash px-3 py-2.5 text-label text-muted">
+              <div className="mt-2 rounded-control border border-line bg-wash px-3 py-2.5 text-label text-muted-foreground">
                 <strong className="block text-body-sm text-ink-soft">{importReport.applied ? '已应用' : '预检报告'}</strong>
                 <p className="mt-1">映射项 {importReport.itemCount} 条 · checksum {importReport.checksum ? `${importReport.checksum.slice(0, 12)}…` : '—'}</p>
                 {importReport.problems.length > 0

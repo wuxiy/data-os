@@ -133,15 +133,15 @@ export function PlatformOperationsPage() {
       cell: ({ row }) => (
         <div>
           <div className="text-body-sm font-medium text-ink">{row.original.name}</div>
-          <div className="text-meta text-muted">{row.original.groupName || '未分组'} · {row.original.site || '未标注站点'}</div>
+          <div className="text-meta text-muted-foreground">{row.original.groupName || '未分组'} · {row.original.site || '未标注站点'}</div>
         </div>
       ),
     }),
-    nodeHelper.display({ id: 'addr', header: '地址', size: 200, cell: ({ row }) => <span className="font-mono text-label text-muted">{row.original.host}:{row.original.port}</span> }),
+    nodeHelper.display({ id: 'addr', header: '地址', size: 200, cell: ({ row }) => <span className="font-mono text-label text-muted-foreground">{row.original.host}:{row.original.port}</span> }),
     nodeHelper.display({ id: 'version', header: '版本', size: 100, cell: ({ row }) => <span className="font-mono text-label">{row.original.version || '—'}</span> }),
     nodeHelper.display({ id: 'state', header: '状态', size: 100, cell: ({ row }) => <Badge tone={nodeTone(row.original.state)}>{row.original.state === 'ONLINE' ? '在线' : row.original.state === 'OFFLINE' ? '离线' : '未知'}</Badge> }),
     nodeHelper.display({ id: 'probe', header: '最近探活', size: 170, cell: ({ row }) => row.original.lastProbeAt
-      ? <span className="text-label text-muted">{formatDateTime(row.original.lastProbeAt)}{row.original.lastProbeOk === false ? ' · 失败' : ''}</span>
+      ? <span className="text-label text-muted-foreground">{formatDateTime(row.original.lastProbeAt)}{row.original.lastProbeOk === false ? ' · 失败' : ''}</span>
       : <span className="text-label text-faint">未探活</span> }),
     nodeHelper.display({
       id: 'actions',
@@ -160,16 +160,16 @@ export function PlatformOperationsPage() {
 
   const deploymentColumns = deploymentHelper.columns([
     deploymentHelper.accessor('version', { header: '版本', size: 100, cell: ({ row }) => <span className="font-mono text-label">{row.original.version}</span> }),
-    deploymentHelper.display({ id: 'artifact', header: '制品引用', cell: ({ row }) => <span className="font-mono text-meta text-muted">{row.original.artifactRef || '—'}</span> }),
-    deploymentHelper.display({ id: 'note', header: '说明', cell: ({ row }) => <span className="text-label text-muted">{row.original.note || '—'}</span> }),
-    deploymentHelper.display({ id: 'at', header: '登记时间', size: 140, cell: ({ row }) => <span className="text-meta text-muted">{formatDateTime(row.original.deployedAt)} · {row.original.deployedBy}</span> }),
+    deploymentHelper.display({ id: 'artifact', header: '制品引用', cell: ({ row }) => <span className="font-mono text-meta text-muted-foreground">{row.original.artifactRef || '—'}</span> }),
+    deploymentHelper.display({ id: 'note', header: '说明', cell: ({ row }) => <span className="text-label text-muted-foreground">{row.original.note || '—'}</span> }),
+    deploymentHelper.display({ id: 'at', header: '登记时间', size: 140, cell: ({ row }) => <span className="text-meta text-muted-foreground">{formatDateTime(row.original.deployedAt)} · {row.original.deployedBy}</span> }),
   ])
 
   const watermarkColumns = watermarkHelper.columns([
     watermarkHelper.display({ id: 'dataset', header: '数据集', cell: ({ row }) => <span className="font-mono text-label text-ink">{row.original.dataset}</span> }),
     watermarkHelper.display({ id: 'rows', header: '总行数', size: 120, meta: { align: 'right' }, cell: ({ row }) => <span className="tabular-nums text-label">{row.original.totalRows.toLocaleString()}</span> }),
-    watermarkHelper.display({ id: 'latest', header: '最近写入', size: 150, cell: ({ row }) => <span className="text-label text-muted">{formatDateTime(row.original.latestWriteAt)}</span> }),
-    watermarkHelper.display({ id: 'daily', header: '近 7 日', size: 220, cell: ({ row }) => <span className="text-meta text-muted">{row.original.dailyCounts.map((item) => `${item.date.slice(5)}:${item.count}`).join(' · ') || '—'}</span> }),
+    watermarkHelper.display({ id: 'latest', header: '最近写入', size: 150, cell: ({ row }) => <span className="text-label text-muted-foreground">{formatDateTime(row.original.latestWriteAt)}</span> }),
+    watermarkHelper.display({ id: 'daily', header: '近 7 日', size: 220, cell: ({ row }) => <span className="text-meta text-muted-foreground">{row.original.dailyCounts.map((item) => `${item.date.slice(5)}:${item.count}`).join(' · ') || '—'}</span> }),
   ])
 
   if (forbidden || (platformRequest.isError && !platform)) {
@@ -217,7 +217,7 @@ export function PlatformOperationsPage() {
                     {service.status === 'UP' ? '正常' : service.status === 'DOWN' ? '不可达' : '未配置'}
                   </Badge>
                 </div>
-                <p className="mt-1 text-meta text-muted">{service.role}</p>
+                <p className="mt-1 text-meta text-muted-foreground">{service.role}</p>
               </li>
             ))}
           </ul>
@@ -250,7 +250,7 @@ export function PlatformOperationsPage() {
       </Panel>
 
       <Panel>
-        <PanelHead title="采集水位" count={watermarksRequest.data?.tables.length} description="只读聚合：总行数、最近写入与近 7 日计数" actions={watermarksRequest.data ? <span className="text-meta text-muted">统计于 {formatDateTime(watermarksRequest.data.asOf)}</span> : null} />
+        <PanelHead title="采集水位" count={watermarksRequest.data?.tables.length} description="只读聚合：总行数、最近写入与近 7 日计数" actions={watermarksRequest.data ? <span className="text-meta text-muted-foreground">统计于 {formatDateTime(watermarksRequest.data.asOf)}</span> : null} />
         <div className="px-4 pb-4">
           {watermarksRequest.isPending ? <LoadingBlock className="min-h-[140px]">正在读取水位…</LoadingBlock> : null}
           {watermarksRequest.isError ? (
@@ -311,14 +311,14 @@ export function PlatformOperationsPage() {
         <SheetBody>
           <div className="mb-3 rounded-control border border-line bg-wash px-3 py-2.5">
             <div className="flex items-center justify-between">
-              <span className="text-label text-muted">当前版本</span>
+              <span className="text-label text-muted-foreground">当前版本</span>
               <span className="font-mono text-body-sm text-ink-soft">{historyNode?.version || '未登记'}</span>
             </div>
             <div className="mt-1 flex items-center justify-between">
-              <span className="text-label text-muted">最近探活</span>
+              <span className="text-label text-muted-foreground">最近探活</span>
               <span className="text-label text-ink-soft">{historyNode?.lastProbeAt ? `${formatDateTime(historyNode.lastProbeAt)}${historyNode.lastProbeOk === false ? ' · 失败' : ' · 正常'}` : '未探活'}</span>
             </div>
-            {historyNode?.lastProbeMessage ? <p className="mt-1 text-meta text-muted">{historyNode.lastProbeMessage}</p> : null}
+            {historyNode?.lastProbeMessage ? <p className="mt-1 text-meta text-muted-foreground">{historyNode.lastProbeMessage}</p> : null}
           </div>
 
           <h3 className="mb-1.5 text-label font-medium text-ink-soft">追加版本记录</h3>
@@ -342,7 +342,7 @@ export function PlatformOperationsPage() {
               columns={deploymentColumns}
               data={deploymentsRequest.data ?? []}
               getRowId={(deployment) => deployment.id}
-              empty={<p className="py-2 text-label text-muted">还没有版本记录。</p>}
+              empty={<p className="py-2 text-label text-muted-foreground">还没有版本记录。</p>}
             />
           ) : null}
         </SheetBody>

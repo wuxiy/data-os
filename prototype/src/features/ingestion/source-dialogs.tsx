@@ -177,7 +177,7 @@ export function SourceCheckDialog({
             {status ? <Badge tone={status.tone}>{status.label}</Badge> : null}
             <span className="text-label text-ink-soft">{source.lastCheckMessage}</span>
           </div>
-          <p className="mt-1 text-meta text-muted">最近检查：{formatDateTime(source.lastCheckedAt)}</p>
+          <p className="mt-1 text-meta text-muted-foreground">最近检查：{formatDateTime(source.lastCheckedAt)}</p>
         </div>
       ) : null}
     </Dialog>

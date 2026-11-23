@@ -1,11 +1,17 @@
 /*
- * 主题唯一来源：深石墨导航与浅色工作面的极简令牌。
- * Tailwind 4 官方拆分导入——不导入 preflight；基础元素样式由本文件的 base 层
- * 显式提供（收口后的唯一主题）。任何新色值先进本文件，不在组件里散落裸色。
+ * 主题唯一来源，分三段：
+ * 1. 品牌色板（@theme）：画布、文字、侧栏与状态色，项目布局代码直接使用这些令牌名；
+ * 2. 基础样式（@layer base）：Tailwind 4 官方拆分导入、不导入 preflight，基础元素样式在这里显式提供；
+ * 3. coss ui 令牌桥（文件末尾）：components/ui 下的 coss 组件只认 shadcn 约定的语义令牌，由桥接到品牌色板。
+ * 任何新色值先进本文件，不在组件里散落裸色。
  */
 @layer theme, base, components, utilities;
 @import "tailwindcss/theme.css" layer(theme);
 @import "tailwindcss/utilities.css" layer(utilities);
+
+/* 深色变体按类名触发（coss 源码带 dark: 工具类）。本项目不做深色模式，也不挂 .dark，
+   这样系统深色偏好不会让个别组件变成半深半浅。 */
+@custom-variant dark (&:is(.dark *));
 
 @theme {
   /* 画布与文本 */
@@ -15,7 +21,8 @@
   --color-wash: #f3f5f3;
   --color-ink: #1f2b29;
   --color-ink-soft: #485853;
-  --color-muted: #64736d;
+  /* 次要文字色。名字带 ink-：coss 的 `muted` 是浅底色（见文末令牌桥），不能再占用这个名字。 */
+  --color-ink-muted: #64736d;
   --color-faint: #687970;
   --color-line: #e0e6e1;
   --color-line-strong: #cdd8d1;
@@ -127,6 +134,22 @@
     cursor: not-allowed;
   }
 
+  /* coss 组件只写边框宽度（裸 `border`），默认边框色由主题提供；项目不导入 preflight，这里显式补上。
+     项目自有代码的边框都写明了颜色，不受影响。 */
+  *,
+  *::before,
+  *::after {
+    border-color: var(--border);
+  }
+
+  /* coss 的列表（面包屑、分页、侧栏菜单）依赖 preflight 的列表重置；项目里另有列表
+     要保留浏览器默认圆点，所以只重置带 data-slot 的列表（coss 组件的统一约定）。 */
+  :where(ol, ul, menu)[data-slot] {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
   input,
   select,
   textarea {
@@ -220,4 +243,175 @@
 /* 线性图标统一轻线（沿用 v3 口径）。 */
 svg.lucide {
   stroke-width: 1.35;
+}
+
+/* ───────────── coss ui 令牌桥 ─────────────
+ * components/ui 下的 coss 组件原样使用（不改源码），只认 shadcn 约定的语义令牌。
+ * 这里把它们接到上面的品牌色板上：原值用 --xxx 定义在 :root，再经 @theme 映射成
+ * --color-xxx 工具类。两层都要有——coss 源码既写 `bg-popover`，也直接写 `var(--popover)`、
+ * `var(--color-muted)`。这里刻意不用 `@theme inline`：inline 只把值内联进工具类、
+ * 不在运行时输出 --color-* 变量，直接读取就会落空。
+ * 项目布局代码继续用品牌令牌名（ink / paper / line…），两套名字同源。
+ * 升级 coss 后先跑 scripts/coss-token-inventory.mjs，看新源码是否用到这里没有的令牌。
+ */
+:root {
+  /* 面与文字：弹层、卡片与输入控件都是白色工作面 */
+  --background: var(--color-paper);
+  --foreground: var(--color-ink);
+  --card: var(--color-paper);
+  --card-foreground: var(--color-ink);
+  --popover: var(--color-paper);
+  --popover-foreground: var(--color-ink);
+
+  /* 主动作与次级面 */
+  --primary: var(--color-blue);
+  --primary-foreground: var(--color-paper);
+  --secondary: var(--color-wash);
+  --secondary-foreground: var(--color-ink-soft);
+  --muted: var(--color-wash);
+  --muted-foreground: var(--color-ink-muted);
+  --accent: var(--color-wash);
+  --accent-foreground: var(--color-ink);
+
+  /* 状态：* 是填充色，*-foreground 是同一色系的前景色（描边按钮、标签文字、字段错误） */
+  --destructive: var(--color-red);
+  --destructive-foreground: var(--color-red);
+  --info: var(--color-blue);
+  --info-foreground: var(--color-blue-hover);
+  --success: var(--color-green);
+  --success-foreground: var(--color-green);
+  --warning: var(--color-amber);
+  --warning-foreground: var(--color-amber);
+
+  /* 线与焦点 */
+  --border: var(--color-line);
+  --input: var(--color-line-strong);
+  --ring: var(--color-blue);
+  --radius: 0.625rem;
+
+  /* 侧栏：沿用品牌侧栏色板。背景色直接用上面的 --color-sidebar，其余按 coss 的角色映射。 */
+  --sidebar-foreground: var(--color-sidebar-text);
+  --sidebar-primary: var(--color-sidebar-bright);
+  --sidebar-primary-foreground: var(--color-sidebar);
+  --sidebar-accent: var(--color-sidebar-hover);
+  --sidebar-accent-foreground: var(--color-sidebar-bright);
+  --sidebar-border: var(--color-sidebar-line);
+  --sidebar-ring: var(--color-sidebar-line);
+}
+
+@theme {
+  --font-heading: var(--font-sans);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  /* --color-sidebar 已在上方品牌 @theme 定义（背景色），这里不重复以免与 --sidebar 成环。 */
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* coss 的 Skeleton 与 Toast 动画（来自注册表项的 cssVars / css） */
+  --animate-skeleton: skeleton 2s -1s infinite linear;
+  --animate-toast-success-odd: toast-success-odd 0.32s cubic-bezier(0.5, 1, 0.89, 1);
+  --animate-toast-success-even: toast-success-even 0.32s cubic-bezier(0.5, 1, 0.89, 1);
+  --animate-toast-error-odd: toast-error-odd 0.28s cubic-bezier(0.5, 1, 0.89, 1);
+  --animate-toast-error-even: toast-error-even 0.28s cubic-bezier(0.5, 1, 0.89, 1);
+
+  @keyframes skeleton {
+    to {
+      background-position: -200% 0;
+    }
+  }
+
+  @keyframes toast-success-odd {
+    0% {
+      scale: 1;
+    }
+    30% {
+      scale: 1.025;
+    }
+    60% {
+      scale: 0.99;
+    }
+    100% {
+      scale: 1;
+    }
+  }
+
+  @keyframes toast-success-even {
+    0% {
+      scale: 1;
+    }
+    30% {
+      scale: 1.025;
+    }
+    60% {
+      scale: 0.99;
+    }
+    100% {
+      scale: 1;
+    }
+  }
+
+  @keyframes toast-error-odd {
+    0% {
+      translate: 0 0;
+    }
+    25% {
+      translate: -3px 0;
+    }
+    50% {
+      translate: 3px 0;
+    }
+    75% {
+      translate: -3px 0;
+    }
+    100% {
+      translate: 0 0;
+    }
+  }
+
+  @keyframes toast-error-even {
+    0% {
+      translate: 0 0;
+    }
+    25% {
+      translate: -3px 0;
+    }
+    50% {
+      translate: 3px 0;
+    }
+    75% {
+      translate: -3px 0;
+    }
+    100% {
+      translate: 0 0;
+    }
+  }
 }

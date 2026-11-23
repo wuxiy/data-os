@@ -194,8 +194,8 @@ export function QuestionEditorPage({ questionCode }: { questionCode?: string }) 
   const eventColumns = eventHelper.columns([
     eventHelper.display({ id: 'type', header: '事件', size: 160, cell: ({ row }) => <Badge>{row.original.action}</Badge> }),
     eventHelper.display({ id: 'actor', header: '操作者', size: 140, cell: ({ row }) => <span className="text-label">{row.original.actor}</span> }),
-    eventHelper.display({ id: 'detail', header: '说明', cell: ({ row }) => <span className="text-label text-muted">{row.original.detail}</span> }),
-    eventHelper.display({ id: 'at', header: '时间', size: 140, cell: ({ row }) => <span className="text-meta text-muted">{formatDateTime(row.original.createdAt)}</span> }),
+    eventHelper.display({ id: 'detail', header: '说明', cell: ({ row }) => <span className="text-label text-muted-foreground">{row.original.detail}</span> }),
+    eventHelper.display({ id: 'at', header: '时间', size: 140, cell: ({ row }) => <span className="text-meta text-muted-foreground">{formatDateTime(row.original.createdAt)}</span> }),
   ])
 
   return (
@@ -269,7 +269,7 @@ export function QuestionEditorPage({ questionCode }: { questionCode?: string }) 
                   {!readOnly ? <Button size="sm" variant="text" aria-label={`移除参数 ${index + 1}`} onClick={() => setForm({ ...form, paramRows: form.paramRows.filter((_, itemIndex) => itemIndex !== index) })}><Trash2 size={12} /></Button> : null}
                 </div>
               ))}
-              {form.paramRows.length === 0 ? <p className="text-label text-muted">无参数问题可直接执行；有参数时问数面会要求填写。</p> : null}
+              {form.paramRows.length === 0 ? <p className="text-label text-muted-foreground">无参数问题可直接执行；有参数时问数面会要求填写。</p> : null}
             </div>
 
             <FormField label="回答模板" htmlFor="question-template">
@@ -279,7 +279,7 @@ export function QuestionEditorPage({ questionCode }: { questionCode?: string }) 
             {error ? <p role="alert" className="mb-3 text-body-sm text-red">{error}</p> : null}
 
             <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line pt-4">
-              <span className="text-meta text-muted">{question ? `最近${question.verified ? '已试运行通过' : '未验证'}` : '保存后进入草稿'}</span>
+              <span className="text-meta text-muted-foreground">{question ? `最近${question.verified ? '已试运行通过' : '未验证'}` : '保存后进入草稿'}</span>
               <div className="flex flex-wrap items-center gap-2">
                 {question?.status === 'DRAFT' ? (
                   <>
@@ -312,7 +312,7 @@ export function QuestionEditorPage({ questionCode }: { questionCode?: string }) 
                     const label = assistantParamLabel(contract.name, contract.description)
                     return (
                       <label key={contract.name} className="min-w-[150px]">
-                        <span className="mb-1 block text-meta text-muted">{label}{contract.required ? ' *' : ''}</span>
+                        <span className="mb-1 block text-meta text-muted-foreground">{label}{contract.required ? ' *' : ''}</span>
                         <Input
                           type={contract.type === 'date' ? 'date' : contract.type === 'number' ? 'number' : 'text'}
                           aria-label={label}
@@ -330,14 +330,14 @@ export function QuestionEditorPage({ questionCode }: { questionCode?: string }) 
                   <div className={`rounded-panel border px-4 py-3 ${testResult.answered ? 'border-line' : 'border-[#eee2c5] bg-[#fdf9ef]'}`}>
                     <div className="flex items-center gap-2">
                       <Badge tone={testResult.answered ? 'success' : 'warn'}>{testResult.answered ? '通过' : '拒答'}</Badge>
-                      <span className="text-label text-muted">
+                      <span className="text-label text-muted-foreground">
                         {testResult.answered ? `${testResult.rowCount ?? testResult.rows?.length ?? 0} 行 · ${testResult.evidence?.elapsedMs ?? 0} ms` : (testResult.reason ?? '未命中已验证问题')}
                       </span>
                     </div>
                     {testResult.answered && (testResult.columns ?? []).length > 0 ? (
                       <div className="mt-2 overflow-x-auto">
                         <table className="w-full border-collapse text-left text-label">
-                          <thead className="bg-wash text-muted">
+                          <thead className="bg-wash text-muted-foreground">
                             <tr>{(testResult.columns ?? []).map((column) => <th key={column} className="border-b border-line px-2 py-1.5 font-normal">{column}</th>)}</tr>
                           </thead>
                           <tbody>
@@ -350,7 +350,7 @@ export function QuestionEditorPage({ questionCode }: { questionCode?: string }) 
                         </table>
                       </div>
                     ) : null}
-                    <p className="mt-2 text-meta text-muted">最近一次成功试运行须晚于最后编辑，才允许发布。</p>
+                    <p className="mt-2 text-meta text-muted-foreground">最近一次成功试运行须晚于最后编辑，才允许发布。</p>
                   </div>
                 ) : null}
               </>
@@ -368,7 +368,7 @@ export function QuestionEditorPage({ questionCode }: { questionCode?: string }) 
                 loading={eventsRequest.isPending}
                 empty={<EmptyState minHeight={180} title="暂无事件" description="创建、保存、试运行与生命周期动作都会留下记录。" />}
                 footer={eventsRequest.data && eventsRequest.data.total > eventsRequest.data.returned
-                  ? <p className="px-4 py-2 text-meta text-muted">共 {eventsRequest.data.total} 条，已显示最近 {eventsRequest.data.returned} 条。</p>
+                  ? <p className="px-4 py-2 text-meta text-muted-foreground">共 {eventsRequest.data.total} 条，已显示最近 {eventsRequest.data.returned} 条。</p>
                   : undefined}
               />
             )}

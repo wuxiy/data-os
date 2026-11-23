@@ -56,11 +56,11 @@ export function AssistantAuditPage() {
       cell: ({ row }) => (
         <div>
           <div className="text-body-sm text-ink">{row.original.questionText}</div>
-          <div className="font-mono text-meta text-muted">{row.original.questionCode || '（未命中）'}</div>
+          <div className="font-mono text-meta text-muted-foreground">{row.original.questionCode || '（未命中）'}</div>
         </div>
       ),
     }),
-    helper.display({ id: 'service', header: '数据服务', size: 170, cell: ({ row }) => <span className="font-mono text-label text-muted">{row.original.serviceCode || '—'}</span> }),
+    helper.display({ id: 'service', header: '数据服务', size: 170, cell: ({ row }) => <span className="font-mono text-label text-muted-foreground">{row.original.serviceCode || '—'}</span> }),
     helper.display({
       id: 'outcome',
       header: '结局',
@@ -77,7 +77,7 @@ export function AssistantAuditPage() {
         ? <Badge tone={row.original.feedbackRating === 'HELPFUL' ? 'success' : 'warn'}>{row.original.feedbackRating === 'HELPFUL' ? '有帮助' : '需改进'}</Badge>
         : <span className="text-label text-faint">—</span>,
     }),
-    helper.display({ id: 'detail', header: '说明', cell: ({ row }) => <span className="text-label text-muted">{row.original.detail || '—'}</span> }),
+    helper.display({ id: 'detail', header: '说明', cell: ({ row }) => <span className="text-label text-muted-foreground">{row.original.detail || '—'}</span> }),
   ])
 
   return (

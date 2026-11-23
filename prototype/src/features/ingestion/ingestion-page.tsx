@@ -229,7 +229,7 @@ export function IngestionPage() {
       cell: ({ row }) => (
         <div>
           <div className="text-body-sm font-medium text-ink">{sourceDisplayName(row.original)}</div>
-          <div className="mt-0.5 text-meta text-muted">{row.original.id.slice(0, 12)}</div>
+          <div className="mt-0.5 text-meta text-muted-foreground">{row.original.id.slice(0, 12)}</div>
         </div>
       ),
     }),
@@ -256,7 +256,7 @@ export function IngestionPage() {
         ? (
           <div>
             <div className="text-label text-ink-soft">{formatDateTime(row.original.lastCheckedAt)}</div>
-            {row.original.lastCheckMessage ? <div className="mt-0.5 max-w-[220px] truncate text-meta text-muted" title={row.original.lastCheckMessage}>{row.original.lastCheckMessage}</div> : null}
+            {row.original.lastCheckMessage ? <div className="mt-0.5 max-w-[220px] truncate text-meta text-muted-foreground" title={row.original.lastCheckMessage}>{row.original.lastCheckMessage}</div> : null}
           </div>
         )
         : <span className="text-label text-faint">未检查</span>,
@@ -291,7 +291,7 @@ export function IngestionPage() {
               {row.original.configured ? `${row.original.templateKey ?? '自定义'} v${row.original.templateVersion ?? 1}` : '未配置'}
             </Badge>
           </div>
-          <div className="mt-0.5 text-meta text-muted">{row.original.id.slice(0, 12)}</div>
+          <div className="mt-0.5 text-meta text-muted-foreground">{row.original.id.slice(0, 12)}</div>
         </div>
       ),
     }),
@@ -322,7 +322,7 @@ export function IngestionPage() {
         return (
           <div>
             <StatusText tone={status.tone === 'healthy' ? 'good' : status.tone === 'danger' ? 'bad' : status.tone === 'warning' ? 'running' : 'neutral'}>{status.label}</StatusText>
-            {run ? <div className="mt-0.5 max-w-[200px] truncate text-meta text-muted" title={businessMessage(run.message)}>{businessMessage(run.message)}</div> : null}
+            {run ? <div className="mt-0.5 max-w-[200px] truncate text-meta text-muted-foreground" title={businessMessage(run.message)}>{businessMessage(run.message)}</div> : null}
           </div>
         )
       },
@@ -427,7 +427,7 @@ export function IngestionPage() {
       cell: ({ row }) => (
         <div>
           <div className="text-body-sm font-medium text-ink">{row.original.job.name}</div>
-          <div className="mt-0.5 text-meta text-muted">{row.original.run.id.slice(0, 12)}</div>
+          <div className="mt-0.5 text-meta text-muted-foreground">{row.original.run.id.slice(0, 12)}</div>
         </div>
       ),
     }),
@@ -532,7 +532,7 @@ export function IngestionPage() {
               role="tab"
               aria-selected={tab === item.value}
               onClick={() => { setTab(item.value); setKeyword(''); setStatusFilter(''); setModeFilter('') }}
-              className={`-mb-px border-b-2 px-px pt-[13px] pb-3 text-body-sm transition-colors ${tab === item.value ? 'border-blue font-medium text-blue' : 'border-transparent text-muted hover:text-ink'}`}
+              className={`-mb-px border-b-2 px-px pt-[13px] pb-3 text-body-sm transition-colors ${tab === item.value ? 'border-blue font-medium text-blue' : 'border-transparent text-muted-foreground hover:text-ink'}`}
             >
               {item.label}<Count>{item.count}</Count>
             </button>
@@ -672,10 +672,10 @@ export function IngestionPage() {
 function SummaryCell({ label, value, note, icon }: { label: string; value: string; note: string; icon: ReactNode }) {
   return (
     <div className="flex items-center gap-3 border-r border-line px-[21px] last:border-r-0">
-      <span className="text-muted">{icon}</span>
+      <span className="text-muted-foreground">{icon}</span>
       <div>
-        <small className="block text-label text-muted">{label}</small>
-        <strong className="text-[22px] leading-tight font-medium text-ink">{value}<span className="ml-1.5 text-meta font-normal text-muted">{note}</span></strong>
+        <small className="block text-label text-muted-foreground">{label}</small>
+        <strong className="text-[22px] leading-tight font-medium text-ink">{value}<span className="ml-1.5 text-meta font-normal text-muted-foreground">{note}</span></strong>
       </div>
     </div>
   )

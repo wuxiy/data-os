@@ -161,13 +161,13 @@ function AssistantWorkspace({
                   className={`mb-1 w-full rounded-control px-2.5 py-2 text-left ${question.code === selectedCode ? 'bg-blue-soft' : 'hover:bg-wash'}`}
                 >
                   <span className="block text-body-sm text-ink-soft">{question.question}</span>
-                  <span className="mt-0.5 block font-mono text-meta text-muted">{question.serviceCode}</span>
+                  <span className="mt-0.5 block font-mono text-meta text-muted-foreground">{question.serviceCode}</span>
                 </button>
               </li>
             ))}
-            {questions.length === 0 && questionsRequest.isSuccess ? <li className="px-3 py-6 text-center text-label text-muted">当前租户暂无已发布的已验证问题。</li> : null}
+            {questions.length === 0 && questionsRequest.isSuccess ? <li className="px-3 py-6 text-center text-label text-muted-foreground">当前租户暂无已发布的已验证问题。</li> : null}
           </ul>
-          <div className="border-t border-line px-3 py-2 text-meta leading-relaxed text-muted">
+          <div className="border-t border-line px-3 py-2 text-meta leading-relaxed text-muted-foreground">
             同义表达命中同一问题代码；未知问题明确拒答，不生成任意 SQL。
           </div>
         </Panel>
@@ -178,7 +178,7 @@ function AssistantWorkspace({
               <span className="flex size-7 items-center justify-center rounded-chip bg-blue-soft text-blue"><MessageSquareText size={15} /></span>
               <div>
                 <strong className="block text-body-sm text-ink-soft">医疗运营问数助手</strong>
-                <span className="block text-meta text-muted">已验证问题 → 已发布数据服务</span>
+                <span className="block text-meta text-muted-foreground">已验证问题 → 已发布数据服务</span>
               </div>
             </div>
             <Badge tone="success">只读模式</Badge>
@@ -199,7 +199,7 @@ function AssistantWorkspace({
                 const label = assistantParamLabel(contract.name, contract.description)
                 return (
                   <label key={contract.name} className="min-w-[140px]">
-                    <span className="mb-1 block text-meta text-muted">{label}{contract.required ? ' *' : ''}</span>
+                    <span className="mb-1 block text-meta text-muted-foreground">{label}{contract.required ? ' *' : ''}</span>
                     {contract.type === 'date' ? (
                       <Input
                         type="date"
@@ -254,12 +254,12 @@ function AssistantWorkspace({
             ) : (
               <div className="rounded-panel border border-line bg-wash px-4 py-4">
                 <h2 className="text-title font-semibold text-ink-soft">{questions.length === 0 && questionsRequest.isSuccess ? '还没有可执行的问题' : '从一个已验证问题开始'}</h2>
-                <p className="mt-1.5 text-label leading-relaxed text-muted">
+                <p className="mt-1.5 text-label leading-relaxed text-muted-foreground">
                   {questions.length === 0 && questionsRequest.isSuccess
                     ? '当前租户暂无已发布问题。请联系治理人员完成配置、试运行和发布后再查询。'
                     : '选择左侧问题，再按业务范围调整参数。结果和执行证据会在同一工作区展示。'}
                 </p>
-                <ol className="mt-3 list-decimal space-y-1 pl-5 text-label text-muted">
+                <ol className="mt-3 list-decimal space-y-1 pl-5 text-label text-muted-foreground">
                   <li><strong>选问题</strong>，确认业务口径与受控数据服务。</li>
                   <li><strong>定范围</strong>，填写时间等必需参数后执行。</li>
                   <li><strong>核对结果</strong>，查看明细、统计窗口与审计号。</li>
@@ -294,24 +294,24 @@ function AssistantWorkspace({
                     <span className="flex size-7 items-center justify-center rounded-chip bg-[#edf6f0] text-green"><MessageSquareText size={15} /></span>
                     <div>
                       <strong className="block text-body-sm text-ink-soft">分析结果</strong>
-                      <span className="block text-meta text-muted">{answer.evidence?.serviceCode} {answer.evidence?.serviceVersion} · 受控执行</span>
+                      <span className="block text-meta text-muted-foreground">{answer.evidence?.serviceCode} {answer.evidence?.serviceVersion} · 受控执行</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-1">
-                    <button type="button" className="inline-flex size-7 items-center justify-center rounded-chip text-muted hover:bg-wash disabled:opacity-50" onClick={() => sendFeedback('helpful')} disabled={feedbackState !== 'idle'} aria-label={feedbackState === 'recorded' ? '反馈已记录' : '回答有帮助'}><ThumbsUp size={14} /></button>
-                    <button type="button" className="inline-flex size-7 items-center justify-center rounded-chip text-muted hover:bg-wash disabled:opacity-50" onClick={() => sendFeedback('not_helpful')} disabled={feedbackState !== 'idle'} aria-label="回答需要改进"><ThumbsDown size={14} /></button>
+                    <button type="button" className="inline-flex size-7 items-center justify-center rounded-chip text-muted-foreground hover:bg-wash disabled:opacity-50" onClick={() => sendFeedback('helpful')} disabled={feedbackState !== 'idle'} aria-label={feedbackState === 'recorded' ? '反馈已记录' : '回答有帮助'}><ThumbsUp size={14} /></button>
+                    <button type="button" className="inline-flex size-7 items-center justify-center rounded-chip text-muted-foreground hover:bg-wash disabled:opacity-50" onClick={() => sendFeedback('not_helpful')} disabled={feedbackState !== 'idle'} aria-label="回答需要改进"><ThumbsDown size={14} /></button>
                   </div>
                 </header>
                 <div className="px-4 py-3">
                   <p className="text-body-sm leading-relaxed text-ink-soft">{answer.answer}</p>
                   {answer.truncated ? <p className="mt-2 text-label text-amber"><strong>结果截断：</strong>已按服务行数上限返回 {answer.rowCount} 行。</p> : null}
-                  {feedbackState === 'recorded' ? <p className="mt-2 text-meta text-muted">反馈已记录（审计 {answer.auditId.slice(0, 8)}…）。</p> : null}
+                  {feedbackState === 'recorded' ? <p className="mt-2 text-meta text-muted-foreground">反馈已记录（审计 {answer.auditId.slice(0, 8)}…）。</p> : null}
                   <h3 className="mt-3 mb-1.5 text-label font-medium text-ink-soft">核对明细</h3>
                   <DataTable
                     columns={resultColumns}
                     data={answer.rows ?? []}
                     getRowId={(_row, index) => String(index)}
-                    empty={<p className="py-2 text-label text-muted">查询已完成，当前范围内没有数据。可调整统计参数后重试。</p>}
+                    empty={<p className="py-2 text-label text-muted-foreground">查询已完成，当前范围内没有数据。可调整统计参数后重试。</p>}
                   />
                 </div>
               </article>
@@ -330,7 +330,7 @@ function AssistantWorkspace({
               />
               <Button type="submit" variant="primary" size="icon" aria-label="发送问题" disabled={!draft.trim() || asking}><Send size={16} /></Button>
             </div>
-            <p className="mt-1.5 text-meta text-muted">回答来自已发布数据服务的受限执行；重要结论请结合口径与数据时间复核。</p>
+            <p className="mt-1.5 text-meta text-muted-foreground">回答来自已发布数据服务的受限执行；重要结论请结合口径与数据时间复核。</p>
           </form>
         </Panel>
 
@@ -344,7 +344,7 @@ function AssistantWorkspace({
               <span className="flex size-7 items-center justify-center rounded-chip bg-paper text-blue"><MessageSquareText size={15} /></span>
               <div>
                 <strong className="block text-label text-ink-soft">问数审计号</strong>
-                <span className="block font-mono text-meta text-muted">{answer ? `${answer.auditId.slice(0, 13)}…` : '提问后生成'}</span>
+                <span className="block font-mono text-meta text-muted-foreground">{answer ? `${answer.auditId.slice(0, 13)}…` : '提问后生成'}</span>
               </div>
             </div>
             <dl className="space-y-2">
@@ -371,7 +371,7 @@ function AssistantWorkspace({
 function Evidence({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="text-meta text-muted">{label}</dt>
+      <dt className="text-meta text-muted-foreground">{label}</dt>
       <dd className="m-0 break-all text-label text-ink-soft">{value}</dd>
     </div>
   )

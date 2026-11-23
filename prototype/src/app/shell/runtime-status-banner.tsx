@@ -33,7 +33,7 @@ export function RuntimeStatusBanner() {
   const shell = 'mb-3 flex min-h-[30px] flex-wrap items-center gap-2.5 rounded-control border px-3 py-1.5 text-label'
 
   if (query.isPending) {
-    return <div role="status" className={`${shell} border-line bg-wash text-muted`}><CloudCog size={14} /><span>正在读取运行模式…</span></div>
+    return <div role="status" className={`${shell} border-line bg-wash text-muted-foreground`}><CloudCog size={14} /><span>正在读取运行模式…</span></div>
   }
 
   if (query.isError) {
@@ -77,8 +77,8 @@ export function RuntimeStatusBanner() {
 function ScopeFold() {
   return (
     <details className="ml-auto max-w-[62%] text-meta">
-      <summary className="cursor-pointer text-muted">范围说明</summary>
-      <span className="mt-1 block leading-relaxed text-muted">{SCOPE_SUMMARY}</span>
+      <summary className="cursor-pointer text-muted-foreground">范围说明</summary>
+      <span className="mt-1 block leading-relaxed text-muted-foreground">{SCOPE_SUMMARY}</span>
     </details>
   )
 }

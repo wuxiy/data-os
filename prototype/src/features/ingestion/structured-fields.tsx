@@ -202,7 +202,7 @@ export function StructuredTaskFields({
                 onClick={() => form.setFieldValue('form', option.value)}
                 className={cn(
                   'inline-flex items-center gap-1.5 rounded-chip px-2.5 py-1 text-label',
-                  active ? 'bg-paper text-blue shadow-focus' : 'text-muted hover:text-ink',
+                  active ? 'bg-paper text-blue shadow-focus' : 'text-muted-foreground hover:text-ink',
                   editLocked && 'opacity-60',
                 )}
               >
@@ -265,7 +265,7 @@ export function StructuredTaskFields({
                       <Table2 size={12} />{table.name}
                     </button>
                   ))}
-                  {(tablesQuery.data?.tables.length ?? 0) === 0 && !tablesQuery.isPending ? <p className="text-label text-muted">该库没有可采集的表</p> : null}
+                  {(tablesQuery.data?.tables.length ?? 0) === 0 && !tablesQuery.isPending ? <p className="text-label text-muted-foreground">该库没有可采集的表</p> : null}
                 </div>
               )}
               {tablesQuery.data?.truncated ? <p className="mt-1 text-meta text-amber">表数量较多，仅显示前 500 个</p> : null}
@@ -284,13 +284,13 @@ export function StructuredTaskFields({
                       onChange={() => toggleColumn(column.name)}
                     />
                     <span>{column.name}</span>
-                    <small className="text-meta text-muted">{column.typeName}</small>
+                    <small className="text-meta text-muted-foreground">{column.typeName}</small>
                   </label>
                 ))}
               </div>
             </FormField>
           ) : values.tables.length > 1 ? (
-            <p className="mb-4 text-label text-muted">多表批量任务使用全量字段；如需字段白名单或增量序列键，请单选表配置。</p>
+            <p className="mb-4 text-label text-muted-foreground">多表批量任务使用全量字段；如需字段白名单或增量序列键，请单选表配置。</p>
           ) : null}
 
           {values.mode === 'INCREMENTAL' && activeColumns !== undefined ? (
@@ -365,7 +365,7 @@ export function StructuredTaskFields({
       </form.Subscribe>
 
       <div className="flex items-center justify-between gap-3 border-t border-line pt-4">
-        <span className="text-meta text-muted">{submitHint ?? '凭据只保存引用；编译后的作业 JSON 由控制面持有'}</span>
+        <span className="text-meta text-muted-foreground">{submitHint ?? '凭据只保存引用；编译后的作业 JSON 由控制面持有'}</span>
         <div className="flex items-center gap-2">
           {onCancel ? <Button onClick={onCancel} disabled={saving}>取消</Button> : null}
           <Button type="submit" variant="primary" disabled={!canSubmit || saving}>
@@ -373,7 +373,7 @@ export function StructuredTaskFields({
           </Button>
         </div>
       </div>
-      <p className="mt-2 text-meta text-muted">
+      <p className="mt-2 text-meta text-muted-foreground">
         <Badge tone="blue">结构化意图</Badge> 表单只声明采集口径，库表与字段由控制面对源实校验后编译。
       </p>
     </form>

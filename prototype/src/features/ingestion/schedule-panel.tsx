@@ -298,7 +298,7 @@ export function SchedulePanel({ jobId, jobName }: { jobId: string; jobName: stri
 
               <FormField label="编译结果">
                 <code className="font-mono text-label text-ink-soft">{composedCrontab || '（待填写）'}</code>
-                {composedStart ? <small className="ml-2 text-meta text-muted">生效 {toDsTime(composedStart)} ~ {toDsTime(composedEnd ?? '')}</small> : null}
+                {composedStart ? <small className="ml-2 text-meta text-muted-foreground">生效 {toDsTime(composedStart)} ~ {toDsTime(composedEnd ?? '')}</small> : null}
               </FormField>
 
               {preview ? (
@@ -340,11 +340,11 @@ export function SchedulePanel({ jobId, jobName }: { jobId: string; jobName: stri
         <div className="px-5 pb-2">
           <div className="mb-3 flex flex-wrap items-end gap-2 rounded-control border border-line bg-wash px-3 py-2.5">
             <div>
-              <label htmlFor="backfill-start" className="mb-1 block text-meta text-muted">补数开始日期</label>
+              <label htmlFor="backfill-start" className="mb-1 block text-meta text-muted-foreground">补数开始日期</label>
               <Input id="backfill-start" type="date" value={backfillStart} onChange={(event) => setBackfillStart(event.target.value)} className="w-[150px]" />
             </div>
             <div>
-              <label htmlFor="backfill-end" className="mb-1 block text-meta text-muted">补数结束日期</label>
+              <label htmlFor="backfill-end" className="mb-1 block text-meta text-muted-foreground">补数结束日期</label>
               <Input id="backfill-end" type="date" value={backfillEnd} onChange={(event) => setBackfillEnd(event.target.value)} className="w-[150px]" />
             </div>
             <Button
@@ -354,7 +354,7 @@ export function SchedulePanel({ jobId, jobName }: { jobId: string; jobName: stri
             >
               <CalendarClock size={13} />{backfillMutation.isPending ? '提交中…' : '提交补数'}
             </Button>
-            <span className="ml-auto text-meta text-muted">补数按日期逐日触发，与手动运行分开记录。</span>
+            <span className="ml-auto text-meta text-muted-foreground">补数按日期逐日触发，与手动运行分开记录。</span>
           </div>
         </div>
         <DataTable
@@ -370,13 +370,13 @@ export function SchedulePanel({ jobId, jobName }: { jobId: string; jobName: stri
           <div className="border-t border-line bg-[#fbfcfe] px-5 py-3">
             <div className="mb-2 flex items-center gap-2 text-label font-medium text-ink-soft">任务实例</div>
             {tasksRequest.isPending ? <LoadingInline>正在读取任务…</LoadingInline> : null}
-            {tasksRequest.data?.length === 0 ? <p className="text-label text-muted">该实例还没有任务记录。</p> : null}
+            {tasksRequest.data?.length === 0 ? <p className="text-label text-muted-foreground">该实例还没有任务记录。</p> : null}
             <ul className="space-y-1.5">
               {(tasksRequest.data ?? []).map((task) => (
                 <li key={task.id} className="flex flex-wrap items-center gap-3 rounded-control border border-line bg-paper px-3 py-2 text-label">
                   <span className="text-ink-soft">{task.name}</span>
                   <StatusText tone={instanceTone(task.state)}>{instanceLabel(task.state)}</StatusText>
-                  <span className="text-meta text-muted">{formatDateTime(task.startTime)} → {formatDateTime(task.endTime)}</span>
+                  <span className="text-meta text-muted-foreground">{formatDateTime(task.startTime)} → {formatDateTime(task.endTime)}</span>
                   <Button
                     variant="text"
                     className="ml-auto"

@@ -149,9 +149,9 @@ export function ScoringPage() {
                 <Button size="sm" variant="text" disabled={grades.length <= 1} aria-label={`移除等级 ${index + 1}`} onClick={() => setGrades((current) => current.filter((_, i) => i !== index))}>移除</Button>
               </div>
             ))}
-            {grades.length === 0 ? <p className="py-6 text-center text-label text-muted">至少保留一个等级；等级名称不能重复。</p> : null}
+            {grades.length === 0 ? <p className="py-6 text-center text-label text-muted-foreground">至少保留一个等级；等级名称不能重复。</p> : null}
 
-            <div className="mt-4 rounded-control border border-line bg-wash px-3 py-2.5 text-label text-muted">
+            <div className="mt-4 rounded-control border border-line bg-wash px-3 py-2.5 text-label text-muted-foreground">
               <strong className="block text-body-sm text-ink-soft">保存影响</strong>
               <p className="mt-1">保存后立即按新标准重算总分与等级；<Badge tone="warn">受影响</Badge> 只影响评分读数，不重跑规则、不改变已产生的治理问题。</p>
             </div>

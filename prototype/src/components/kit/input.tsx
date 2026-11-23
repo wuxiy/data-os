@@ -55,7 +55,7 @@ export function SearchField({
 }) {
   return (
     <div className={cn('relative flex h-8 w-[250px] max-w-full items-center', className)}>
-      <Search aria-hidden="true" className="pointer-events-none absolute left-2.5 size-3.5 text-muted" />
+      <Search aria-hidden="true" className="pointer-events-none absolute left-2.5 size-3.5 text-muted-foreground" />
       <input
         type="search"
         aria-label={label ?? placeholder}

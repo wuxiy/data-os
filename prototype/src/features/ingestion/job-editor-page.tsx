@@ -258,7 +258,7 @@ export function JobConfigurationEditor({ jobId }: { jobId?: string }) {
     <div>
 
       {jobId && job ? (
-        <div className="mb-3.5 flex items-center gap-3 rounded-panel border border-line bg-paper px-4 py-2.5 text-label text-muted">
+        <div className="mb-3.5 flex items-center gap-3 rounded-panel border border-line bg-paper px-4 py-2.5 text-label text-muted-foreground">
           <Badge tone={job.configured ? 'blue' : 'warn'}>{job.configured ? `${job.templateKey ?? '自定义'} v${job.templateVersion ?? 1}` : '未配置'}</Badge>
           <span>{job.id}</span>
           <span>·</span>
@@ -270,7 +270,7 @@ export function JobConfigurationEditor({ jobId }: { jobId?: string }) {
       <div className="grid grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] gap-0 overflow-clip rounded-panel border border-line bg-paper max-[1100px]:grid-cols-1">
         <section className="border-r border-line px-6 py-5 max-[1100px]:border-r-0 max-[1100px]:border-b">
           <h2 className="text-title font-semibold text-ink-soft">来源与策略</h2>
-          <p className="mt-1.5 mb-5 text-label leading-relaxed text-muted">选择来源、命名任务并确定执行通道；结构化与 JSON 是同一任务的两种配置形态。</p>
+          <p className="mt-1.5 mb-5 text-label leading-relaxed text-muted-foreground">选择来源、命名任务并确定执行通道；结构化与 JSON 是同一任务的两种配置形态。</p>
 
           {jobId ? null : (
             <FormGrid>
@@ -336,7 +336,7 @@ export function JobConfigurationEditor({ jobId }: { jobId?: string }) {
                       aria-checked={configMode === option.value}
                       disabled={option.value === 'structured' && !structuredReady && !editingStructured}
                       onClick={() => setConfigMode(option.value)}
-                      className={`rounded-chip px-2.5 py-1 text-label ${configMode === option.value ? 'bg-paper text-blue shadow-focus' : 'text-muted hover:text-ink'} disabled:opacity-50`}
+                      className={`rounded-chip px-2.5 py-1 text-label ${configMode === option.value ? 'bg-paper text-blue shadow-focus' : 'text-muted-foreground hover:text-ink'} disabled:opacity-50`}
                     >
                       {option.label}{option.value === 'structured' && !structuredReady ? '（需先登记连接）' : ''}
                     </button>
@@ -396,7 +396,7 @@ export function JobConfigurationEditor({ jobId }: { jobId?: string }) {
 
         <section className="bg-wash px-6 py-5">
           <h2 className="text-title font-semibold text-ink-soft">{dolphin ? '工作流绑定' : configMode === 'json' ? '采集配置 JSON' : '结构化意图'}</h2>
-          <p className="mt-1.5 mb-4 text-label leading-relaxed text-muted">
+          <p className="mt-1.5 mb-4 text-label leading-relaxed text-muted-foreground">
             {dolphin
               ? '绑定失败会如实回显；周期调度随工作流生效，不受此处影响。'
               : configMode === 'json'
@@ -413,7 +413,7 @@ export function JobConfigurationEditor({ jobId }: { jobId?: string }) {
           ) : configMode === 'json' ? (
             <details open className="rounded-control border border-line bg-paper">
               <summary className="cursor-pointer border-b border-line px-3 py-2 text-label font-medium text-ink-soft">
-                配置内容 <span className="ml-1 font-normal text-muted">默认展开 · 可编辑</span>
+                配置内容 <span className="ml-1 font-normal text-muted-foreground">默认展开 · 可编辑</span>
               </summary>
               <div className="p-3">
                 <CodeTextarea

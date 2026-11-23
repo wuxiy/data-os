@@ -24,7 +24,7 @@ export function EmptyState({
         {icon ?? <SearchX />}
       </div>
       <h2 className="mb-[7px] text-[15px] font-medium text-ink-soft">{title}</h2>
-      {description ? <p className="max-w-[330px] text-body-sm leading-relaxed text-muted">{description}</p> : null}
+      {description ? <p className="max-w-[330px] text-body-sm leading-relaxed text-muted-foreground">{description}</p> : null}
       {action ? <div className="mt-5">{action}</div> : null}
     </div>
   )
@@ -43,7 +43,7 @@ export function Skeleton({ rows = 6, className }: { rows?: number; className?: s
           <div className="h-3 flex-1 rounded-chip bg-line-soft" />
         </div>
       ))}
-      <p className="mt-5 text-label text-muted">正在读取数据，请稍候…</p>
+      <p className="mt-5 text-label text-muted-foreground">正在读取数据，请稍候…</p>
     </div>
   )
 }
@@ -51,7 +51,7 @@ export function Skeleton({ rows = 6, className }: { rows?: number; className?: s
 /** 行内加载提示：区块内刷新时保留已有工作面。 */
 export function LoadingInline({ children = '正在读取…' }: { children?: ReactNode }) {
   return (
-    <span role="status" className="inline-flex items-center gap-1.5 text-label text-muted">
+    <span role="status" className="inline-flex items-center gap-1.5 text-label text-muted-foreground">
       <LoaderCircle className="size-3.5 animate-spin" />
       {children}
     </span>
@@ -61,8 +61,8 @@ export function LoadingInline({ children = '正在读取…' }: { children?: Rea
 /** 独立加载块。 */
 export function LoadingBlock({ children = '正在读取数据…', className }: { children?: ReactNode; className?: string }) {
   return (
-    <div role="status" className={cn('flex min-h-[220px] flex-col items-center justify-center gap-2.5 text-label text-muted', className)}>
-      <LoaderCircle className="size-5 animate-spin text-muted" />
+    <div role="status" className={cn('flex min-h-[220px] flex-col items-center justify-center gap-2.5 text-label text-muted-foreground', className)}>
+      <LoaderCircle className="size-5 animate-spin text-muted-foreground" />
       {children}
     </div>
   )

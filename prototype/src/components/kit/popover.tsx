@@ -84,10 +84,10 @@ export function Tabs({
           <TabsPrimitive.Tab
             key={item.value}
             value={item.value}
-            className="relative -mb-px shrink-0 cursor-pointer border-b-2 border-transparent px-px pt-[13px] pb-3 text-body-sm whitespace-nowrap text-muted transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-blue focus-visible:outline-offset-[-2px] data-[active]:border-blue data-[active]:font-medium data-[active]:text-blue"
+            className="relative -mb-px shrink-0 cursor-pointer border-b-2 border-transparent px-px pt-[13px] pb-3 text-body-sm whitespace-nowrap text-muted-foreground transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-blue focus-visible:outline-offset-[-2px] data-[active]:border-blue data-[active]:font-medium data-[active]:text-blue"
           >
             {item.label}
-            {item.count !== undefined ? <span className="ml-1.5 rounded-chip border border-line bg-wash px-1 text-meta font-medium text-muted">{item.count}</span> : null}
+            {item.count !== undefined ? <span className="ml-1.5 rounded-chip border border-line bg-wash px-1 text-meta font-medium text-muted-foreground">{item.count}</span> : null}
           </TabsPrimitive.Tab>
         ))}
       </TabsPrimitive.List>
@@ -116,7 +116,7 @@ export function Segmented({ value, onValueChange, options }: { value: string; on
           onClick={() => onValueChange(option.value)}
           className={cn(
             'rounded-chip px-[9px] py-[3px] text-meta',
-            value === option.value ? 'bg-paper text-ink-soft shadow-focus' : 'text-muted hover:text-ink',
+            value === option.value ? 'bg-paper text-ink-soft shadow-focus' : 'text-muted-foreground hover:text-ink',
           )}
         >
           {option.label}

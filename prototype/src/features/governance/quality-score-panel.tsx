@@ -32,7 +32,7 @@ export function QualityScorePanel({ compact = false }: { compact?: boolean }) {
         const typeLabel = row.original.ruleType ? (QUALITY_RULE_TYPE_LABELS[row.original.ruleType] ?? row.original.ruleType) : null
         return typeLabel
           ? <span title={row.original.ruleId}>{typeLabel}{row.original.targetColumn ? ` · ${row.original.targetColumn}` : ''}</span>
-          : <code className="font-mono text-label text-muted" title={row.original.ruleId}>{row.original.ruleId}</code>
+          : <code className="font-mono text-label text-muted-foreground" title={row.original.ruleId}>{row.original.ruleId}</code>
       },
     }),
     helper.accessor('datasetId', { header: '数据集' }),
@@ -60,7 +60,7 @@ export function QualityScorePanel({ compact = false }: { compact?: boolean }) {
         description="按最近一次有效运行评分；未完成运行的规则不计入总分"
         actions={
           <>
-            {summary ? <span className="text-meta text-muted">标准更新：{formatDateTime(summary.standard.updatedAt)}</span> : null}
+            {summary ? <span className="text-meta text-muted-foreground">标准更新：{formatDateTime(summary.standard.updatedAt)}</span> : null}
             <Button size="sm" onClick={() => navigate('/governance/quality/scoring')}><Settings2 size={13} />评分标准</Button>
           </>
         }
@@ -70,16 +70,16 @@ export function QualityScorePanel({ compact = false }: { compact?: boolean }) {
       {query.isError ? (
         <div role="status" className="px-5 py-8 text-center">
           <p className="text-body-sm font-medium text-ink-soft">暂时无法读取质量评分</p>
-          <p className="mt-1 text-label text-muted">请恢复控制面连接后重试，评分标准与历史结果不会以演示数据补位。</p>
+          <p className="mt-1 text-label text-muted-foreground">请恢复控制面连接后重试，评分标准与历史结果不会以演示数据补位。</p>
           <Button size="sm" className="mt-3" onClick={() => void query.refetch()}>重试</Button>
         </div>
       ) : null}
 
       {summary && noScoredRules ? (
         <div className="flex flex-col items-center gap-2 px-5 py-8 text-center">
-          <Gauge size={22} className="text-muted" aria-hidden="true" />
+          <Gauge size={22} className="text-muted-foreground" aria-hidden="true" />
           <strong className="text-body-sm text-ink-soft">等待首轮质量评分</strong>
-          <p className="max-w-[520px] text-label leading-relaxed text-muted">完成质量规则复检后，将显示六个维度的得分、加权总分与等级。可先核对「评分标准」中的通过线与权重。</p>
+          <p className="max-w-[520px] text-label leading-relaxed text-muted-foreground">完成质量规则复检后，将显示六个维度的得分、加权总分与等级。可先核对「评分标准」中的通过线与权重。</p>
         </div>
       ) : null}
 
@@ -99,14 +99,14 @@ export function QualityScorePanel({ compact = false }: { compact?: boolean }) {
                 const item = summary.dimensions.find((entry) => entry.dimension === dimension)
                 return (
                   <div key={dimension}>
-                    <div className="flex items-center justify-between text-meta text-muted">
+                    <div className="flex items-center justify-between text-meta text-muted-foreground">
                       <span>{dimension}</span>
                       <span>{item ? item.score.toFixed(1) : '无运行'}</span>
                     </div>
                     <div className="mt-1 h-[3px] overflow-hidden rounded-full bg-line">
                       <i className="block h-full origin-left rounded-full bg-blue" style={{ transform: `scaleX(${Math.max(0, Math.min(100, item?.score ?? 0)) / 100})` }} />
                     </div>
-                    <div className="mt-0.5 text-[9px] text-muted">{item ? `${item.ruleCount} 条规则` : '—'}</div>
+                    <div className="mt-0.5 text-[9px] text-muted-foreground">{item ? `${item.ruleCount} 条规则` : '—'}</div>
                   </div>
                 )
               })}
@@ -116,7 +116,7 @@ export function QualityScorePanel({ compact = false }: { compact?: boolean }) {
             columns={columns}
             data={summary.rules}
             getRowId={(rule) => rule.ruleId}
-            empty={<p className="px-5 py-4 text-label text-muted">尚无带评分的规则运行</p>}
+            empty={<p className="px-5 py-4 text-label text-muted-foreground">尚无带评分的规则运行</p>}
           />
         </>
       ) : null}

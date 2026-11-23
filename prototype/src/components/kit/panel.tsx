@@ -30,7 +30,7 @@ export function PanelHead({
           {title}
           {count !== undefined ? <Count>{count}</Count> : null}
         </h2>
-        {description ? <p className="mt-1 text-label text-muted">{description}</p> : null}
+        {description ? <p className="mt-1 text-label text-muted-foreground">{description}</p> : null}
       </div>
       {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
     </div>
@@ -39,7 +39,7 @@ export function PanelHead({
 
 /** 数量角标：跟在标题后的小方框数字。 */
 export function Count({ children }: { children: ReactNode }) {
-  return <span className="ml-1.5 rounded-chip border border-line bg-wash px-1 text-meta font-medium text-muted">{children}</span>
+  return <span className="ml-1.5 rounded-chip border border-line bg-wash px-1 text-meta font-medium text-muted-foreground">{children}</span>
 }
 
 /** 键值事实表：两列网格，上下细分隔线。 */
@@ -50,7 +50,7 @@ export function Facts({ children, className }: { children: ReactNode; className?
 export function Fact({ label, children }: { label: ReactNode; children: ReactNode }) {
   return (
     <div>
-      <dt className="mb-1 text-meta text-muted">{label}</dt>
+      <dt className="mb-1 text-meta text-muted-foreground">{label}</dt>
       <dd className="m-0 text-body-sm text-ink-soft">{children}</dd>
     </div>
   )
@@ -83,14 +83,14 @@ export function InlineNotice({
 
 /** 范围声明行：列表顶部的浅底口径说明。 */
 export function ScopeNote({ children }: { children: ReactNode }) {
-  return <div className="border-b border-line bg-wash px-[18px] py-2 text-meta text-muted">{children}</div>
+  return <div className="border-b border-line bg-wash px-[18px] py-2 text-meta text-muted-foreground">{children}</div>
 }
 
 export function Subtle({ children, className }: { children: ReactNode; className?: string }) {
-  return <span className={cn('text-label text-muted', className)}>{children}</span>
+  return <span className={cn('text-label text-muted-foreground', className)}>{children}</span>
 }
 
 /** 键盘提示：顶栏搜索与命令面板复用。 */
 export function Kbd({ children }: { children: ReactNode }) {
-  return <kbd className="rounded-chip border border-line bg-canvas px-1 py-px font-sans text-meta text-muted">{children}</kbd>
+  return <kbd className="rounded-chip border border-line bg-canvas px-1 py-px font-sans text-meta text-muted-foreground">{children}</kbd>
 }

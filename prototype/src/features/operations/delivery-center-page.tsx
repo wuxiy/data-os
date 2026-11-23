@@ -140,7 +140,7 @@ export function DeliveryCenterPage() {
       cell: ({ row }) => (
         <div>
           <div className="text-body-sm font-medium text-ink">{row.original.name}</div>
-          <div className="font-mono text-meta text-muted">{row.original.code}</div>
+          <div className="font-mono text-meta text-muted-foreground">{row.original.code}</div>
         </div>
       ),
     }),
@@ -151,8 +151,8 @@ export function DeliveryCenterPage() {
 
   const itemColumns = itemHelper.columns([
     itemHelper.display({ id: 'type', header: '类型', size: 120, cell: ({ row }) => <Badge>{REF_TYPE_LABEL[row.original.refType as DeliveryRefType] ?? row.original.refType}</Badge> }),
-    itemHelper.display({ id: 'ref', header: '引用', cell: ({ row }) => <span className="font-mono text-label text-muted">{row.original.refId}</span> }),
-    itemHelper.display({ id: 'note', header: '备注', size: 200, cell: ({ row }) => <span className="text-label text-muted">{row.original.note || '—'}</span> }),
+    itemHelper.display({ id: 'ref', header: '引用', cell: ({ row }) => <span className="font-mono text-label text-muted-foreground">{row.original.refId}</span> }),
+    itemHelper.display({ id: 'note', header: '备注', size: 200, cell: ({ row }) => <span className="text-label text-muted-foreground">{row.original.note || '—'}</span> }),
     itemHelper.display({
       id: 'actions',
       header: '操作',
@@ -170,8 +170,8 @@ export function DeliveryCenterPage() {
       header: '说明',
       cell: ({ row }) => (
         <div>
-          <div className="text-label text-muted">{row.original.detail}</div>
-          <div className="text-meta text-muted">{row.original.actor} · {formatDateTime(row.original.createdAt)}</div>
+          <div className="text-label text-muted-foreground">{row.original.detail}</div>
+          <div className="text-meta text-muted-foreground">{row.original.actor} · {formatDateTime(row.original.createdAt)}</div>
         </div>
       ),
     }),
@@ -224,12 +224,12 @@ export function DeliveryCenterPage() {
                         <span className="truncate text-body-sm text-ink-soft">{project.name}</span>
                         <Badge tone={toneOf(project.status)}>{STATUS_LABEL[project.status as keyof typeof STATUS_LABEL] ?? project.status}</Badge>
                       </span>
-                      <span className="mt-0.5 block font-mono text-meta text-muted">{project.code}</span>
+                      <span className="mt-0.5 block font-mono text-meta text-muted-foreground">{project.code}</span>
                     </button>
                   </li>
                 )
               })}
-              {projects.length === 0 ? <li className="px-3 py-6 text-center text-label text-muted">{query ? '没有匹配的交付项目。' : '还没有交付项目。'}</li> : null}
+              {projects.length === 0 ? <li className="px-3 py-6 text-center text-label text-muted-foreground">{query ? '没有匹配的交付项目。' : '还没有交付项目。'}</li> : null}
             </ul>
           </Panel>
 
@@ -245,11 +245,11 @@ export function DeliveryCenterPage() {
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <Badge tone={toneOf(current.status)}>{STATUS_LABEL[current.status as keyof typeof STATUS_LABEL] ?? current.status}</Badge>
-                        <span className="font-mono text-meta text-muted">{current.code}</span>
+                        <span className="font-mono text-meta text-muted-foreground">{current.code}</span>
                       </div>
                       <h2 className="mt-1.5 text-subject font-semibold text-ink">{current.name}</h2>
-                      <p className="mt-1 text-label text-muted">{current.scope || '未填写交付范围'} · 负责人 {current.owner} · 目标日 {current.targetDate || '未定'}</p>
-                      {current.acceptedSnapshotId ? <p className="mt-1 text-meta text-muted">验收快照 {current.acceptedSnapshotId.slice(0, 12)}…</p> : null}
+                      <p className="mt-1 text-label text-muted-foreground">{current.scope || '未填写交付范围'} · 负责人 {current.owner} · 目标日 {current.targetDate || '未定'}</p>
+                      {current.acceptedSnapshotId ? <p className="mt-1 text-meta text-muted-foreground">验收快照 {current.acceptedSnapshotId.slice(0, 12)}…</p> : null}
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                       <Button size="sm" onClick={() => { setItemError(null); setItemOpen(true) }} disabled={current.status === 'ACCEPTED' || current.status === 'ARCHIVED'}>引用交付对象</Button>
@@ -284,7 +284,7 @@ export function DeliveryCenterPage() {
                           columns={itemColumns}
                           data={detail.items}
                           getRowId={(item) => item.id}
-                          empty={<p className="py-2 text-label text-muted">还没有引用交付对象。</p>}
+                          empty={<p className="py-2 text-label text-muted-foreground">还没有引用交付对象。</p>}
                         />
                       </>
                     ) : null}
@@ -298,17 +298,17 @@ export function DeliveryCenterPage() {
                       <ol className="m-0 list-none px-4 pb-4">
                         {detail.snapshots.map((snap) => (
                           <li key={snap.id} className="border-b border-line-soft py-1.5 text-label last:border-b-0">
-                            <span className="font-mono text-meta text-muted">{snap.id.slice(0, 12)}…</span>
-                            <span className="ml-2 text-muted">checksum {snap.checksum.slice(0, 10)}… · {formatDateTime(snap.createdAt)} · {snap.createdBy}</span>
+                            <span className="font-mono text-meta text-muted-foreground">{snap.id.slice(0, 12)}…</span>
+                            <span className="ml-2 text-muted-foreground">checksum {snap.checksum.slice(0, 10)}… · {formatDateTime(snap.createdAt)} · {snap.createdBy}</span>
                           </li>
                         ))}
-                        {detail.snapshots.length === 0 ? <li className="py-2 text-label text-muted">还没有证据快照。</li> : null}
+                        {detail.snapshots.length === 0 ? <li className="py-2 text-label text-muted-foreground">还没有证据快照。</li> : null}
                       </ol>
                     </Panel>
                     <Panel>
                       <PanelHead title="交付事件" count={detail.events.length} description="创建、引用、快照、提交与验收留痕" />
                       <div className="px-4 pb-4">
-                        <DataTable columns={eventColumns} data={detail.events} getRowId={(event, index) => `${event.eventType}-${event.createdAt}-${index}`} empty={<p className="py-2 text-label text-muted">还没有事件。</p>} />
+                        <DataTable columns={eventColumns} data={detail.events} getRowId={(event, index) => `${event.eventType}-${event.createdAt}-${index}`} empty={<p className="py-2 text-label text-muted-foreground">还没有事件。</p>} />
                       </div>
                     </Panel>
                   </div>

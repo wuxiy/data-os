@@ -137,7 +137,7 @@ export function DataTable<TData extends RowData>({
     <div className={cn('min-w-0', className)}>
       <div className="overflow-x-auto">
         <table className="w-full border-collapse text-left text-body-sm whitespace-nowrap">
-          <thead className="bg-wash text-muted">
+          <thead className="bg-wash text-muted-foreground">
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (

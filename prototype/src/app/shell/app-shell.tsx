@@ -130,7 +130,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               type="button"
               aria-label="打开主导航"
               onClick={() => setMobileOpen(true)}
-              className="inline-flex size-8 items-center justify-center rounded-control text-muted hover:bg-wash lg:hidden"
+              className="inline-flex size-8 items-center justify-center rounded-control text-muted-foreground hover:bg-wash lg:hidden"
             >
               <Menu size={18} />
             </button>
@@ -140,7 +140,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               aria-expanded={!collapsed}
               title="收起 / 展开导航"
               onClick={() => setCollapsed((value) => !value)}
-              className="hidden size-8 items-center justify-center rounded-control text-muted hover:bg-wash lg:inline-flex"
+              className="hidden size-8 items-center justify-center rounded-control text-muted-foreground hover:bg-wash lg:inline-flex"
             >
               {collapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}
             </button>
@@ -149,7 +149,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               type="button"
               onClick={() => setPaletteOpen(true)}
               aria-label="搜索页面，Command K"
-              className="flex items-center gap-2.5 rounded-control border border-line bg-paper px-2.5 py-1.5 text-label text-muted hover:border-line-strong"
+              className="flex items-center gap-2.5 rounded-control border border-line bg-paper px-2.5 py-1.5 text-label text-muted-foreground hover:border-line-strong"
             >
               <Search size={14} />
               <span className="hidden sm:inline">搜索页面</span>
@@ -166,7 +166,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     key={tab.path}
                     className={cn(
                       'flex shrink-0 items-center gap-1 rounded-chip px-1 pl-2.5 text-label',
-                      current ? 'bg-blue-soft font-medium text-blue' : 'text-muted',
+                      current ? 'bg-blue-soft font-medium text-blue' : 'text-muted-foreground',
                     )}
                   >
                     <button
@@ -196,24 +196,24 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="flex shrink-0 items-center gap-2.5">
             <Popover
               align="end"
-              trigger={<button type="button" aria-label="使用说明" title="使用说明" className="inline-flex size-8 items-center justify-center rounded-control text-muted hover:bg-wash"><CircleHelp size={16} /></button>}
+              trigger={<button type="button" aria-label="使用说明" title="使用说明" className="inline-flex size-8 items-center justify-center rounded-control text-muted-foreground hover:bg-wash"><CircleHelp size={16} /></button>}
             >
               <p className="px-1 pb-1 text-label leading-relaxed text-ink-soft">
                 顶栏页签保留本会话打开过的页面。⌘/Ctrl K 可搜索页面；各工作区的检索、筛选与对象深链保存在地址栏。
               </p>
-              <p className="px-1 pt-1 text-meta leading-relaxed text-muted">
+              <p className="px-1 pt-1 text-meta leading-relaxed text-muted-foreground">
                 页面数据来自真实服务；演示数据只在显式演示构建中展示，不会补位真实失败。
               </p>
             </Popover>
             <Popover
               align="end"
-              trigger={<button type="button" aria-label="查看待办入口" title="待办入口" className="inline-flex size-8 items-center justify-center rounded-control text-muted hover:bg-wash"><Bell size={16} /></button>}
+              trigger={<button type="button" aria-label="查看待办入口" title="待办入口" className="inline-flex size-8 items-center justify-center rounded-control text-muted-foreground hover:bg-wash"><Bell size={16} /></button>}
             >
               <strong className="block px-1 pb-1.5 text-label font-semibold text-ink">待办入口</strong>
-              <button type="button" onClick={() => go('/governance/quality')} className="flex w-full items-center gap-2 rounded-chip px-1 py-1.5 text-left text-label hover:bg-wash">质量问题待闭环<span className="ml-auto text-meta text-muted">质量工作台</span></button>
-              <button type="button" onClick={() => go('/mpi/review')} className="flex w-full items-center gap-2 rounded-chip px-1 py-1.5 text-left text-label hover:bg-wash">主索引人工复核<span className="ml-auto text-meta text-muted">复核队列</span></button>
-              <button type="button" onClick={() => go('/operations-center')} className="flex w-full items-center gap-2 rounded-chip px-1 py-1.5 text-left text-label hover:bg-wash">跨域待办<span className="ml-auto text-meta text-muted">运营中心</span></button>
-              <p className="px-1 pt-1.5 text-meta text-muted">此处只链接已有待办，不新增已读/未读中心。</p>
+              <button type="button" onClick={() => go('/governance/quality')} className="flex w-full items-center gap-2 rounded-chip px-1 py-1.5 text-left text-label hover:bg-wash">质量问题待闭环<span className="ml-auto text-meta text-muted-foreground">质量工作台</span></button>
+              <button type="button" onClick={() => go('/mpi/review')} className="flex w-full items-center gap-2 rounded-chip px-1 py-1.5 text-left text-label hover:bg-wash">主索引人工复核<span className="ml-auto text-meta text-muted-foreground">复核队列</span></button>
+              <button type="button" onClick={() => go('/operations-center')} className="flex w-full items-center gap-2 rounded-chip px-1 py-1.5 text-left text-label hover:bg-wash">跨域待办<span className="ml-auto text-meta text-muted-foreground">运营中心</span></button>
+              <p className="px-1 pt-1.5 text-meta text-muted-foreground">此处只链接已有待办，不新增已读/未读中心。</p>
             </Popover>
             <Popover
               align="end"
@@ -225,7 +225,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             >
               <div className="px-1 pb-2">
                 <strong className="block text-body-sm font-medium text-ink">{snapshot.displayName ?? '当前会话'}</strong>
-                <span className="mt-0.5 block text-meta text-muted">{snapshot.status === 'disabled' ? '本地直连模式' : '统一身份认证'}</span>
+                <span className="mt-0.5 block text-meta text-muted-foreground">{snapshot.status === 'disabled' ? '本地直连模式' : '统一身份认证'}</span>
               </div>
               {logout ? (
                 <button type="button" onClick={logout} className="flex w-full items-center gap-2 rounded-chip px-1 py-1.5 text-left text-label text-red hover:bg-red-soft">

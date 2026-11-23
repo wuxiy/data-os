@@ -131,7 +131,7 @@ export function ServiceEditorPage() {
             </FormField>
             {error ? <p role="alert" className="mb-3 text-body-sm leading-relaxed text-red">{error}</p> : null}
             <div className="flex items-center justify-between gap-3 border-t border-line pt-4">
-              <span className="text-meta text-muted">创建后为草稿；发布前可继续调整</span>
+              <span className="text-meta text-muted-foreground">创建后为草稿；发布前可继续调整</span>
               <div className="flex items-center gap-2">
                 <Button onClick={() => navigate('/data-services')} disabled={create.isPending}>取消</Button>
                 <Button variant="primary" disabled={create.isPending} onClick={submit}>

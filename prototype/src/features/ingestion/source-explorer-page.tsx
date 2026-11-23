@@ -158,7 +158,7 @@ function ExplorerWorkspace({ source }: { source: SourceApiItem }) {
   return (
     <div className="grid grid-cols-[220px_minmax(0,1fr)] gap-0 overflow-clip rounded-panel border border-line bg-paper max-[1100px]:grid-cols-1">
       <aside className="border-r border-line bg-[#fdfdfe] px-3 py-4 max-[1100px]:border-r-0 max-[1100px]:border-b">
-        <h2 className="px-2 pb-3 text-label font-medium text-muted">库与表</h2>
+        <h2 className="px-2 pb-3 text-label font-medium text-muted-foreground">库与表</h2>
         {catalogsRequest.isPending ? <LoadingInline>正在读取库清单…</LoadingInline> : null}
         {catalogsRequest.isError ? (
           <div role="alert" className="rounded-control border border-red-line bg-red-soft px-2.5 py-2 text-label text-red">
@@ -167,7 +167,7 @@ function ExplorerWorkspace({ source }: { source: SourceApiItem }) {
           </div>
         ) : null}
         {(catalogsRequest.data?.catalogs.length ?? 0) === 0 && catalogsRequest.isSuccess ? (
-          <p className="px-2 text-label text-muted">该数据源未返回任何库，请确认连接地址与账号权限。</p>
+          <p className="px-2 text-label text-muted-foreground">该数据源未返回任何库，请确认连接地址与账号权限。</p>
         ) : null}
         {catalogsRequest.data?.truncated ? <p className="px-2 pb-2 text-meta text-amber">库数量较多，仅显示前 200 个</p> : null}
         <ul className="m-0 list-none p-0">
@@ -187,7 +187,7 @@ function ExplorerWorkspace({ source }: { source: SourceApiItem }) {
                 </button>
                 {expanded ? (
                   <div className="mb-1 ml-5 border-l border-line pl-2">
-                    {tablesRequest.isPending ? <p className="px-1 py-1 text-meta text-muted">正在读取表清单…</p> : null}
+                    {tablesRequest.isPending ? <p className="px-1 py-1 text-meta text-muted-foreground">正在读取表清单…</p> : null}
                     {tablesRequest.isError ? <p className="px-1 py-1 text-meta text-red">表清单读取失败</p> : null}
                     {(tablesRequest.data?.tables ?? []).map((table) => {
                       const active = selectedTable?.catalog === catalog && selectedTable.table === table.name
@@ -204,7 +204,7 @@ function ExplorerWorkspace({ source }: { source: SourceApiItem }) {
                         </button>
                       )
                     })}
-                    {(tablesRequest.data?.tables.length ?? 0) === 0 && !tablesRequest.isPending ? <p className="px-1 py-1 text-meta text-muted">该库没有可浏览的表</p> : null}
+                    {(tablesRequest.data?.tables.length ?? 0) === 0 && !tablesRequest.isPending ? <p className="px-1 py-1 text-meta text-muted-foreground">该库没有可浏览的表</p> : null}
                   </div>
                 ) : null}
               </li>
@@ -218,7 +218,7 @@ function ExplorerWorkspace({ source }: { source: SourceApiItem }) {
         {selectedTable ? (
           <div className="border-b border-line">
             <div className="flex items-center gap-2 px-4 pt-3 text-label text-ink-soft">
-              <Table2 size={13} /><strong>{selectedTable.table}</strong><span className="text-muted">字段清单</span>
+              <Table2 size={13} /><strong>{selectedTable.table}</strong><span className="text-muted-foreground">字段清单</span>
             </div>
             {columnsRequest.isPending ? <div className="px-4 py-3"><LoadingInline>正在读取字段…</LoadingInline></div> : null}
             {columnsRequest.isError ? <p className="px-4 py-3 text-label text-red">字段清单读取失败</p> : null}
@@ -232,13 +232,13 @@ function ExplorerWorkspace({ source }: { source: SourceApiItem }) {
             ) : null}
           </div>
         ) : (
-          <p className="px-4 py-4 text-label text-muted">从左侧选择一张表查看字段清单；也可以直接在下方执行只读查询。</p>
+          <p className="px-4 py-4 text-label text-muted-foreground">从左侧选择一张表查看字段清单；也可以直接在下方执行只读查询。</p>
         )}
 
         <div className="px-4 py-4">
           <div className="mb-2 flex items-center gap-2 text-label text-ink-soft">
-            <Play size={13} /><strong>SQL 工作台</strong><span className="text-muted">只读 · 单条查询 · 行数上限 200</span>
-            {selectedTable ? <span className="ml-auto text-meta text-muted">当前库：{selectedTable.catalog}</span> : null}
+            <Play size={13} /><strong>SQL 工作台</strong><span className="text-muted-foreground">只读 · 单条查询 · 行数上限 200</span>
+            {selectedTable ? <span className="ml-auto text-meta text-muted-foreground">当前库：{selectedTable.catalog}</span> : null}
           </div>
           <CodeTextarea
             aria-label="SQL 查询语句"
@@ -252,16 +252,16 @@ function ExplorerWorkspace({ source }: { source: SourceApiItem }) {
             <Button size="sm" variant="primary" disabled={!sql.trim() || queryMutation.isPending} onClick={() => queryMutation.mutate()}>
               <Play size={13} />{queryMutation.isPending ? '查询中…' : '执行查询'}
             </Button>
-            <span className="text-meta text-muted">使用只读账号；结果不写入任何业务表。</span>
+            <span className="text-meta text-muted-foreground">使用只读账号；结果不写入任何业务表。</span>
           </div>
           {queryMutation.isError ? <p role="alert" className="mt-2 text-body-sm text-red">{errorMessage(queryMutation.error, '查询执行失败')}</p> : null}
           {result ? (
             <div className="mt-3">
               {result.truncated ? <p role="status" className="mb-2 text-meta text-amber">结果超出返回上限，已截断显示前 {result.rows.length} 行。</p> : null}
-              {result.rows.length === 0 ? <p className="text-label text-muted">查询没有返回数据行。</p> : (
+              {result.rows.length === 0 ? <p className="text-label text-muted-foreground">查询没有返回数据行。</p> : (
                 <div className="overflow-x-auto rounded-control border border-line">
                   <table className="w-full border-collapse text-left text-label">
-                    <thead className="bg-wash text-muted">
+                    <thead className="bg-wash text-muted-foreground">
                       <tr>{resultColumns.map((column) => <th key={column.id} className="border-b border-line px-3 py-2 font-normal">{column.header}</th>)}</tr>
                     </thead>
                     <tbody>

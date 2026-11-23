@@ -179,7 +179,7 @@ export function StandardsPage() {
   }
 
   const listColumns = listHelper.columns([
-    listHelper.display({ id: 'code', header: '代码', size: 160, cell: ({ row }) => <code className="font-mono text-label text-muted">{row.original.code}</code> }),
+    listHelper.display({ id: 'code', header: '代码', size: 160, cell: ({ row }) => <code className="font-mono text-label text-muted-foreground">{row.original.code}</code> }),
     listHelper.accessor('name', { header: '名称' }),
     listHelper.display({ id: 'owner', header: '负责人', size: 110, cell: ({ row }) => row.original.owner || '—' }),
     listHelper.display({ id: 'version', header: '最新版本', size: 130, cell: ({ row }) => `v${row.original.latestVersion.versionNo} / 共 ${row.original.versionCount} 版` }),
@@ -198,7 +198,7 @@ export function StandardsPage() {
     elementHelper.display({
       id: 'element',
       header: '数据元',
-      cell: ({ row }) => <div><code className="font-mono text-label text-muted">{row.original.code}</code><div className="text-meta text-muted">{row.original.name}</div></div>,
+      cell: ({ row }) => <div><code className="font-mono text-label text-muted-foreground">{row.original.code}</code><div className="text-meta text-muted-foreground">{row.original.name}</div></div>,
     }),
     elementHelper.accessor('dataType', { header: '类型', size: 100 }),
     elementHelper.display({ id: 'required', header: '必填', size: 70, cell: ({ row }) => row.original.required ? '必填' : '可选' }),
@@ -208,12 +208,12 @@ export function StandardsPage() {
       size: 100,
       cell: ({ row }) => <Badge tone={severityTone(row.original.sensitivity) === 'danger' ? 'danger' : severityTone(row.original.sensitivity) === 'warning' ? 'warn' : 'neutral'}>{sensitivityLabel(row.original.sensitivity)}</Badge>,
     }),
-    elementHelper.display({ id: 'definition', header: '定义', cell: ({ row }) => <span className="text-label text-muted">{row.original.definition || '—'}</span> }),
+    elementHelper.display({ id: 'definition', header: '定义', cell: ({ row }) => <span className="text-label text-muted-foreground">{row.original.definition || '—'}</span> }),
     elementHelper.display({
       id: 'values',
       header: '值域',
       cell: ({ row }) => row.original.dataType === 'CODE'
-        ? <span className="flex flex-wrap gap-1">{row.original.values.map((value) => <span key={value.code} className="rounded-chip bg-wash px-1.5 py-0.5 text-meta text-muted">{value.code} {value.displayName}</span>)}</span>
+        ? <span className="flex flex-wrap gap-1">{row.original.values.map((value) => <span key={value.code} className="rounded-chip bg-wash px-1.5 py-0.5 text-meta text-muted-foreground">{value.code} {value.displayName}</span>)}</span>
         : '—',
     }),
   ])
@@ -275,7 +275,7 @@ export function StandardsPage() {
               actions={<Button size="sm" disabled={busy} onClick={() => createDraft.mutate()}><GitCompareArrows size={14} />基于当前版本新建草稿</Button>}
             />
             <div className="px-[18px] pb-3">
-              <div className="flex flex-wrap items-center gap-2 text-label text-muted">
+              <div className="flex flex-wrap items-center gap-2 text-label text-muted-foreground">
                 <strong className="text-body-sm text-ink-soft">当前查看 v{version.versionNo}</strong>
                 <Badge tone={statusTone(version.status)}>{STATUS_LABEL[version.status]}</Badge>
                 <span>{version.elements.length} 个数据元 · {version.status === 'DRAFT' ? '修改后提交评审，发布后供资产与映射引用' : version.status === 'IN_REVIEW' ? '评审通过后由管理员发布' : version.status === 'PUBLISHED' ? '已发布版本只读，变更请新建草稿' : '该版本已停用，保留历史追溯'}</span>
@@ -291,7 +291,7 @@ export function StandardsPage() {
                   >
                     <strong>v{item.versionNo}</strong>
                     <Badge tone={statusTone(item.status)}>{STATUS_LABEL[item.status]}</Badge>
-                    <span className="text-meta text-muted">{item.syncStatus === 'SYNCED' ? '术语已投影' : item.status === 'PUBLISHED' ? '投影待同步' : ''}</span>
+                    <span className="text-meta text-muted-foreground">{item.syncStatus === 'SYNCED' ? '术语已投影' : item.status === 'PUBLISHED' ? '投影待同步' : ''}</span>
                   </button>
                 ))}
               </div>
@@ -310,7 +310,7 @@ export function StandardsPage() {
               </div>
 
               {impactOpen ? (
-                <div className="mt-3 rounded-control border border-line bg-wash px-3 py-2.5 text-label text-muted">
+                <div className="mt-3 rounded-control border border-line bg-wash px-3 py-2.5 text-label text-muted-foreground">
                   {impactRequest.isPending ? <LoadingInline>正在读取影响范围…</LoadingInline> : null}
                   {impactRequest.data ? (
                     <>
@@ -350,12 +350,12 @@ export function StandardsPage() {
                   columns={elementColumns}
                   data={version.elements}
                   getRowId={(element) => element.id}
-                  empty={<p className="px-1 py-3 text-label text-muted">该版本暂无数据元。</p>}
+                  empty={<p className="px-1 py-3 text-label text-muted-foreground">该版本暂无数据元。</p>}
                 />
               </div>
 
               <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-line pt-3">
-                <span className="text-label text-muted">版本对比：与</span>
+                <span className="text-label text-muted-foreground">版本对比：与</span>
                 <NativeSelect
                   aria-label="选择对比版本"
                   className="w-[200px]"
@@ -399,13 +399,13 @@ export function StandardsPage() {
                 <li key={event.id} className="border-b border-line-soft py-2 last:border-b-0">
                   <div className="flex items-center justify-between gap-2">
                     <strong className="text-label font-medium text-ink-soft">{standardEventLabel(event.eventType)}</strong>
-                    <span className="text-meta text-muted">{actorLabel(event.actor)}</span>
+                    <span className="text-meta text-muted-foreground">{actorLabel(event.actor)}</span>
                   </div>
-                  <p className="mt-0.5 text-meta leading-relaxed text-muted">{standardEventDetail(event.detail)}</p>
-                  <small className="text-meta text-muted">{formatDateTime(event.createdAt)}</small>
+                  <p className="mt-0.5 text-meta leading-relaxed text-muted-foreground">{standardEventDetail(event.detail)}</p>
+                  <small className="text-meta text-muted-foreground">{formatDateTime(event.createdAt)}</small>
                 </li>
               ))}
-              {detail.events.length === 0 ? <li className="py-4 text-center text-label text-muted">暂无事件。</li> : null}
+              {detail.events.length === 0 ? <li className="py-4 text-center text-label text-muted-foreground">暂无事件。</li> : null}
             </ol>
           </Panel>
         </div>
@@ -441,7 +441,7 @@ export function StandardsPage() {
             </Button>
           </div>
           {importReport ? (
-            <div className="mt-3 rounded-control border border-line bg-wash px-3 py-2.5 text-label text-muted">
+            <div className="mt-3 rounded-control border border-line bg-wash px-3 py-2.5 text-label text-muted-foreground">
               <strong className="block text-body-sm text-ink-soft">{importReport.created ? '导入结果' : '预检报告'} · {importReport.standardCode || '（空代码）'}</strong>
               <p className="mt-1">数据元 {importReport.elementCount} 个 · 值域 {importReport.valueCount} 条 · 问题 {importReport.problems.length} 项</p>
               {importReport.problems.length > 0

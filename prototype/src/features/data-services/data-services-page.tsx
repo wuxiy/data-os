@@ -108,13 +108,13 @@ export function DataServicesPage() {
       cell: ({ row }) => (
         <div>
           <div className="text-body-sm font-medium text-ink">{row.original.name}</div>
-          <div className="font-mono text-meta text-muted">{row.original.code} · v{row.original.versionSn}</div>
+          <div className="font-mono text-meta text-muted-foreground">{row.original.code} · v{row.original.versionSn}</div>
         </div>
       ),
     }),
     serviceHelper.display({ id: 'status', header: '状态', size: 90, cell: ({ row }) => <Badge tone={statusTone(row.original.status)}>{dataServiceStatusLabel[row.original.status] ?? row.original.status}</Badge> }),
     serviceHelper.display({ id: 'owner', header: '负责人', size: 110, cell: ({ row }) => row.original.owner }),
-    serviceHelper.display({ id: 'limits', header: '限额', size: 130, cell: ({ row }) => <span className="text-label text-muted">{row.original.maxRows} 行 / {row.original.timeoutSeconds}s</span> }),
+    serviceHelper.display({ id: 'limits', header: '限额', size: 130, cell: ({ row }) => <span className="text-label text-muted-foreground">{row.original.maxRows} 行 / {row.original.timeoutSeconds}s</span> }),
     serviceHelper.display({ id: 'updated', header: '更新', size: 130, cell: ({ row }) => <span className="text-label text-faint">{formatDateTime(row.original.updatedAt)}</span> }),
   ])
 
@@ -124,7 +124,7 @@ export function DataServicesPage() {
     callHelper.display({ id: 'status', header: 'HTTP', size: 90, cell: ({ row }) => <Badge tone={row.original.statusCode < 400 ? 'success' : 'danger'}>{row.original.statusCode}</Badge> }),
     callHelper.display({ id: 'rows', header: '行数', size: 90, cell: ({ row }) => <span className="tabular-nums text-label">{row.original.rowCount}{row.original.truncated ? '（截断）' : ''}</span> }),
     callHelper.display({ id: 'elapsed', header: '耗时', size: 90, cell: ({ row }) => <span className="tabular-nums text-label">{row.original.elapsedMs} ms</span> }),
-    callHelper.display({ id: 'key', header: 'Key', size: 140, cell: ({ row }) => <span className="font-mono text-meta text-muted">{row.original.keyId.slice(0, 8)}</span> }),
+    callHelper.display({ id: 'key', header: 'Key', size: 140, cell: ({ row }) => <span className="font-mono text-meta text-muted-foreground">{row.original.keyId.slice(0, 8)}</span> }),
   ])
 
   const exportHelper = listColumnHelper<DataServiceExportItem>()
@@ -141,13 +141,13 @@ export function DataServicesPage() {
     contractHelper.display({ id: 'at', header: '时间', size: 150, cell: ({ row }) => <span className="text-label">{formatDateTime(row.original.occurredAt)}</span> }),
     contractHelper.display({ id: 'type', header: '变更', size: 110, cell: ({ row }) => <Badge tone={row.original.changeType === 'DEPRECATED' ? 'neutral' : 'blue'}>{row.original.changeType}</Badge> }),
     contractHelper.display({ id: 'version', header: '版本', size: 130, cell: ({ row }) => <span className="font-mono text-label">{row.original.fromVersion} → {row.original.toVersion}</span> }),
-    contractHelper.display({ id: 'diff', header: '差异', cell: ({ row }) => <span className="text-label text-muted">{row.original.diff || '—'}</span> }),
+    contractHelper.display({ id: 'diff', header: '差异', cell: ({ row }) => <span className="text-label text-muted-foreground">{row.original.diff || '—'}</span> }),
   ])
 
   const subscriptionHelper = listColumnHelper<DataServiceSubscriptionItem>()
   const subscriptionColumns = subscriptionHelper.columns([
     subscriptionHelper.display({ id: 'caller', header: '订阅方', size: 160, cell: ({ row }) => row.original.callerName }),
-    subscriptionHelper.display({ id: 'webhook', header: 'Webhook', cell: ({ row }) => <span className="font-mono text-meta text-muted">{row.original.webhookUrl}</span> }),
+    subscriptionHelper.display({ id: 'webhook', header: 'Webhook', cell: ({ row }) => <span className="font-mono text-meta text-muted-foreground">{row.original.webhookUrl}</span> }),
     subscriptionHelper.display({ id: 'status', header: '状态', size: 90, cell: ({ row }) => <Badge tone={row.original.status === 'ACTIVE' ? 'success' : 'neutral'}>{row.original.status === 'ACTIVE' ? '生效' : '已撤销'}</Badge> }),
     subscriptionHelper.display({ id: 'at', header: '创建', size: 130, cell: ({ row }) => <span className="text-label text-faint">{formatDateTime(row.original.createdAt)}</span> }),
   ])
@@ -203,12 +203,12 @@ export function DataServicesPage() {
                         <span className="truncate text-body-sm text-ink-soft">{service.name}</span>
                         <Badge tone={statusTone(service.status)}>{dataServiceStatusLabel[service.status] ?? service.status}</Badge>
                       </span>
-                      <span className="mt-0.5 block font-mono text-meta text-muted">{service.code} · v{service.versionSn}</span>
+                      <span className="mt-0.5 block font-mono text-meta text-muted-foreground">{service.code} · v{service.versionSn}</span>
                     </button>
                   </li>
                 )
               })}
-              {visible.length === 0 ? <li className="px-3 py-6 text-center text-label text-muted">当前过滤下没有数据服务。</li> : null}
+              {visible.length === 0 ? <li className="px-3 py-6 text-center text-label text-muted-foreground">当前过滤下没有数据服务。</li> : null}
             </ul>
             <div className="border-t border-line px-2">
               <TablePagination compact page={currentPage} pageSize={PAGE_SIZE} total={visible.length} onPageChange={setPage} label="数据服务分页" className="border-t-0 px-1" />
@@ -224,10 +224,10 @@ export function DataServicesPage() {
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <Badge tone={statusTone(selected.status)}>{dataServiceStatusLabel[selected.status] ?? selected.status}</Badge>
-                      <span className="font-mono text-meta text-muted">{selected.code} · v{selected.versionSn}</span>
+                      <span className="font-mono text-meta text-muted-foreground">{selected.code} · v{selected.versionSn}</span>
                     </div>
                     <h2 className="mt-1.5 text-subject font-semibold text-ink">{selected.name}</h2>
-                    <p className="mt-1 text-label text-muted">{selected.description || '暂无服务描述。'} · 负责人 {selected.owner}</p>
+                    <p className="mt-1 text-label text-muted-foreground">{selected.description || '暂无服务描述。'} · 负责人 {selected.owner}</p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     {selected.status === 'DRAFT' ? <Button size="sm" variant="primary" disabled={publish.isPending} onClick={() => publish.mutate(selected)}>发布</Button> : null}
@@ -336,15 +336,15 @@ function KeyPanel({ service }: { service: DataService }) {
 
       <div className="mb-3 flex flex-wrap items-end gap-2 rounded-control border border-line bg-wash px-3 py-2.5">
         <label className="min-w-[150px]">
-          <span className="mb-1 block text-meta text-muted">调用方名称</span>
+          <span className="mb-1 block text-meta text-muted-foreground">调用方名称</span>
           <input aria-label="调用方名称" value={callerName} onChange={(event) => setCallerName(event.target.value)} className="min-h-[32px] w-full rounded-control border border-line-strong bg-paper px-2 text-label" placeholder="例如：医联体平台" />
         </label>
         <label className="min-w-[110px]">
-          <span className="mb-1 block text-meta text-muted">每日配额</span>
+          <span className="mb-1 block text-meta text-muted-foreground">每日配额</span>
           <input aria-label="每日配额" type="number" min={1} value={quota} onChange={(event) => setQuota(event.target.value)} className="min-h-[32px] w-full rounded-control border border-line-strong bg-paper px-2 text-label" />
         </label>
         <label className="min-w-[150px]">
-          <span className="mb-1 block text-meta text-muted">允许机构（* 或逗号分隔）</span>
+          <span className="mb-1 block text-meta text-muted-foreground">允许机构（* 或逗号分隔）</span>
           <input aria-label="允许机构" value={hospitals} onChange={(event) => setHospitals(event.target.value)} className="min-h-[32px] w-full rounded-control border border-line-strong bg-paper px-2 text-label" />
         </label>
         <Button size="sm" variant="primary" disabled={!callerName.trim() || issue.isPending} onClick={() => issue.mutate()}>
@@ -355,7 +355,7 @@ function KeyPanel({ service }: { service: DataService }) {
       {detailRequest.isPending ? <Skeleton rows={3} /> : null}
       {detailRequest.isError ? <p className="text-label text-red">Key 清单读取失败</p> : null}
       <table className="w-full border-collapse text-left text-label">
-        <thead className="bg-wash text-muted">
+        <thead className="bg-wash text-muted-foreground">
           <tr>
             <th className="h-9 border-y border-line px-3 font-normal">调用方</th>
             <th className="h-9 border-y border-line px-3 font-normal">Key 前缀</th>
@@ -380,7 +380,7 @@ function KeyPanel({ service }: { service: DataService }) {
           ))}
         </tbody>
       </table>
-      {keys.length === 0 && detailRequest.isSuccess ? <p className="py-3 text-label text-muted">还没有发放过 Key。</p> : null}
+      {keys.length === 0 && detailRequest.isSuccess ? <p className="py-3 text-label text-muted-foreground">还没有发放过 Key。</p> : null}
 
       <Confirm
         open={revokeTarget !== null}
@@ -400,11 +400,11 @@ function KeyPanel({ service }: { service: DataService }) {
 function DefinitionFacts({ service }: { service: DataService }) {
   return (
     <dl className="grid grid-cols-4 gap-4 text-label max-[1100px]:grid-cols-2">
-      <div><dt className="text-meta text-muted">行数上限</dt><dd className="m-0 text-ink-soft">{service.maxRows} 行</dd></div>
-      <div><dt className="text-meta text-muted">超时</dt><dd className="m-0 text-ink-soft">{service.timeoutSeconds} 秒</dd></div>
-      <div><dt className="text-meta text-muted">参数契约</dt><dd className="m-0 truncate font-mono text-meta text-muted" title={service.parametersJson}>{service.parametersJson}</dd></div>
-      <div><dt className="text-meta text-muted">列契约</dt><dd className="m-0 truncate font-mono text-meta text-muted" title={service.columnsJson}>{service.columnsJson}</dd></div>
-      <div className="col-span-4 max-[1100px]:col-span-2"><dt className="text-meta text-muted">SQL 模板</dt><dd className="m-0 whitespace-pre-wrap font-mono text-meta text-ink-soft">{service.sqlTemplate}</dd></div>
+      <div><dt className="text-meta text-muted-foreground">行数上限</dt><dd className="m-0 text-ink-soft">{service.maxRows} 行</dd></div>
+      <div><dt className="text-meta text-muted-foreground">超时</dt><dd className="m-0 text-ink-soft">{service.timeoutSeconds} 秒</dd></div>
+      <div><dt className="text-meta text-muted-foreground">参数契约</dt><dd className="m-0 truncate font-mono text-meta text-muted-foreground" title={service.parametersJson}>{service.parametersJson}</dd></div>
+      <div><dt className="text-meta text-muted-foreground">列契约</dt><dd className="m-0 truncate font-mono text-meta text-muted-foreground" title={service.columnsJson}>{service.columnsJson}</dd></div>
+      <div className="col-span-4 max-[1100px]:col-span-2"><dt className="text-meta text-muted-foreground">SQL 模板</dt><dd className="m-0 whitespace-pre-wrap font-mono text-meta text-ink-soft">{service.sqlTemplate}</dd></div>
     </dl>
   )
 }

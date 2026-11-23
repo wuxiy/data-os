@@ -37,13 +37,13 @@ export function ResponsibilitySheet({
     >
       <SheetBody>
         <InlineNotice icon={<Shield />}>以下字段来自治理问题记录；数据集编号不等同于资产编号，未提供的标识不作推断。</InlineNotice>
-        <p className="mt-3 text-label text-muted">问题记录更新于 {updatedAt ? formatDateTime(updatedAt) : '未提供'}</p>
+        <p className="mt-3 text-label text-muted-foreground">问题记录更新于 {updatedAt ? formatDateTime(updatedAt) : '未提供'}</p>
         <ol className="mt-4 ml-2 list-none border-l border-line-strong p-0">
           {nodes.map((node, index) => (
             <li key={node.key + index} className="relative pb-5 pl-7 last:pb-0">
               <span className="absolute top-0 -left-[13px] flex size-[26px] items-center justify-center rounded-chip border border-[#dee6f3] bg-[#f5f8fd] text-blue">{node.icon}</span>
               <strong className="block text-body-sm font-medium text-ink-soft">{node.title}</strong>
-              <small className="mt-0.5 block break-all font-mono text-label text-muted">{node.key}: {node.value}</small>
+              <small className="mt-0.5 block break-all font-mono text-label text-muted-foreground">{node.key}: {node.value}</small>
             </li>
           ))}
         </ol>

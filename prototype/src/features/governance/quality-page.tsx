@@ -326,7 +326,7 @@ export function QualityPage() {
       cell: ({ row }) => (
         <div>
           <div className="font-mono text-label text-ink">{row.original.ruleId}</div>
-          <div className="mt-0.5 text-meta text-muted">{QUALITY_RULE_TYPE_LABELS[row.original.ruleType] ?? row.original.ruleType}{row.original.targetColumn ? ` · ${row.original.targetColumn}` : ''}</div>
+          <div className="mt-0.5 text-meta text-muted-foreground">{QUALITY_RULE_TYPE_LABELS[row.original.ruleType] ?? row.original.ruleType}{row.original.targetColumn ? ` · ${row.original.targetColumn}` : ''}</div>
         </div>
       ),
     }),
@@ -395,7 +395,7 @@ export function QualityPage() {
           <Panel className="flex flex-col">
             <div className="flex items-center justify-between px-[18px] pt-4 pb-2">
               <h2 className="text-title font-semibold">问题队列<Count>{openIssues.length}</Count></h2>
-              <span className="text-meta text-muted">按 SLA 排序</span>
+              <span className="text-meta text-muted-foreground">按 SLA 排序</span>
             </div>
             <div className="px-[18px] pb-2">
               <SearchField
@@ -412,14 +412,14 @@ export function QualityPage() {
                   type="button"
                   aria-pressed={statusFilter === value}
                   onClick={() => { setStatusFilter(value); setPage(0) }}
-                  className={`rounded-chip border px-1.5 py-0.5 text-label ${statusFilter === value ? 'border-blue-line bg-blue-soft text-blue' : 'border-line bg-paper text-muted hover:bg-wash'}`}
+                  className={`rounded-chip border px-1.5 py-0.5 text-label ${statusFilter === value ? 'border-blue-line bg-blue-soft text-blue' : 'border-line bg-paper text-muted-foreground hover:bg-wash'}`}
                 >
                   {label}
                 </button>
               ))}
-              {openIssues.length > 0 ? <button type="button" onClick={() => setBatchOpen(true)} className="rounded-chip border border-line bg-paper px-1.5 py-0.5 text-label text-muted hover:bg-wash">批量提醒</button> : null}
+              {openIssues.length > 0 ? <button type="button" onClick={() => setBatchOpen(true)} className="rounded-chip border border-line bg-paper px-1.5 py-0.5 text-label text-muted-foreground hover:bg-wash">批量提醒</button> : null}
             </div>
-            <p className="px-[18px] pb-2 text-meta text-muted">当前筛选 {visibleIssues.length} 项</p>
+            <p className="px-[18px] pb-2 text-meta text-muted-foreground">当前筛选 {visibleIssues.length} 项</p>
             <ul className="m-0 min-h-0 flex-1 list-none overflow-y-auto px-2 pb-2">
               {pagedIssues.map((issue) => {
                 const active = selected?.id === issue.id
@@ -432,17 +432,17 @@ export function QualityPage() {
                       className={`mb-1 w-full rounded-control px-2.5 py-2 text-left ${active ? 'bg-blue-soft' : 'hover:bg-wash'}`}
                     >
                       <span className="flex items-center justify-between gap-2">
-                        <span className="font-mono text-meta text-muted">{issue.id}</span>
+                        <span className="font-mono text-meta text-muted-foreground">{issue.id}</span>
                         <Badge tone={toneBadge(severityTone(issue.severity))}>{severityLabel(issue.severity)}风险</Badge>
                       </span>
                       <span className="mt-1 block text-body-sm text-ink-soft">{issue.title}</span>
-                      <span className="mt-0.5 block text-meta text-muted">{issue.ownerDepartment} · {issue.ownerName} · {issueStatusLabel(issue.status)}</span>
+                      <span className="mt-0.5 block text-meta text-muted-foreground">{issue.ownerDepartment} · {issue.ownerName} · {issueStatusLabel(issue.status)}</span>
                     </button>
                   </li>
                 )
               })}
               {visibleIssues.length === 0 ? (
-                <li className="px-3 py-6 text-center text-label text-muted">
+                <li className="px-3 py-6 text-center text-label text-muted-foreground">
                   当前范围暂无匹配的治理问题
                   {keyword || statusFilter !== 'all' ? <Button variant="text" size="sm" className="ml-1" onClick={() => { setKeyword(''); setStatusFilter('all'); setPage(0) }}>查看全部问题</Button> : null}
                 </li>
@@ -458,7 +458,7 @@ export function QualityPage() {
             {detailRequest.isError ? (
               <div className="px-5 py-8 text-center">
                 <p className="text-body-sm font-medium text-ink-soft">治理问题详情不可用</p>
-                <p className="mt-1 text-label text-muted">问题详情读取失败，请刷新后重试</p>
+                <p className="mt-1 text-label text-muted-foreground">问题详情读取失败，请刷新后重试</p>
                 <Button size="sm" className="mt-3" onClick={() => void detailRequest.refetch()}>重新读取</Button>
               </div>
             ) : null}
@@ -467,10 +467,10 @@ export function QualityPage() {
                 <div className="border-b border-line px-5 py-4">
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge tone={toneBadge(issueStatusTone(selected.status))}>{issueStatusLabel(selected.status)}</Badge>
-                    <span className="text-meta text-muted">更新于 {formatDateTime(selected.updatedAt ?? null)}</span>
+                    <span className="text-meta text-muted-foreground">更新于 {formatDateTime(selected.updatedAt ?? null)}</span>
                   </div>
                   <h2 className="mt-2 text-subject font-semibold text-ink">{selected.title}</h2>
-                  <p className="mt-1 text-label text-muted">{selected.id} · {selected.objectLabel || selected.datasetId}</p>
+                  <p className="mt-1 text-label text-muted-foreground">{selected.id} · {selected.objectLabel || selected.datasetId}</p>
                   <dl className="mt-3 grid grid-cols-3 gap-4">
                     <Fact label="责任人" value={`${selected.ownerDepartment} · ${selected.ownerName}`} />
                     <Fact label="SLA 截止" value={formatDateTime(selected.dueAt)} />
@@ -489,7 +489,7 @@ export function QualityPage() {
                       {remindMutation.isPending ? '提醒中…' : selected.status === 'CLOSED' ? '问题已关闭' : '提醒责任人'}
                     </Button>
                     <Button onClick={() => setChainOpen(true)}><Shield size={13} />责任链</Button>
-                    {selected.status === 'CLOSED' ? <span className="text-meta text-muted">问题已关闭，主操作停用；如需重新处理请从队列选择未闭环问题</span> : null}
+                    {selected.status === 'CLOSED' ? <span className="text-meta text-muted-foreground">问题已关闭，主操作停用；如需重新处理请从队列选择未闭环问题</span> : null}
                   </div>
                   {selected.status === 'RECHECKING' ? <p className="mt-2 text-label text-amber">复检请求已登记，正在等待执行器异步回写；本状态尚不代表质量规则通过。</p> : null}
                   {actionErrors.filter((entry) => entry.issueId === selected.id).map((entry) => (
@@ -499,7 +499,7 @@ export function QualityPage() {
 
                 <div className="flex items-center justify-between px-5 pt-4 pb-2">
                   <h3 className="text-label font-medium text-ink-soft">处理记录</h3>
-                  <span className="text-meta text-muted">{detail.events.length} 条事件</span>
+                  <span className="text-meta text-muted-foreground">{detail.events.length} 条事件</span>
                 </div>
                 <ol className="m-0 list-none px-5 pb-4">
                   {groupedTimeline(detail.events).map((group) => group.kind === 'retries' ? (
@@ -507,7 +507,7 @@ export function QualityPage() {
                       <div className="text-body-sm font-medium text-ink-soft">
                         复检投递重试（共 {group.events.length} 条）
                       </div>
-                      <details className="mt-1 text-label text-muted">
+                      <details className="mt-1 text-label text-muted-foreground">
                         <summary className="cursor-pointer">展开每次记录</summary>
                         {group.events.map((event) => (
                           <p key={event.id} className="mt-1">
@@ -520,9 +520,9 @@ export function QualityPage() {
                     <li key={group.event.id} className="border-l border-line pb-4 pl-5">
                       <div className="flex items-start justify-between gap-3">
                         <strong className="text-body-sm font-medium text-ink-soft">{eventTitle(group.event.eventType)}</strong>
-                        <time className="shrink-0 text-meta text-muted">{formatDateTime(group.event.createdAt)}</time>
+                        <time className="shrink-0 text-meta text-muted-foreground">{formatDateTime(group.event.createdAt)}</time>
                       </div>
-                      <p className="mt-1 text-label leading-relaxed text-muted">
+                      <p className="mt-1 text-label leading-relaxed text-muted-foreground">
                         {executorOutputView(group.event.note).folded
                           ? <>{formatInlineDateTimes(executorOutputView(group.event.note).head)}…</>
                           : formatInlineDateTimes(group.event.note)} · {actorLabel(group.event.actor)}
@@ -530,14 +530,14 @@ export function QualityPage() {
                     </li>
                   ))}
                   {detail.events.length === 0 ? (
-                    <li className="pl-1 text-label text-muted">问题来自质量规则目录，等待责任人处理。</li>
+                    <li className="pl-1 text-label text-muted-foreground">问题来自质量规则目录，等待责任人处理。</li>
                   ) : null}
                 </ol>
 
                 <div className="border-t border-line px-5 py-4">
                   <label htmlFor="processing-note" className="mb-1.5 block text-body-sm text-ink-soft">处理说明</label>
                   {looksLikeExecutorOutput(selected.processingNote) ? (
-                    <details className="mb-2 rounded-control border border-line bg-wash px-3 py-2 text-label text-muted">
+                    <details className="mb-2 rounded-control border border-line bg-wash px-3 py-2 text-label text-muted-foreground">
                       <summary className="cursor-pointer">历史执行器输出（仅参考，不作为处理结论）</summary>
                       <pre className="mt-1 max-h-[160px] overflow-auto whitespace-pre-wrap font-mono text-meta">{selected.processingNote}</pre>
                     </details>
@@ -585,7 +585,7 @@ export function QualityPage() {
                     <div className="mt-2 border-t border-line pt-2">
                       <strong className="text-label text-ink-soft">历史执行批次（{detail.runs.length}）</strong>
                       {detail.runs.slice(1).map((run) => (
-                        <div key={run.id} className="mt-1 flex items-center gap-2 text-meta text-muted">
+                        <div key={run.id} className="mt-1 flex items-center gap-2 text-meta text-muted-foreground">
                           <Badge tone={toneBadge(runStatusTone(run.status))}>{runStatusLabel(run.status)}</Badge>
                           <span title={run.executionBatchId}>{shortBatchId(run.executionBatchId)}</span>
                           <time>{formatDateTime(run.submittedAt)}</time>
@@ -680,7 +680,7 @@ export function QualityPage() {
 function Fact({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="mb-0.5 text-meta text-muted">{label}</dt>
+      <dt className="mb-0.5 text-meta text-muted-foreground">{label}</dt>
       <dd className="m-0 text-body-sm text-ink-soft">{value}</dd>
     </div>
   )
@@ -690,7 +690,7 @@ function EvidenceBox({ title, children }: { title: string; children: React.React
   return (
     <div className="mb-2.5 rounded-control border border-line bg-wash px-3 py-2.5">
       <h4 className="mb-1 text-label font-medium text-ink-soft">{title}</h4>
-      <div className="text-label leading-relaxed text-muted">{children}</div>
+      <div className="text-label leading-relaxed text-muted-foreground">{children}</div>
     </div>
   )
 }

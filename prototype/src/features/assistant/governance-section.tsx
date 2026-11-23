@@ -68,7 +68,7 @@ export function AssistantGovernanceSection({ onNotice }: { onNotice: (message: s
       cell: ({ row }) => (
         <div>
           <div className="text-body-sm font-medium text-ink">{row.original.question}</div>
-          <div className="font-mono text-meta text-muted">{row.original.code}</div>
+          <div className="font-mono text-meta text-muted-foreground">{row.original.code}</div>
         </div>
       ),
     }),
@@ -82,14 +82,14 @@ export function AssistantGovernanceSection({ onNotice }: { onNotice: (message: s
         </Badge>
       ),
     }),
-    helper.display({ id: 'service', header: '数据服务', size: 170, cell: ({ row }) => <span className="font-mono text-label text-muted">{row.original.serviceCode}</span> }),
+    helper.display({ id: 'service', header: '数据服务', size: 170, cell: ({ row }) => <span className="font-mono text-label text-muted-foreground">{row.original.serviceCode}</span> }),
     helper.display({
       id: 'verified',
       header: '试运行验证',
       size: 130,
       cell: ({ row }) => row.original.verified
         ? <span className="text-label text-green">已验证（试运行通过）</span>
-        : <span className="text-label text-muted">未验证</span>,
+        : <span className="text-label text-muted-foreground">未验证</span>,
     }),
     helper.display({
       id: 'actions',
@@ -190,7 +190,7 @@ export function AssistantGovernanceSection({ onNotice }: { onNotice: (message: s
 function Summary({ label, value }: { label: string; value: number }) {
   return (
     <div>
-      <dt className="text-meta text-muted">{label}</dt>
+      <dt className="text-meta text-muted-foreground">{label}</dt>
       <dd className="m-0 text-body-sm font-medium text-ink">{value}</dd>
     </div>
   )

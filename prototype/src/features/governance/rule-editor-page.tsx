@@ -278,7 +278,7 @@ export function RuleEditorPage({ ruleId }: { ruleId?: string }) {
           ) : null}
 
           {computedEvidence ? (
-            <p className="mb-4 text-label text-muted">本类型的失败列由执行器编译派生（如 check_value/ref_value、prev_period/cur_period），无需配置证据白名单。</p>
+            <p className="mb-4 text-label text-muted-foreground">本类型的失败列由执行器编译派生（如 check_value/ref_value、prev_period/cur_period），无需配置证据白名单。</p>
           ) : (
             <div className="mb-4">
               <div className="mb-1.5 flex items-center justify-between">
@@ -312,7 +312,7 @@ export function RuleEditorPage({ ruleId }: { ruleId?: string }) {
           {error ? <p role="alert" className="mb-3 text-body-sm leading-relaxed text-red">{error}</p> : null}
 
           <div className="flex items-center justify-between gap-3 border-t border-line pt-4">
-            <span className="text-meta text-muted"><Badge tone="blue">保存即推送</Badge> 执行器对目标表列做实校验</span>
+            <span className="text-meta text-muted-foreground"><Badge tone="blue">保存即推送</Badge> 执行器对目标表列做实校验</span>
             <div className="flex items-center gap-2">
               <Button onClick={() => navigate('/governance/quality')}>取消</Button>
               <Button variant="primary" disabled={mutation.isPending} onClick={submit}>

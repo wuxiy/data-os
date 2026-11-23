@@ -108,9 +108,9 @@ export function AssetCatalogPage() {
   const schemas = summary?.schemas ?? [schema]
 
   const columnColumns = columnHelper.columns([
-    columnHelper.accessor('name', { header: '物理字段', cell: ({ row }) => <code className="font-mono text-label text-muted">{row.original.name}</code> }),
+    columnHelper.accessor('name', { header: '物理字段', cell: ({ row }) => <code className="font-mono text-label text-muted-foreground">{row.original.name}</code> }),
     columnHelper.accessor('dataType', { header: '类型', size: 160 }),
-    columnHelper.display({ id: 'description', header: '说明', cell: ({ row }) => <span className="text-label text-muted">{row.original.description || '—'}</span> }),
+    columnHelper.display({ id: 'description', header: '说明', cell: ({ row }) => <span className="text-label text-muted-foreground">{row.original.description || '—'}</span> }),
   ])
 
   const qualityColumns = qualityHelper.columns([
@@ -175,7 +175,7 @@ export function AssetCatalogPage() {
                     role="tab"
                     aria-selected={item === schema}
                     onClick={() => { setSchema(item); setFqn(''); setPage(0) }}
-                    className={`rounded-chip px-2 py-1 text-label ${item === schema ? 'bg-blue-soft text-blue' : 'text-muted hover:bg-wash'}`}
+                    className={`rounded-chip px-2 py-1 text-label ${item === schema ? 'bg-blue-soft text-blue' : 'text-muted-foreground hover:bg-wash'}`}
                   >
                     {lineageSchemaLabel(item)}
                   </button>
@@ -200,8 +200,8 @@ export function AssetCatalogPage() {
                       className={`mb-1 w-full rounded-control px-2.5 py-2 text-left ${active ? 'bg-blue-soft' : 'hover:bg-wash'}`}
                     >
                       <span className="block truncate text-body-sm text-ink-soft">{asset.displayName || asset.name}</span>
-                      <span className="block truncate font-mono text-meta text-muted">{asset.name}</span>
-                      <span className="mt-0.5 flex items-center gap-2 text-meta text-muted">
+                      <span className="block truncate font-mono text-meta text-muted-foreground">{asset.name}</span>
+                      <span className="mt-0.5 flex items-center gap-2 text-meta text-muted-foreground">
                         <em className="not-italic">{asset.columnCount} 列</em>
                         <i className="not-italic text-green">已摄取</i>
                       </span>
@@ -210,7 +210,7 @@ export function AssetCatalogPage() {
                 )
               })}
               {visible.length === 0 ? (
-                <li className="px-3 py-6 text-center text-label text-muted">
+                <li className="px-3 py-6 text-center text-label text-muted-foreground">
                   {assets.length ? '没有匹配的数据资产。' : '当前库暂无已摄取的资产，可切换资产库查看。'}
                   {keyword ? <Button variant="text" size="sm" className="ml-1" onClick={() => { setKeyword(''); setPage(0) }}>清空搜索</Button> : null}
                 </li>
@@ -219,7 +219,7 @@ export function AssetCatalogPage() {
             <div className="border-t border-line px-2">
               <TablePagination page={currentPage} pageSize={8} total={visible.length} onPageChange={setPage} label="资产目录分页" compact className="border-t-0 px-1" />
             </div>
-            {summary ? <div className="border-t border-line px-3 py-2 text-meta text-muted">{summary.tableCount} 表 · {summary.columnCount} 列 · {summary.dashboards.length} 个仪表盘消费</div> : null}
+            {summary ? <div className="border-t border-line px-3 py-2 text-meta text-muted-foreground">{summary.tableCount} 表 · {summary.columnCount} 列 · {summary.dashboards.length} 个仪表盘消费</div> : null}
           </Panel>
 
           <Panel>
@@ -235,11 +235,11 @@ export function AssetCatalogPage() {
               <>
                 <div className="border-b border-line px-5 py-4">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-chip bg-wash px-1.5 py-0.5 text-meta text-muted">{instanceServiceLabel(catalogRequest.data.service)}</span>
+                    <span className="rounded-chip bg-wash px-1.5 py-0.5 text-meta text-muted-foreground">{instanceServiceLabel(catalogRequest.data.service)}</span>
                     <Badge tone="success">元数据已摄取</Badge>
                   </div>
                   <h2 className="mt-1.5 text-subject font-semibold text-ink">{detail?.displayName || selected.displayName || selected.name}</h2>
-                  <p className="mt-1 font-mono text-meta text-muted">{effectiveFqn}</p>
+                  <p className="mt-1 font-mono text-meta text-muted-foreground">{effectiveFqn}</p>
                 </div>
                 <Tabs
                   value={tab}
@@ -256,22 +256,22 @@ export function AssetCatalogPage() {
                     {detailRequest.isError ? (
                       <div className="py-6 text-center">
                         <p className="text-body-sm text-ink-soft">字段结构暂不可读</p>
-                        <p className="mt-1 text-label text-muted">目录仍可切换；可以重新读取当前资产。</p>
+                        <p className="mt-1 text-label text-muted-foreground">目录仍可切换；可以重新读取当前资产。</p>
                         <Button size="sm" className="mt-2" onClick={() => void detailRequest.refetch()}>重新读取当前资产</Button>
                       </div>
                     ) : null}
                     {detail ? (
                       <>
-                        <p className="mb-3 rounded-control border border-line bg-wash px-3 py-2 text-label leading-relaxed text-muted">
+                        <p className="mb-3 rounded-control border border-line bg-wash px-3 py-2 text-label leading-relaxed text-muted-foreground">
                           {detail.description || '暂无业务描述：结构元数据由元数据中心摄取，业务定义在资产治理流程中补充。'}
                         </p>
                         <DataTable
                           columns={columnColumns}
                           data={detail.columns}
                           getRowId={(column) => column.name}
-                          empty={<p className="py-3 text-label text-muted">暂无字段结构。</p>}
+                          empty={<p className="py-3 text-label text-muted-foreground">暂无字段结构。</p>}
                         />
-                        <p className="mt-2 text-meta text-muted">{detail.columns.length} 列 · 最近更新 {formatDateTime(detail.updatedAt)}</p>
+                        <p className="mt-2 text-meta text-muted-foreground">{detail.columns.length} 列 · 最近更新 {formatDateTime(detail.updatedAt)}</p>
                       </>
                     ) : null}
                   </TabPanel>
@@ -281,14 +281,14 @@ export function AssetCatalogPage() {
                     {qualityRequest.isError ? (
                       <div className="py-6 text-center">
                         <p className="text-body-sm text-ink-soft">质量结果暂不可读</p>
-                        <p className="mt-1 text-label text-muted">不能据此判断当前资产的质量状态。</p>
+                        <p className="mt-1 text-label text-muted-foreground">不能据此判断当前资产的质量状态。</p>
                         <Button size="sm" className="mt-2" onClick={() => void qualityRequest.refetch()}>重新读取质量证据</Button>
                       </div>
                     ) : null}
                     {qualityRequest.isSuccess ? (
                       (qualityRequest.data?.length ?? 0) > 0 ? (
                         <>
-                          <p className="mb-2 text-label text-muted">{qualityRequest.data!.length} 条规则 · 来自控制面质量域（规则注册表 + 最近运行）</p>
+                          <p className="mb-2 text-label text-muted-foreground">{qualityRequest.data!.length} 条规则 · 来自控制面质量域（规则注册表 + 最近运行）</p>
                           <DataTable columns={qualityColumns} data={qualityRequest.data!} getRowId={(test) => test.ruleId} />
                         </>
                       ) : (
@@ -307,23 +307,23 @@ export function AssetCatalogPage() {
                     ) : null}
                     {lineage ? (
                       <>
-                        <p className="mb-3 text-label text-muted">上游是数据来源，下游是产出与消费；列级映射随节点展示。</p>
+                        <p className="mb-3 text-label text-muted-foreground">上游是数据来源，下游是产出与消费；列级映射随节点展示。</p>
                         <div className="flex flex-wrap items-stretch gap-2">
                           {lineage.upstreams.map((node) => <LineageNode key={node.fullyQualifiedName} node={node} direction="up" />)}
                           <div className="min-w-[150px] flex-1 rounded-control border border-blue-line bg-blue-soft px-3 py-2 text-center">
-                            <span className="block text-meta text-muted">当前资产</span>
+                            <span className="block text-meta text-muted-foreground">当前资产</span>
                             <strong className="mt-1 block text-label text-blue">{selected.name}</strong>
-                            <small className="block text-meta text-muted">{instanceServiceLabel(catalogRequest.data.service)}</small>
+                            <small className="block text-meta text-muted-foreground">{instanceServiceLabel(catalogRequest.data.service)}</small>
                           </div>
                           {lineage.downstreams.map((node) => <LineageNode key={node.fullyQualifiedName} node={node} direction="down" />)}
                         </div>
                         {lineage.upstreams.length + lineage.downstreams.length === 0 ? (
-                          <p className="mt-3 rounded-control border border-line bg-wash px-3 py-2 text-label text-muted">暂无已登记的上下游（单源资产，消费链待建立）。</p>
+                          <p className="mt-3 rounded-control border border-line bg-wash px-3 py-2 text-label text-muted-foreground">暂无已登记的上下游（单源资产，消费链待建立）。</p>
                         ) : (
                           <dl className="mt-3 grid grid-cols-3 gap-4 rounded-control border border-line bg-wash px-3 py-2.5 max-[900px]:grid-cols-1">
-                            <div><dt className="text-meta text-muted">上游来源</dt><dd className="m-0 text-body-sm text-ink-soft">{lineage.upstreams.length} 个对象</dd></div>
-                            <div><dt className="text-meta text-muted">下游产出</dt><dd className="m-0 text-body-sm text-ink-soft">{lineage.downstreams.length} 个对象</dd></div>
-                            <div><dt className="text-meta text-muted">消费仪表盘</dt><dd className="m-0 text-body-sm text-ink-soft">{lineage.downstreams.filter((node) => node.type === 'dashboard' || node.type === 'dataModel').length} 个关联</dd></div>
+                            <div><dt className="text-meta text-muted-foreground">上游来源</dt><dd className="m-0 text-body-sm text-ink-soft">{lineage.upstreams.length} 个对象</dd></div>
+                            <div><dt className="text-meta text-muted-foreground">下游产出</dt><dd className="m-0 text-body-sm text-ink-soft">{lineage.downstreams.length} 个对象</dd></div>
+                            <div><dt className="text-meta text-muted-foreground">消费仪表盘</dt><dd className="m-0 text-body-sm text-ink-soft">{lineage.downstreams.filter((node) => node.type === 'dashboard' || node.type === 'dataModel').length} 个关联</dd></div>
                           </dl>
                         )}
                       </>
@@ -332,17 +332,17 @@ export function AssetCatalogPage() {
 
                   <TabPanel value="evidence" className="px-5 py-4">
                     <dl className="grid grid-cols-2 gap-4">
-                      <div><dt className="text-meta text-muted">元数据服务</dt><dd className="m-0 text-body-sm text-ink-soft">{instanceServiceLabel(catalogRequest.data.service)}</dd></div>
-                      <div><dt className="text-meta text-muted">摄取范围</dt><dd className="m-0 text-body-sm text-ink-soft">{schemas.map(lineageSchemaLabel).join('、')}（只读结构元数据，无数据采样）</dd></div>
-                      <div><dt className="text-meta text-muted">资产数量</dt><dd className="m-0 text-body-sm text-ink-soft">{summary ? `${summary.tableCount} 表 · ${summary.columnCount} 列` : '汇总暂不可用'}</dd></div>
-                      <div><dt className="text-meta text-muted">读取时间</dt><dd className="m-0 text-body-sm text-ink-soft">{formatDateTime(catalogRequest.data.fetchedAt)}</dd></div>
+                      <div><dt className="text-meta text-muted-foreground">元数据服务</dt><dd className="m-0 text-body-sm text-ink-soft">{instanceServiceLabel(catalogRequest.data.service)}</dd></div>
+                      <div><dt className="text-meta text-muted-foreground">摄取范围</dt><dd className="m-0 text-body-sm text-ink-soft">{schemas.map(lineageSchemaLabel).join('、')}（只读结构元数据，无数据采样）</dd></div>
+                      <div><dt className="text-meta text-muted-foreground">资产数量</dt><dd className="m-0 text-body-sm text-ink-soft">{summary ? `${summary.tableCount} 表 · ${summary.columnCount} 列` : '汇总暂不可用'}</dd></div>
+                      <div><dt className="text-meta text-muted-foreground">读取时间</dt><dd className="m-0 text-body-sm text-ink-soft">{formatDateTime(catalogRequest.data.fetchedAt)}</dd></div>
                     </dl>
                     {summary && summary.dashboards.length > 0 ? (
                       <div className="mt-4">
                         <h3 className="mb-1.5 text-label font-medium text-ink-soft">消费仪表盘（{instanceServiceLabel(summary.dashboardService)}）</h3>
                         <ul className="m-0 list-none space-y-1 p-0">
                           {summary.dashboards.map((dashboard) => (
-                            <li key={dashboard.fullyQualifiedName} className="flex items-center gap-2 text-label text-muted">
+                            <li key={dashboard.fullyQualifiedName} className="flex items-center gap-2 text-label text-muted-foreground">
                               <ChartNoAxesCombined size={14} />{dashboard.displayName || dashboard.fullyQualifiedName}
                             </li>
                           ))}
@@ -351,7 +351,7 @@ export function AssetCatalogPage() {
                     ) : null}
                   </TabPanel>
                 </Tabs>
-                {detailRequest.isSuccess && detail ? <p className="border-t border-line px-5 py-2 text-meta text-muted">结构元数据只读；业务定义、质量结论与血缘证据各自独立来源，不互相替代。</p> : null}
+                {detailRequest.isSuccess && detail ? <p className="border-t border-line px-5 py-2 text-meta text-muted-foreground">结构元数据只读；业务定义、质量结论与血缘证据各自独立来源，不互相替代。</p> : null}
               </>
             )}
           </Panel>
@@ -364,11 +364,11 @@ export function AssetCatalogPage() {
 function LineageNode({ node, direction }: { node: LineageNodeView; direction: 'up' | 'down' }) {
   return (
     <div className="min-w-[150px] flex-1 rounded-control border border-line bg-wash px-3 py-2 text-center">
-      <span className="block text-meta text-muted">{lineageNodeKindLabel[node.type] ?? NODE_ICONS[node.type] ?? '对象'}{direction === 'up' ? ' · 上游' : ' · 下游'}</span>
+      <span className="block text-meta text-muted-foreground">{lineageNodeKindLabel[node.type] ?? NODE_ICONS[node.type] ?? '对象'}{direction === 'up' ? ' · 上游' : ' · 下游'}</span>
       <strong className="mt-1 block truncate text-label text-ink-soft" title={node.fullyQualifiedName}>{node.displayName || shortNodeName(node)}</strong>
-      <small className="block text-meta text-muted">{node.fullyQualifiedName.split('.')[0]}</small>
+      <small className="block text-meta text-muted-foreground">{node.fullyQualifiedName.split('.')[0]}</small>
       {node.columnMappings.length > 0 ? (
-        <small className="mt-1 block text-meta text-muted">{node.columnMappings.length} 条列级映射</small>
+        <small className="mt-1 block text-meta text-muted-foreground">{node.columnMappings.length} 条列级映射</small>
       ) : null}
     </div>
   )

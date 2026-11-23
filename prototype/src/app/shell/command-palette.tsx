@@ -79,7 +79,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
         >
           <DialogPrimitive.Title className="sr-only">跳转到工作区</DialogPrimitive.Title>
           <div className="flex items-center gap-2.5 border-b border-line px-4">
-            <Search size={15} className="text-muted" />
+            <Search size={15} className="text-muted-foreground" />
             <input
               ref={inputRef}
               value={query}
@@ -96,7 +96,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
             </DialogPrimitive.Close>
           </div>
           <div className="max-h-[52vh] overflow-y-auto p-3">
-            {filtered.length === 0 ? <p className="px-3 py-6 text-center text-label text-muted">没有匹配的页面</p> : null}
+            {filtered.length === 0 ? <p className="px-3 py-6 text-center text-label text-muted-foreground">没有匹配的页面</p> : null}
             {filtered.map((command, index) => {
               const Icon = command.icon
               const current = location.pathname === command.path
@@ -114,17 +114,17 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
                 >
                   <Icon size={16} />
                   <span className="min-w-0 flex-1 truncate">{command.label}</span>
-                  <small className="text-meta text-muted">{current ? '当前页面' : command.group}</small>
-                  <ChevronRight size={13} className="text-muted" />
+                  <small className="text-meta text-muted-foreground">{current ? '当前页面' : command.group}</small>
+                  <ChevronRight size={13} className="text-muted-foreground" />
                 </button>
               )
             })}
           </div>
-          <div className="flex items-center gap-3 border-t border-line px-4 py-2.5 text-meta text-muted">
+          <div className="flex items-center gap-3 border-t border-line px-4 py-2.5 text-meta text-muted-foreground">
             <span className="flex items-center gap-1"><Kbd>↑</Kbd><Kbd>↓</Kbd>选择</span>
             <span className="flex items-center gap-1"><Kbd>Enter</Kbd>打开</span>
             <span className="flex items-center gap-1"><Kbd>Esc</Kbd>关闭</span>
-            <span className="ml-auto flex items-center gap-1 text-muted"><House size={11} />{routeForPath(location.pathname)?.label ?? '工作区'}</span>
+            <span className="ml-auto flex items-center gap-1 text-muted-foreground"><House size={11} />{routeForPath(location.pathname)?.label ?? '工作区'}</span>
           </div>
         </DialogPrimitive.Popup>
       </DialogPrimitive.Portal>

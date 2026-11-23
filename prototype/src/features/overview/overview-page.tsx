@@ -69,7 +69,7 @@ const workItemColumns = helper.columns([
     id: 'source',
     header: '来源',
     size: 170,
-    cell: ({ row }) => <code className="font-mono text-label text-muted">{WORK_ITEM_SOURCE_LABEL[row.original.sourceType] ?? row.original.sourceType}</code>,
+    cell: ({ row }) => <code className="font-mono text-label text-muted-foreground">{WORK_ITEM_SOURCE_LABEL[row.original.sourceType] ?? row.original.sourceType}</code>,
   }),
   helper.display({
     id: 'asOf',
@@ -184,7 +184,7 @@ export function OverviewPage() {
             <h2 className="text-body-sm font-semibold text-ink">
               组件覆盖 {components ? `${components.ready}/${components.total}` : '—'} · {components?.state === 'READY' ? '全部就绪' : components?.state === 'DEGRADED' ? '存在降级' : '状态未知'}
             </h2>
-            <p className="mt-1 text-label text-muted">
+            <p className="mt-1 text-label text-muted-foreground">
               覆盖 {components ? `${components.ready} 就绪 / ${components.degraded} 降级 / ${components.unknown} 未知` : '…'}；平台组件明细在「平台运维」。
             </p>
           </div>
@@ -219,29 +219,29 @@ export function OverviewPage() {
         </Panel>
 
         <Panel>
-          <PanelHead title="最近事件" description="跨域操作留痕" actions={<span className="text-label text-muted">近 48 小时</span>} />
+          <PanelHead title="最近事件" description="跨域操作留痕" actions={<span className="text-label text-muted-foreground">近 48 小时</span>} />
           <div className="px-5 pb-5" aria-busy={eventsQuery.isPending}>
             {eventsQuery.isPending ? <LoadingBlock className="min-h-[160px]">正在读取事件…</LoadingBlock> : null}
             {eventsQuery.isError ? (
               <div className="space-y-2 py-6 text-center">
                 <p className="text-body-sm font-medium text-ink-soft">事件暂不可用</p>
-                <p className="text-label text-muted">无法读取近期事件，可重新加载。</p>
+                <p className="text-label text-muted-foreground">无法读取近期事件，可重新加载。</p>
                 <Button size="sm" onClick={() => void eventsQuery.refetch()}>重新加载</Button>
               </div>
             ) : null}
-            {eventsQuery.isSuccess && (eventsQuery.data?.length ?? 0) === 0 ? <p className="py-8 text-center text-label text-muted">近 48 小时无跨域事件。</p> : null}
+            {eventsQuery.isSuccess && (eventsQuery.data?.length ?? 0) === 0 ? <p className="py-8 text-center text-label text-muted-foreground">近 48 小时无跨域事件。</p> : null}
             <ol className="m-0 list-none p-0">
               {(eventsQuery.data ?? []).slice(0, 10).map((event, index) => (
                 <li key={`${event.domain}-${index}`} className="border-b border-line-soft py-2.5 last:border-b-0">
                   <div className="flex items-start justify-between gap-3">
                     <strong className="text-label font-medium text-ink-soft">{EVENT_DOMAIN_LABEL[event.domain] ?? event.domain} · {EVENT_TYPE_LABEL[event.type] ?? event.type}</strong>
-                    <span className="shrink-0 text-meta text-muted">{formatDateTime(event.asOf)}</span>
+                    <span className="shrink-0 text-meta text-muted-foreground">{formatDateTime(event.asOf)}</span>
                   </div>
-                  <p className="mt-1 text-label leading-relaxed text-muted">{event.detail}</p>
+                  <p className="mt-1 text-label leading-relaxed text-muted-foreground">{event.detail}</p>
                 </li>
               ))}
             </ol>
-            <p className="mt-3 flex items-center gap-1.5 border-t border-line pt-3 text-meta text-muted"><CloudCog size={13} />事件与待办同源于运营投影，两处口径一致。</p>
+            <p className="mt-3 flex items-center gap-1.5 border-t border-line pt-3 text-meta text-muted-foreground"><CloudCog size={13} />事件与待办同源于运营投影，两处口径一致。</p>
           </div>
         </Panel>
       </div>

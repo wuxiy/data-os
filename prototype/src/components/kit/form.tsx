@@ -29,7 +29,7 @@ export function FormField({
         {required ? <em className="ml-0.5 not-italic text-red">*</em> : null}
       </label>
       {children}
-      {hint ? <p className="mt-[5px] text-meta leading-relaxed text-muted">{hint}</p> : null}
+      {hint ? <p className="mt-[5px] text-meta leading-relaxed text-muted-foreground">{hint}</p> : null}
       {error ? <p role="alert" className="mt-3 text-body-sm leading-relaxed text-red">{error}</p> : null}
     </div>
   )

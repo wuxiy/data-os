@@ -56,7 +56,7 @@ function ShellLayout() {
 function RouteLoading() {
   return (
     <section className="flex min-h-[320px] items-center justify-center rounded-panel border border-line bg-paper" aria-busy="true" role="status">
-      <p className="text-label text-muted">正在进入工作区…</p>
+      <p className="text-label text-muted-foreground">正在进入工作区…</p>
     </section>
   )
 }
@@ -90,7 +90,7 @@ function RouteErrorPage({ error }: { error: unknown }) {
           </div>
         }
       />
-      <p className="px-10 pb-6 text-center font-mono text-meta text-muted">{message}</p>
+      <p className="px-10 pb-6 text-center font-mono text-meta text-muted-foreground">{message}</p>
     </section>
   )
 }

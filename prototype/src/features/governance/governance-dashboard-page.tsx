@@ -195,9 +195,9 @@ export function GovernanceDashboardPage() {
             {chainTodo ? (
               <div className="px-5 pb-5">
                 <div className="mb-3 rounded-control border border-line bg-wash px-3.5 py-3">
-                  <span className="text-meta text-muted">优先跟进</span>
+                  <span className="text-meta text-muted-foreground">优先跟进</span>
                   <strong className="mt-1 block text-body-sm text-ink-soft">{chainTodo.title}</strong>
-                  <span className="mt-0.5 block text-meta text-muted">{chainTodo.id} · 更新于 {formatDateTime(chainTodo.updatedAt ?? null)}</span>
+                  <span className="mt-0.5 block text-meta text-muted-foreground">{chainTodo.id} · 更新于 {formatDateTime(chainTodo.updatedAt ?? null)}</span>
                 </div>
                 <dl className="grid grid-cols-4 gap-4 max-[1100px]:grid-cols-2">
                   <Fact label="影响对象" value={chainTodo.objectLabel || chainTodo.impact || chainTodo.datasetId} />
@@ -207,7 +207,7 @@ export function GovernanceDashboardPage() {
                 </dl>
               </div>
             ) : (
-              <p className="px-5 pb-5 text-label text-muted">当前没有待闭环问题。新问题登记后，可在此追踪治理责任链。</p>
+              <p className="px-5 pb-5 text-label text-muted-foreground">当前没有待闭环问题。新问题登记后，可在此追踪治理责任链。</p>
             )}
           </Panel>
 
@@ -217,15 +217,15 @@ export function GovernanceDashboardPage() {
               <ol className="m-0 list-none px-5 pb-4">
                 {riskRanking.map((item, index) => (
                   <li key={item.dataset} className="flex items-center gap-3 border-b border-line-soft py-2.5 last:border-b-0">
-                    <span className="flex size-6 items-center justify-center rounded-chip border border-line bg-[#f7f9fc] text-label text-muted">{String(index + 1).padStart(2, '0')}</span>
+                    <span className="flex size-6 items-center justify-center rounded-chip border border-line bg-[#f7f9fc] text-label text-muted-foreground">{String(index + 1).padStart(2, '0')}</span>
                     <div className="min-w-0 flex-1">
                       <strong className="block truncate text-body-sm font-medium text-ink-soft">{item.dataset}</strong>
-                      <span className="block text-meta text-muted">{item.owner}</span>
+                      <span className="block text-meta text-muted-foreground">{item.owner}</span>
                     </div>
                     <span className={`text-label ${item.overdue > 0 ? 'text-red' : 'text-ink-soft'}`}>{item.value}</span>
                   </li>
                 ))}
-                {riskRanking.length === 0 ? <li className="py-6 text-center text-label text-muted">当前没有未闭环风险问题</li> : null}
+                {riskRanking.length === 0 ? <li className="py-6 text-center text-label text-muted-foreground">当前没有未闭环风险问题</li> : null}
               </ol>
             </Panel>
             <QualityScorePanel compact />
@@ -241,7 +241,7 @@ export function GovernanceDashboardPage() {
 function Fact({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="mb-1 text-meta text-muted">{label}</dt>
+      <dt className="mb-1 text-meta text-muted-foreground">{label}</dt>
       <dd className="m-0 text-body-sm text-ink-soft">{value}</dd>
     </div>
   )
