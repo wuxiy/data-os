@@ -1,6 +1,6 @@
 import { defaultTemplateKey, offersDemoTemplate } from '../../data/runtimeMode'
 import type { JobConfig, SourceApiItem } from '../../data/controlPlane'
-import type { BadgeTone } from '../../components/ui/badge'
+import type { BadgeTone } from '../../components/kit/badge'
 
 /** 接入域词汇与默认值：接口状态值是开放字符串，未知值原样回退。 */
 

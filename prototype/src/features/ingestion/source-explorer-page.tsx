@@ -1,15 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronDown, ChevronRight, Database, KeyRound, Play, Table2, TriangleAlert } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { Badge } from '../../components/ui/badge'
-import { Button } from '../../components/ui/button'
-import { FormField, FormNotice } from '../../components/ui/form'
-import { CodeTextarea, Input } from '../../components/ui/input'
-import { Breadcrumb, PageHeading } from '../../components/ui/page-heading'
-import { Panel, PanelHead, ScopeNote } from '../../components/ui/panel'
-import { EmptyState, LoadingBlock, LoadingInline } from '../../components/ui/states'
+import { Badge } from '../../components/kit/badge'
+import { Button } from '../../components/kit/button'
+import { FormField, FormNotice } from '../../components/kit/form'
+import { CodeTextarea, Input } from '../../components/kit/input'
+import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
+import { Panel, PanelHead, ScopeNote } from '../../components/kit/panel'
+import { EmptyState, LoadingBlock, LoadingInline } from '../../components/kit/states'
 import { DataTable, listColumnHelper } from '../../components/table/data-table'
-import { useNotice } from '../../components/ui/toast'
+import { useNotice } from '../../components/kit/toast'
 import {
   runSourceQuery,
   saveSourceConnection,

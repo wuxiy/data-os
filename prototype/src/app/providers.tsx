@@ -9,7 +9,7 @@ import {
   oidcIsConfigured,
   type AuthSnapshot,
 } from '../data/oidc'
-import { NoticeProvider } from '../components/ui/toast'
+import { NoticeProvider } from '../components/kit/toast'
 
 interface AuthContextValue {
   snapshot: AuthSnapshot

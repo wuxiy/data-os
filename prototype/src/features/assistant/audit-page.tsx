@@ -1,14 +1,14 @@
 import { useQuery } from '@tanstack/react-query'
 import { Download } from 'lucide-react'
 import { useState } from 'react'
-import { Badge } from '../../components/ui/badge'
-import { Button } from '../../components/ui/button'
-import { NativeSelect } from '../../components/ui/input'
-import { Breadcrumb, PageHeading } from '../../components/ui/page-heading'
-import { Panel, PanelHead } from '../../components/ui/panel'
-import { EmptyState } from '../../components/ui/states'
+import { Badge } from '../../components/kit/badge'
+import { Button } from '../../components/kit/button'
+import { NativeSelect } from '../../components/kit/input'
+import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
+import { Panel, PanelHead } from '../../components/kit/panel'
+import { EmptyState } from '../../components/kit/states'
 import { DataTable, TablePagination, listColumnHelper } from '../../components/table/data-table'
-import { useNotice } from '../../components/ui/toast'
+import { useNotice } from '../../components/kit/toast'
 import {
   AUDIT_OUTCOME_OPTIONS,
   downloadAssistantAuditCsv,

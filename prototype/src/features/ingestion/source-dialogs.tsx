@@ -1,12 +1,12 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Cable, CheckCircle2, Copy } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { Badge } from '../../components/ui/badge'
-import { Button } from '../../components/ui/button'
-import { FormField, FormNotice } from '../../components/ui/form'
-import { CodeTextarea, Input, NativeSelect } from '../../components/ui/input'
-import { Dialog, DialogFooter } from '../../components/ui/overlay'
-import { useNotice } from '../../components/ui/toast'
+import { Badge } from '../../components/kit/badge'
+import { Button } from '../../components/kit/button'
+import { FormField, FormNotice } from '../../components/kit/form'
+import { CodeTextarea, Input, NativeSelect } from '../../components/kit/input'
+import { Dialog, DialogFooter } from '../../components/kit/overlay'
+import { useNotice } from '../../components/kit/toast'
 import {
   checkSource,
   copyIngestionJob,

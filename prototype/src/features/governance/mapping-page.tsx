@@ -1,15 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Archive, ArrowRightLeft, ClipboardCheck, GitCompareArrows, History, RefreshCw, ShieldCheck, UploadCloud } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { Badge } from '../../components/ui/badge'
-import { Button } from '../../components/ui/button'
-import { FormField, FormGrid } from '../../components/ui/form'
-import { CodeTextarea, Input, NativeSelect, SearchField } from '../../components/ui/input'
-import { Breadcrumb, PageHeading } from '../../components/ui/page-heading'
-import { Panel, PanelHead } from '../../components/ui/panel'
-import { EmptyState, LoadingBlock, LoadingInline } from '../../components/ui/states'
+import { Badge } from '../../components/kit/badge'
+import { Button } from '../../components/kit/button'
+import { FormField, FormGrid } from '../../components/kit/form'
+import { CodeTextarea, Input, NativeSelect, SearchField } from '../../components/kit/input'
+import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
+import { Panel, PanelHead } from '../../components/kit/panel'
+import { EmptyState, LoadingBlock, LoadingInline } from '../../components/kit/states'
 import { DataTable, TablePagination, listColumnHelper } from '../../components/table/data-table'
-import { useNotice } from '../../components/ui/toast'
+import { useNotice } from '../../components/kit/toast'
 import {
   activateMappingVersion,
   createMappingSet,

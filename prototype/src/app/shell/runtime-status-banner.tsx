@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { CircleAlert, CloudCog, RefreshCw } from 'lucide-react'
-import { Badge } from './badge'
+import { Badge } from '../../components/kit/badge'
 import { fetchRuntimeStatus, type RuntimeStatusApiResponse } from '../../data/controlPlane'
 import { frontendDemoMode, isDemoRuntime } from '../../data/runtimeMode'
 

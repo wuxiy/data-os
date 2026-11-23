@@ -1,15 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarClock, Eye, ListTree, Power, RotateCcw, Save, Square, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { Badge, StatusText } from '../../components/ui/badge'
-import { Button } from '../../components/ui/button'
-import { FormField, FormGrid, FormNotice } from '../../components/ui/form'
-import { Input, NativeSelect } from '../../components/ui/input'
-import { Confirm } from '../../components/ui/overlay'
-import { Panel, PanelHead } from '../../components/ui/panel'
-import { EmptyState, LoadingInline } from '../../components/ui/states'
+import { Badge, StatusText } from '../../components/kit/badge'
+import { Button } from '../../components/kit/button'
+import { FormField, FormGrid, FormNotice } from '../../components/kit/form'
+import { Input, NativeSelect } from '../../components/kit/input'
+import { Confirm } from '../../components/kit/overlay'
+import { Panel, PanelHead } from '../../components/kit/panel'
+import { EmptyState, LoadingInline } from '../../components/kit/states'
 import { DataTable, listColumnHelper, TablePagination } from '../../components/table/data-table'
-import { useNotice } from '../../components/ui/toast'
+import { useNotice } from '../../components/kit/toast'
 import {
   backfillScheduleInstances,
   changeJobScheduleState,

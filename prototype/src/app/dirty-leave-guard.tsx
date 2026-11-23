@@ -1,7 +1,7 @@
 import { useBlocker } from '@tanstack/react-router'
 import { useCallback, useRef } from 'react'
-import { Button } from '../components/ui/button'
-import { Dialog, DialogFooter } from '../components/ui/overlay'
+import { Button } from '../components/kit/button'
+import { Dialog, DialogFooter } from '../components/kit/overlay'
 
 /**
  * 编辑页脏退出守卫（对齐原型 v0.2：离开未保存编辑先询问，拦一切路由离开——

@@ -13,9 +13,9 @@ import {
   X,
 } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
-import { RuntimeStatusBanner } from '../../components/ui/RuntimeStatusBanner'
-import { Kbd } from '../../components/ui/panel'
-import { Popover } from '../../components/ui/popover'
+import { RuntimeStatusBanner } from './runtime-status-banner'
+import { Kbd } from '../../components/kit/panel'
+import { Popover } from '../../components/kit/popover'
 import { cn } from '../../lib/utils'
 import { activeNavKey, governanceChildren, isGovernancePath, navGroups, routeForPath } from '../navigation'
 import { operationsSummaryQuery } from '../../features/overview/queries'

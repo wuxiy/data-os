@@ -16,16 +16,16 @@ import {
   Settings2,
 } from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
-import { Badge, StatusText } from '../../components/ui/badge'
-import { Button } from '../../components/ui/button'
-import { NativeSelect, SearchField } from '../../components/ui/input'
-import { Breadcrumb, PageHeading } from '../../components/ui/page-heading'
-import { Count, Panel, PanelHead, ScopeNote } from '../../components/ui/panel'
-import { Popover } from '../../components/ui/popover'
-import { Confirm } from '../../components/ui/overlay'
-import { EmptyState, LoadingInline } from '../../components/ui/states'
+import { Badge, StatusText } from '../../components/kit/badge'
+import { Button } from '../../components/kit/button'
+import { NativeSelect, SearchField } from '../../components/kit/input'
+import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
+import { Count, Panel, PanelHead, ScopeNote } from '../../components/kit/panel'
+import { Popover } from '../../components/kit/popover'
+import { Confirm } from '../../components/kit/overlay'
+import { EmptyState, LoadingInline } from '../../components/kit/states'
 import { DataTable, SelectionBar, TablePagination, listColumnHelper } from '../../components/table/data-table'
-import { useNotice } from '../../components/ui/toast'
+import { useNotice } from '../../components/kit/toast'
 import {
   confirmIngestionRunAbsent,
   fetchIngestionRuns,

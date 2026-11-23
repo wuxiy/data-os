@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { portalRoutes, routeForPath } from '../navigation'
 import { usePortalNavigate } from '../navigate'
 import { useAuth } from '../providers'
-import { Kbd } from '../../components/ui/panel'
+import { Kbd } from '../../components/kit/panel'
 import { cn } from '../../lib/utils'
 
 /**

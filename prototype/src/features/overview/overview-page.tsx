@@ -1,14 +1,14 @@
 import { useQuery } from '@tanstack/react-query'
 import { Activity, ChevronRight, CloudCog, Inbox, RefreshCw } from 'lucide-react'
 import { useMemo } from 'react'
-import { Badge } from '../../components/ui/badge'
-import { Breadcrumb, PageHeading } from '../../components/ui/page-heading'
-import { MetricCard, MetricStrip } from '../../components/ui/metric'
-import { Count, Panel, PanelHead } from '../../components/ui/panel'
-import { LoadingBlock, Skeleton } from '../../components/ui/states'
-import { Button } from '../../components/ui/button'
+import { Badge } from '../../components/kit/badge'
+import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
+import { MetricCard, MetricStrip } from '../../components/app/metric'
+import { Count, Panel, PanelHead } from '../../components/kit/panel'
+import { LoadingBlock, Skeleton } from '../../components/kit/states'
+import { Button } from '../../components/kit/button'
 import { DataTable, listColumnHelper } from '../../components/table/data-table'
-import { EmptyState } from '../../components/ui/states'
+import { EmptyState } from '../../components/kit/states'
 import { formatDateTime } from '../../data/domain'
 import {
   EVENT_DOMAIN_LABEL,
@@ -17,7 +17,7 @@ import {
   type OperationsWorkItem,
 } from '../../data/operationsApi'
 import { usePortalNavigate } from '../../app/navigate'
-import { useNotice } from '../../components/ui/toast'
+import { useNotice } from '../../components/kit/toast'
 import { operationsEventsQuery, operationsSummaryQuery, operationsWorkItemsQuery } from './queries'
 
 /**

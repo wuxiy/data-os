@@ -1,14 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, CalendarClock, FileCog, KeyRound, LoaderCircle, Save } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { Badge } from '../../components/ui/badge'
-import { Button } from '../../components/ui/button'
-import { FormField, FormGrid, FormNotice } from '../../components/ui/form'
-import { CodeTextarea, Input, NativeSelect } from '../../components/ui/input'
-import { Breadcrumb, PageHeading } from '../../components/ui/page-heading'
-import { Panel, ScopeNote } from '../../components/ui/panel'
-import { EmptyState, LoadingBlock } from '../../components/ui/states'
-import { useNotice } from '../../components/ui/toast'
+import { Badge } from '../../components/kit/badge'
+import { Button } from '../../components/kit/button'
+import { FormField, FormGrid, FormNotice } from '../../components/kit/form'
+import { CodeTextarea, Input, NativeSelect } from '../../components/kit/input'
+import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
+import { Panel, ScopeNote } from '../../components/kit/panel'
+import { EmptyState, LoadingBlock } from '../../components/kit/states'
+import { useNotice } from '../../components/kit/toast'
 import {
   createIngestionJob,
   saveJobConfig,

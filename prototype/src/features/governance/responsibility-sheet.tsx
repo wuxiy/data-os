@@ -1,6 +1,6 @@
 import { Database, FileText, Inbox, Shield, User } from 'lucide-react'
-import { Sheet, SheetBody } from '../../components/ui/overlay'
-import { InlineNotice } from '../../components/ui/panel'
+import { Sheet, SheetBody } from '../../components/kit/overlay'
+import { InlineNotice } from '../../components/kit/panel'
 import { formatDateTime } from '../../data/domain'
 import type { GovernanceApiIssue } from '../../data/controlPlane'
 

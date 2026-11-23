@@ -1,13 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, FlaskConical, Pencil, Play, Plus, ShieldQuestion } from 'lucide-react'
 import { useState } from 'react'
-import { Badge } from '../../components/ui/badge'
-import { Button } from '../../components/ui/button'
-import { Confirm } from '../../components/ui/overlay'
-import { Panel, PanelHead } from '../../components/ui/panel'
-import { EmptyState } from '../../components/ui/states'
+import { Badge } from '../../components/kit/badge'
+import { Button } from '../../components/kit/button'
+import { Confirm } from '../../components/kit/overlay'
+import { Panel, PanelHead } from '../../components/kit/panel'
+import { EmptyState } from '../../components/kit/states'
 import { DataTable, TablePagination, listColumnHelper } from '../../components/table/data-table'
-import { useNotice } from '../../components/ui/toast'
+import { useNotice } from '../../components/kit/toast'
 import {
   assistantQuestionAction,
   deleteAssistantQuestion,

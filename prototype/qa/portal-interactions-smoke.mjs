@@ -50,9 +50,9 @@ assert.match(oidc, /sessionStorage/, '门户 OIDC 会话必须限制在当前浏
 assert.match(app, /AuthGate/, '应用入口必须经过会话门')
 assert.match(read('src/app/auth-gate.tsx'), /OidcLoginGate/, '生产门户必须在 OIDC 未登录时阻断业务页面')
 // FE7 锁迁移：ProductScopeNotice 随旧页退役，范围与问数边界统一由运行状态横幅承载。
-assert.match(read('src/components/ui/RuntimeStatusBanner.tsx'), /首期真实范围/, '门户必须持续显示首期真实产品范围（由运行状态横幅承载）')
-assert.match(read('src/components/ui/RuntimeStatusBanner.tsx'), /受控智能问数/, '门户范围提示必须声明问数边界')
-assert.match(read('src/components/ui/RuntimeStatusBanner.tsx'), /仅已验证问题/, '问数边界必须声明「仅已验证问题」口径')
+assert.match(read('src/app/shell/runtime-status-banner.tsx'), /首期真实范围/, '门户必须持续显示首期真实产品范围（由运行状态横幅承载）')
+assert.match(read('src/app/shell/runtime-status-banner.tsx'), /受控智能问数/, '门户范围提示必须声明问数边界')
+assert.match(read('src/app/shell/runtime-status-banner.tsx'), /仅已验证问题/, '问数边界必须声明「仅已验证问题」口径')
 assert.doesNotMatch(quality, /from ['"][^'"]*data\/mock['"]/, '质量闭环不得继续依赖本地演示问题数据')
 assert.match(quality, /控制面暂不可用 · 未加载治理问题/, '质量闭环必须有真实控制面不可用状态')
 assert.match(quality, /updateGovernanceIssueWorkflow/, '处理说明必须回写控制面')

@@ -12,10 +12,10 @@ import {
 import { Columns3, RefreshCw, Maximize2, Minimize2 } from 'lucide-react'
 import { useMemo, type ReactNode } from 'react'
 import { cn } from '../../lib/utils'
-import { Button } from '../ui/button'
-import { Popover, PopoverOption, PopoverTitle } from '../ui/popover'
-import { SearchField, NativeSelect } from '../ui/input'
-import { EmptyState, Skeleton } from '../ui/states'
+import { Button } from '../kit/button'
+import { Popover, PopoverOption, PopoverTitle } from '../kit/popover'
+import { SearchField, NativeSelect } from '../kit/input'
+import { EmptyState, Skeleton } from '../kit/states'
 
 /**
  * 列表面板：批准原型的连续表格工作面（39px 表头、56px 行、细分隔线、数字右对齐）。
