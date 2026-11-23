@@ -1,6 +1,7 @@
+import { Badge } from '@/components/ui/badge'
 import { useQuery } from '@tanstack/react-query'
 import { Gauge, Settings2 } from 'lucide-react'
-import { Badge } from '../../components/kit/badge'
+
 import { Button } from '@/components/ui/button'
 import { Panel, PanelHead } from '../../components/kit/panel'
 import { DataTable, listColumnHelper } from '../../components/table/data-table'
@@ -47,7 +48,7 @@ export function QualityScorePanel({ compact = false }: { compact?: boolean }) {
       id: 'passed',
       header: '结果',
       size: 100,
-      cell: ({ row }) => row.original.passed == null ? '—' : <Badge tone={row.original.passed ? 'success' : 'danger'}>{row.original.passed ? '通过' : '未通过'}</Badge>,
+      cell: ({ row }) => row.original.passed == null ? '—' : <Badge variant={row.original.passed ? 'success' : 'error'}>{row.original.passed ? '通过' : '未通过'}</Badge>,
     }),
   ])
 
@@ -89,9 +90,9 @@ export function QualityScorePanel({ compact = false }: { compact?: boolean }) {
             <div className="flex items-center gap-2.5">
               <Gauge size={22} className="text-blue" />
               <strong className="text-metric leading-none font-semibold tracking-[-0.6px] text-blue">{summary.totalScore == null ? '—' : summary.totalScore.toFixed(1)}</strong>
-              {summary.grade ? <Badge>{`等级 ${summary.grade}`}</Badge> : null}
+              {summary.grade ? <Badge variant="outline">{`等级 ${summary.grade}`}</Badge> : null}
               {summary.totalScore != null ? (
-                <Badge tone={summary.totalScore >= summary.standard.passScore ? 'success' : 'warn'}>{summary.totalScore >= summary.standard.passScore ? '达标' : '未达标'}</Badge>
+                <Badge variant={summary.totalScore >= summary.standard.passScore ? 'success' : 'warning'}>{summary.totalScore >= summary.standard.passScore ? '达标' : '未达标'}</Badge>
               ) : null}
             </div>
             <div className={`grid flex-1 gap-x-5 gap-y-2 ${compact ? 'grid-cols-3' : 'grid-cols-6'} max-[1100px]:grid-cols-3`}>

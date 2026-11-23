@@ -1,7 +1,8 @@
+import { Badge } from '@/components/ui/badge'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Save, Shield } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { Badge } from '../../components/kit/badge'
+
 import { Button } from '@/components/ui/button'
 import { FormField, FormGrid, FormNotice } from '../../components/kit/form'
 import { CodeTextarea, Input, NativeSelect } from '../../components/kit/input'
@@ -312,7 +313,7 @@ export function RuleEditorPage({ ruleId }: { ruleId?: string }) {
           {error ? <p role="alert" className="mb-3 text-body-sm leading-relaxed text-red">{error}</p> : null}
 
           <div className="flex items-center justify-between gap-3 border-t border-line pt-4">
-            <span className="text-meta text-muted-foreground"><Badge tone="blue">保存即推送</Badge> 执行器对目标表列做实校验</span>
+            <span className="text-meta text-muted-foreground"><Badge variant="info">保存即推送</Badge> 执行器对目标表列做实校验</span>
             <div className="flex items-center gap-2">
               <Button variant="outline" onClick={() => navigate('/governance/quality')}>取消</Button>
               <Button disabled={mutation.isPending} onClick={submit}>

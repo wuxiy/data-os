@@ -1,13 +1,14 @@
+import { Badge } from '@/components/ui/badge'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, Plus, RefreshCw, ShieldCheck, Trash2 } from 'lucide-react'
 import { useState } from 'react'
-import { Badge } from '../../components/kit/badge'
+
 import { Button } from '@/components/ui/button'
 import { FormField, FormGrid, FormNotice } from '../../components/kit/form'
 import { Input, NativeSelect, SearchField } from '../../components/kit/input'
 import { Confirm, Dialog, DialogFooter } from '../../components/kit/overlay'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
-import { Count, Panel, PanelHead } from '../../components/kit/panel'
+import { Panel, PanelHead } from '../../components/kit/panel'
 import { EmptyState, LoadingBlock, Skeleton } from '../../components/kit/states'
 import { DataTable, listColumnHelper } from '../../components/table/data-table'
 import { useNotice } from '../../components/kit/toast'
@@ -38,9 +39,9 @@ const projectHelper = listColumnHelper<DeliveryProjectView>()
 const itemHelper = listColumnHelper<DeliveryItemView>()
 const eventHelper = listColumnHelper<DeliveryEventView>()
 
-function toneOf(status: string): 'success' | 'warn' | 'neutral' {
+function toneOf(status: string): 'success' | 'warning' | 'outline' {
   const tone = statusTone(status)
-  return tone === 'healthy' ? 'success' : tone === 'warning' ? 'warn' : 'neutral'
+  return tone === 'healthy' ? 'success' : tone === 'warning' ? 'warning' : 'outline'
 }
 
 /**
@@ -144,13 +145,13 @@ export function DeliveryCenterPage() {
         </div>
       ),
     }),
-    projectHelper.display({ id: 'status', header: '状态', size: 90, cell: ({ row }) => <Badge tone={toneOf(row.original.status)}>{STATUS_LABEL[row.original.status as keyof typeof STATUS_LABEL] ?? row.original.status}</Badge> }),
+    projectHelper.display({ id: 'status', header: '状态', size: 90, cell: ({ row }) => <Badge variant={toneOf(row.original.status)}>{STATUS_LABEL[row.original.status as keyof typeof STATUS_LABEL] ?? row.original.status}</Badge> }),
     projectHelper.display({ id: 'owner', header: '负责人', size: 100, cell: ({ row }) => row.original.owner }),
     projectHelper.display({ id: 'target', header: '目标日', size: 110, cell: ({ row }) => <span className="text-label text-faint">{row.original.targetDate || '—'}</span> }),
   ])
 
   const itemColumns = itemHelper.columns([
-    itemHelper.display({ id: 'type', header: '类型', size: 120, cell: ({ row }) => <Badge>{REF_TYPE_LABEL[row.original.refType as DeliveryRefType] ?? row.original.refType}</Badge> }),
+    itemHelper.display({ id: 'type', header: '类型', size: 120, cell: ({ row }) => <Badge variant="outline">{REF_TYPE_LABEL[row.original.refType as DeliveryRefType] ?? row.original.refType}</Badge> }),
     itemHelper.display({ id: 'ref', header: '引用', cell: ({ row }) => <span className="font-mono text-label text-muted-foreground">{row.original.refId}</span> }),
     itemHelper.display({ id: 'note', header: '备注', size: 200, cell: ({ row }) => <span className="text-label text-muted-foreground">{row.original.note || '—'}</span> }),
     itemHelper.display({
@@ -164,7 +165,7 @@ export function DeliveryCenterPage() {
   ])
 
   const eventColumns = eventHelper.columns([
-    eventHelper.display({ id: 'type', header: '事件', size: 110, cell: ({ row }) => <Badge>{row.original.eventType}</Badge> }),
+    eventHelper.display({ id: 'type', header: '事件', size: 110, cell: ({ row }) => <Badge variant="outline">{row.original.eventType}</Badge> }),
     eventHelper.display({
       id: 'detail',
       header: '说明',
@@ -222,7 +223,7 @@ export function DeliveryCenterPage() {
                     >
                       <span className="flex items-center justify-between gap-2">
                         <span className="truncate text-body-sm text-ink-soft">{project.name}</span>
-                        <Badge tone={toneOf(project.status)}>{STATUS_LABEL[project.status as keyof typeof STATUS_LABEL] ?? project.status}</Badge>
+                        <Badge variant={toneOf(project.status)}>{STATUS_LABEL[project.status as keyof typeof STATUS_LABEL] ?? project.status}</Badge>
                       </span>
                       <span className="mt-0.5 block font-mono text-meta text-muted-foreground">{project.code}</span>
                     </button>
@@ -244,7 +245,7 @@ export function DeliveryCenterPage() {
                   <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line px-5 py-4">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <Badge tone={toneOf(current.status)}>{STATUS_LABEL[current.status as keyof typeof STATUS_LABEL] ?? current.status}</Badge>
+                        <Badge variant={toneOf(current.status)}>{STATUS_LABEL[current.status as keyof typeof STATUS_LABEL] ?? current.status}</Badge>
                         <span className="font-mono text-meta text-muted-foreground">{current.code}</span>
                       </div>
                       <h2 className="mt-1.5 text-subject font-semibold text-ink">{current.name}</h2>
@@ -279,7 +280,7 @@ export function DeliveryCenterPage() {
                     {detailRequest.isError ? <p className="text-label text-red">交付详情读取失败，请刷新后重试。</p> : null}
                     {detail ? (
                       <>
-                        <h3 className="mb-1.5 text-label font-medium text-ink-soft">交付对象<Count>{detail.items.length}</Count></h3>
+                        <h3 className="mb-1.5 text-label font-medium text-ink-soft">交付对象<Badge variant="outline">{detail.items.length}</Badge></h3>
                         <DataTable
                           columns={itemColumns}
                           data={detail.items}

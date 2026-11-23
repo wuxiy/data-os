@@ -1,11 +1,12 @@
+import { Badge } from '@/components/ui/badge'
 import { useQuery } from '@tanstack/react-query'
 import { ChevronRight, RefreshCw, Shield } from 'lucide-react'
 import { useState } from 'react'
-import { Badge } from '../../components/kit/badge'
+
 import { Button } from '@/components/ui/button'
 import { MetricCard, MetricStrip } from '../../components/app/metric'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
-import { Count, Panel, PanelHead } from '../../components/kit/panel'
+import { Panel, PanelHead } from '../../components/kit/panel'
 import { EmptyState, LoadingBlock } from '../../components/kit/states'
 import { DataTable, listColumnHelper } from '../../components/table/data-table'
 import { formatDateTime, issueStatusLabel, issueStatusTone } from '../../data/domain'
@@ -86,7 +87,7 @@ const todoColumns = helper.columns([
     size: 100,
     cell: ({ row }) => {
       const tone = issueStatusTone(row.original.status)
-      return <Badge tone={tone === 'healthy' ? 'success' : tone === 'danger' ? 'danger' : tone === 'warning' ? 'warn' : 'neutral'}>{issueStatusLabel(row.original.status)}</Badge>
+      return <Badge variant={tone === 'healthy' ? 'success' : tone === 'danger' ? 'error' : tone === 'warning' ? 'warning' : 'outline'}>{issueStatusLabel(row.original.status)}</Badge>
     },
   }),
 ])
@@ -247,4 +248,3 @@ function Fact({ label, value }: { label: string; value: string }) {
   )
 }
 
-export { Count }

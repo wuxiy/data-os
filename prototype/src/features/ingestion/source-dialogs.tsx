@@ -1,7 +1,8 @@
+import { Badge } from '@/components/ui/badge'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Cable, CheckCircle2, Copy } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { Badge } from '../../components/kit/badge'
+
 import { Button } from '@/components/ui/button'
 import { FormField, FormNotice } from '../../components/kit/form'
 import { CodeTextarea, Input, NativeSelect } from '../../components/kit/input'
@@ -173,7 +174,7 @@ export function SourceCheckDialog({
       {source?.lastCheckMessage ? (
         <div className="rounded-control border border-line bg-wash px-3 py-2.5">
           <div className="flex items-center gap-2">
-            {status ? <Badge tone={status.tone}>{status.label}</Badge> : null}
+            {status ? <Badge variant={status.tone}>{status.label}</Badge> : null}
             <span className="text-label text-ink-soft">{source.lastCheckMessage}</span>
           </div>
           <p className="mt-1 text-meta text-muted-foreground">最近检查：{formatDateTime(source.lastCheckedAt)}</p>

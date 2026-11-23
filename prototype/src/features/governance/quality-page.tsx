@@ -1,12 +1,13 @@
+import { Badge } from '@/components/ui/badge'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearch } from '@tanstack/react-router'
 import { AlertTriangle, CircleAlert, Plus, RefreshCw, Search, Send, Shield, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Badge } from '../../components/kit/badge'
+
 import { Button } from '@/components/ui/button'
 import { Input, SearchField, NativeSelect } from '../../components/kit/input'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
-import { Count, Panel, PanelHead, ScopeNote } from '../../components/kit/panel'
+import { Panel, PanelHead, ScopeNote } from '../../components/kit/panel'
 import { Confirm } from '../../components/kit/overlay'
 import { EmptyState, LoadingBlock, LoadingInline, Skeleton } from '../../components/kit/states'
 import { DataTable, TablePagination, listColumnHelper } from '../../components/table/data-table'
@@ -84,7 +85,7 @@ function isSafeArtifactLink(value: string) {
 }
 
 function toneBadge(tone: 'healthy' | 'warning' | 'danger' | 'neutral') {
-  return tone === 'healthy' ? 'success' : tone === 'danger' ? 'danger' : tone === 'warning' ? 'warn' : 'neutral'
+  return tone === 'healthy' ? 'success' : tone === 'danger' ? 'error' : tone === 'warning' ? 'warning' : 'outline'
 }
 
 /**
@@ -335,7 +336,7 @@ export function QualityPage() {
       id: 'enabled',
       header: '状态',
       size: 90,
-      cell: ({ row }) => <Badge tone={row.original.enabled ? 'success' : 'neutral'}>{row.original.enabled ? '启用' : '停用'}</Badge>,
+      cell: ({ row }) => <Badge variant={row.original.enabled ? 'success' : 'outline'}>{row.original.enabled ? '启用' : '停用'}</Badge>,
     }),
     ruleHelper.display({ id: 'updated', header: '更新', size: 130, cell: ({ row }) => <span className="text-label text-faint">{formatDateTime(row.original.updatedAt)}</span> }),
     ruleHelper.display({
@@ -394,7 +395,7 @@ export function QualityPage() {
         <div className="grid grid-cols-[300px_minmax(0,1fr)_320px] gap-3.5 max-[1320px]:grid-cols-[250px_minmax(0,1fr)_270px] max-[1100px]:grid-cols-1">
           <Panel className="flex flex-col">
             <div className="flex items-center justify-between px-[18px] pt-4 pb-2">
-              <h2 className="text-title font-semibold">问题队列<Count>{openIssues.length}</Count></h2>
+              <h2 className="text-title font-semibold">问题队列<Badge variant="outline">{openIssues.length}</Badge></h2>
               <span className="text-meta text-muted-foreground">按 SLA 排序</span>
             </div>
             <div className="px-[18px] pb-2">
@@ -433,7 +434,7 @@ export function QualityPage() {
                     >
                       <span className="flex items-center justify-between gap-2">
                         <span className="font-mono text-meta text-muted-foreground">{issue.id}</span>
-                        <Badge tone={toneBadge(severityTone(issue.severity))}>{severityLabel(issue.severity)}风险</Badge>
+                        <Badge variant={toneBadge(severityTone(issue.severity))}>{severityLabel(issue.severity)}风险</Badge>
                       </span>
                       <span className="mt-1 block text-body-sm text-ink-soft">{issue.title}</span>
                       <span className="mt-0.5 block text-meta text-muted-foreground">{issue.ownerDepartment} · {issue.ownerName} · {issueStatusLabel(issue.status)}</span>
@@ -466,7 +467,7 @@ export function QualityPage() {
               <>
                 <div className="border-b border-line px-5 py-4">
                   <div className="flex flex-wrap items-center gap-2">
-                    <Badge tone={toneBadge(issueStatusTone(selected.status))}>{issueStatusLabel(selected.status)}</Badge>
+                    <Badge variant={toneBadge(issueStatusTone(selected.status))}>{issueStatusLabel(selected.status)}</Badge>
                     <span className="text-meta text-muted-foreground">更新于 {formatDateTime(selected.updatedAt ?? null)}</span>
                   </div>
                   <h2 className="mt-2 text-subject font-semibold text-ink">{selected.title}</h2>
@@ -574,7 +575,7 @@ export function QualityPage() {
               <div className="px-4 py-4">
                 <div className="mb-2 flex items-center justify-between">
                   <h3 className="text-label font-medium text-ink-soft">影响与证据</h3>
-                  <Badge tone={toneBadge(severityTone(selected.severity))}>{severityLabel(selected.severity)}风险</Badge>
+                  <Badge variant={toneBadge(severityTone(selected.severity))}>{severityLabel(selected.severity)}风险</Badge>
                 </div>
                 <EvidenceBox title="影响范围">{selected.impact}</EvidenceBox>
                 <EvidenceBox title="规则证据">{selected.ruleId}<br />规则结果来源：治理规则运行记录</EvidenceBox>
@@ -585,7 +586,7 @@ export function QualityPage() {
                       <strong className="text-label text-ink-soft">历史执行批次（{detail.runs.length}）</strong>
                       {detail.runs.slice(1).map((run) => (
                         <div key={run.id} className="mt-1 flex items-center gap-2 text-meta text-muted-foreground">
-                          <Badge tone={toneBadge(runStatusTone(run.status))}>{runStatusLabel(run.status)}</Badge>
+                          <Badge variant={toneBadge(runStatusTone(run.status))}>{runStatusLabel(run.status)}</Badge>
                           <span title={run.executionBatchId}>{shortBatchId(run.executionBatchId)}</span>
                           <time>{formatDateTime(run.submittedAt)}</time>
                           <small>{run.sampleEvidence.length} 条证据</small>
@@ -612,7 +613,7 @@ export function QualityPage() {
                   {detail.notifications.length > 0
                     ? detail.notifications.slice(0, 3).map((notification) => (
                       <p key={notification.id} className="mb-1.5">
-                        <Badge tone={notification.status === 'SENT' ? 'success' : notification.status === 'FAILED' ? 'danger' : 'warn'}>{notificationStatusLabel(notification.status)}</Badge>
+                        <Badge variant={notification.status === 'SENT' ? 'success' : notification.status === 'FAILED' ? 'error' : 'warning'}>{notificationStatusLabel(notification.status)}</Badge>
                         <span className="ml-1.5">{notification.channel} · {notification.recipient}</span>
                         <br />{notification.subject}
                         {notification.lastError ? <><br /><span className="text-red">{notification.lastError}</span></> : null}
@@ -699,7 +700,7 @@ function RunEvidence({ run }: { run: GovernanceQualityRunApiItem }) {
   return (
     <>
       <p>
-        <Badge tone={toneBadge(runStatusTone(run.status))}>{runStatusLabel(run.status)}</Badge>
+        <Badge variant={toneBadge(runStatusTone(run.status))}>{runStatusLabel(run.status)}</Badge>
         <br />执行器：{executorLabel(run.executor)}
         <br />批次：<code className="font-mono text-meta" title={run.executionBatchId}>{shortBatchId(run.executionBatchId)}</code>
         <br />提交：{formatDateTime(run.submittedAt)}

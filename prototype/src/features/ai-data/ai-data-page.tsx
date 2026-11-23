@@ -1,14 +1,15 @@
+import { Badge } from '@/components/ui/badge'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearch } from '@tanstack/react-router'
 import { AlertTriangle, Boxes, FlaskConical, MessageSquareText, Plus, RefreshCw, ShieldCheck } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { Badge } from '../../components/kit/badge'
+
 import { Button } from '@/components/ui/button'
 import { FormField, FormGrid, FormNotice } from '../../components/kit/form'
 import { CodeTextarea, Input, NativeSelect, SearchField } from '../../components/kit/input'
 import { Dialog, DialogFooter, Confirm } from '../../components/kit/overlay'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
-import { Count, Panel, PanelHead } from '../../components/kit/panel'
+import { Panel, PanelHead } from '../../components/kit/panel'
 import { Tabs, TabPanel } from '../../components/kit/popover'
 import { EmptyState, LoadingBlock, Skeleton } from '../../components/kit/states'
 import { DataTable, TablePagination, listColumnHelper } from '../../components/table/data-table'
@@ -62,11 +63,11 @@ export function nextLifecycleTarget(lifecycle: AIDataProductLifecycle): AIDataPr
   return lifecycleMainChain[index + 1]
 }
 
-function lifecycleTone(lifecycle: AIDataProductLifecycle): 'success' | 'warn' | 'neutral' | 'blue' {
+function lifecycleTone(lifecycle: AIDataProductLifecycle): 'success' | 'warning' | 'outline' | 'info' {
   if (lifecycle === 'CERTIFIED' || lifecycle === 'SERVING') return 'success'
-  if (lifecycle === 'DEPRECATED') return 'neutral'
-  if (lifecycle === 'ASSESSED') return 'blue'
-  return 'warn'
+  if (lifecycle === 'DEPRECATED') return 'outline'
+  if (lifecycle === 'ASSESSED') return 'info'
+  return 'warning'
 }
 
 /**
@@ -248,7 +249,7 @@ export function AIDataPage() {
         </div>
       ),
     }),
-    productHelper.display({ id: 'lifecycle', header: '生命周期', size: 110, cell: ({ row }) => <Badge tone={lifecycleTone(row.original.lifecycle)}>{lifecycleLabel[row.original.lifecycle]}</Badge> }),
+    productHelper.display({ id: 'lifecycle', header: '生命周期', size: 110, cell: ({ row }) => <Badge variant={lifecycleTone(row.original.lifecycle)}>{lifecycleLabel[row.original.lifecycle]}</Badge> }),
     productHelper.display({ id: 'owner', header: '负责人', size: 110, cell: ({ row }) => row.original.owner }),
     productHelper.display({ id: 'updated', header: '更新', size: 130, cell: ({ row }) => <span className="text-label text-faint">{formatDateTime(row.original.updatedAt)}</span> }),
   ])
@@ -260,7 +261,7 @@ export function AIDataPage() {
       id: 'build',
       header: '构建状态',
       size: 120,
-      cell: ({ row }) => <Badge tone={row.original.buildStatus === 'FAILED' ? 'danger' : row.original.buildStatus === 'RUNNING' ? 'warn' : row.original.buildStatus === 'REGISTERED' ? 'neutral' : 'success'}>{aiBuildStatusLabel[row.original.buildStatus] ?? row.original.buildStatus}</Badge>,
+      cell: ({ row }) => <Badge variant={row.original.buildStatus === 'FAILED' ? 'error' : row.original.buildStatus === 'RUNNING' ? 'warning' : row.original.buildStatus === 'REGISTERED' ? 'outline' : 'success'}>{aiBuildStatusLabel[row.original.buildStatus] ?? row.original.buildStatus}</Badge>,
     }),
     versionHelper.display({ id: 'overall', header: '就绪度', size: 90, meta: { align: 'right' }, cell: ({ row }) => <span className="tabular-nums text-label">{row.original.readiness?.overall != null ? row.original.readiness.overall.toFixed(2) : '—'}</span> }),
     versionHelper.display({
@@ -268,7 +269,7 @@ export function AIDataPage() {
       header: '认证',
       size: 110,
       cell: ({ row }) => row.original.readiness?.certification
-        ? <Badge tone={row.original.readiness.certification === 'BLOCKED' ? 'danger' : row.original.readiness.certification === 'CANDIDATE' ? 'blue' : 'warn'}>{aiCertificationLabel[row.original.readiness.certification] ?? row.original.readiness.certification}</Badge>
+        ? <Badge variant={row.original.readiness.certification === 'BLOCKED' ? 'error' : row.original.readiness.certification === 'CANDIDATE' ? 'info' : 'warning'}>{aiCertificationLabel[row.original.readiness.certification] ?? row.original.readiness.certification}</Badge>
         : <span className="text-label text-faint">—</span>,
     }),
     versionHelper.display({ id: 'recipe', header: 'Recipe', size: 140, cell: ({ row }) => <span className="font-mono text-meta text-muted-foreground">{row.original.recipeRef ?? '—'}</span> }),
@@ -278,7 +279,7 @@ export function AIDataPage() {
 
   const certHelper = listColumnHelper<AICertificationRequest>()
   const certColumns = certHelper.columns([
-    certHelper.display({ id: 'status', header: '状态', size: 100, cell: ({ row }) => <Badge tone={row.original.decision === 'APPROVED' ? 'success' : row.original.decision === 'REJECTED' ? 'danger' : 'warn'}>{row.original.decision === 'APPROVED' ? '已批准' : row.original.decision === 'REJECTED' ? '已退回' : '待审批'}</Badge> }),
+    certHelper.display({ id: 'status', header: '状态', size: 100, cell: ({ row }) => <Badge variant={row.original.decision === 'APPROVED' ? 'success' : row.original.decision === 'REJECTED' ? 'error' : 'warning'}>{row.original.decision === 'APPROVED' ? '已批准' : row.original.decision === 'REJECTED' ? '已退回' : '待审批'}</Badge> }),
     certHelper.display({ id: 'version', header: '版本', size: 110, cell: ({ row }) => <span className="font-mono text-label">{row.original.versionSn}</span> }),
     certHelper.display({ id: 'note', header: '说明', cell: ({ row }) => <span className="text-label text-muted-foreground">{row.original.decisionNote || `就绪度 ${row.original.readinessOverall.toFixed(2)} · ${aiCertificationLabel[row.original.certification] ?? row.original.certification}`}</span> }),
     certHelper.display({ id: 'at', header: '提交时间', size: 130, cell: ({ row }) => <span className="text-label text-faint">{formatDateTime(row.original.createdAt)}</span> }),
@@ -301,8 +302,8 @@ export function AIDataPage() {
   const feedbackColumns = feedbackHelper.columns([
     feedbackHelper.display({ id: 'question', header: '失败样本', cell: ({ row }) => <span className="text-label text-ink-soft">{row.original.question}</span> }),
     feedbackHelper.display({ id: 'metric', header: '指标', size: 110, cell: ({ row }) => <span className="text-label">{row.original.metric ? (aiMetricLabel[row.original.metric] ?? row.original.metric) : '—'}</span> }),
-    feedbackHelper.display({ id: 'type', header: '类型', size: 130, cell: ({ row }) => <Badge>{aiFeedbackTypeLabel[row.original.feedbackType] ?? row.original.feedbackType}</Badge> }),
-    feedbackHelper.display({ id: 'status', header: '状态', size: 100, cell: ({ row }) => <Badge tone={row.original.status === 'CONSUMED' ? 'success' : row.original.status === 'DISMISSED' ? 'neutral' : 'warn'}>{row.original.status === 'CONSUMED' ? '已吸收' : row.original.status === 'DISMISSED' ? '已驳回' : '待处置'}</Badge> }),
+    feedbackHelper.display({ id: 'type', header: '类型', size: 130, cell: ({ row }) => <Badge variant="outline">{aiFeedbackTypeLabel[row.original.feedbackType] ?? row.original.feedbackType}</Badge> }),
+    feedbackHelper.display({ id: 'status', header: '状态', size: 100, cell: ({ row }) => <Badge variant={row.original.status === 'CONSUMED' ? 'success' : row.original.status === 'DISMISSED' ? 'outline' : 'warning'}>{row.original.status === 'CONSUMED' ? '已吸收' : row.original.status === 'DISMISSED' ? '已驳回' : '待处置'}</Badge> }),
     feedbackHelper.display({
       id: 'actions',
       header: '处置',
@@ -320,7 +321,7 @@ export function AIDataPage() {
 
   const buildHelper = listColumnHelper<AIBuildJob>()
   const buildColumns = buildHelper.columns([
-    buildHelper.display({ id: 'status', header: '任务状态', size: 110, cell: ({ row }) => <Badge tone={row.original.status === 'FAILED' ? 'danger' : row.original.status === 'SUCCEEDED' ? 'success' : 'warn'}>{aiBuildJobStatusLabel[row.original.status] ?? row.original.status}</Badge> }),
+    buildHelper.display({ id: 'status', header: '任务状态', size: 110, cell: ({ row }) => <Badge variant={row.original.status === 'FAILED' ? 'error' : row.original.status === 'SUCCEEDED' ? 'success' : 'warning'}>{aiBuildJobStatusLabel[row.original.status] ?? row.original.status}</Badge> }),
     buildHelper.display({ id: 'version', header: '版本', size: 110, cell: ({ row }) => <span className="font-mono text-label">{row.original.versionSn}</span> }),
     buildHelper.display({ id: 'recipe', header: 'Recipe', size: 150, cell: ({ row }) => <span className="font-mono text-meta text-muted-foreground">{row.original.recipeRef ?? '—'}</span> }),
     buildHelper.display({ id: 'at', header: '投递', size: 130, cell: ({ row }) => <span className="text-label text-faint">{formatDateTime(row.original.createdAt)}</span> }),
@@ -352,7 +353,7 @@ export function AIDataPage() {
         <div className="grid grid-cols-[300px_minmax(0,1fr)] gap-3.5 max-[1100px]:grid-cols-1">
           <Panel className="flex flex-col">
             <div className="flex items-center justify-between px-[18px] pt-3 pb-2">
-              <h2 className="text-title font-semibold">产品目录<Count>{visible.length}</Count></h2>
+              <h2 className="text-title font-semibold">产品目录<Badge variant="outline">{visible.length}</Badge></h2>
             </div>
             <div className="px-[18px] pb-2"><SearchField value={keyword} onValueChange={(value) => { setKeyword(value); setPage(0) }} placeholder="搜索产品名称/负责人" className="w-full" /></div>
             <div className="px-[18px] pb-2">
@@ -374,7 +375,7 @@ export function AIDataPage() {
                     >
                       <span className="flex items-center justify-between gap-2">
                         <span className="truncate text-body-sm text-ink-soft">{item.name}</span>
-                        <Badge tone={lifecycleTone(item.lifecycle)}>{lifecycleLabel[item.lifecycle]}</Badge>
+                        <Badge variant={lifecycleTone(item.lifecycle)}>{lifecycleLabel[item.lifecycle]}</Badge>
                       </span>
                       <span className="mt-0.5 block text-meta text-muted-foreground">{productTypeLabel[item.productType]} · {item.currentVersion}</span>
                     </button>
@@ -397,7 +398,7 @@ export function AIDataPage() {
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="rounded-chip bg-wash px-1.5 py-0.5 text-meta text-muted-foreground">{productTypeLabel[product.productType]}</span>
-                      <Badge tone={lifecycleTone(product.lifecycle)}>{lifecycleLabel[product.lifecycle]}</Badge>
+                      <Badge variant={lifecycleTone(product.lifecycle)}>{lifecycleLabel[product.lifecycle]}</Badge>
                     </div>
                     <h2 className="mt-1.5 text-subject font-semibold text-ink">{product.name}</h2>
                     <p className="mt-1 text-label text-muted-foreground">当前版本 {product.currentVersion} · 负责人 {product.owner} · 工作流 {product.workflowType}</p>
@@ -474,8 +475,8 @@ export function AIDataPage() {
                     <div className="border-t border-line px-5 py-3">
                       <div className="mb-2 flex items-center gap-2">
                         <h3 className="text-label font-medium text-ink-soft">构建任务</h3>
-                        {activeBuild ? <Badge tone="warn">执行中 · 每 2 秒刷新</Badge> : null}
-                        {buildPollState.exhausted ? <Badge tone="neutral">超过观察窗口，仍在执行</Badge> : null}
+                        {activeBuild ? <Badge variant="warning">执行中 · 每 2 秒刷新</Badge> : null}
+                        {buildPollState.exhausted ? <Badge variant="outline">超过观察窗口，仍在执行</Badge> : null}
                       </div>
                       <DataTable columns={buildColumns} data={buildsRequest.data ?? []} getRowId={(job) => job.id} loading={buildsRequest.isPending} empty={<p className="py-2 text-label text-muted-foreground">还没有构建任务。</p>} />
                     </div>

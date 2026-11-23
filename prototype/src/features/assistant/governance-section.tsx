@@ -1,7 +1,8 @@
+import { Badge } from '@/components/ui/badge'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, FlaskConical, Pencil, Play, Plus, ShieldQuestion } from 'lucide-react'
 import { useState } from 'react'
-import { Badge } from '../../components/kit/badge'
+
 import { Button } from '@/components/ui/button'
 import { Confirm } from '../../components/kit/overlay'
 import { Panel, PanelHead } from '../../components/kit/panel'
@@ -77,7 +78,7 @@ export function AssistantGovernanceSection({ onNotice }: { onNotice: (message: s
       header: '状态',
       size: 90,
       cell: ({ row }) => (
-        <Badge tone={row.original.status === 'PUBLISHED' ? 'success' : row.original.status === 'DRAFT' ? 'neutral' : 'warn'}>
+        <Badge variant={row.original.status === 'PUBLISHED' ? 'success' : row.original.status === 'DRAFT' ? 'outline' : 'warning'}>
           {QUESTION_STATUS_LABEL[row.original.status] ?? row.original.status}
         </Badge>
       ),

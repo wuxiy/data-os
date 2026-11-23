@@ -1,7 +1,8 @@
+import { Badge } from '@/components/ui/badge'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Gauge, Plus, Save } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { Badge } from '../../components/kit/badge'
+
 import { Button } from '@/components/ui/button'
 import { FormField, FormGrid, FormNotice } from '../../components/kit/form'
 import { Input } from '../../components/kit/input'
@@ -153,7 +154,7 @@ export function ScoringPage() {
 
             <div className="mt-4 rounded-control border border-line bg-wash px-3 py-2.5 text-label text-muted-foreground">
               <strong className="block text-body-sm text-ink-soft">保存影响</strong>
-              <p className="mt-1">保存后立即按新标准重算总分与等级；<Badge tone="warn">受影响</Badge> 只影响评分读数，不重跑规则、不改变已产生的治理问题。</p>
+              <p className="mt-1">保存后立即按新标准重算总分与等级；<Badge variant="warning">受影响</Badge> 只影响评分读数，不重跑规则、不改变已产生的治理问题。</p>
             </div>
 
             {error ? <p role="alert" className="mt-3 text-body-sm text-red">{error}</p> : null}

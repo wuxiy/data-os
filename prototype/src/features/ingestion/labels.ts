@@ -1,6 +1,9 @@
 import { defaultTemplateKey, offersDemoTemplate } from '../../data/runtimeMode'
 import type { JobConfig, SourceApiItem } from '../../data/controlPlane'
-import type { BadgeTone } from '../../components/kit/badge'
+import type { BadgeProps } from '@/components/ui/badge'
+
+/** 状态标签外观：直接取 coss Badge 的 variant 值（success / warning / error / outline）。 */
+type BadgeTone = NonNullable<BadgeProps['variant']>
 
 /** 接入域词汇与默认值：接口状态值是开放字符串，未知值原样回退。 */
 
@@ -67,9 +70,9 @@ export function offerDemoTemplate(): boolean {
 export function sourceStatusView(status: string): { label: string; tone: BadgeTone } {
   switch (status) {
     case 'HEALTHY': return { label: '健康', tone: 'success' }
-    case 'UNHEALTHY': return { label: '连接失败', tone: 'danger' }
-    case 'BLOCKED_CONFIGURATION': return { label: '待配置', tone: 'warn' }
-    default: return { label: '待检查', tone: 'warn' }
+    case 'UNHEALTHY': return { label: '连接失败', tone: 'error' }
+    case 'BLOCKED_CONFIGURATION': return { label: '待配置', tone: 'warning' }
+    default: return { label: '待检查', tone: 'warning' }
   }
 }
 
@@ -82,9 +85,9 @@ export function sourceCheckDefaults(protocol: string): JobConfig {
 export function jobLifecycleView(status: string): { label: string; tone: BadgeTone } {
   switch (status) {
     case 'ACTIVE': return { label: '已启用', tone: 'success' }
-    case 'PAUSED': return { label: '已暂停', tone: 'warn' }
-    case 'ARCHIVED': return { label: '已归档', tone: 'neutral' }
-    default: return { label: '草稿', tone: 'neutral' }
+    case 'PAUSED': return { label: '已暂停', tone: 'warning' }
+    case 'ARCHIVED': return { label: '已归档', tone: 'outline' }
+    default: return { label: '草稿', tone: 'outline' }
   }
 }
 

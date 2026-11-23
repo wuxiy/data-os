@@ -1,13 +1,14 @@
+import { Badge } from '@/components/ui/badge'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CloudCog, History, LockKeyhole, RefreshCw, Server, ShieldCheck, TriangleAlert } from 'lucide-react'
 import { useState } from 'react'
-import { Badge } from '../../components/kit/badge'
+
 import { Button } from '@/components/ui/button'
 import { FormField, FormGrid, FormNotice } from '../../components/kit/form'
 import { Input, NativeSelect } from '../../components/kit/input'
 import { Confirm, Dialog, DialogFooter, Sheet, SheetBody, SheetFooterActions } from '../../components/kit/overlay'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
-import { Count, Panel, PanelHead } from '../../components/kit/panel'
+import { Panel, PanelHead } from '../../components/kit/panel'
 import { EmptyState, LoadingBlock } from '../../components/kit/states'
 import { DataTable, listColumnHelper } from '../../components/table/data-table'
 import { useNotice } from '../../components/kit/toast'
@@ -28,8 +29,8 @@ const nodeHelper = listColumnHelper<EdgeNodeApiItem>()
 const deploymentHelper = listColumnHelper<EdgeDeploymentApiItem>()
 const watermarkHelper = listColumnHelper<EdgeWatermarkTable>()
 
-function nodeTone(state: EdgeNodeApiItem['state']): 'success' | 'danger' | 'neutral' {
-  return state === 'ONLINE' ? 'success' : state === 'OFFLINE' ? 'danger' : 'neutral'
+function nodeTone(state: EdgeNodeApiItem['state']): 'success' | 'error' | 'outline' {
+  return state === 'ONLINE' ? 'success' : state === 'OFFLINE' ? 'error' : 'outline'
 }
 
 /**
@@ -139,7 +140,7 @@ export function PlatformOperationsPage() {
     }),
     nodeHelper.display({ id: 'addr', header: '地址', size: 200, cell: ({ row }) => <span className="font-mono text-label text-muted-foreground">{row.original.host}:{row.original.port}</span> }),
     nodeHelper.display({ id: 'version', header: '版本', size: 100, cell: ({ row }) => <span className="font-mono text-label">{row.original.version || '—'}</span> }),
-    nodeHelper.display({ id: 'state', header: '状态', size: 100, cell: ({ row }) => <Badge tone={nodeTone(row.original.state)}>{row.original.state === 'ONLINE' ? '在线' : row.original.state === 'OFFLINE' ? '离线' : '未知'}</Badge> }),
+    nodeHelper.display({ id: 'state', header: '状态', size: 100, cell: ({ row }) => <Badge variant={nodeTone(row.original.state)}>{row.original.state === 'ONLINE' ? '在线' : row.original.state === 'OFFLINE' ? '离线' : '未知'}</Badge> }),
     nodeHelper.display({ id: 'probe', header: '最近探活', size: 170, cell: ({ row }) => row.original.lastProbeAt
       ? <span className="text-label text-muted-foreground">{formatDateTime(row.original.lastProbeAt)}{row.original.lastProbeOk === false ? ' · 失败' : ''}</span>
       : <span className="text-label text-faint">未探活</span> }),
@@ -206,14 +207,14 @@ export function PlatformOperationsPage() {
           <PanelHead
             title="核心链路"
             description={`覆盖 ${platform.operational.ready}/${platform.operational.total} 组件 · 降级 ${platform.operational.degraded} · 未知 ${platform.operational.unknown}`}
-            actions={<Badge tone={platform.operational.state === 'READY' ? 'success' : platform.operational.state === 'DEGRADED' ? 'warn' : 'neutral'}>{operationalLabel}</Badge>}
+            actions={<Badge variant={platform.operational.state === 'READY' ? 'success' : platform.operational.state === 'DEGRADED' ? 'warning' : 'outline'}>{operationalLabel}</Badge>}
           />
           <ul className="m-0 grid list-none grid-cols-3 gap-3 px-5 pb-4 max-[1100px]:grid-cols-1">
             {platform.services.map((service) => (
               <li key={service.key} className="rounded-control border border-line px-3 py-2.5">
                 <div className="flex items-center justify-between gap-2">
                   <strong className="text-body-sm text-ink-soft">{service.name}</strong>
-                  <Badge tone={service.status === 'UP' ? 'success' : service.status === 'DOWN' ? 'danger' : 'neutral'}>
+                  <Badge variant={service.status === 'UP' ? 'success' : service.status === 'DOWN' ? 'error' : 'outline'}>
                     {service.status === 'UP' ? '正常' : service.status === 'DOWN' ? '不可达' : '未配置'}
                   </Badge>
                 </div>

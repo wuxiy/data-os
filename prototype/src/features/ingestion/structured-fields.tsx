@@ -1,8 +1,9 @@
+import { Badge } from '@/components/ui/badge'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useForm } from '@tanstack/react-form'
 import { CircleAlert, FlaskConical, Play, Table2 } from 'lucide-react'
 import { useEffect, useMemo, useRef } from 'react'
-import { Badge } from '../../components/kit/badge'
+
 import { Button } from '@/components/ui/button'
 import { FormField, FormGrid, FormNotice } from '../../components/kit/form'
 import { CodeTextarea, Input, NativeSelect } from '../../components/kit/input'
@@ -374,7 +375,7 @@ export function StructuredTaskFields({
         </div>
       </div>
       <p className="mt-2 text-meta text-muted-foreground">
-        <Badge tone="blue">结构化意图</Badge> 表单只声明采集口径，库表与字段由控制面对源实校验后编译。
+        <Badge variant="info">结构化意图</Badge> 表单只声明采集口径，库表与字段由控制面对源实校验后编译。
       </p>
     </form>
   )

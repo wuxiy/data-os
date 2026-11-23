@@ -1,3 +1,5 @@
+import { StatusBadge } from '@/components/app/status-badge'
+import { Badge } from '@/components/ui/badge'
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Activity,
@@ -16,11 +18,11 @@ import {
   Settings2,
 } from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
-import { Badge, StatusText } from '../../components/kit/badge'
+
 import { Button } from '@/components/ui/button'
 import { NativeSelect, SearchField } from '../../components/kit/input'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
-import { Count, Panel, PanelHead, ScopeNote } from '../../components/kit/panel'
+import { Panel, PanelHead, ScopeNote } from '../../components/kit/panel'
 import { Popover } from '../../components/kit/popover'
 import { Confirm } from '../../components/kit/overlay'
 import { EmptyState, LoadingInline } from '../../components/kit/states'
@@ -245,7 +247,7 @@ export function IngestionPage() {
       size: 110,
       cell: ({ row }) => {
         const status = sourceStatusView(row.original.status)
-        return <Badge tone={status.tone}>{status.label}</Badge>
+        return <Badge variant={status.tone}>{status.label}</Badge>
       },
     }),
     sourceHelper.display({
@@ -287,7 +289,7 @@ export function IngestionPage() {
         <div>
           <div className="flex items-center gap-2">
             <span className="text-body-sm font-medium text-ink">{row.original.name}</span>
-            <Badge tone={row.original.configured ? 'blue' : 'warn'}>
+            <Badge variant={row.original.configured ? 'info' : 'warning'}>
               {row.original.configured ? `${row.original.templateKey ?? '自定义'} v${row.original.templateVersion ?? 1}` : '未配置'}
             </Badge>
           </div>
@@ -316,12 +318,12 @@ export function IngestionPage() {
         const latestStatus = run?.status ?? row.original.latestRunStatus
         if (!latestStatus) {
           const lifecycle = jobLifecycleView(row.original.status)
-          return <StatusText tone={lifecycle.tone === 'success' ? 'good' : lifecycle.tone === 'danger' ? 'bad' : 'neutral'}>{lifecycle.label}</StatusText>
+          return <StatusBadge tone={lifecycle.tone === 'success' ? 'good' : lifecycle.tone === 'error' ? 'bad' : 'neutral'}>{lifecycle.label}</StatusBadge>
         }
         const status = runStatusView(latestStatus)
         return (
           <div>
-            <StatusText tone={status.tone === 'healthy' ? 'good' : status.tone === 'danger' ? 'bad' : status.tone === 'warning' ? 'running' : 'neutral'}>{status.label}</StatusText>
+            <StatusBadge tone={status.tone === 'healthy' ? 'good' : status.tone === 'danger' ? 'bad' : status.tone === 'warning' ? 'running' : 'neutral'}>{status.label}</StatusBadge>
             {run ? <div className="mt-0.5 max-w-[200px] truncate text-meta text-muted-foreground" title={businessMessage(run.message)}>{businessMessage(run.message)}</div> : null}
           </div>
         )
@@ -333,7 +335,7 @@ export function IngestionPage() {
       size: 100,
       cell: ({ row }) => {
         const lifecycle = jobLifecycleView(row.original.status)
-        return <Badge tone={lifecycle.tone}>{lifecycle.label}</Badge>
+        return <Badge variant={lifecycle.tone}>{lifecycle.label}</Badge>
       },
     }),
     jobHelper.display({
@@ -352,7 +354,7 @@ export function IngestionPage() {
             {job.status === 'PAUSED' ? (
               <Button variant="outline" size="sm" disabled={busy} onClick={() => changeStatus.mutate({ job, status: 'ACTIVE' })}><Play size={12} />启用</Button>
             ) : job.status === 'ARCHIVED' ? (
-              <Badge>已归档</Badge>
+              <Badge variant="outline">已归档</Badge>
             ) : (
               <Button variant="outline"
                 size="sm"
@@ -437,7 +439,7 @@ export function IngestionPage() {
       size: 140,
       cell: ({ row }) => {
         const status = runStatusView(row.original.run.status)
-        return <StatusText tone={status.tone === 'healthy' ? 'good' : status.tone === 'danger' ? 'bad' : status.tone === 'warning' ? 'running' : 'neutral'}>{status.label}</StatusText>
+        return <StatusBadge tone={status.tone === 'healthy' ? 'good' : status.tone === 'danger' ? 'bad' : status.tone === 'warning' ? 'running' : 'neutral'}>{status.label}</StatusBadge>
       },
     }),
     runHelper.display({
@@ -445,7 +447,7 @@ export function IngestionPage() {
       header: '对账',
       size: 150,
       cell: ({ row }) => row.original.run.reconciliationStatus === 'MANUAL_REQUIRED'
-        ? <Badge tone="warn">待人工对账</Badge>
+        ? <Badge variant="warning">待人工对账</Badge>
         : <span className="text-label text-faint">—</span>,
     }),
     runHelper.display({
@@ -533,7 +535,7 @@ export function IngestionPage() {
               onClick={() => { setTab(item.value); setKeyword(''); setStatusFilter(''); setModeFilter('') }}
               className={`-mb-px border-b-2 px-px pt-[13px] pb-3 text-body-sm transition-colors ${tab === item.value ? 'border-blue font-medium text-blue' : 'border-transparent text-muted-foreground hover:text-ink'}`}
             >
-              {item.label}<Count>{item.count}</Count>
+              {item.label}<Badge variant="outline">{item.count}</Badge>
             </button>
           ))}
         </div>

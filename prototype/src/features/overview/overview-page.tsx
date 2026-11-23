@@ -1,10 +1,11 @@
+import { Badge } from '@/components/ui/badge'
 import { useQuery } from '@tanstack/react-query'
 import { Activity, ChevronRight, CloudCog, Inbox, RefreshCw } from 'lucide-react'
 import { useMemo } from 'react'
-import { Badge } from '../../components/kit/badge'
+
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { MetricCard, MetricStrip } from '../../components/app/metric'
-import { Count, Panel, PanelHead } from '../../components/kit/panel'
+import { Panel, PanelHead } from '../../components/kit/panel'
 import { LoadingBlock, Skeleton } from '../../components/kit/states'
 import { Button } from '@/components/ui/button'
 import { DataTable, listColumnHelper } from '../../components/table/data-table'
@@ -61,7 +62,7 @@ const workItemColumns = helper.columns([
     size: 84,
     cell: ({ row }) => {
       const severity = row.original.severity
-      return <Badge tone={severity === 'CRITICAL' || severity === 'HIGH' ? 'danger' : severity === 'MEDIUM' ? 'warn' : 'neutral'}>{SEVERITY_LABEL[severity] ?? severity}</Badge>
+      return <Badge variant={severity === 'CRITICAL' || severity === 'HIGH' ? 'error' : severity === 'MEDIUM' ? 'warning' : 'outline'}>{SEVERITY_LABEL[severity] ?? severity}</Badge>
     },
   }),
   helper.accessor('title', { header: '待办' }),
@@ -190,7 +191,7 @@ export function OverviewPage() {
           </div>
         </div>
         <div className="flex items-center gap-2.5">
-          <Badge tone={components?.state === 'READY' ? 'success' : components?.state === 'DEGRADED' ? 'warn' : 'neutral'}>
+          <Badge variant={components?.state === 'READY' ? 'success' : components?.state === 'DEGRADED' ? 'warning' : 'outline'}>
             {components?.state === 'READY' ? '全部就绪' : components?.state === 'DEGRADED' ? '存在降级' : '状态未知'}
           </Badge>
           <Button variant="outline" size="sm" onClick={refresh}>刷新</Button>
@@ -249,5 +250,3 @@ export function OverviewPage() {
   )
 }
 
-/** 数量角标导出供面板标题复用（保留命名一致性）。 */
-export { Count }

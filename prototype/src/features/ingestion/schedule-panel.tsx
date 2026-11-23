@@ -1,7 +1,9 @@
+import { StatusBadge } from '@/components/app/status-badge'
+import { Badge } from '@/components/ui/badge'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarClock, Eye, ListTree, Power, RotateCcw, Save, Square, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { Badge, StatusText } from '../../components/kit/badge'
+
 import { Button } from '@/components/ui/button'
 import { FormField, FormGrid, FormNotice } from '../../components/kit/form'
 import { Input, NativeSelect } from '../../components/kit/input'
@@ -173,8 +175,8 @@ export function SchedulePanel({ jobId, jobName }: { jobId: string; jobName: stri
 
   const schedule = scheduleRequest.data
   const strategy = schedule?.scheduled
-    ? schedule.online ? { label: '周期调度 · 上线中', tone: 'success' as const } : { label: '周期调度 · 已下线', tone: 'warn' as const }
-    : { label: '手动调度', tone: 'neutral' as const }
+    ? schedule.online ? { label: '周期调度 · 上线中', tone: 'success' as const } : { label: '周期调度 · 已下线', tone: 'warning' as const }
+    : { label: '手动调度', tone: 'outline' as const }
   const busy = saveMutation.isPending || stateMutation.isPending
 
   const instanceColumns = instanceHelper.columns([
@@ -183,7 +185,7 @@ export function SchedulePanel({ jobId, jobName }: { jobId: string; jobName: stri
       id: 'state',
       header: '状态',
       size: 110,
-      cell: ({ row }) => <StatusText tone={instanceTone(row.original.state)}>{instanceLabel(row.original.state)}</StatusText>,
+      cell: ({ row }) => <StatusBadge tone={instanceTone(row.original.state)}>{instanceLabel(row.original.state)}</StatusBadge>,
     }),
     instanceHelper.display({
       id: 'start',
@@ -220,7 +222,7 @@ export function SchedulePanel({ jobId, jobName }: { jobId: string; jobName: stri
   return (
     <div className="space-y-3.5">
       <Panel>
-        <PanelHead title="调度配置" description={`周期调度 · ${jobName}`} actions={<Badge tone={strategy.tone}>{strategy.label}</Badge>} />
+        <PanelHead title="调度配置" description={`周期调度 · ${jobName}`} actions={<Badge variant={strategy.tone}>{strategy.label}</Badge>} />
         <div className="px-5 pb-5">
           <FormNotice icon={<CalendarClock />}>
             调度由平台调度引擎执行，调度平台是唯一事实源；本页每次打开实时读取。保存不改变上下线状态，新建调度需显式上线。平台定时触发的运行在「调度实例」中查看（门户发起的运行才进任务运行记录）。
@@ -303,7 +305,7 @@ export function SchedulePanel({ jobId, jobName }: { jobId: string; jobName: stri
 
               {preview ? (
                 <div className="mb-3 rounded-control border border-line bg-wash px-3 py-2.5">
-                  <Badge tone={preview.source === 'DS' ? 'success' : 'warn'}>{preview.source === 'DS' ? '平台调度引擎计算' : '引擎不可达 · 本地估算'}</Badge>
+                  <Badge variant={preview.source === 'DS' ? 'success' : 'warning'}>{preview.source === 'DS' ? '平台调度引擎计算' : '引擎不可达 · 本地估算'}</Badge>
                   <ul className="mt-2 space-y-1 text-label text-ink-soft">
                     {preview.fireTimes.map((time) => <li key={time}>{formatDateTime(time)}</li>)}
                     {preview.fireTimes.length === 0 ? <li>生效窗口内无触发时刻</li> : null}
@@ -375,7 +377,7 @@ export function SchedulePanel({ jobId, jobName }: { jobId: string; jobName: stri
               {(tasksRequest.data ?? []).map((task) => (
                 <li key={task.id} className="flex flex-wrap items-center gap-3 rounded-control border border-line bg-paper px-3 py-2 text-label">
                   <span className="text-ink-soft">{task.name}</span>
-                  <StatusText tone={instanceTone(task.state)}>{instanceLabel(task.state)}</StatusText>
+                  <StatusBadge tone={instanceTone(task.state)}>{instanceLabel(task.state)}</StatusBadge>
                   <span className="text-meta text-muted-foreground">{formatDateTime(task.startTime)} → {formatDateTime(task.endTime)}</span>
                   <Button
                     variant="link"

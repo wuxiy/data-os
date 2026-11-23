@@ -1,7 +1,8 @@
+import { Badge } from '@/components/ui/badge'
 import { useQuery } from '@tanstack/react-query'
 import { Download } from 'lucide-react'
 import { useState } from 'react'
-import { Badge } from '../../components/kit/badge'
+
 import { Button } from '@/components/ui/button'
 import { NativeSelect } from '../../components/kit/input'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
@@ -65,7 +66,7 @@ export function AssistantAuditPage() {
       id: 'outcome',
       header: '结局',
       size: 130,
-      cell: ({ row }) => <Badge tone={row.original.outcome === 'ANSWERED' ? 'success' : 'warn'}>{AUDIT_OUTCOME_OPTIONS.find((option) => option.value === row.original.outcome)?.label ?? row.original.outcome}</Badge>,
+      cell: ({ row }) => <Badge variant={row.original.outcome === 'ANSWERED' ? 'success' : 'warning'}>{AUDIT_OUTCOME_OPTIONS.find((option) => option.value === row.original.outcome)?.label ?? row.original.outcome}</Badge>,
     }),
     helper.display({ id: 'rows', header: '行数', size: 80, meta: { align: 'right' }, cell: ({ row }) => <span className="tabular-nums text-label">{row.original.rowCount}</span> }),
     helper.display({ id: 'elapsed', header: '耗时', size: 90, meta: { align: 'right' }, cell: ({ row }) => <span className="tabular-nums text-label">{row.original.elapsedMs} ms</span> }),
@@ -74,7 +75,7 @@ export function AssistantAuditPage() {
       header: '反馈',
       size: 110,
       cell: ({ row }) => row.original.feedbackRating
-        ? <Badge tone={row.original.feedbackRating === 'HELPFUL' ? 'success' : 'warn'}>{row.original.feedbackRating === 'HELPFUL' ? '有帮助' : '需改进'}</Badge>
+        ? <Badge variant={row.original.feedbackRating === 'HELPFUL' ? 'success' : 'warning'}>{row.original.feedbackRating === 'HELPFUL' ? '有帮助' : '需改进'}</Badge>
         : <span className="text-label text-faint">—</span>,
     }),
     helper.display({ id: 'detail', header: '说明', cell: ({ row }) => <span className="text-label text-muted-foreground">{row.original.detail || '—'}</span> }),

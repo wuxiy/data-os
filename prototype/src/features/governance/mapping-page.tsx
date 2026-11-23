@@ -1,7 +1,8 @@
+import { Badge } from '@/components/ui/badge'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Archive, ArrowRightLeft, ClipboardCheck, GitCompareArrows, History, RefreshCw, ShieldCheck, UploadCloud } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { Badge } from '../../components/kit/badge'
+
 import { Button } from '@/components/ui/button'
 import { FormField, FormGrid } from '../../components/kit/form'
 import { CodeTextarea, Input, NativeSelect, SearchField } from '../../components/kit/input'
@@ -33,10 +34,10 @@ import { governanceKeys, mappingCoverageQuery, mappingDetailQuery, mappingSetsQu
 
 const STATUS_LABEL: Record<string, string> = { DRAFT: '草稿', IN_REVIEW: '评审中', ACTIVE: '已生效', RETIRED: '已停用' }
 
-function statusTone(status: string): 'success' | 'warn' | 'neutral' {
+function statusTone(status: string): 'success' | 'warning' | 'outline' {
   if (status === 'ACTIVE') return 'success'
-  if (status === 'IN_REVIEW') return 'warn'
-  return 'neutral'
+  if (status === 'IN_REVIEW') return 'warning'
+  return 'outline'
 }
 
 const setHelper = listColumnHelper<MappingSetListItem>()
@@ -182,7 +183,7 @@ export function MappingPage() {
       header: '生效版本',
       size: 130,
       cell: ({ row }) => 'versionNo' in row.original.activeVersion
-        ? <Badge tone="success">v{row.original.activeVersion.versionNo}</Badge>
+        ? <Badge variant="success">v{row.original.activeVersion.versionNo}</Badge>
         : <span className="text-label text-faint">未生效</span>,
     }),
     setHelper.display({ id: 'updated', header: '更新', size: 130, cell: ({ row }) => <span className="text-label text-faint">{formatDateTime(row.original.updatedAt)}</span> }),
@@ -197,7 +198,7 @@ export function MappingPage() {
       id: 'conclusion',
       header: '人工结论',
       size: 100,
-      cell: ({ row }) => <Badge tone={row.original.conclusion === 'CONFIRMED' ? 'success' : 'warn'}>{row.original.conclusion === 'CONFIRMED' ? '已确认' : '待复核'}</Badge>,
+      cell: ({ row }) => <Badge variant={row.original.conclusion === 'CONFIRMED' ? 'success' : 'warning'}>{row.original.conclusion === 'CONFIRMED' ? '已确认' : '待复核'}</Badge>,
     }),
   ])
 
@@ -229,7 +230,7 @@ export function MappingPage() {
             {coverage ? <span className="mt-0.5 block text-meta text-muted-foreground">统计于 {formatDateTime(coverage.asOf)} · AI 就绪评估引用同一口径</span> : null}
           </div>
         </div>
-        <Badge tone={coverage?.coverage == null ? 'neutral' : coverage.coverage >= 0.9 ? 'success' : 'warn'}>
+        <Badge variant={coverage?.coverage == null ? 'outline' : coverage.coverage >= 0.9 ? 'success' : 'warning'}>
           {coverage?.coverage == null ? '暂无可统计数据' : `${(coverage.coverage * 100).toFixed(1)}%`}
         </Badge>
       </section>
@@ -308,7 +309,7 @@ export function MappingPage() {
             <div className="px-[18px] pb-3">
               <div className="flex flex-wrap items-center gap-2 text-label text-muted-foreground">
                 <strong className="text-body-sm text-ink-soft">当前查看 v{version.versionNo}</strong>
-                <Badge tone={statusTone(version.status)}>{STATUS_LABEL[version.status] ?? version.status}</Badge>
+                <Badge variant={statusTone(version.status)}>{STATUS_LABEL[version.status] ?? version.status}</Badge>
                 <span>{version.items.length} 个字段映射 · {version.status === 'DRAFT' ? '维护映射后执行聚合验证，通过后提交评审' : version.status === 'IN_REVIEW' ? '管理员生效前需核对当前内容对应的通过证据' : version.status === 'ACTIVE' ? '当前生效版本只读，变更请新建草稿' : '该版本已停用，保留历史依据'}</span>
               </div>
               <div className="mt-2 flex flex-wrap gap-1.5">
@@ -322,7 +323,7 @@ export function MappingPage() {
                     className={`inline-flex min-h-[36px] items-center gap-2 rounded-control border px-2.5 py-1.5 text-label ${item.id === version.id ? 'border-blue-line bg-blue-soft text-blue' : 'border-line bg-paper text-ink-soft hover:bg-wash'}`}
                   >
                     <strong>v{item.versionNo}</strong>
-                    <Badge tone={statusTone(item.status)}>{STATUS_LABEL[item.status] ?? item.status}</Badge>
+                    <Badge variant={statusTone(item.status)}>{STATUS_LABEL[item.status] ?? item.status}</Badge>
                   </button>
                 ))}
               </div>
@@ -366,7 +367,7 @@ export function MappingPage() {
                 <strong className="block text-body-sm text-ink-soft">验证证据（最新 {version.validations.length} 次）</strong>
                 {version.validations.length > 0 ? version.validations.map((validation) => (
                   <p key={validation.id} className="mt-1">
-                    <Badge tone={validation.status === 'PASS' ? 'success' : validation.status === 'FAIL' ? 'danger' : 'warn'}>{validation.status === 'PASS' ? '通过' : validation.status === 'FAIL' ? '未通过' : '需复核'}</Badge>
+                    <Badge variant={validation.status === 'PASS' ? 'success' : validation.status === 'FAIL' ? 'error' : 'warning'}>{validation.status === 'PASS' ? '通过' : validation.status === 'FAIL' ? '未通过' : '需复核'}</Badge>
                     <span className="ml-1.5" title={`内容校验值 ${validation.checksum}`}>{validation.checksum === version.checksum ? '对应当前内容' : '对应历史内容'}</span>
                     <small className="ml-1.5 text-meta text-muted-foreground">{formatDateTime(validation.dataTime || validation.createdAt)}</small>
                   </p>

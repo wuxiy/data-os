@@ -1,4 +1,5 @@
 import type { ComponentProps, ReactNode } from 'react'
+import { Badge } from '@/components/ui/badge'
 import { cn } from '../../lib/utils'
 
 /** 白色工作面：标题、筛选、表格、分页在同一容器内连续排列（避免反复嵌套卡片）。 */
@@ -28,18 +29,13 @@ export function PanelHead({
       <div className="min-w-0">
         <h2 className="text-title font-semibold tracking-[-0.2px]">
           {title}
-          {count !== undefined ? <Count>{count}</Count> : null}
+          {count !== undefined ? <Badge variant="outline">{count}</Badge> : null}
         </h2>
         {description ? <p className="mt-1 text-label text-muted-foreground">{description}</p> : null}
       </div>
       {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
     </div>
   )
-}
-
-/** 数量角标：跟在标题后的小方框数字。 */
-export function Count({ children }: { children: ReactNode }) {
-  return <span className="ml-1.5 rounded-chip border border-line bg-wash px-1 text-meta font-medium text-muted-foreground">{children}</span>
 }
 
 /** 键值事实表：两列网格，上下细分隔线。 */

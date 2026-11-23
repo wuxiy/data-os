@@ -1,11 +1,12 @@
+import { Badge } from '@/components/ui/badge'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, RefreshCw, ShieldCheck } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { Badge } from '../../components/kit/badge'
+
 import { Button } from '@/components/ui/button'
 import { NativeSelect, SearchField } from '../../components/kit/input'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
-import { Count, Panel, PanelHead } from '../../components/kit/panel'
+import { Panel, PanelHead } from '../../components/kit/panel'
 import { Tabs, TabPanel } from '../../components/kit/popover'
 import { Confirm } from '../../components/kit/overlay'
 import { EmptyState, LoadingBlock, Skeleton } from '../../components/kit/states'
@@ -39,10 +40,10 @@ import {
 
 const PAGE_SIZE = 8
 
-function statusTone(status: string): 'success' | 'warn' | 'neutral' {
+function statusTone(status: string): 'success' | 'warning' | 'outline' {
   if (status === 'PUBLISHED') return 'success'
-  if (status === 'DEPRECATED') return 'neutral'
-  return 'warn'
+  if (status === 'DEPRECATED') return 'outline'
+  return 'warning'
 }
 
 /**
@@ -112,7 +113,7 @@ export function DataServicesPage() {
         </div>
       ),
     }),
-    serviceHelper.display({ id: 'status', header: '状态', size: 90, cell: ({ row }) => <Badge tone={statusTone(row.original.status)}>{dataServiceStatusLabel[row.original.status] ?? row.original.status}</Badge> }),
+    serviceHelper.display({ id: 'status', header: '状态', size: 90, cell: ({ row }) => <Badge variant={statusTone(row.original.status)}>{dataServiceStatusLabel[row.original.status] ?? row.original.status}</Badge> }),
     serviceHelper.display({ id: 'owner', header: '负责人', size: 110, cell: ({ row }) => row.original.owner }),
     serviceHelper.display({ id: 'limits', header: '限额', size: 130, cell: ({ row }) => <span className="text-label text-muted-foreground">{row.original.maxRows} 行 / {row.original.timeoutSeconds}s</span> }),
     serviceHelper.display({ id: 'updated', header: '更新', size: 130, cell: ({ row }) => <span className="text-label text-faint">{formatDateTime(row.original.updatedAt)}</span> }),
@@ -121,7 +122,7 @@ export function DataServicesPage() {
   const callHelper = listColumnHelper<DataServiceCallItem>()
   const callColumns = callHelper.columns([
     callHelper.display({ id: 'at', header: '调用时间', size: 150, cell: ({ row }) => <span className="text-label">{formatDateTime(row.original.calledAt)}</span> }),
-    callHelper.display({ id: 'status', header: 'HTTP', size: 90, cell: ({ row }) => <Badge tone={row.original.statusCode < 400 ? 'success' : 'danger'}>{row.original.statusCode}</Badge> }),
+    callHelper.display({ id: 'status', header: 'HTTP', size: 90, cell: ({ row }) => <Badge variant={row.original.statusCode < 400 ? 'success' : 'error'}>{row.original.statusCode}</Badge> }),
     callHelper.display({ id: 'rows', header: '行数', size: 90, cell: ({ row }) => <span className="tabular-nums text-label">{row.original.rowCount}{row.original.truncated ? '（截断）' : ''}</span> }),
     callHelper.display({ id: 'elapsed', header: '耗时', size: 90, cell: ({ row }) => <span className="tabular-nums text-label">{row.original.elapsedMs} ms</span> }),
     callHelper.display({ id: 'key', header: 'Key', size: 140, cell: ({ row }) => <span className="font-mono text-meta text-muted-foreground">{row.original.keyId.slice(0, 8)}</span> }),
@@ -130,7 +131,7 @@ export function DataServicesPage() {
   const exportHelper = listColumnHelper<DataServiceExportItem>()
   const exportColumns = exportHelper.columns([
     exportHelper.display({ id: 'at', header: '创建时间', size: 150, cell: ({ row }) => <span className="text-label">{formatDateTime(row.original.createdAt)}</span> }),
-    exportHelper.display({ id: 'status', header: '状态', size: 100, cell: ({ row }) => <Badge tone={row.original.status === 'SUCCEEDED' ? 'success' : row.original.status === 'FAILED' ? 'danger' : 'warn'}>{row.original.status}</Badge> }),
+    exportHelper.display({ id: 'status', header: '状态', size: 100, cell: ({ row }) => <Badge variant={row.original.status === 'SUCCEEDED' ? 'success' : row.original.status === 'FAILED' ? 'error' : 'warning'}>{row.original.status}</Badge> }),
     exportHelper.display({ id: 'rows', header: '行数', size: 90, meta: { align: 'right' }, cell: ({ row }) => <span className="tabular-nums text-label">{row.original.rowCount}</span> }),
     exportHelper.display({ id: 'bytes', header: '大小', size: 100, meta: { align: 'right' }, cell: ({ row }) => <span className="tabular-nums text-label">{(row.original.fileBytes / 1024).toFixed(1)} KB</span> }),
     exportHelper.display({ id: 'error', header: '错误', cell: ({ row }) => <span className="text-label text-red">{row.original.error || '—'}</span> }),
@@ -139,7 +140,7 @@ export function DataServicesPage() {
   const contractHelper = listColumnHelper<DataServiceContractEventItem>()
   const contractColumns = contractHelper.columns([
     contractHelper.display({ id: 'at', header: '时间', size: 150, cell: ({ row }) => <span className="text-label">{formatDateTime(row.original.occurredAt)}</span> }),
-    contractHelper.display({ id: 'type', header: '变更', size: 110, cell: ({ row }) => <Badge tone={row.original.changeType === 'DEPRECATED' ? 'neutral' : 'blue'}>{row.original.changeType}</Badge> }),
+    contractHelper.display({ id: 'type', header: '变更', size: 110, cell: ({ row }) => <Badge variant={row.original.changeType === 'DEPRECATED' ? 'outline' : 'info'}>{row.original.changeType}</Badge> }),
     contractHelper.display({ id: 'version', header: '版本', size: 130, cell: ({ row }) => <span className="font-mono text-label">{row.original.fromVersion} → {row.original.toVersion}</span> }),
     contractHelper.display({ id: 'diff', header: '差异', cell: ({ row }) => <span className="text-label text-muted-foreground">{row.original.diff || '—'}</span> }),
   ])
@@ -148,7 +149,7 @@ export function DataServicesPage() {
   const subscriptionColumns = subscriptionHelper.columns([
     subscriptionHelper.display({ id: 'caller', header: '订阅方', size: 160, cell: ({ row }) => row.original.callerName }),
     subscriptionHelper.display({ id: 'webhook', header: 'Webhook', cell: ({ row }) => <span className="font-mono text-meta text-muted-foreground">{row.original.webhookUrl}</span> }),
-    subscriptionHelper.display({ id: 'status', header: '状态', size: 90, cell: ({ row }) => <Badge tone={row.original.status === 'ACTIVE' ? 'success' : 'neutral'}>{row.original.status === 'ACTIVE' ? '生效' : '已撤销'}</Badge> }),
+    subscriptionHelper.display({ id: 'status', header: '状态', size: 90, cell: ({ row }) => <Badge variant={row.original.status === 'ACTIVE' ? 'success' : 'outline'}>{row.original.status === 'ACTIVE' ? '生效' : '已撤销'}</Badge> }),
     subscriptionHelper.display({ id: 'at', header: '创建', size: 130, cell: ({ row }) => <span className="text-label text-faint">{formatDateTime(row.original.createdAt)}</span> }),
   ])
 
@@ -177,7 +178,7 @@ export function DataServicesPage() {
         <div className="grid grid-cols-[300px_minmax(0,1fr)] gap-3.5 max-[1100px]:grid-cols-1">
           <Panel className="flex flex-col">
             <div className="flex items-center justify-between px-[18px] pt-3 pb-2">
-              <h2 className="text-title font-semibold">服务目录<Count>{visible.length}</Count></h2>
+              <h2 className="text-title font-semibold">服务目录<Badge variant="outline">{visible.length}</Badge></h2>
             </div>
             <div className="flex items-center gap-2 px-[18px] pb-2">
               <SearchField value={keyword} onValueChange={(value) => { setKeyword(value); setPage(0) }} placeholder="搜索名称/代码/负责人" className="w-full" />
@@ -201,7 +202,7 @@ export function DataServicesPage() {
                     >
                       <span className="flex items-center justify-between gap-2">
                         <span className="truncate text-body-sm text-ink-soft">{service.name}</span>
-                        <Badge tone={statusTone(service.status)}>{dataServiceStatusLabel[service.status] ?? service.status}</Badge>
+                        <Badge variant={statusTone(service.status)}>{dataServiceStatusLabel[service.status] ?? service.status}</Badge>
                       </span>
                       <span className="mt-0.5 block font-mono text-meta text-muted-foreground">{service.code} · v{service.versionSn}</span>
                     </button>
@@ -223,7 +224,7 @@ export function DataServicesPage() {
                 <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line px-5 py-4">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <Badge tone={statusTone(selected.status)}>{dataServiceStatusLabel[selected.status] ?? selected.status}</Badge>
+                      <Badge variant={statusTone(selected.status)}>{dataServiceStatusLabel[selected.status] ?? selected.status}</Badge>
                       <span className="font-mono text-meta text-muted-foreground">{selected.code} · v{selected.versionSn}</span>
                     </div>
                     <h2 className="mt-1.5 text-subject font-semibold text-ink">{selected.name}</h2>
@@ -371,7 +372,7 @@ function KeyPanel({ service }: { service: DataService }) {
               <td className="px-3 py-2">{key.callerName}</td>
               <td className="px-3 py-2 font-mono text-meta">{key.keyPrefix}…</td>
               <td className="px-3 py-2 tabular-nums">{key.dailyQuota} / 日</td>
-              <td className="px-3 py-2"><Badge tone={key.status === 'ACTIVE' ? 'success' : 'neutral'}>{key.status === 'ACTIVE' ? '生效' : '已吊销'}</Badge></td>
+              <td className="px-3 py-2"><Badge variant={key.status === 'ACTIVE' ? 'success' : 'outline'}>{key.status === 'ACTIVE' ? '生效' : '已吊销'}</Badge></td>
               <td className="px-3 py-2 text-faint">{key.lastUsedAt ? formatDateTime(key.lastUsedAt) : '—'}</td>
               <td className="px-3 py-2">
                 {key.status === 'ACTIVE' ? <Button size="sm" variant="link" className="text-red" onClick={() => setRevokeTarget(key.id)}>吊销</Button> : null}

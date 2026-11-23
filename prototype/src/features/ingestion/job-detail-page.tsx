@@ -1,8 +1,10 @@
+import { StatusBadge } from '@/components/app/status-badge'
+import { Badge } from '@/components/ui/badge'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Activity, Archive, Copy, Pause, Play, RefreshCw, RotateCcw, Settings2, TriangleAlert } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useSearch } from '@tanstack/react-router'
-import { Badge, StatusText } from '../../components/kit/badge'
+
 import { Button } from '@/components/ui/button'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel } from '../../components/kit/panel'
@@ -160,10 +162,10 @@ export function JobDetailPage({ jobId }: { jobId: string }) {
         >
           <TabPanel value="overview" className="px-5 py-4">
             <div className="mb-4 flex flex-wrap items-center gap-2.5">
-              <Badge tone={lifecycle.tone}>{lifecycle.label}</Badge>
-              <Badge tone={job.configured ? 'blue' : 'warn'}>{job.configured ? `${job.templateKey ?? '自定义'} v${job.templateVersion ?? 1}` : '未配置'}</Badge>
-              {latestStatus ? <StatusText tone={runStatusView(latestStatus).tone === 'healthy' ? 'good' : runStatusView(latestStatus).tone === 'danger' ? 'bad' : 'running'}>{runStatusView(latestStatus).label}</StatusText> : null}
-              {activeRun ? <Badge tone="warn">运行观察中（5 秒刷新）</Badge> : null}
+              <Badge variant={lifecycle.tone}>{lifecycle.label}</Badge>
+              <Badge variant={job.configured ? 'info' : 'warning'}>{job.configured ? `${job.templateKey ?? '自定义'} v${job.templateVersion ?? 1}` : '未配置'}</Badge>
+              {latestStatus ? <StatusBadge tone={runStatusView(latestStatus).tone === 'healthy' ? 'good' : runStatusView(latestStatus).tone === 'danger' ? 'bad' : 'running'}>{runStatusView(latestStatus).label}</StatusBadge> : null}
+              {activeRun ? <Badge variant="warning">运行观察中（5 秒刷新）</Badge> : null}
               <span className="text-meta text-muted-foreground">创建于 {formatDateTime(job.createdAt)}</span>
             </div>
 
@@ -276,7 +278,7 @@ function RunsTable({
         return (
           <li key={run.id} className="border-b border-line-soft px-5 py-3 last:border-b-0">
             <div className="flex flex-wrap items-center gap-2.5">
-              <StatusText tone={status.tone === 'healthy' ? 'good' : status.tone === 'danger' ? 'bad' : status.tone === 'warning' ? 'running' : 'neutral'}>{status.label}</StatusText>
+              <StatusBadge tone={status.tone === 'healthy' ? 'good' : status.tone === 'danger' ? 'bad' : status.tone === 'warning' ? 'running' : 'neutral'}>{status.label}</StatusBadge>
               <span className="text-meta text-muted-foreground">{formatDateTime(run.submittedAt)}</span>
               {run.finishedAt ? <span className="text-meta text-muted-foreground">完成 {formatDateTime(run.finishedAt)}</span> : null}
               <span className="ml-auto font-mono text-meta text-muted-foreground">{run.id.slice(0, 12)}</span>

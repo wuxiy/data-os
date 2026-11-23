@@ -1,8 +1,9 @@
+import { Badge } from '@/components/ui/badge'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CheckCircle2, CircleAlert, GitMerge, GitPullRequestArrow, LoaderCircle, RefreshCw, ShieldCheck, XCircle } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { QueryBoundary } from '../app/query-boundary'
-import { Badge } from '../components/kit/badge'
+
 import { Button } from '@/components/ui/button'
 import { SearchField } from '../components/kit/input'
 import { Confirm, Sheet, SheetBody, SheetFooterActions } from '../components/kit/overlay'
@@ -233,7 +234,7 @@ function MpiWorkspace({ onNotice }: { onNotice: (message: string) => void }) {
               <>
                 <div className="border-b border-line px-5 py-4">
                   <div className="flex flex-wrap items-center gap-2">
-                    <Badge tone="warn">需人工确认</Badge>
+                    <Badge variant="warning">需人工确认</Badge>
                     <span className="text-label text-muted-foreground">{evidence.filter((item) => !item.match).length} 项证据不一致 · 请逐项核对</span>
                   </div>
                   <h2 className="mt-1.5 text-subject font-semibold text-ink">{selected.identityA.name} 与 {selected.identityB.name}</h2>
@@ -384,7 +385,7 @@ function MpiPersonSheet({
               {activeLinks.map((link) => (
                 <li key={link.sourceIdentifier} className="flex flex-wrap items-center gap-2 border-b border-line-soft py-2 last:border-b-0">
                   <span className="min-w-0 flex-1 truncate font-mono text-label text-muted-foreground">{link.sourceIdentifier}</span>
-                  <Badge tone={link.decisionSource === 'MANUAL' ? 'blue' : 'neutral'}>{link.decisionSource === 'MANUAL' ? '人工' : '规则'}</Badge>
+                  <Badge variant={link.decisionSource === 'MANUAL' ? 'info' : 'outline'}>{link.decisionSource === 'MANUAL' ? '人工' : '规则'}</Badge>
                   <Button
                     size="sm"
                     variant="destructive-outline"

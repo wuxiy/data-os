@@ -1,8 +1,9 @@
+import { Badge } from '@/components/ui/badge'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearch } from '@tanstack/react-router'
 import { Download, FlaskConical, Plus, Save, ShieldQuestion, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { Badge } from '../../components/kit/badge'
+
 import { Button } from '@/components/ui/button'
 import { FormField, FormGrid, FormNotice } from '../../components/kit/form'
 import { CodeTextarea, Input, NativeSelect } from '../../components/kit/input'
@@ -192,7 +193,7 @@ export function QuestionEditorPage({ questionCode }: { questionCode?: string }) 
   }
 
   const eventColumns = eventHelper.columns([
-    eventHelper.display({ id: 'type', header: '事件', size: 160, cell: ({ row }) => <Badge>{row.original.action}</Badge> }),
+    eventHelper.display({ id: 'type', header: '事件', size: 160, cell: ({ row }) => <Badge variant="outline">{row.original.action}</Badge> }),
     eventHelper.display({ id: 'actor', header: '操作者', size: 140, cell: ({ row }) => <span className="text-label">{row.original.actor}</span> }),
     eventHelper.display({ id: 'detail', header: '说明', cell: ({ row }) => <span className="text-label text-muted-foreground">{row.original.detail}</span> }),
     eventHelper.display({ id: 'at', header: '时间', size: 140, cell: ({ row }) => <span className="text-meta text-muted-foreground">{formatDateTime(row.original.createdAt)}</span> }),
@@ -200,7 +201,7 @@ export function QuestionEditorPage({ questionCode }: { questionCode?: string }) 
 
   return (
     <div>
-      <Breadcrumb items={[{ label: '数据应用' }, { label: '智能问数' }, { label: '专业工作区' }, { label: questionCode ?? '新建问题' }]} trailing={question ? <><Badge tone={question.status === 'PUBLISHED' ? 'success' : question.status === 'DRAFT' ? 'neutral' : 'warn'}>{QUESTION_STATUS_LABEL[question.status] ?? question.status}</Badge></> : null} />
+      <Breadcrumb items={[{ label: '数据应用' }, { label: '智能问数' }, { label: '专业工作区' }, { label: questionCode ?? '新建问题' }]} trailing={question ? <><Badge variant={question.status === 'PUBLISHED' ? 'success' : question.status === 'DRAFT' ? 'outline' : 'warning'}>{QUESTION_STATUS_LABEL[question.status] ?? question.status}</Badge></> : null} />
       <PageHeading
         title={questionCode ? '已验证问题' : '新建已验证问题'}
         description="发布须最近一次成功试运行晚于最后一次编辑；已发布问题只读，可继续试运行核对口径。"
@@ -329,7 +330,7 @@ export function QuestionEditorPage({ questionCode }: { questionCode?: string }) 
                 {testResult ? (
                   <div className={`rounded-panel border px-4 py-3 ${testResult.answered ? 'border-line' : 'border-[#eee2c5] bg-[#fdf9ef]'}`}>
                     <div className="flex items-center gap-2">
-                      <Badge tone={testResult.answered ? 'success' : 'warn'}>{testResult.answered ? '通过' : '拒答'}</Badge>
+                      <Badge variant={testResult.answered ? 'success' : 'warning'}>{testResult.answered ? '通过' : '拒答'}</Badge>
                       <span className="text-label text-muted-foreground">
                         {testResult.answered ? `${testResult.rowCount ?? testResult.rows?.length ?? 0} 行 · ${testResult.evidence?.elapsedMs ?? 0} ms` : (testResult.reason ?? '未命中已验证问题')}
                       </span>

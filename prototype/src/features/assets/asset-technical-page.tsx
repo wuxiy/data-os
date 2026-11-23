@@ -1,8 +1,9 @@
+import { Badge } from '@/components/ui/badge'
 import { useQuery } from '@tanstack/react-query'
 import { useSearch } from '@tanstack/react-router'
 import { ArrowLeft, Database, Rows3, TableProperties } from 'lucide-react'
 import { useState } from 'react'
-import { Badge } from '../../components/kit/badge'
+
 import { Button } from '@/components/ui/button'
 import { SearchField } from '../../components/kit/input'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
@@ -139,7 +140,7 @@ export function AssetTechnicalPage() {
                   <p className="mt-0.5 text-meta text-muted-foreground">技术元数据快照 · 元数据中心摄取</p>
                 </div>
               </div>
-              <Badge tone="success">元数据已摄取</Badge>
+              <Badge variant="success">元数据已摄取</Badge>
             </div>
             <dl className="grid grid-cols-4 gap-4 border-t border-line bg-wash px-5 py-3 max-[1100px]:grid-cols-2">
               <Fact label="实体类型" value="数据表" hint="已摄取的结构元数据" />
@@ -203,7 +204,7 @@ function Fact({ label, value, hint }: { label: string; value: string; hint: stri
 function NodeRow({ label, name, fqn, mappings }: { label: string; name: string; fqn: string; mappings: number }) {
   return (
     <li className="flex items-center gap-2 rounded-control border border-line px-2.5 py-1.5 text-label">
-      <Badge>{label}</Badge>
+      <Badge variant="outline">{label}</Badge>
       <span className="min-w-0 flex-1 truncate text-ink-soft" title={fqn}>{name}</span>
       {mappings > 0 ? <span className="shrink-0 text-meta text-muted-foreground">{mappings} 条列映射</span> : null}
       <span className="shrink-0 font-mono text-meta text-muted-foreground">{fqn.split('.')[0]}</span>

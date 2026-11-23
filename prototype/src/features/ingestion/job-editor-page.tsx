@@ -1,7 +1,8 @@
+import { Badge } from '@/components/ui/badge'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, CalendarClock, FileCog, KeyRound, LoaderCircle, Save } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { Badge } from '../../components/kit/badge'
+
 import { Button } from '@/components/ui/button'
 import { FormField, FormGrid, FormNotice } from '../../components/kit/form'
 import { CodeTextarea, Input, NativeSelect } from '../../components/kit/input'
@@ -259,7 +260,7 @@ export function JobConfigurationEditor({ jobId }: { jobId?: string }) {
 
       {jobId && job ? (
         <div className="mb-3.5 flex items-center gap-3 rounded-panel border border-line bg-paper px-4 py-2.5 text-label text-muted-foreground">
-          <Badge tone={job.configured ? 'blue' : 'warn'}>{job.configured ? `${job.templateKey ?? '自定义'} v${job.templateVersion ?? 1}` : '未配置'}</Badge>
+          <Badge variant={job.configured ? 'info' : 'warning'}>{job.configured ? `${job.templateKey ?? '自定义'} v${job.templateVersion ?? 1}` : '未配置'}</Badge>
           <span>{job.id}</span>
           <span>·</span>
           <span>{selectedSource ? sourceDisplayName(selectedSource) : '来源未登记'}</span>

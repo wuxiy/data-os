@@ -1,7 +1,8 @@
+import { Badge } from '@/components/ui/badge'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronDown, ChevronRight, Database, KeyRound, Play, Table2, TriangleAlert } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { Badge } from '../../components/kit/badge'
+
 import { Button } from '@/components/ui/button'
 import { FormField, FormNotice } from '../../components/kit/form'
 import { CodeTextarea, Input } from '../../components/kit/input'
@@ -55,7 +56,7 @@ export function SourceExplorerPage({ sourceId }: { sourceId: string }) {
         description="浏览库表结构、查看字段并执行只读查询；结果行数与超时由服务端强制。"
         actions={
           <>
-            <Badge tone={status.tone}>{status.label}</Badge>
+            <Badge variant={status.tone}>{status.label}</Badge>
             <Button variant="outline" onClick={() => navigate('/ingestion')}>返回列表</Button>
           </>
         }

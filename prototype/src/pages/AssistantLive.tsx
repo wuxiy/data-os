@@ -1,8 +1,9 @@
+import { Badge } from '@/components/ui/badge'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Ban, MessageSquareText, Send, ShieldCheck, ThumbsDown, ThumbsUp } from 'lucide-react'
 import { useMemo, useState, type FormEvent } from 'react'
 import { QueryBoundary } from '../app/query-boundary'
-import { Badge } from '../components/kit/badge'
+
 import { Button } from '@/components/ui/button'
 import { Input, NativeSelect } from '../components/kit/input'
 import { Panel, PanelHead } from '../components/kit/panel'
@@ -181,7 +182,7 @@ function AssistantWorkspace({
                 <span className="block text-meta text-muted-foreground">已验证问题 → 已发布数据服务</span>
               </div>
             </div>
-            <Badge tone="success">只读模式</Badge>
+            <Badge variant="success">只读模式</Badge>
           </div>
 
           {selected && (selected.paramSchema ?? []).length > 0 ? (
@@ -337,7 +338,7 @@ function AssistantWorkspace({
         <Panel className="max-[1320px]:col-span-2 max-[1100px]:col-span-1">
           <PanelHead
             title="回答证据"
-            actions={<Badge tone={answer?.answered ? 'success' : answer ? 'warn' : 'neutral'}>{answer?.answered ? '可复核' : answer ? '拒答留痕' : asking ? '执行中' : ask.isError ? '查询未完成' : '待提问'}</Badge>}
+            actions={<Badge variant={answer?.answered ? 'success' : answer ? 'warning' : 'outline'}>{answer?.answered ? '可复核' : answer ? '拒答留痕' : asking ? '执行中' : ask.isError ? '查询未完成' : '待提问'}</Badge>}
           />
           <div className="px-4 pb-4">
             <div className="mb-3 flex items-center gap-2 rounded-control border border-line bg-wash px-3 py-2">

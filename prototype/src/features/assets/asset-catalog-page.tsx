@@ -1,12 +1,13 @@
+import { Badge } from '@/components/ui/badge'
 import { useQuery } from '@tanstack/react-query'
 import { ChartNoAxesCombined, Database, Download, RefreshCw, Search, Table2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useSearch } from '@tanstack/react-router'
-import { Badge } from '../../components/kit/badge'
+
 import { Button } from '@/components/ui/button'
 import { SearchField } from '../../components/kit/input'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
-import { Count, Panel, PanelHead } from '../../components/kit/panel'
+import { Panel, PanelHead } from '../../components/kit/panel'
 import { Tabs, TabPanel } from '../../components/kit/popover'
 import { EmptyState, LoadingBlock, Skeleton } from '../../components/kit/states'
 import { DataTable, TablePagination, listColumnHelper } from '../../components/table/data-table'
@@ -122,10 +123,10 @@ export function AssetCatalogPage() {
       size: 110,
       cell: ({ row }) => {
         const run = row.original.lastRun
-        if (!run) return <Badge tone="neutral">未运行</Badge>
-        if (run.status === 'FAILED') return <Badge tone="danger">执行失败</Badge>
-        if (run.status !== 'SUCCEEDED') return <Badge tone="neutral">状态未知</Badge>
-        return <Badge tone={run.passed ? 'success' : 'warn'}>{run.passed ? '通过' : '未通过'}</Badge>
+        if (!run) return <Badge variant="outline">未运行</Badge>
+        if (run.status === 'FAILED') return <Badge variant="error">执行失败</Badge>
+        if (run.status !== 'SUCCEEDED') return <Badge variant="outline">状态未知</Badge>
+        return <Badge variant={run.passed ? 'success' : 'warning'}>{run.passed ? '通过' : '未通过'}</Badge>
       },
     }),
     qualityHelper.display({ id: 'finishedAt', header: '完成时间', size: 140, cell: ({ row }) => <span className="text-label text-faint">{formatDateTime(row.original.lastRun?.finishedAt)}</span> }),
@@ -183,7 +184,7 @@ export function AssetCatalogPage() {
               </div>
             ) : null}
             <div className="flex items-center justify-between px-[18px] pt-3 pb-2">
-              <h2 className="text-title font-semibold">{instanceServiceLabel(catalogRequest.data.service)} · {lineageSchemaLabel(catalogRequest.data.schema)}<Count>{visible.length}</Count></h2>
+              <h2 className="text-title font-semibold">{instanceServiceLabel(catalogRequest.data.service)} · {lineageSchemaLabel(catalogRequest.data.schema)}<Badge variant="outline">{visible.length}</Badge></h2>
             </div>
             <div className="px-[18px] pb-2">
               <SearchField value={keyword} onValueChange={(value) => { setKeyword(value); setPage(0) }} placeholder="搜索表名或全限定名" className="w-full" />
@@ -236,7 +237,7 @@ export function AssetCatalogPage() {
                 <div className="border-b border-line px-5 py-4">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="rounded-chip bg-wash px-1.5 py-0.5 text-meta text-muted-foreground">{instanceServiceLabel(catalogRequest.data.service)}</span>
-                    <Badge tone="success">元数据已摄取</Badge>
+                    <Badge variant="success">元数据已摄取</Badge>
                   </div>
                   <h2 className="mt-1.5 text-subject font-semibold text-ink">{detail?.displayName || selected.displayName || selected.name}</h2>
                   <p className="mt-1 font-mono text-meta text-muted-foreground">{effectiveFqn}</p>

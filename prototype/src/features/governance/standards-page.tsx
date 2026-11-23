@@ -1,7 +1,8 @@
+import { Badge } from '@/components/ui/badge'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Archive, ArrowRightLeft, Download, FileSearch, GitCompareArrows, RefreshCw, Send, ShieldCheck, UploadCloud } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { Badge } from '../../components/kit/badge'
+
 import { Button } from '@/components/ui/button'
 import { FormField, FormGrid } from '../../components/kit/form'
 import { CodeTextarea, Input, NativeSelect, SearchField } from '../../components/kit/input'
@@ -32,11 +33,11 @@ import { usePortalNavigate } from '../../app/navigate'
 
 const STATUS_LABEL: Record<string, string> = { DRAFT: '草稿', IN_REVIEW: '评审中', PUBLISHED: '已发布', DEPRECATED: '已停用' }
 
-function statusTone(status: string): 'success' | 'warn' | 'danger' | 'neutral' {
+function statusTone(status: string): 'success' | 'warning' | 'outline' {
   if (status === 'PUBLISHED') return 'success'
-  if (status === 'IN_REVIEW') return 'warn'
-  if (status === 'DEPRECATED') return 'neutral'
-  return 'neutral'
+  if (status === 'IN_REVIEW') return 'warning'
+  if (status === 'DEPRECATED') return 'outline'
+  return 'outline'
 }
 
 /** 事件 detail 为后端原文；引擎缩写不进入业务视图（同 businessMessage 消毒器先例）。 */
@@ -183,13 +184,13 @@ export function StandardsPage() {
     listHelper.accessor('name', { header: '名称' }),
     listHelper.display({ id: 'owner', header: '负责人', size: 110, cell: ({ row }) => row.original.owner || '—' }),
     listHelper.display({ id: 'version', header: '最新版本', size: 130, cell: ({ row }) => `v${row.original.latestVersion.versionNo} / 共 ${row.original.versionCount} 版` }),
-    listHelper.display({ id: 'status', header: '状态', size: 100, cell: ({ row }) => <Badge tone={statusTone(row.original.latestVersion.status)}>{STATUS_LABEL[row.original.latestVersion.status] ?? row.original.latestVersion.status}</Badge> }),
+    listHelper.display({ id: 'status', header: '状态', size: 100, cell: ({ row }) => <Badge variant={statusTone(row.original.latestVersion.status)}>{STATUS_LABEL[row.original.latestVersion.status] ?? row.original.latestVersion.status}</Badge> }),
     listHelper.display({
       id: 'sync',
       header: '术语投影',
       size: 100,
       cell: ({ row }) => row.original.latestVersion.status === 'PUBLISHED'
-        ? <Badge tone={row.original.latestVersion.syncStatus === 'SYNCED' ? 'success' : 'warn'}>{row.original.latestVersion.syncStatus === 'SYNCED' ? '已同步' : '待同步'}</Badge>
+        ? <Badge variant={row.original.latestVersion.syncStatus === 'SYNCED' ? 'success' : 'warning'}>{row.original.latestVersion.syncStatus === 'SYNCED' ? '已同步' : '待同步'}</Badge>
         : '—',
     }),
   ])
@@ -206,7 +207,7 @@ export function StandardsPage() {
       id: 'sensitivity',
       header: '敏感级别',
       size: 100,
-      cell: ({ row }) => <Badge tone={severityTone(row.original.sensitivity) === 'danger' ? 'danger' : severityTone(row.original.sensitivity) === 'warning' ? 'warn' : 'neutral'}>{sensitivityLabel(row.original.sensitivity)}</Badge>,
+      cell: ({ row }) => <Badge variant={severityTone(row.original.sensitivity) === 'danger' ? 'error' : severityTone(row.original.sensitivity) === 'warning' ? 'warning' : 'outline'}>{sensitivityLabel(row.original.sensitivity)}</Badge>,
     }),
     elementHelper.display({ id: 'definition', header: '定义', cell: ({ row }) => <span className="text-label text-muted-foreground">{row.original.definition || '—'}</span> }),
     elementHelper.display({
@@ -277,7 +278,7 @@ export function StandardsPage() {
             <div className="px-[18px] pb-3">
               <div className="flex flex-wrap items-center gap-2 text-label text-muted-foreground">
                 <strong className="text-body-sm text-ink-soft">当前查看 v{version.versionNo}</strong>
-                <Badge tone={statusTone(version.status)}>{STATUS_LABEL[version.status]}</Badge>
+                <Badge variant={statusTone(version.status)}>{STATUS_LABEL[version.status]}</Badge>
                 <span>{version.elements.length} 个数据元 · {version.status === 'DRAFT' ? '修改后提交评审，发布后供资产与映射引用' : version.status === 'IN_REVIEW' ? '评审通过后由管理员发布' : version.status === 'PUBLISHED' ? '已发布版本只读，变更请新建草稿' : '该版本已停用，保留历史追溯'}</span>
               </div>
               <div className="mt-2 flex flex-wrap gap-1.5">
@@ -290,7 +291,7 @@ export function StandardsPage() {
                     className={`inline-flex min-h-[36px] items-center gap-2 rounded-control border px-2.5 py-1.5 text-label ${item.id === version.id ? 'border-blue-line bg-blue-soft text-blue' : 'border-line bg-paper text-ink-soft hover:bg-wash'}`}
                   >
                     <strong>v{item.versionNo}</strong>
-                    <Badge tone={statusTone(item.status)}>{STATUS_LABEL[item.status]}</Badge>
+                    <Badge variant={statusTone(item.status)}>{STATUS_LABEL[item.status]}</Badge>
                     <span className="text-meta text-muted-foreground">{item.syncStatus === 'SYNCED' ? '术语已投影' : item.status === 'PUBLISHED' ? '投影待同步' : ''}</span>
                   </button>
                 ))}

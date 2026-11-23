@@ -1,12 +1,13 @@
+import { Badge } from '@/components/ui/badge'
 import { useQuery } from '@tanstack/react-query'
 import { ChartNoAxesCombined, RefreshCw, ShieldCheck } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { embedDashboard } from '@superset-ui/embedded-sdk'
-import { Badge } from '../../components/kit/badge'
+
 import { Button } from '@/components/ui/button'
 import { SearchField } from '../../components/kit/input'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
-import { Count, Panel, PanelHead } from '../../components/kit/panel'
+import { Panel, PanelHead } from '../../components/kit/panel'
 import { EmptyState, LoadingBlock, Skeleton } from '../../components/kit/states'
 import { TablePagination } from '../../components/table/data-table'
 import { useNotice } from '../../components/kit/toast'
@@ -145,12 +146,12 @@ export function AnalyticsPage() {
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="rounded-chip bg-wash px-1.5 py-0.5 text-meta text-muted-foreground">只读嵌入 · 看板 {selected?.id}</span>
-                  <Badge tone={embedState === 'mounted' ? 'success' : embedState === 'error' ? 'warn' : 'neutral'}>{embedState === 'mounted' ? '已嵌入' : embedState === 'error' ? '嵌入失败' : '载入中'}</Badge>
+                  <Badge variant={embedState === 'mounted' ? 'success' : embedState === 'error' ? 'warning' : 'outline'}>{embedState === 'mounted' ? '已嵌入' : embedState === 'error' ? '嵌入失败' : '载入中'}</Badge>
                 </div>
                 <h2 className="mt-1.5 text-subject font-semibold text-ink">{selected?.title}</h2>
                 <p className="mt-1 text-label text-muted-foreground">按当前账号授权查看；指标口径与来源可在资产目录中复核。</p>
               </div>
-              <Badge tone="neutral">只读</Badge>
+              <Badge variant="outline">只读</Badge>
             </div>
 
             {embedState === 'error' ? (
@@ -166,7 +167,7 @@ export function AnalyticsPage() {
           </Panel>
 
           <Panel className="max-[1320px]:col-span-2 max-[1100px]:col-span-1">
-            <PanelHead title="访问证据" actions={<Badge>受控只读</Badge>} />
+            <PanelHead title="访问证据" actions={<Badge variant="outline">受控只读</Badge>} />
             <div className="px-4 pb-4">
               <div className="mb-3 flex items-center gap-2 rounded-control border border-line bg-wash px-3 py-2">
                 <span className="flex size-7 items-center justify-center rounded-chip bg-paper text-blue"><ShieldCheck size={15} /></span>

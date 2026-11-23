@@ -1,6 +1,7 @@
+import { Badge } from '@/components/ui/badge'
 import { useQuery } from '@tanstack/react-query'
 import { CircleAlert, CloudCog, RefreshCw } from 'lucide-react'
-import { Badge } from '../../components/kit/badge'
+
 import { fetchRuntimeStatus, type RuntimeStatusApiResponse } from '../../data/controlPlane'
 import { frontendDemoMode, isDemoRuntime } from '../../data/runtimeMode'
 
@@ -66,8 +67,8 @@ export function RuntimeStatusBanner() {
       {demo ? <CloudCog size={14} /> : <i aria-hidden="true" className="size-1.5 rounded-full bg-[#4d8c6e]" />}
       <strong>{demo ? '演示运行模式' : '真实运行模式'}</strong>
       <span>{frontendDemoMode ? '前端已显式启用脱敏演示数据' : `质量执行器 ${status?.qualityExecutor ?? '未知'}`}</span>
-      <Badge tone={status?.qualityExecutorConfigured ? 'success' : 'warn'}>{status?.qualityExecutorConfigured ? '执行器已配置' : '执行器待配置'}</Badge>
-      <Badge tone={operationalState === 'READY' ? 'success' : 'warn'}>{operationalLabel}</Badge>
+      <Badge variant={status?.qualityExecutorConfigured ? 'success' : 'warning'}>{status?.qualityExecutorConfigured ? '执行器已配置' : '执行器待配置'}</Badge>
+      <Badge variant={operationalState === 'READY' ? 'success' : 'warning'}>{operationalLabel}</Badge>
       {warning ? <span className="text-amber">{warning}</span> : null}
       <ScopeFold />
     </div>

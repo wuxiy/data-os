@@ -1,7 +1,8 @@
+import { Badge } from '@/components/ui/badge'
 import { useQuery } from '@tanstack/react-query'
 import { Inbox, RefreshCw } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { Badge } from '../../components/kit/badge'
+
 import { Button } from '@/components/ui/button'
 import { NativeSelect } from '../../components/kit/input'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
@@ -56,7 +57,7 @@ export function OperationsCenterPage() {
       id: 'severity',
       header: '严重度',
       size: 90,
-      cell: ({ row }) => <Badge tone={row.original.severity === 'CRITICAL' || row.original.severity === 'HIGH' ? 'danger' : row.original.severity === 'MEDIUM' ? 'warn' : 'neutral'}>{SEVERITY_LABEL[row.original.severity] ?? row.original.severity}</Badge>,
+      cell: ({ row }) => <Badge variant={row.original.severity === 'CRITICAL' || row.original.severity === 'HIGH' ? 'error' : row.original.severity === 'MEDIUM' ? 'warning' : 'outline'}>{SEVERITY_LABEL[row.original.severity] ?? row.original.severity}</Badge>,
     }),
     helper.display({
       id: 'title',
