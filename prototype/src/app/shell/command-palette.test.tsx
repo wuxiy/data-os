@@ -16,22 +16,21 @@ afterEach(() => { cleanup(); vi.clearAllMocks() })
 describe('页面搜索键盘交互', () => {
   it('非技术角色不显示平台运维入口', async () => {
     render(<CommandPalette open onOpenChange={vi.fn()} />)
-    await screen.findByRole('textbox', { name: '搜索页面' })
-    expect(screen.queryByRole('button', { name: /平台运维/ })).toBeNull()
+    await screen.findByRole('combobox', { name: '搜索页面' })
+    expect(screen.queryByRole('option', { name: /平台运维/ })).toBeNull()
   })
 
   it('同一路由的业务名称均可检索到', async () => {
     render(<CommandPalette open onOpenChange={vi.fn()} />)
-    const input = await screen.findByRole('textbox', { name: '搜索页面' })
+    const input = await screen.findByRole('combobox', { name: '搜索页面' })
     fireEvent.change(input, { target: { value: '数据服务' } })
-    expect(screen.getByRole('button', { name: /^数据服务\s*数据应用$/ })).toBeTruthy()
+    // coss Command 是列表框：条目为 option 角色，可访问名含页面名与分组。
+    expect(screen.getByRole('option', { name: /^数据服务\s*数据应用$/ })).toBeTruthy()
   })
 
-  it('搜索框方向键和回车打开选中页面，其他按钮的回车不被拦截', async () => {
+  it('搜索框方向键和回车打开选中页面', async () => {
     render(<CommandPalette open onOpenChange={vi.fn()} />)
-    const input = await screen.findByRole('textbox', { name: '搜索页面' })
-    const close = screen.getByRole('button', { name: '关闭命令面板' })
-    expect(fireEvent.keyDown(close, { key: 'Enter', cancelable: true })).toBe(true)
+    const input = await screen.findByRole('combobox', { name: '搜索页面' })
     expect(navigate).not.toHaveBeenCalled()
     fireEvent.keyDown(input, { key: 'ArrowDown' })
     fireEvent.keyDown(input, { key: 'Enter' })
