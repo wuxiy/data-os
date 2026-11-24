@@ -1,5 +1,6 @@
 import { LoadingBlock } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { FramePanel } from '@/components/ui/frame'
 import { Tooltip, TooltipPopup, TooltipTrigger } from '@/components/ui/tooltip'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -408,18 +409,18 @@ export function QuestionEditorPage({ questionCode }: { questionCode?: string }) 
                     </div>
                     {testResult.answered && (testResult.columns ?? []).length > 0 ? (
                       <div className="mt-2 overflow-x-auto">
-                        <table className="w-full border-collapse text-left text-label">
-                          <thead className="bg-wash text-muted-foreground">
-                            <tr>{(testResult.columns ?? []).map((column) => <th key={column} className="border-b border-line px-2 py-1.5 font-normal">{column}</th>)}</tr>
-                          </thead>
-                          <tbody>
+                        <Table className="w-full border-collapse text-left text-label">
+                          <TableHeader className="bg-wash text-muted-foreground">
+                            <TableRow>{(testResult.columns ?? []).map((column) => <TableHead key={column} className="border-b border-line px-2 py-1.5 font-normal">{column}</TableHead>)}</TableRow>
+                          </TableHeader>
+                          <TableBody>
                             {(testResult.rows ?? []).slice(0, 20).map((row, rowIndex) => (
-                              <tr key={rowIndex} className="border-b border-line-soft last:border-b-0">
-                                {(row as unknown[]).map((cell, cellIndex) => <td key={cellIndex} className="px-2 py-1.5 font-mono text-meta text-ink-soft">{String(cell ?? '')}</td>)}
-                              </tr>
+                              <TableRow key={rowIndex} className="border-b border-line-soft last:border-b-0">
+                                {(row as unknown[]).map((cell, cellIndex) => <TableCell key={cellIndex} className="px-2 py-1.5 font-mono text-meta text-ink-soft">{String(cell ?? '')}</TableCell>)}
+                              </TableRow>
                             ))}
-                          </tbody>
-                        </table>
+                          </TableBody>
+                        </Table>
                       </div>
                     ) : null}
                     <p className="mt-2 text-meta text-muted-foreground">最近一次成功试运行须晚于最后编辑，才允许发布。</p>

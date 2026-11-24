@@ -303,7 +303,7 @@ export function IngestionPage() {
       header: '采集任务',
       cell: ({ row }) => (
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <span className="text-body-sm font-medium text-ink">{row.original.name}</span>
             <Badge variant={row.original.configured ? 'info' : 'warning'}>
               {row.original.configured ? `${row.original.templateKey ?? '自定义'} v${row.original.templateVersion ?? 1}` : '未配置'}
@@ -316,13 +316,13 @@ export function IngestionPage() {
     jobHelper.display({
       id: 'source',
       header: '数据源',
-      size: 160,
+      size: 130,
       cell: ({ row }) => <span className="text-label">{sourceById.get(row.original.sourceId)?.name ?? '来源未登记'}</span>,
     }),
     jobHelper.display({
       id: 'executor',
       header: '执行通道',
-      size: 130,
+      size: 120,
       cell: ({ row }) => <span className="text-label">{executorLabel(row.original.executor)}</span>,
     }),
     jobHelper.display({
@@ -362,7 +362,7 @@ export function IngestionPage() {
     jobHelper.display({
       id: 'actions',
       header: '操作',
-      size: 230,
+      size: 276,
       cell: ({ row }) => {
         const job = row.original
         const run = latestRuns.get(job.id)

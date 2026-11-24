@@ -1,5 +1,6 @@
 import { LoadingBlock, LoadingInline } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { FrameDescription, FrameHeader, FramePanel } from '@/components/ui/frame'
 import { Tooltip, TooltipPopup, TooltipTrigger } from '@/components/ui/tooltip'
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
@@ -288,18 +289,18 @@ function ExplorerWorkspace({ source }: { source: SourceApiItem }) {
               {result.truncated ? <p role="status" className="mb-2 text-meta text-amber">结果超出返回上限，已截断显示前 {result.rows.length} 行。</p> : null}
               {result.rows.length === 0 ? <p className="text-label text-muted-foreground">查询没有返回数据行。</p> : (
                 <div className="overflow-x-auto rounded-control border border-line">
-                  <table className="w-full border-collapse text-left text-label">
-                    <thead className="bg-wash text-muted-foreground">
-                      <tr>{resultColumns.map((column) => <th key={column.id} className="border-b border-line px-3 py-2 font-normal">{column.header}</th>)}</tr>
-                    </thead>
-                    <tbody>
+                  <Table className="w-full border-collapse text-left text-label">
+                    <TableHeader className="bg-wash text-muted-foreground">
+                      <TableRow>{resultColumns.map((column) => <TableHead key={column.id} className="border-b border-line px-3 py-2 font-normal">{column.header}</TableHead>)}</TableRow>
+                    </TableHeader>
+                    <TableBody>
                       {result.rows.map((row, rowIndex) => (
-                        <tr key={rowIndex} className="border-b border-line-soft last:border-b-0">
-                          {resultColumns.map((column) => <td key={column.id} className="px-3 py-2 font-mono text-meta text-ink-soft">{column.cell(row)}</td>)}
-                        </tr>
+                        <TableRow key={rowIndex} className="border-b border-line-soft last:border-b-0">
+                          {resultColumns.map((column) => <TableCell key={column.id} className="px-3 py-2 font-mono text-meta text-ink-soft">{column.cell(row)}</TableCell>)}
+                        </TableRow>
                       ))}
-                    </tbody>
-                  </table>
+                    </TableBody>
+                  </Table>
                 </div>
               )}
             </div>

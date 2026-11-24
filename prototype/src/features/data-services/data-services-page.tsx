@@ -1,6 +1,7 @@
 import { TableSkeleton } from '@/components/app/table-skeleton'
 import { LoadingBlock } from '@/components/app/loading'
 import { Badge } from '@/components/ui/badge'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { FramePanel } from '@/components/ui/frame'
 import { Tooltip, TooltipPopup, TooltipTrigger } from '@/components/ui/tooltip'
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -382,32 +383,32 @@ function KeyPanel({ service }: { service: DataService }) {
 
       {detailRequest.isPending ? <TableSkeleton rows={3} /> : null}
       {detailRequest.isError ? <p className="text-label text-red">Key 清单读取失败</p> : null}
-      <table className="w-full border-collapse text-left text-label">
-        <thead className="bg-wash text-muted-foreground">
-          <tr>
-            <th className="h-9 border-y border-line px-3 font-normal">调用方</th>
-            <th className="h-9 border-y border-line px-3 font-normal">Key 前缀</th>
-            <th className="h-9 border-y border-line px-3 font-normal">配额</th>
-            <th className="h-9 border-y border-line px-3 font-normal">状态</th>
-            <th className="h-9 border-y border-line px-3 font-normal">最近使用</th>
-            <th className="h-9 border-y border-line px-3 font-normal">操作</th>
-          </tr>
-        </thead>
-        <tbody>
+      <Table className="w-full border-collapse text-left text-label">
+        <TableHeader className="bg-wash text-muted-foreground">
+          <TableRow>
+            <TableHead className="h-9 border-y border-line px-3 font-normal">调用方</TableHead>
+            <TableHead className="h-9 border-y border-line px-3 font-normal">Key 前缀</TableHead>
+            <TableHead className="h-9 border-y border-line px-3 font-normal">配额</TableHead>
+            <TableHead className="h-9 border-y border-line px-3 font-normal">状态</TableHead>
+            <TableHead className="h-9 border-y border-line px-3 font-normal">最近使用</TableHead>
+            <TableHead className="h-9 border-y border-line px-3 font-normal">操作</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {keys.map((key) => (
-            <tr key={key.id} className="border-b border-line-soft last:border-b-0">
-              <td className="px-3 py-2">{key.callerName}</td>
-              <td className="px-3 py-2 font-mono text-meta">{key.keyPrefix}…</td>
-              <td className="px-3 py-2 tabular-nums">{key.dailyQuota} / 日</td>
-              <td className="px-3 py-2"><Badge variant={key.status === 'ACTIVE' ? 'success' : 'outline'}>{key.status === 'ACTIVE' ? '生效' : '已吊销'}</Badge></td>
-              <td className="px-3 py-2 text-faint">{key.lastUsedAt ? formatDateTime(key.lastUsedAt) : '—'}</td>
-              <td className="px-3 py-2">
+            <TableRow key={key.id} className="border-b border-line-soft last:border-b-0">
+              <TableCell className="px-3 py-2">{key.callerName}</TableCell>
+              <TableCell className="px-3 py-2 font-mono text-meta">{key.keyPrefix}…</TableCell>
+              <TableCell className="px-3 py-2 tabular-nums">{key.dailyQuota} / 日</TableCell>
+              <TableCell className="px-3 py-2"><Badge variant={key.status === 'ACTIVE' ? 'success' : 'outline'}>{key.status === 'ACTIVE' ? '生效' : '已吊销'}</Badge></TableCell>
+              <TableCell className="px-3 py-2 text-faint">{key.lastUsedAt ? formatDateTime(key.lastUsedAt) : '—'}</TableCell>
+              <TableCell className="px-3 py-2">
                 {key.status === 'ACTIVE' ? <Button size="sm" variant="link" className="text-red" onClick={() => setRevokeTarget(key.id)}>吊销</Button> : null}
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
       {keys.length === 0 && detailRequest.isSuccess ? <p className="py-3 text-label text-muted-foreground">还没有发放过 Key。</p> : null}
 
       <ConfirmDialog
