@@ -1,3 +1,4 @@
+import { Kbd } from '@/components/ui/kbd'
 import { useLocation, useNavigate } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import {
@@ -14,7 +15,7 @@ import {
 } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { RuntimeStatusBanner } from './runtime-status-banner'
-import { Kbd } from '../../components/kit/panel'
+
 import { Popover } from '../../components/kit/popover'
 import { cn } from '../../lib/utils'
 import { activeNavKey, governanceChildren, isGovernancePath, navGroups, routeForPath } from '../navigation'

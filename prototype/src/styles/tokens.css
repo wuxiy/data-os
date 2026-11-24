@@ -134,11 +134,13 @@
     cursor: not-allowed;
   }
 
-  /* coss 组件只写边框宽度（裸 `border`），默认边框色由主题提供；项目不导入 preflight，这里显式补上。
-     项目自有代码的边框都写明了颜色，不受影响。 */
+  /* 项目不导入 preflight，这里补上它为所有元素设定的边框基线：宽度 0、样式 solid、颜色取主题。
+     coss 组件只写边框宽度（裸 `border`），内层的原生控件（input、textarea）则依赖宽度被清零，
+     否则浏览器会给它们画一圈 inset 默认边框。项目自有代码的边框都写明了宽度与颜色，不受影响。 */
   *,
   *::before,
   *::after {
+    border: 0 solid;
     border-color: var(--border);
   }
 

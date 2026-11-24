@@ -1,3 +1,4 @@
+import { LoadingBlock } from '@/components/app/loading'
 import { Badge } from '@/components/ui/badge'
 import { useQuery } from '@tanstack/react-query'
 import { useSearch } from '@tanstack/react-router'
@@ -8,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import { SearchField } from '../../components/kit/input'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel, PanelHead } from '../../components/kit/panel'
-import { EmptyState, LoadingBlock } from '../../components/kit/states'
+import { EmptyState } from '../../components/kit/states'
 import { DataTable, TablePagination, listColumnHelper } from '../../components/table/data-table'
 import { formatDateTime } from '../../data/domain'
 import {

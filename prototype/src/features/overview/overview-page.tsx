@@ -1,3 +1,5 @@
+import { TableSkeleton } from '@/components/app/table-skeleton'
+import { LoadingBlock } from '@/components/app/loading'
 import { Badge } from '@/components/ui/badge'
 import { useQuery } from '@tanstack/react-query'
 import { Activity, ChevronRight, CloudCog, Inbox, RefreshCw } from 'lucide-react'
@@ -6,7 +8,7 @@ import { useMemo } from 'react'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { MetricCard, MetricStrip } from '../../components/app/metric'
 import { Panel, PanelHead } from '../../components/kit/panel'
-import { LoadingBlock, Skeleton } from '../../components/kit/states'
+
 import { Button } from '@/components/ui/button'
 import { DataTable, listColumnHelper } from '../../components/table/data-table'
 import { EmptyState } from '../../components/kit/states'
@@ -151,7 +153,7 @@ export function OverviewPage() {
       {summaryQuery.isPending ? (
         <MetricStrip>
           {Array.from({ length: 4 }, (_, index) => (
-            <div key={index} className="min-h-[104px] rounded-panel border border-line bg-paper px-4 py-3"><Skeleton rows={1} className="px-0 py-0" /></div>
+            <div key={index} className="min-h-[104px] rounded-panel border border-line bg-paper px-4 py-3"><TableSkeleton rows={1} className="px-0 py-0" /></div>
           ))}
         </MetricStrip>
       ) : summaryQuery.isError ? (

@@ -1,3 +1,6 @@
+import { TableSkeleton } from '@/components/app/table-skeleton'
+import { LoadingBlock } from '@/components/app/loading'
+import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, Plus, RefreshCw, ShieldCheck, Trash2 } from 'lucide-react'
@@ -5,11 +8,11 @@ import { useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { FormField, FormGrid, FormNotice } from '../../components/kit/form'
-import { Input, NativeSelect, SearchField } from '../../components/kit/input'
+import { NativeSelect, SearchField } from '../../components/kit/input'
 import { Confirm, Dialog, DialogFooter } from '../../components/kit/overlay'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel, PanelHead } from '../../components/kit/panel'
-import { EmptyState, LoadingBlock, Skeleton } from '../../components/kit/states'
+import { EmptyState } from '../../components/kit/states'
 import { DataTable, listColumnHelper } from '../../components/table/data-table'
 import { useNotice } from '../../components/kit/toast'
 import {
@@ -276,7 +279,7 @@ export function DeliveryCenterPage() {
                   ) : null}
 
                   <div className="px-5 py-4">
-                    {detailRequest.isPending ? <Skeleton rows={3} /> : null}
+                    {detailRequest.isPending ? <TableSkeleton rows={3} /> : null}
                     {detailRequest.isError ? <p className="text-label text-red">交付详情读取失败，请刷新后重试。</p> : null}
                     {detail ? (
                       <>

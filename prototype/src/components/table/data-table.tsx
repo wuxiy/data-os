@@ -1,3 +1,4 @@
+import { TableSkeleton } from '@/components/app/table-skeleton'
 import {
   columnSizingFeature,
   columnVisibilityFeature,
@@ -15,7 +16,7 @@ import { cn } from '../../lib/utils'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverOption, PopoverTitle } from '../kit/popover'
 import { SearchField, NativeSelect } from '../kit/input'
-import { EmptyState, Skeleton } from '../kit/states'
+import { EmptyState } from '../kit/states'
 
 /**
  * 列表面板：批准原型的连续表格工作面（39px 表头、56px 行、细分隔线、数字右对齐）。
@@ -195,7 +196,7 @@ export function DataTable<TData extends RowData>({
           </tbody>
         </table>
       </div>
-      {loading && rows.length === 0 ? <Skeleton rows={5} className="border-t border-line-soft" /> : null}
+      {loading && rows.length === 0 ? <TableSkeleton rows={5} className="border-t border-line-soft" /> : null}
       {!loading && rows.length === 0 ? (empty ?? (
         <EmptyState
           minHeight={300}

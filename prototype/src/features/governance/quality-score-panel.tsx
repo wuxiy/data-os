@@ -1,3 +1,4 @@
+import { LoadingBlock } from '@/components/app/loading'
 import { Badge } from '@/components/ui/badge'
 import { useQuery } from '@tanstack/react-query'
 import { Gauge, Settings2 } from 'lucide-react'
@@ -5,7 +6,7 @@ import { Gauge, Settings2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Panel, PanelHead } from '../../components/kit/panel'
 import { DataTable, listColumnHelper } from '../../components/table/data-table'
-import { LoadingBlock } from '../../components/kit/states'
+
 import { QUALITY_RULE_TYPE_LABELS, type QualityScoreSummary } from '../../data/controlPlane'
 import { formatDateTime } from '../../data/domain'
 import { usePortalNavigate } from '../../app/navigate'

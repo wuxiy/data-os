@@ -2,28 +2,6 @@ import { Search, X } from 'lucide-react'
 import type { ComponentProps } from 'react'
 import { cn } from '../../lib/utils'
 
-const controlBase =
-  'w-full min-h-9 rounded-control border border-line-strong bg-paper px-2.5 py-2 text-body-sm text-ink-soft placeholder:text-faint focus-visible:border-blue focus-visible:outline-2 focus-visible:outline-blue focus-visible:outline-offset-2 disabled:bg-wash disabled:text-faint'
-
-export function Input({ className, ...props }: ComponentProps<'input'>) {
-  return <input className={cn(controlBase, className)} {...props} />
-}
-
-export function Textarea({ className, ...props }: ComponentProps<'textarea'>) {
-  return <textarea className={cn(controlBase, 'min-h-[85px] resize-y', className)} {...props} />
-}
-
-/** 代码/JSON/SQL 编辑器：等宽、浅底、较高。 */
-export function CodeTextarea({ className, ...props }: ComponentProps<'textarea'>) {
-  return (
-    <textarea
-      spellCheck={false}
-      className={cn(controlBase, 'min-h-[150px] resize-y bg-wash font-mono text-label leading-relaxed text-ink-soft', className)}
-      {...props}
-    />
-  )
-}
-
 /** 原生下拉：批准原型用原生 select 承载筛选与表单枚举，离线可靠、键盘行为无需自造。 */
 export function NativeSelect({ className, children, ...props }: ComponentProps<'select'>) {
   return (

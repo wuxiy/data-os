@@ -1,3 +1,7 @@
+import { TableSkeleton } from '@/components/app/table-skeleton'
+import { LoadingBlock } from '@/components/app/loading'
+import { Input } from '@/components/ui/input'
+import { CodeTextarea } from '@/components/app/code-textarea'
 import { Badge } from '@/components/ui/badge'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearch } from '@tanstack/react-router'
@@ -6,12 +10,12 @@ import { useEffect, useRef, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { FormField, FormGrid, FormNotice } from '../../components/kit/form'
-import { CodeTextarea, Input, NativeSelect, SearchField } from '../../components/kit/input'
+import { NativeSelect, SearchField } from '../../components/kit/input'
 import { Dialog, DialogFooter, Confirm } from '../../components/kit/overlay'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel, PanelHead } from '../../components/kit/panel'
 import { Tabs, TabPanel } from '../../components/kit/popover'
-import { EmptyState, LoadingBlock, Skeleton } from '../../components/kit/states'
+import { EmptyState } from '../../components/kit/states'
 import { DataTable, TablePagination, listColumnHelper } from '../../components/table/data-table'
 import { useNotice } from '../../components/kit/toast'
 import {
@@ -435,7 +439,7 @@ export function AIDataPage() {
                   ]}
                 >
                   <TabPanel value="overview" className="px-5 py-4">
-                    {detailRequest.isPending ? <Skeleton rows={4} /> : null}
+                    {detailRequest.isPending ? <TableSkeleton rows={4} /> : null}
                     <div className="mb-3 flex flex-wrap items-center gap-1.5">
                       {lifecycleMainChain.map((step) => (
                         <span key={step} className={`rounded-chip border px-2 py-0.5 text-meta ${step === product.lifecycle ? 'border-blue-line bg-blue-soft text-blue' : 'border-line bg-paper text-muted-foreground'}`}>

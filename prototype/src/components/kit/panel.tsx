@@ -85,8 +85,3 @@ export function ScopeNote({ children }: { children: ReactNode }) {
 export function Subtle({ children, className }: { children: ReactNode; className?: string }) {
   return <span className={cn('text-label text-muted-foreground', className)}>{children}</span>
 }
-
-/** 键盘提示：顶栏搜索与命令面板复用。 */
-export function Kbd({ children }: { children: ReactNode }) {
-  return <kbd className="rounded-chip border border-line bg-canvas px-1 py-px font-sans text-meta text-muted-foreground">{children}</kbd>
-}

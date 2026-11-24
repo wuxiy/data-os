@@ -1,3 +1,5 @@
+import { TableSkeleton } from '@/components/app/table-skeleton'
+import { LoadingBlock } from '@/components/app/loading'
 import { Badge } from '@/components/ui/badge'
 import { useQuery } from '@tanstack/react-query'
 import { ChartNoAxesCombined, Database, Download, RefreshCw, Search, Table2 } from 'lucide-react'
@@ -9,7 +11,7 @@ import { SearchField } from '../../components/kit/input'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel, PanelHead } from '../../components/kit/panel'
 import { Tabs, TabPanel } from '../../components/kit/popover'
-import { EmptyState, LoadingBlock, Skeleton } from '../../components/kit/states'
+import { EmptyState } from '../../components/kit/states'
 import { DataTable, TablePagination, listColumnHelper } from '../../components/table/data-table'
 import { formatDateTime } from '../../data/domain'
 import {
@@ -253,7 +255,7 @@ export function AssetCatalogPage() {
                   ]}
                 >
                   <TabPanel value="fields" className="px-5 py-4">
-                    {detailRequest.isPending ? <Skeleton rows={4} /> : null}
+                    {detailRequest.isPending ? <TableSkeleton rows={4} /> : null}
                     {detailRequest.isError ? (
                       <div className="py-6 text-center">
                         <p className="text-body-sm text-ink-soft">字段结构暂不可读</p>
@@ -278,7 +280,7 @@ export function AssetCatalogPage() {
                   </TabPanel>
 
                   <TabPanel value="quality" className="px-5 py-4">
-                    {qualityRequest.isPending ? <Skeleton rows={3} /> : null}
+                    {qualityRequest.isPending ? <TableSkeleton rows={3} /> : null}
                     {qualityRequest.isError ? (
                       <div className="py-6 text-center">
                         <p className="text-body-sm text-ink-soft">质量结果暂不可读</p>
@@ -299,7 +301,7 @@ export function AssetCatalogPage() {
                   </TabPanel>
 
                   <TabPanel value="lineage" className="px-5 py-4">
-                    {lineageRequest.isPending ? <Skeleton rows={3} /> : null}
+                    {lineageRequest.isPending ? <TableSkeleton rows={3} /> : null}
                     {lineageRequest.isError ? (
                       <div className="py-6 text-center">
                         <p className="text-body-sm text-ink-soft">血缘暂不可读</p>

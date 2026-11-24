@@ -1,13 +1,17 @@
+import { TableSkeleton } from '@/components/app/table-skeleton'
+import { LoadingBlock } from '@/components/app/loading'
+import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { Textarea } from '@/components/ui/textarea'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Ban, MessageSquareText, Send, ShieldCheck, ThumbsDown, ThumbsUp } from 'lucide-react'
 import { useMemo, useState, type FormEvent } from 'react'
 import { QueryBoundary } from '../app/query-boundary'
 
 import { Button } from '@/components/ui/button'
-import { Input, NativeSelect } from '../components/kit/input'
+import { NativeSelect } from '../components/kit/input'
 import { Panel, PanelHead } from '../components/kit/panel'
-import { EmptyState, LoadingBlock, Skeleton } from '../components/kit/states'
+import { EmptyState } from '../components/kit/states'
 import { DataTable, listColumnHelper } from '../components/table/data-table'
 import {
   assistantParamLabel,
@@ -150,7 +154,7 @@ function AssistantWorkspace({
       <div className="grid grid-cols-[280px_minmax(0,1fr)_300px] gap-3.5 max-[1320px]:grid-cols-[260px_minmax(0,1fr)] max-[1100px]:grid-cols-1">
         <Panel className="flex flex-col">
           <PanelHead title="已验证问题" count={questions.length} description={professional ? '专业模式 · 受控只读' : '问数面只列已发布问题'} />
-          {questionsRequest.isPending ? <div className="px-4 pb-3"><Skeleton rows={3} /></div> : null}
+          {questionsRequest.isPending ? <div className="px-4 pb-3"><TableSkeleton rows={3} /></div> : null}
           <ul className="m-0 min-h-0 flex-1 list-none px-2 pb-2">
             {questions.map((question) => (
               <li key={question.code}>
@@ -321,13 +325,13 @@ function AssistantWorkspace({
 
           <form className="border-t border-line px-4 py-3" onSubmit={submitQuestion}>
             <div className="flex items-center gap-2">
-              <textarea
+              <Textarea
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
                 placeholder="输入问题原文或别名，例如：每日处方量趋势"
                 aria-label="输入问数问题"
                 rows={1}
-                className="min-h-[38px] flex-1 resize-none rounded-control border border-line-strong bg-paper px-2.5 py-2 text-body-sm text-ink-soft"
+                className="flex-1 [&_[data-slot=textarea]]:min-h-[38px] [&_[data-slot=textarea]]:resize-none"
               />
               <Button type="submit" size="icon" aria-label="发送问题" disabled={!draft.trim() || asking}><Send size={16} /></Button>
             </div>

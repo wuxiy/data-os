@@ -1,3 +1,5 @@
+import { Input } from '@/components/ui/input'
+import { CodeTextarea } from '@/components/app/code-textarea'
 import { Badge } from '@/components/ui/badge'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Cable, CheckCircle2, Copy } from 'lucide-react'
@@ -5,7 +7,7 @@ import { useEffect, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { FormField, FormNotice } from '../../components/kit/form'
-import { CodeTextarea, Input, NativeSelect } from '../../components/kit/input'
+import { NativeSelect } from '../../components/kit/input'
 import { Dialog, DialogFooter } from '../../components/kit/overlay'
 import { useNotice } from '../../components/kit/toast'
 import {

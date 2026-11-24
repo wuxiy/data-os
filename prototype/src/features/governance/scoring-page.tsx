@@ -1,3 +1,5 @@
+import { LoadingBlock } from '@/components/app/loading'
+import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Gauge, Plus, Save } from 'lucide-react'
@@ -5,11 +7,11 @@ import { useEffect, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { FormField, FormGrid, FormNotice } from '../../components/kit/form'
-import { Input } from '../../components/kit/input'
+
 import { Dialog, DialogFooter } from '../../components/kit/overlay'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel, PanelHead } from '../../components/kit/panel'
-import { LoadingBlock } from '../../components/kit/states'
+
 import { useNotice } from '../../components/kit/toast'
 import { updateQualityScoreStandard, type QualityGradeView } from '../../data/controlPlane'
 import { formatDateTime } from '../../data/domain'

@@ -1,15 +1,19 @@
+import { TableSkeleton } from '@/components/app/table-skeleton'
+import { LoadingBlock, LoadingInline } from '@/components/app/loading'
+import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { Textarea } from '@/components/ui/textarea'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearch } from '@tanstack/react-router'
 import { AlertTriangle, CircleAlert, Plus, RefreshCw, Search, Send, Shield, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { Input, SearchField, NativeSelect } from '../../components/kit/input'
+import { SearchField, NativeSelect } from '../../components/kit/input'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel, PanelHead, ScopeNote } from '../../components/kit/panel'
 import { Confirm } from '../../components/kit/overlay'
-import { EmptyState, LoadingBlock, LoadingInline, Skeleton } from '../../components/kit/states'
+import { EmptyState } from '../../components/kit/states'
 import { DataTable, TablePagination, listColumnHelper } from '../../components/table/data-table'
 import { useNotice } from '../../components/kit/toast'
 import {
@@ -455,7 +459,7 @@ export function QualityPage() {
           </Panel>
 
           <Panel>
-            {detailRequest.isPending && selected ? <Skeleton rows={5} /> : null}
+            {detailRequest.isPending && selected ? <TableSkeleton rows={5} /> : null}
             {detailRequest.isError ? (
               <div className="px-5 py-8 text-center">
                 <p className="text-body-sm font-medium text-ink-soft">治理问题详情不可用</p>
@@ -543,7 +547,7 @@ export function QualityPage() {
                       <pre className="mt-1 max-h-[160px] overflow-auto whitespace-pre-wrap font-mono text-meta">{selected.processingNote}</pre>
                     </details>
                   ) : null}
-                  <textarea
+                  <Textarea
                     id="processing-note"
                     value={note}
                     onChange={(event) => {
@@ -553,7 +557,7 @@ export function QualityPage() {
                     }}
                     disabled={!canEdit || busy}
                     placeholder={canEdit ? '填写人工处理结论（处置动作、原因与复核口径）' : ''}
-                    className="min-h-[96px] w-full rounded-control border border-line-strong bg-paper px-2.5 py-2 text-body-sm text-ink-soft disabled:bg-wash disabled:text-faint"
+                    className="min-h-[96px] [&_[data-slot=textarea]]:min-h-inherit"
                   />
                   <div className="mt-2 flex justify-end">
                     <Button

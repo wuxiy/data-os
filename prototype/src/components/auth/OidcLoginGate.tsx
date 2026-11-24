@@ -1,9 +1,10 @@
+import { LoadingBlock } from '@/components/app/loading'
 import { LogIn, ShieldCheck } from 'lucide-react'
 import { useState } from 'react'
 import type { AuthSnapshot } from '../../data/oidc'
 import { startOidcLogin } from '../../data/oidc'
 import { Button } from '@/components/ui/button'
-import { LoadingBlock } from '../kit/states'
+
 
 /** 登录门（新主题）：未认证会话在进入任何工作区前阻断。 */
 export function OidcLoginGate({ snapshot }: { snapshot: AuthSnapshot }) {

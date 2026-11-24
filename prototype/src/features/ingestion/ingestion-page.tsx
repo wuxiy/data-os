@@ -1,3 +1,4 @@
+import { LoadingInline } from '@/components/app/loading'
 import { StatusBadge } from '@/components/app/status-badge'
 import { Badge } from '@/components/ui/badge'
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -25,7 +26,7 @@ import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel, PanelHead, ScopeNote } from '../../components/kit/panel'
 import { Popover } from '../../components/kit/popover'
 import { Confirm } from '../../components/kit/overlay'
-import { EmptyState, LoadingInline } from '../../components/kit/states'
+import { EmptyState } from '../../components/kit/states'
 import { DataTable, SelectionBar, TablePagination, listColumnHelper } from '../../components/table/data-table'
 import { useNotice } from '../../components/kit/toast'
 import {

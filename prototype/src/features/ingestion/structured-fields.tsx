@@ -1,3 +1,6 @@
+import { LoadingInline } from '@/components/app/loading'
+import { Input } from '@/components/ui/input'
+import { CodeTextarea } from '@/components/app/code-textarea'
 import { Badge } from '@/components/ui/badge'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useForm } from '@tanstack/react-form'
@@ -6,8 +9,8 @@ import { useEffect, useMemo, useRef } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { FormField, FormGrid, FormNotice } from '../../components/kit/form'
-import { CodeTextarea, Input, NativeSelect } from '../../components/kit/input'
-import { LoadingInline } from '../../components/kit/states'
+import { NativeSelect } from '../../components/kit/input'
+
 import { cn } from '../../lib/utils'
 import {
   runSourceQuery,

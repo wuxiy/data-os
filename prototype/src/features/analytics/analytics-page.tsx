@@ -1,3 +1,5 @@
+import { TableSkeleton } from '@/components/app/table-skeleton'
+import { LoadingBlock } from '@/components/app/loading'
 import { Badge } from '@/components/ui/badge'
 import { useQuery } from '@tanstack/react-query'
 import { ChartNoAxesCombined, RefreshCw, ShieldCheck } from 'lucide-react'
@@ -8,7 +10,7 @@ import { Button } from '@/components/ui/button'
 import { SearchField } from '../../components/kit/input'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel, PanelHead } from '../../components/kit/panel'
-import { EmptyState, LoadingBlock, Skeleton } from '../../components/kit/states'
+import { EmptyState } from '../../components/kit/states'
 import { TablePagination } from '../../components/table/data-table'
 import { useNotice } from '../../components/kit/toast'
 import { fetchEmbeddableDashboards, fetchGuestToken, supersetEmbedOrigin } from '../../data/analyticsApi'
@@ -162,7 +164,7 @@ export function AnalyticsPage() {
                 </div>
               </div>
             ) : null}
-            {embedState === 'mounting' ? <div className="px-5 py-3"><Skeleton rows={4} /></div> : null}
+            {embedState === 'mounting' ? <div className="px-5 py-3"><TableSkeleton rows={4} /></div> : null}
             <div ref={mountRef} className="min-h-[520px] px-2 pb-3" aria-label="嵌入式分析仪表盘" data-embed-state={embedState} />
           </Panel>
 

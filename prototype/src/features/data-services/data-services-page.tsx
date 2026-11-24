@@ -1,4 +1,7 @@
+import { TableSkeleton } from '@/components/app/table-skeleton'
+import { LoadingBlock } from '@/components/app/loading'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, RefreshCw, ShieldCheck } from 'lucide-react'
 import { useMemo, useState } from 'react'
@@ -9,7 +12,7 @@ import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel, PanelHead } from '../../components/kit/panel'
 import { Tabs, TabPanel } from '../../components/kit/popover'
 import { Confirm } from '../../components/kit/overlay'
-import { EmptyState, LoadingBlock, Skeleton } from '../../components/kit/states'
+import { EmptyState } from '../../components/kit/states'
 import { DataTable, TablePagination, listColumnHelper } from '../../components/table/data-table'
 import { useNotice } from '../../components/kit/toast'
 import {
@@ -338,22 +341,22 @@ function KeyPanel({ service }: { service: DataService }) {
       <div className="mb-3 flex flex-wrap items-end gap-2 rounded-control border border-line bg-wash px-3 py-2.5">
         <label className="min-w-[150px]">
           <span className="mb-1 block text-meta text-muted-foreground">调用方名称</span>
-          <input aria-label="调用方名称" value={callerName} onChange={(event) => setCallerName(event.target.value)} className="min-h-[32px] w-full rounded-control border border-line-strong bg-paper px-2 text-label" placeholder="例如：医联体平台" />
+          <Input className="block" aria-label="调用方名称" value={callerName} onChange={(event) => setCallerName(event.target.value)} placeholder="例如：医联体平台" />
         </label>
         <label className="min-w-[110px]">
           <span className="mb-1 block text-meta text-muted-foreground">每日配额</span>
-          <input aria-label="每日配额" type="number" min={1} value={quota} onChange={(event) => setQuota(event.target.value)} className="min-h-[32px] w-full rounded-control border border-line-strong bg-paper px-2 text-label" />
+          <Input className="block" aria-label="每日配额" type="number" min={1} value={quota} onChange={(event) => setQuota(event.target.value)} />
         </label>
         <label className="min-w-[150px]">
           <span className="mb-1 block text-meta text-muted-foreground">允许机构（* 或逗号分隔）</span>
-          <input aria-label="允许机构" value={hospitals} onChange={(event) => setHospitals(event.target.value)} className="min-h-[32px] w-full rounded-control border border-line-strong bg-paper px-2 text-label" />
+          <Input className="block" aria-label="允许机构" value={hospitals} onChange={(event) => setHospitals(event.target.value)} />
         </label>
         <Button size="sm" disabled={!callerName.trim() || issue.isPending} onClick={() => issue.mutate()}>
           {issue.isPending ? '发放中…' : '发放 Key'}
         </Button>
       </div>
 
-      {detailRequest.isPending ? <Skeleton rows={3} /> : null}
+      {detailRequest.isPending ? <TableSkeleton rows={3} /> : null}
       {detailRequest.isError ? <p className="text-label text-red">Key 清单读取失败</p> : null}
       <table className="w-full border-collapse text-left text-label">
         <thead className="bg-wash text-muted-foreground">

@@ -1,3 +1,4 @@
+import { Kbd } from '@/components/ui/kbd'
 import { Dialog as DialogPrimitive } from '@base-ui/react/dialog'
 import { useLocation } from '@tanstack/react-router'
 import { ChevronRight, House, Search, X } from 'lucide-react'
@@ -5,7 +6,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { portalRoutes, routeForPath } from '../navigation'
 import { usePortalNavigate } from '../navigate'
 import { useAuth } from '../providers'
-import { Kbd } from '../../components/kit/panel'
+
 import { cn } from '../../lib/utils'
 
 /**
