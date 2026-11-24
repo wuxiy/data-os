@@ -9,7 +9,7 @@ import { Plus, RefreshCw, ShieldCheck } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { SearchField } from '../../components/kit/input'
+import { SearchField } from '@/components/app/search-field'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel, PanelHead } from '../../components/kit/panel'
 import { Tabs, TabPanel } from '../../components/kit/popover'

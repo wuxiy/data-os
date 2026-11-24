@@ -22,7 +22,7 @@ import {
 import { useMemo, useState, type ReactNode } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { SearchField } from '../../components/kit/input'
+import { SearchField } from '@/components/app/search-field'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel, PanelHead, ScopeNote } from '../../components/kit/panel'
 import { Popover } from '../../components/kit/popover'

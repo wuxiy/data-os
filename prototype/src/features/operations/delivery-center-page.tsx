@@ -5,13 +5,14 @@ import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/c
 import { Field, FieldLabel } from '@/components/ui/field'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
+import { DatePicker } from '@/components/app/date-picker'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CircleAlert, Download, Plus, RefreshCw, ShieldCheck, Trash2, TriangleAlert } from 'lucide-react'
 import { useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { FormGrid } from '@/components/app/form-grid'
-import { SearchField } from '../../components/kit/input'
+import { SearchField } from '@/components/app/search-field'
 import { Confirm, Dialog, DialogFooter } from '../../components/kit/overlay'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel, PanelHead } from '../../components/kit/panel'
@@ -373,7 +374,12 @@ export function DeliveryCenterPage() {
         </FormGrid>
         <Field className="mb-4">
           <FieldLabel>目标日期</FieldLabel>
-          <Input id="delivery-target" type="date" value={createForm.targetDate} onChange={(event) => setCreateForm({ ...createForm, targetDate: event.target.value })} className="w-[200px]" />
+          <DatePicker
+            id="delivery-target"
+            value={createForm.targetDate}
+            onValueChange={(targetDate) => setCreateForm({ ...createForm, targetDate })}
+            className="w-[200px]"
+          />
         </Field>
         {createError ? (
           <Alert variant="error" className="mt-2">

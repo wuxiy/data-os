@@ -13,7 +13,7 @@ import { useEffect, useMemo, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { FormGrid } from '@/components/app/form-grid'
-import { SearchField } from '../../components/kit/input'
+import { SearchField } from '@/components/app/search-field'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel, PanelHead } from '../../components/kit/panel'
 import { EmptyState } from '../../components/kit/states'

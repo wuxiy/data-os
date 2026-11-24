@@ -8,6 +8,9 @@
 @layer theme, base, components, utilities;
 @import "tailwindcss/theme.css" layer(theme);
 @import "tailwindcss/utilities.css" layer(utilities);
+/* coss Calendar 的类名只管外观，网格结构靠 DayPicker 自带的基础样式；放进 base 层，
+   coss 写在工具类里的圆角、颜色等才能盖过它。 */
+@import "@daypicker/react/style.css" layer(base);
 
 /* 深色变体按类名触发（coss 源码带 dark: 工具类）。本项目不做深色模式，也不挂 .dark，
    这样系统深色偏好不会让个别组件变成半深半浅。 */

@@ -10,7 +10,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { QueryBoundary } from '../app/query-boundary'
 
 import { Button } from '@/components/ui/button'
-import { SearchField } from '../components/kit/input'
+import { SearchField } from '@/components/app/search-field'
 import { Confirm, Sheet, SheetBody, SheetFooterActions } from '../components/kit/overlay'
 import { Panel, PanelHead } from '../components/kit/panel'
 import { EmptyState } from '../components/kit/states'

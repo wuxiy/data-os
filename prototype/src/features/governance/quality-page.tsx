@@ -4,16 +4,17 @@ import { Input } from '@/components/ui/input'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { SegmentedControl, SegmentedControlItem } from '@/components/ui/segmented-control'
 import { RadioGroupPrimitive, RadioPrimitive } from '@/components/ui/radio-group'
+import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Textarea } from '@/components/ui/textarea'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearch } from '@tanstack/react-router'
-import { AlertTriangle, CircleAlert, Plus, RefreshCw, Search, Send, Shield, Trash2 } from 'lucide-react'
+import { AlertTriangle, CircleAlert, Plus, RefreshCw, Search, Send, Shield, Trash2, ChevronDown } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { SearchField } from '../../components/kit/input'
+import { SearchField } from '@/components/app/search-field'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel, PanelHead, ScopeNote } from '../../components/kit/panel'
 import { Confirm } from '../../components/kit/overlay'
@@ -521,14 +522,19 @@ export function QualityPage() {
                       <div className="text-body-sm font-medium text-ink-soft">
                         复检投递重试（共 {group.events.length} 条）
                       </div>
-                      <details className="mt-1 text-label text-muted-foreground">
-                        <summary className="cursor-pointer">展开每次记录</summary>
-                        {group.events.map((event) => (
-                          <p key={event.id} className="mt-1">
-                            {formatDateTime(event.createdAt)} · {eventTitle(event.eventType)}{event.note ? ` · ${formatInlineDateTimes(event.note)}` : ''}
-                          </p>
-                        ))}
-                      </details>
+                      <Collapsible className="mt-1 text-label text-muted-foreground">
+                        <CollapsibleTrigger className="inline-flex cursor-pointer items-center gap-2 data-panel-open:[&_svg]:rotate-180">
+                          展开每次记录
+                          <ChevronDown className="size-4" />
+                        </CollapsibleTrigger>
+                        <CollapsiblePanel>
+                          {group.events.map((event) => (
+                            <p key={event.id} className="mt-1">
+                              {formatDateTime(event.createdAt)} · {eventTitle(event.eventType)}{event.note ? ` · ${formatInlineDateTimes(event.note)}` : ''}
+                            </p>
+                          ))}
+                        </CollapsiblePanel>
+                      </Collapsible>
                     </li>
                   ) : (
                     <li key={group.event.id} className="border-l border-line pb-4 pl-5">
@@ -552,10 +558,15 @@ export function QualityPage() {
                   <Field>
                     <FieldLabel htmlFor="processing-note">处理说明</FieldLabel>
                     {looksLikeExecutorOutput(selected.processingNote) ? (
-                      <details className="rounded-control border border-line bg-wash px-3 py-2 text-label text-muted-foreground">
-                        <summary className="cursor-pointer">历史执行器输出（仅参考，不作为处理结论）</summary>
-                        <pre className="mt-1 max-h-[160px] overflow-auto whitespace-pre-wrap font-mono text-meta">{selected.processingNote}</pre>
-                      </details>
+                      <Collapsible className="rounded-control border border-line bg-wash px-3 py-2 text-label text-muted-foreground">
+                        <CollapsibleTrigger className="inline-flex w-full cursor-pointer items-center gap-2 font-medium data-panel-open:[&_svg]:rotate-180">
+                          历史执行器输出（仅参考，不作为处理结论）
+                          <ChevronDown className="size-4" />
+                        </CollapsibleTrigger>
+                        <CollapsiblePanel>
+                          <pre className="mt-1 max-h-[160px] overflow-auto whitespace-pre-wrap font-mono text-meta">{selected.processingNote}</pre>
+                        </CollapsiblePanel>
+                      </Collapsible>
                     ) : null}
                     <Textarea
                       id="processing-note"
@@ -725,10 +736,23 @@ function RunEvidence({ run }: { run: GovernanceQualityRunApiItem }) {
         尝试 {run.attemptCount} 次{run.nextPollAt ? <> · {formatDateTime(run.nextPollAt)} 自动同步轮询结果（也可手动同步）</> : null}
       </p>
       {view ? (
-        <p className="mt-1">
-          {view.head}
-          {view.folded ? <>…<details className="mt-1 text-meta"><summary className="cursor-pointer">查看完整执行输出</summary><pre className="mt-1 max-h-[180px] overflow-auto whitespace-pre-wrap font-mono">{view.folded}</pre></details></> : null}
-        </p>
+        <>
+          <p className="mt-1">
+            {view.head}
+            {view.folded ? '…' : null}
+          </p>
+          {view.folded ? (
+            <Collapsible className="mt-1 text-meta">
+              <CollapsibleTrigger className="inline-flex cursor-pointer items-center gap-2 data-panel-open:[&_svg]:rotate-180">
+                查看完整执行输出
+                <ChevronDown className="size-4" />
+              </CollapsibleTrigger>
+              <CollapsiblePanel>
+                <pre className="mt-1 max-h-[180px] overflow-auto whitespace-pre-wrap font-mono">{view.folded}</pre>
+              </CollapsiblePanel>
+            </Collapsible>
+          ) : null}
+        </>
       ) : null}
       {run.lastError ? <p className="mt-1 text-red">最近错误：{run.lastError}</p> : null}
       {run.artifactUri ? (

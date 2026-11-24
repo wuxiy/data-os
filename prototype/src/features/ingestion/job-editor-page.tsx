@@ -5,11 +5,12 @@ import { Field, FieldLabel } from '@/components/ui/field'
 import { SegmentedControl, SegmentedControlItem } from '@/components/ui/segmented-control'
 import { RadioGroupPrimitive, RadioPrimitive } from '@/components/ui/radio-group'
 import { Fieldset, FieldsetLegend } from '@/components/ui/fieldset'
+import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CodeTextarea } from '@/components/app/code-textarea'
 import { Badge } from '@/components/ui/badge'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, CalendarClock, CircleAlert, FileCog, KeyRound, LoaderCircle, Save } from 'lucide-react'
+import { AlertTriangle, CalendarClock, CircleAlert, FileCog, KeyRound, LoaderCircle, Save, ChevronDown } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
@@ -501,21 +502,24 @@ export function JobConfigurationEditor({ jobId }: { jobId?: string }) {
               <p>· 门户发起的运行进入任务运行记录；平台定时触发的实例在调度实例中查看。</p>
             </div>
           ) : configMode === 'json' ? (
-            <details open className="rounded-control border border-line bg-paper">
-              <summary className="cursor-pointer border-b border-line px-3 py-2 text-label font-medium text-ink-soft">
-                配置内容 <span className="ml-1 font-normal text-muted-foreground">默认展开 · 可编辑</span>
-              </summary>
-              <div className="p-3">
-                <CodeTextarea
-                  aria-label="采集配置 JSON"
-                  className="min-h-[420px]"
-                  value={configText}
-                  onChange={(event) => setConfigText(event.target.value)}
-                  spellCheck={false}
-                />
-                {templatesRequest.isError ? <p className="mt-2 text-meta text-amber">模板目录读取失败：可直接填写 JSON 或稍后重试。</p> : null}
-              </div>
-            </details>
+            <Collapsible defaultOpen className="rounded-control border border-line bg-paper">
+              <CollapsibleTrigger className="flex w-full cursor-pointer items-center gap-2 border-b border-line px-3 py-2 text-label font-medium text-ink-soft data-panel-open:[&_svg]:rotate-180">
+                配置内容 <span className="font-normal text-muted-foreground">默认展开 · 可编辑</span>
+                <ChevronDown className="ml-auto size-4 text-muted-foreground" />
+              </CollapsibleTrigger>
+              <CollapsiblePanel>
+                <div className="p-3">
+                  <CodeTextarea
+                    aria-label="采集配置 JSON"
+                    className="min-h-[420px]"
+                    value={configText}
+                    onChange={(event) => setConfigText(event.target.value)}
+                    spellCheck={false}
+                  />
+                  {templatesRequest.isError ? <p className="mt-2 text-meta text-amber">模板目录读取失败：可直接填写 JSON 或稍后重试。</p> : null}
+                </div>
+              </CollapsiblePanel>
+            </Collapsible>
           ) : editingStructured && job && selectedSource && configRequest.data ? (
             <StructuredTaskFields
               source={selectedSource}

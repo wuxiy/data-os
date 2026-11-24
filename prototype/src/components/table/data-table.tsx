@@ -17,7 +17,7 @@ import { Button } from '@/components/ui/button'
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Popover, PopoverOption, PopoverTitle } from '../kit/popover'
-import { SearchField } from '../kit/input'
+import { SearchField } from '@/components/app/search-field'
 import { EmptyState } from '../kit/states'
 
 /**

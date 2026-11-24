@@ -1,6 +1,7 @@
 import { LoadingInline } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
+import { DatePicker } from '@/components/app/date-picker'
 import { Label } from '@/components/ui/label'
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Field, FieldLabel } from '@/components/ui/field'
@@ -395,14 +396,14 @@ export function SchedulePanel({ jobId, jobName }: { jobId: string; jobName: stri
         <PanelHead title="调度实例" count={instancesRequest.data?.total ?? 0} description="平台调度触发/补数产生的实例" actions={<Button variant="outline" size="sm" onClick={() => void instancesRequest.refetch()}>刷新</Button>} />
         <div className="px-5 pb-2">
           <div className="mb-3 flex flex-wrap items-end gap-2 rounded-control border border-line bg-wash px-3 py-2.5">
-            <div>
-              <label htmlFor="backfill-start" className="mb-1 block text-meta text-muted-foreground">补数开始日期</label>
-              <Input id="backfill-start" type="date" value={backfillStart} onChange={(event) => setBackfillStart(event.target.value)} className="w-[150px]" />
-            </div>
-            <div>
-              <label htmlFor="backfill-end" className="mb-1 block text-meta text-muted-foreground">补数结束日期</label>
-              <Input id="backfill-end" type="date" value={backfillEnd} onChange={(event) => setBackfillEnd(event.target.value)} className="w-[150px]" />
-            </div>
+            <Field className="w-[150px]">
+              <FieldLabel htmlFor="backfill-start">补数开始日期</FieldLabel>
+              <DatePicker id="backfill-start" value={backfillStart} onValueChange={setBackfillStart} />
+            </Field>
+            <Field className="w-[150px]">
+              <FieldLabel htmlFor="backfill-end">补数结束日期</FieldLabel>
+              <DatePicker id="backfill-end" value={backfillEnd} onValueChange={setBackfillEnd} />
+            </Field>
             <Button variant="outline"
               size="sm"
               disabled={backfillMutation.isPending || !backfillStart || !backfillEnd}

@@ -242,8 +242,9 @@ try {
     await page.goto(`${base}/assistant`, { waitUntil: 'domcontentloaded' })
     await page.waitForTimeout(700)
     await page.getByRole('button', { name: /查询每天的用药记录量/ }).first().click()
-    await page.getByLabel('开始日期').fill('2026-11-01')
-    await page.getByLabel('结束日期').fill('2026-11-09')
+    // 日期参数是 coss DatePicker：同一标签还挂在「选择开始日期」日历按钮上，按文本框角色只认输入框。
+    await page.getByRole('textbox', { name: /开始日期/ }).fill('2026-11-01')
+    await page.getByRole('textbox', { name: /结束日期/ }).fill('2026-11-09')
     await page.getByRole('button', { name: '按参数执行' }).click()
     await page.waitForTimeout(700)
     record((await page.locator('main').textContent())?.includes('分析结果') ?? false, '问数执行后必须出现分析结果')

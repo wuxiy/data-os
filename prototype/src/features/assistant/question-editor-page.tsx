@@ -1,6 +1,7 @@
 import { LoadingBlock } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
+import { DatePicker } from '@/components/app/date-picker'
 import { Label } from '@/components/ui/label'
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
@@ -367,12 +368,20 @@ export function QuestionEditorPage({ questionCode }: { questionCode?: string }) 
                         <FieldLabel>
                           {label}{' '}{contract.required ? <span className="text-destructive-foreground">*</span> : null}
                         </FieldLabel>
-                        <Input
-                          type={contract.type === 'date' ? 'date' : contract.type === 'number' ? 'number' : 'text'}
-                          aria-label={label}
-                          value={testParams[contract.name] ?? contract.defaultValue ?? ''}
-                          onChange={(event) => setTestParams({ ...testParams, [contract.name]: event.target.value })}
-                        />
+                        {contract.type === 'date' ? (
+                          <DatePicker
+                            aria-label={label}
+                            value={testParams[contract.name] ?? contract.defaultValue ?? ''}
+                            onValueChange={(value) => setTestParams({ ...testParams, [contract.name]: value })}
+                          />
+                        ) : (
+                          <Input
+                            type={contract.type === 'number' ? 'number' : 'text'}
+                            aria-label={label}
+                            value={testParams[contract.name] ?? contract.defaultValue ?? ''}
+                            onChange={(event) => setTestParams({ ...testParams, [contract.name]: event.target.value })}
+                          />
+                        )}
                       </Field>
                     )
                   })}

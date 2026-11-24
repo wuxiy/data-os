@@ -37,7 +37,8 @@ assert.match(navigation, /pathname\.startsWith\('\/assistant'\)\) return 'assist
 assert.match(assets, /deepLinks\.technicalAsset/, '打开技术视图必须指向真实 FQN 深链')
 assert.match(assistant, /\/assistant\/workspace/, '专业工作区必须可从问数面进入')
 // FE2 锁迁移：采集页迁到 features/ingestion；JSON 默认展开的不变量随编辑器迁移。
-assert.match(read('src/features/ingestion/job-editor-page.tsx'), /<details open/, '采集配置 JSON 默认展开（details open）')
+// coss 改造：原生 <details open> 换成 coss Collapsible，不变量改为默认展开（defaultOpen）。
+assert.match(read('src/features/ingestion/job-editor-page.tsx'), /<Collapsible defaultOpen/, '采集配置 JSON 默认展开（Collapsible defaultOpen）')
 assert.match(read('src/features/ingestion/job-editor-page.tsx'), /默认展开 · 可编辑/, '采集配置 JSON 必须标注默认展开可编辑')
 assert.match(controlPlane, /fetchGovernanceIssues/, '质量闭环必须调用治理问题查询 API')
 assert.match(controlPlane, /requestGovernanceIssueRecheck/, '质量闭环必须调用治理问题复检 API')

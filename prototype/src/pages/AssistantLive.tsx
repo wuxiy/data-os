@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { Badge } from '@/components/ui/badge'
+import { DatePicker } from '@/components/app/date-picker'
 import { Textarea } from '@/components/ui/textarea'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { useMutation, useQuery } from '@tanstack/react-query'
@@ -220,11 +221,10 @@ function AssistantWorkspace({
                       {label}{' '}{contract.required ? <span className="text-destructive-foreground">*</span> : null}
                     </FieldLabel>
                     {contract.type === 'date' ? (
-                      <Input
-                        type="date"
+                      <DatePicker
                         value={params[contract.name] ?? ''}
                         aria-label={label}
-                        onChange={(event) => setParams({ ...params, [contract.name]: event.target.value })}
+                        onValueChange={(value) => setParams({ ...params, [contract.name]: value })}
                       />
                     ) : contract.type === 'boolean' ? (
                       <Select
