@@ -1,6 +1,9 @@
+import { Alert, AlertAction, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { useQuery } from '@tanstack/react-query'
-import { CircleAlert, CloudCog, RefreshCw } from 'lucide-react'
+import { ChevronDown, CircleAlert, CircleCheck, CloudCog, RefreshCw } from 'lucide-react'
 
 import { fetchRuntimeStatus, type RuntimeStatusApiResponse } from '../../data/controlPlane'
 import { frontendDemoMode, isDemoRuntime } from '../../data/runtimeMode'
@@ -8,7 +11,7 @@ import { frontendDemoMode, isDemoRuntime } from '../../data/runtimeMode'
 const SCOPE_SUMMARY = '首期真实范围：数据接入、采集运行、治理问题、质量复检、通知、MPI、资产、分析、数据服务、AI Ready 评估、数据标准中心与管理驾驶舱/运营中心；标准映射、交付中心与受控智能问数已接入（仅已验证问题口径）。'
 
 /**
- * 运行状态横幅：运行模式与真实范围口径的单一展示点。
+ * 运行状态横幅（coss Alert + Collapsible）：运行模式与真实范围口径的单一展示点。
  * 读取走会话级 Query（2.5 秒自超时；已有数据时刷新保留展示，不闪加载态）。
  */
 export function RuntimeStatusBanner() {
@@ -31,29 +34,6 @@ export function RuntimeStatusBanner() {
   })
 
   const status: RuntimeStatusApiResponse | undefined = query.data
-  const shell = 'mb-3 flex min-h-[30px] flex-wrap items-center gap-2.5 rounded-control border px-3 py-1.5 text-label'
-
-  if (query.isPending) {
-    return <div role="status" className={`${shell} border-line bg-wash text-muted-foreground`}><CloudCog size={14} /><span>正在读取运行模式…</span></div>
-  }
-
-  if (query.isError) {
-    const scope = <ScopeFold />
-    if (frontendDemoMode) {
-      return (
-        <div role="status" className={`${shell} border-amber-line bg-amber-soft text-amber`}>
-          <CloudCog size={14} /><strong>演示运行模式</strong><span>前端已显式启用脱敏演示数据</span>{scope}
-        </div>
-      )
-    }
-    return (
-      <div role="status" className={`${shell} border-[#eee2c5] bg-[#fdf9ef] text-amber`}>
-        <CircleAlert size={14} /><span>控制面状态未知 · 请查看各工作区连接状态</span>{scope}
-        <button type="button" onClick={() => void query.refetch()} aria-label="重新读取运行状态" className="ml-auto inline-flex size-6 items-center justify-center rounded-chip hover:bg-[#f3ead7]"><RefreshCw size={13} /></button>
-      </div>
-    )
-  }
-
   const demo = isDemoRuntime(status?.mode)
   const warning = status?.warnings?.[0]
   const operationalState = status?.operational?.state ?? 'UNKNOWN'
@@ -62,24 +42,61 @@ export function RuntimeStatusBanner() {
     ? `核心链路就绪${coverage ? `（${coverage}）` : ''}`
     : operationalState === 'DEGRADED' ? `核心链路降级${coverage ? `（${coverage}）` : ''}` : '核心链路未知'
 
+  // 四种呈现归到 coss Alert 的三种语义：读取中（default）、真实且就绪（success）、演示/降级/未知（warning）。
+  if (query.isPending) {
+    return (
+      <Alert role="status" className="mb-3 py-1.5">
+        <CloudCog />
+        <AlertDescription>正在读取运行模式…</AlertDescription>
+      </Alert>
+    )
+  }
+  if (query.isError) {
+    return (
+      <Alert variant="warning" role="status" className="mb-3 py-1.5">
+        <CircleAlert />
+        <AlertDescription>
+          <span className="flex flex-wrap items-center gap-2.5">
+            {frontendDemoMode ? <><strong className="font-medium text-foreground">演示运行模式</strong><span>前端已显式启用脱敏演示数据</span></> : <span>控制面状态未知 · 请查看各工作区连接状态</span>}
+            <ScopeFold />
+          </span>
+        </AlertDescription>
+        <AlertAction>
+          <Button variant="ghost" size="icon-xs" aria-label="重新读取运行状态" onClick={() => void query.refetch()}><RefreshCw /></Button>
+        </AlertAction>
+      </Alert>
+    )
+  }
+
+  const healthy = !demo && operationalState === 'READY'
   return (
-    <div className={`${shell} ${demo ? 'border-amber-line bg-amber-soft text-amber' : operationalState === 'READY' ? 'border-green-line bg-green-soft text-[#3f6f59]' : 'border-[#eee2c5] bg-[#fdf9ef] text-amber'}`}>
-      {demo ? <CloudCog size={14} /> : <i aria-hidden="true" className="size-1.5 rounded-full bg-[#4d8c6e]" />}
-      <strong>{demo ? '演示运行模式' : '真实运行模式'}</strong>
-      <span>{frontendDemoMode ? '前端已显式启用脱敏演示数据' : `质量执行器 ${status?.qualityExecutor ?? '未知'}`}</span>
-      <Badge variant={status?.qualityExecutorConfigured ? 'success' : 'warning'}>{status?.qualityExecutorConfigured ? '执行器已配置' : '执行器待配置'}</Badge>
-      <Badge variant={operationalState === 'READY' ? 'success' : 'warning'}>{operationalLabel}</Badge>
-      {warning ? <span className="text-amber">{warning}</span> : null}
-      <ScopeFold />
-    </div>
+    <Alert variant={healthy ? 'success' : 'warning'} role="status" className="mb-3 py-1.5">
+      {demo ? <CloudCog /> : <CircleCheck />}
+      <AlertDescription>
+        <span className="flex flex-wrap items-center gap-2.5">
+          <strong className="font-medium text-foreground">{demo ? '演示运行模式' : '真实运行模式'}</strong>
+          <span>{frontendDemoMode ? '前端已显式启用脱敏演示数据' : `质量执行器 ${status?.qualityExecutor ?? '未知'}`}</span>
+          <Badge variant={status?.qualityExecutorConfigured ? 'success' : 'warning'}>{status?.qualityExecutorConfigured ? '执行器已配置' : '执行器待配置'}</Badge>
+          <Badge variant={operationalState === 'READY' ? 'success' : 'warning'}>{operationalLabel}</Badge>
+          {warning ? <span>{warning}</span> : null}
+          <ScopeFold />
+        </span>
+      </AlertDescription>
+    </Alert>
   )
 }
 
+/** 范围说明：默认收起，点开后在横幅内展开全文。 */
 function ScopeFold() {
   return (
-    <details className="ml-auto max-w-[62%] text-meta">
-      <summary className="cursor-pointer text-muted-foreground">范围说明</summary>
-      <span className="mt-1 block leading-relaxed text-muted-foreground">{SCOPE_SUMMARY}</span>
-    </details>
+    <Collapsible className="ml-auto max-w-[62%] text-xs">
+      <CollapsibleTrigger className="inline-flex cursor-pointer items-center gap-1 text-muted-foreground hover:text-foreground">
+        范围说明
+        <ChevronDown className="size-3.5 transition-transform data-panel-open:rotate-180" />
+      </CollapsibleTrigger>
+      <CollapsiblePanel>
+        <p className="mt-1 leading-relaxed text-muted-foreground">{SCOPE_SUMMARY}</p>
+      </CollapsiblePanel>
+    </Collapsible>
   )
 }

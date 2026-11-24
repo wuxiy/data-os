@@ -191,11 +191,11 @@
     outline-offset: 3px;
   }
 
-  aside[aria-label="主导航"] :focus-visible {
+  nav[aria-label="主导航"] :focus-visible {
     outline-color: var(--color-sidebar-bright);
   }
 
-  aside[aria-label="主导航"] ::-webkit-scrollbar-thumb {
+  nav[aria-label="主导航"] ::-webkit-scrollbar-thumb {
     background: var(--color-sidebar-line);
   }
 
@@ -235,8 +235,8 @@
     }
   }
 
-  /* 侧栏宽度：批准原型的 256 → 232（≤1320）→ 68（收起）。
-     用 CSS 变量承载，布局只引用一处，不在组件里重复断点。 */
+  /* 侧栏宽度：批准原型的 256 → 232（≤1320）→ 68（图标折叠）。展开宽度由应用壳交给 coss SidebarProvider
+     的 --sidebar-width，折叠宽度直接引用 --spacing-sidebar-collapsed；断点只写在这里。 */
   :root {
     --shell-sidebar: var(--spacing-sidebar);
   }
@@ -245,10 +245,6 @@
     :root {
       --shell-sidebar: var(--spacing-sidebar-narrow);
     }
-  }
-
-  [data-shell-collapsed='true'] {
-    --shell-sidebar: var(--spacing-sidebar-collapsed);
   }
 }
 
