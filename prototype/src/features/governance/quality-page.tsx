@@ -1,6 +1,7 @@
 import { TableSkeleton } from '@/components/app/table-skeleton'
 import { LoadingBlock, LoadingInline } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
+import { Field, FieldLabel } from '@/components/ui/field'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Textarea } from '@/components/ui/textarea'
@@ -547,25 +548,27 @@ export function QualityPage() {
                 </ol>
 
                 <div className="border-t border-line px-5 py-4">
-                  <label htmlFor="processing-note" className="mb-1.5 block text-body-sm text-ink-soft">处理说明</label>
-                  {looksLikeExecutorOutput(selected.processingNote) ? (
-                    <details className="mb-2 rounded-control border border-line bg-wash px-3 py-2 text-label text-muted-foreground">
-                      <summary className="cursor-pointer">历史执行器输出（仅参考，不作为处理结论）</summary>
-                      <pre className="mt-1 max-h-[160px] overflow-auto whitespace-pre-wrap font-mono text-meta">{selected.processingNote}</pre>
-                    </details>
-                  ) : null}
-                  <Textarea
-                    id="processing-note"
-                    value={note}
-                    onChange={(event) => {
-                      const value = event.target.value
-                      setNote(value)
-                      if (selected) noteDrafts.current.set(selected.id, value)
-                    }}
-                    disabled={!canEdit || busy}
-                    placeholder={canEdit ? '填写人工处理结论（处置动作、原因与复核口径）' : ''}
-                    className="min-h-[96px] [&_[data-slot=textarea]]:min-h-inherit"
-                  />
+                  <Field>
+                    <FieldLabel htmlFor="processing-note">处理说明</FieldLabel>
+                    {looksLikeExecutorOutput(selected.processingNote) ? (
+                      <details className="rounded-control border border-line bg-wash px-3 py-2 text-label text-muted-foreground">
+                        <summary className="cursor-pointer">历史执行器输出（仅参考，不作为处理结论）</summary>
+                        <pre className="mt-1 max-h-[160px] overflow-auto whitespace-pre-wrap font-mono text-meta">{selected.processingNote}</pre>
+                      </details>
+                    ) : null}
+                    <Textarea
+                      id="processing-note"
+                      value={note}
+                      onChange={(event) => {
+                        const value = event.target.value
+                        setNote(value)
+                        if (selected) noteDrafts.current.set(selected.id, value)
+                      }}
+                      disabled={!canEdit || busy}
+                      placeholder={canEdit ? '填写人工处理结论（处置动作、原因与复核口径）' : ''}
+                      className="min-h-[96px] [&_[data-slot=textarea]]:min-h-inherit"
+                    />
+                  </Field>
                   <div className="mt-2 flex justify-end">
                     <Button
                       disabled={!canEdit || !note.trim() || busy}

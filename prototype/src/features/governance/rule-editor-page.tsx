@@ -1,5 +1,6 @@
 import { LoadingBlock } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
+import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CodeTextarea } from '@/components/app/code-textarea'
 import { Badge } from '@/components/ui/badge'
@@ -8,7 +9,7 @@ import { CircleAlert, Plus, Save, Shield } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { FormField, FormGrid } from '../../components/kit/form'
+import { FormGrid } from '@/components/app/form-grid'
 import { NativeSelect } from '../../components/kit/input'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel } from '../../components/kit/panel'
@@ -134,26 +135,32 @@ export function RuleEditorPage({ ruleId }: { ruleId?: string }) {
           </Alert>
 
           <FormGrid>
-            <FormField label="规则编号" required htmlFor="rule-id" hint="字母、数字、点、下划线与连字符；编辑时不可修改">
+            <Field>
+              <FieldLabel>
+                规则编号 <span className="text-destructive-foreground">*</span>
+              </FieldLabel>
               <Input id="rule-id" value={form.ruleId} disabled={Boolean(ruleId)} onChange={(event) => update({ ruleId: event.target.value })} placeholder="例如：quality.ep.order.paystatus-range" />
-            </FormField>
-            <FormField label="规则类型" htmlFor="rule-type">
+              <FieldDescription>字母、数字、点、下划线与连字符；编辑时不可修改</FieldDescription>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="rule-type">规则类型</FieldLabel>
               <NativeSelect id="rule-type" className="min-h-[35px]" value={form.ruleType} onChange={(event) => update({ ruleType: event.target.value as QualityRuleType })}>
                 {typeOptions.map((item) => <option key={item.type} value={item.type}>{item.label}（{item.type}）</option>)}
               </NativeSelect>
-            </FormField>
+            </Field>
           </FormGrid>
 
           <FormGrid>
-            <FormField label="目标「库.表」" required htmlFor="rule-dataset">
+            <Field>
+              <FieldLabel>
+                目标「库.表」 <span className="text-destructive-foreground">*</span>
+              </FieldLabel>
               <Input id="rule-dataset" value={form.datasetId} onChange={(event) => update({ datasetId: event.target.value })} placeholder="例如：ods_ep.ep_order" />
-            </FormField>
-            <FormField
-              label={NEEDS_COLUMN.has(form.ruleType) ? (form.ruleType === 'UPDATE_TIME' ? '目标列（业务时间列）' : '目标列') : '目标列（本类型无需）'}
-              htmlFor="rule-column"
-            >
+            </Field>
+            <Field>
+              <FieldLabel>{NEEDS_COLUMN.has(form.ruleType) ? (form.ruleType === 'UPDATE_TIME' ? '目标列（业务时间列）' : '目标列') : '目标列（本类型无需）'}</FieldLabel>
               <Input id="rule-column" value={form.targetColumn} disabled={!NEEDS_COLUMN.has(form.ruleType)} onChange={(event) => update({ targetColumn: event.target.value })} placeholder="例如：PAY_STATUS" />
-            </FormField>
+            </Field>
           </FormGrid>
 
           {form.ruleType === 'NOT_NULL' ? (
@@ -165,64 +172,100 @@ export function RuleEditorPage({ ruleId }: { ruleId?: string }) {
 
           {form.ruleType === 'VAL_SET' ? (
             <>
-              <FormField label="值域集合（逗号分隔，数字自动识别）" htmlFor="rule-values">
+              <Field className="mb-4">
+                <FieldLabel>值域集合（逗号分隔，数字自动识别）</FieldLabel>
                 <Input id="rule-values" value={form.valuesText} onChange={(event) => update({ valuesText: event.target.value })} placeholder="例如：0,1,PAID" />
-              </FormField>
-              <FormField label="或引用标准中心值域" htmlFor="rule-standard" hint="标准中心数据元 id；填写后忽略上方手写值集，保存时解析快照。">
+              </Field>
+              <Field className="mb-4">
+                <FieldLabel>或引用标准中心值域</FieldLabel>
                 <Input id="rule-standard" value={form.standardElementId} onChange={(event) => update({ standardElementId: event.target.value })} placeholder="已发布标准的数据元 id" />
-              </FormField>
+                <FieldDescription>标准中心数据元 id；填写后忽略上方手写值集，保存时解析快照。</FieldDescription>
+              </Field>
             </>
           ) : null}
 
           {form.ruleType === 'VAL_MINMAX' ? (
             <FormGrid>
-              <FormField label="最小值（可空）" htmlFor="rule-min-val"><Input id="rule-min-val" value={form.minVal} onChange={(event) => update({ minVal: event.target.value })} placeholder="0" /></FormField>
-              <FormField label="最大值（可空）" htmlFor="rule-max-val"><Input id="rule-max-val" value={form.maxVal} onChange={(event) => update({ maxVal: event.target.value })} placeholder="9" /></FormField>
+              <Field>
+                <FieldLabel>最小值（可空）</FieldLabel>
+                <Input id="rule-min-val" value={form.minVal} onChange={(event) => update({ minVal: event.target.value })} placeholder="0" />
+              </Field>
+              <Field>
+                <FieldLabel>最大值（可空）</FieldLabel>
+                <Input id="rule-max-val" value={form.maxVal} onChange={(event) => update({ maxVal: event.target.value })} placeholder="9" />
+              </Field>
             </FormGrid>
           ) : null}
 
           {form.ruleType === 'VAL_LEN' ? (
             <FormGrid>
-              <FormField label="最小长度（可空）" htmlFor="rule-min-len"><Input id="rule-min-len" value={form.minLen} onChange={(event) => update({ minLen: event.target.value })} placeholder="1" /></FormField>
-              <FormField label="最大长度（可空）" htmlFor="rule-max-len"><Input id="rule-max-len" value={form.maxLen} onChange={(event) => update({ maxLen: event.target.value })} placeholder="64" /></FormField>
+              <Field>
+                <FieldLabel>最小长度（可空）</FieldLabel>
+                <Input id="rule-min-len" value={form.minLen} onChange={(event) => update({ minLen: event.target.value })} placeholder="1" />
+              </Field>
+              <Field>
+                <FieldLabel>最大长度（可空）</FieldLabel>
+                <Input id="rule-max-len" value={form.maxLen} onChange={(event) => update({ maxLen: event.target.value })} placeholder="64" />
+              </Field>
             </FormGrid>
           ) : null}
 
           {form.ruleType === 'STR_REGEX' ? (
-            <FormField label="正则表达式（NULL 不算失败）" htmlFor="rule-regex">
+            <Field className="mb-4">
+              <FieldLabel>正则表达式（NULL 不算失败）</FieldLabel>
               <Input id="rule-regex" value={form.regex} onChange={(event) => update({ regex: event.target.value })} placeholder="例如：^[0-9]+$" />
-            </FormField>
+            </Field>
           ) : null}
 
           {form.ruleType === 'FK_REF' ? (
             <FormGrid>
-              <FormField label="参照「库.表」" htmlFor="rule-ref-dataset"><Input id="rule-ref-dataset" value={form.refDataset} onChange={(event) => update({ refDataset: event.target.value })} placeholder="例如：ods_ep.ep_dict" /></FormField>
-              <FormField label="参照列" htmlFor="rule-ref-column"><Input id="rule-ref-column" value={form.refColumn} onChange={(event) => update({ refColumn: event.target.value })} placeholder="例如：CODE" /></FormField>
+              <Field>
+                <FieldLabel>参照「库.表」</FieldLabel>
+                <Input id="rule-ref-dataset" value={form.refDataset} onChange={(event) => update({ refDataset: event.target.value })} placeholder="例如：ods_ep.ep_dict" />
+              </Field>
+              <Field>
+                <FieldLabel>参照列</FieldLabel>
+                <Input id="rule-ref-column" value={form.refColumn} onChange={(event) => update({ refColumn: event.target.value })} placeholder="例如：CODE" />
+              </Field>
             </FormGrid>
           ) : null}
 
           {form.ruleType === 'SQL' ? (
-            <FormField label="校验 SQL（单条只读 SELECT，返回失败行）" htmlFor="rule-sql">
+            <Field className="mb-4">
+              <FieldLabel>校验 SQL（单条只读 SELECT，返回失败行）</FieldLabel>
               <CodeTextarea id="rule-sql" value={form.customSql} onChange={(event) => update({ customSql: event.target.value })} placeholder="SELECT ID FROM ods_ep.ep_order WHERE PAY_STATUS IS NULL" />
-            </FormField>
+            </Field>
           ) : null}
 
           {form.ruleType === 'CROSS_VAL_COMPARE' || form.ruleType === 'DETAIL_STAT' ? (
             <>
               <FormGrid>
-                <FormField label="参照「库.表」" htmlFor="rule-ref-dataset"><Input id="rule-ref-dataset" value={form.refDataset} onChange={(event) => update({ refDataset: event.target.value })} placeholder="例如：ods_ep.patient" /></FormField>
-                <FormField label="参照值列" htmlFor="rule-ref-column"><Input id="rule-ref-column" value={form.refColumn} onChange={(event) => update({ refColumn: event.target.value })} placeholder={form.ruleType === 'CROSS_VAL_COMPARE' ? '例如：NAME' : '明细值列，例如 PAY'} /></FormField>
+                <Field>
+                  <FieldLabel>参照「库.表」</FieldLabel>
+                  <Input id="rule-ref-dataset" value={form.refDataset} onChange={(event) => update({ refDataset: event.target.value })} placeholder="例如：ods_ep.patient" />
+                </Field>
+                <Field>
+                  <FieldLabel>参照值列</FieldLabel>
+                  <Input id="rule-ref-column" value={form.refColumn} onChange={(event) => update({ refColumn: event.target.value })} placeholder={form.ruleType === 'CROSS_VAL_COMPARE' ? '例如：NAME' : '明细值列，例如 PAY'} />
+                </Field>
               </FormGrid>
               <FormGrid>
-                <FormField label="目标表关联键（逗号分隔）" htmlFor="rule-target-joins"><Input id="rule-target-joins" value={form.targetJoinCols} onChange={(event) => update({ targetJoinCols: event.target.value })} placeholder="例如：PATIENT_ID" /></FormField>
-                <FormField label="参照表关联键（与左侧一一对应）" htmlFor="rule-ref-joins"><Input id="rule-ref-joins" value={form.refJoinCols} onChange={(event) => update({ refJoinCols: event.target.value })} placeholder="例如：PID" /></FormField>
+                <Field>
+                  <FieldLabel>目标表关联键（逗号分隔）</FieldLabel>
+                  <Input id="rule-target-joins" value={form.targetJoinCols} onChange={(event) => update({ targetJoinCols: event.target.value })} placeholder="例如：PATIENT_ID" />
+                </Field>
+                <Field>
+                  <FieldLabel>参照表关联键（与左侧一一对应）</FieldLabel>
+                  <Input id="rule-ref-joins" value={form.refJoinCols} onChange={(event) => update({ refJoinCols: event.target.value })} placeholder="例如：PID" />
+                </Field>
               </FormGrid>
               {form.ruleType === 'DETAIL_STAT' ? (
-                <FormField label="明细表统计函数" htmlFor="rule-detail-op">
+                <Field className="mb-4">
+                  <FieldLabel htmlFor="rule-detail-op">明细表统计函数</FieldLabel>
                   <NativeSelect id="rule-detail-op" className="min-h-[35px]" value={form.refStatOp} onChange={(event) => update({ refStatOp: event.target.value })}>
                     {STAT_OPS.map((op) => <option key={op} value={op}>{op}</option>)}
                   </NativeSelect>
-                </FormField>
+                </Field>
               ) : null}
             </>
           ) : null}
@@ -230,52 +273,71 @@ export function RuleEditorPage({ ruleId }: { ruleId?: string }) {
           {form.ruleType === 'STAT_VAL_COMPARE' ? (
             <>
               <FormGrid>
-                <FormField label="检查表统计函数" htmlFor="rule-stat-op">
+                <Field>
+                  <FieldLabel htmlFor="rule-stat-op">检查表统计函数</FieldLabel>
                   <NativeSelect id="rule-stat-op" className="min-h-[35px]" value={form.statOp} onChange={(event) => update({ statOp: event.target.value })}>
                     {STAT_OPS.map((op) => <option key={op} value={op}>{op}</option>)}
                   </NativeSelect>
-                </FormField>
-                <FormField label="参照表统计函数" htmlFor="rule-ref-stat-op">
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="rule-ref-stat-op">参照表统计函数</FieldLabel>
                   <NativeSelect id="rule-ref-stat-op" className="min-h-[35px]" value={form.refStatOp} onChange={(event) => update({ refStatOp: event.target.value })}>
                     {STAT_OPS.map((op) => <option key={op} value={op}>{op}</option>)}
                   </NativeSelect>
-                </FormField>
+                </Field>
               </FormGrid>
               <FormGrid>
-                <FormField label="参照「库.表」" htmlFor="rule-ref-dataset"><Input id="rule-ref-dataset" value={form.refDataset} onChange={(event) => update({ refDataset: event.target.value })} placeholder="例如：ods_ep.ep_order_history" /></FormField>
-                <FormField label="参照值列（COUNT 可空）" htmlFor="rule-ref-column"><Input id="rule-ref-column" value={form.refColumn} onChange={(event) => update({ refColumn: event.target.value })} placeholder="例如：AMOUNT" /></FormField>
+                <Field>
+                  <FieldLabel>参照「库.表」</FieldLabel>
+                  <Input id="rule-ref-dataset" value={form.refDataset} onChange={(event) => update({ refDataset: event.target.value })} placeholder="例如：ods_ep.ep_order_history" />
+                </Field>
+                <Field>
+                  <FieldLabel>参照值列（COUNT 可空）</FieldLabel>
+                  <Input id="rule-ref-column" value={form.refColumn} onChange={(event) => update({ refColumn: event.target.value })} placeholder="例如：AMOUNT" />
+                </Field>
               </FormGrid>
             </>
           ) : null}
 
           {form.ruleType === 'SQL_STAT_VAL' ? (
             <>
-              <FormField label="检查值 SQL（单条只读，返回单个统计值）" htmlFor="rule-check-sql">
+              <Field className="mb-4">
+                <FieldLabel>检查值 SQL（单条只读，返回单个统计值）</FieldLabel>
                 <CodeTextarea id="rule-check-sql" className="min-h-[110px]" value={form.checkSql} onChange={(event) => update({ checkSql: event.target.value })} placeholder="SELECT COUNT(*) FROM ods_ep.ep_order" />
-              </FormField>
-              <FormField label="参照值 SQL（单条只读，返回单个统计值）" htmlFor="rule-ref-sql">
+              </Field>
+              <Field className="mb-4">
+                <FieldLabel>参照值 SQL（单条只读，返回单个统计值）</FieldLabel>
                 <CodeTextarea id="rule-ref-sql" className="min-h-[110px]" value={form.refSql} onChange={(event) => update({ refSql: event.target.value })} placeholder="SELECT COUNT(*) FROM ods_ep.ep_order_history" />
-              </FormField>
+              </Field>
             </>
           ) : null}
 
           {form.ruleType === 'FIELD_LOGIC' ? (
-            <FormField label="字段间逻辑表达式" htmlFor="rule-logic" hint="列名与比较符，例：AMOUNT > 0 AND PAY_STATUS = 'PAID'">
+            <Field className="mb-4">
+              <FieldLabel>字段间逻辑表达式</FieldLabel>
               <Input id="rule-logic" value={form.logic} onChange={(event) => update({ logic: event.target.value })} placeholder="AMOUNT > 0 AND PAY_STATUS = 'PAID'" />
-            </FormField>
+              <FieldDescription>{"列名与比较符，例：AMOUNT > 0 AND PAY_STATUS = 'PAID'"}</FieldDescription>
+            </Field>
           ) : null}
 
           {form.ruleType === 'UPDATE_TIME' ? (
             <>
               <FormGrid>
-                <FormField label="入库时间列" htmlFor="rule-ingest"><Input id="rule-ingest" value={form.ingestColumn} onChange={(event) => update({ ingestColumn: event.target.value })} placeholder="例如：ETL_TIME" /></FormField>
-                <FormField label="时效阈值（业务时间 → 入库时间）" htmlFor="rule-threshold"><Input id="rule-threshold" type="number" min={0} value={form.threshold} onChange={(event) => update({ threshold: event.target.value })} placeholder="2" /></FormField>
+                <Field>
+                  <FieldLabel>入库时间列</FieldLabel>
+                  <Input id="rule-ingest" value={form.ingestColumn} onChange={(event) => update({ ingestColumn: event.target.value })} placeholder="例如：ETL_TIME" />
+                </Field>
+                <Field>
+                  <FieldLabel>时效阈值（业务时间 → 入库时间）</FieldLabel>
+                  <Input id="rule-threshold" type="number" min={0} value={form.threshold} onChange={(event) => update({ threshold: event.target.value })} placeholder="2" />
+                </Field>
               </FormGrid>
-              <FormField label="阈值单位" htmlFor="rule-time-unit">
+              <Field className="mb-4">
+                <FieldLabel htmlFor="rule-time-unit">阈值单位</FieldLabel>
                 <NativeSelect id="rule-time-unit" className="min-h-[35px]" value={form.timeUnit} onChange={(event) => update({ timeUnit: event.target.value })}>
                   {TIME_UNITS.map((unit) => <option key={unit} value={unit}>{unit}</option>)}
                 </NativeSelect>
-              </FormField>
+              </Field>
             </>
           ) : null}
 

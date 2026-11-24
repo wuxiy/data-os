@@ -1,4 +1,6 @@
 import { Input } from '@/components/ui/input'
+import { Field, FieldLabel } from '@/components/ui/field'
+import { FormGrid } from '@/components/app/form-grid'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CodeTextarea } from '@/components/app/code-textarea'
 import { Badge } from '@/components/ui/badge'
@@ -7,7 +9,6 @@ import { Cable, CheckCircle2, CircleAlert, Copy } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { FormField } from '../../components/kit/form'
 import { NativeSelect } from '../../components/kit/input'
 import { Dialog, DialogFooter } from '../../components/kit/overlay'
 import { useNotice } from '../../components/kit/toast'
@@ -79,26 +80,31 @@ export function SourceRegisterDialog({
         <Cable />
         <AlertDescription>系统类型与接入协议决定后续可用的配置形态；凭据只以引用形式登记，不写入来源记录。</AlertDescription>
       </Alert>
-      <FormField label="来源名称" required htmlFor="source-name">
+      <Field className="mb-4">
+        <FieldLabel>
+          来源名称 <span className="text-destructive-foreground">*</span>
+        </FieldLabel>
         <Input
           id="source-name"
           value={form.name}
           onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
           placeholder="例如：检验前置机"
         />
-      </FormField>
-      <div className="grid grid-cols-2 gap-4">
-        <FormField label="系统类型" htmlFor="source-system">
+      </Field>
+      <FormGrid>
+        <Field>
+          <FieldLabel htmlFor="source-system">系统类型</FieldLabel>
           <NativeSelect id="source-system" value={form.systemType} onChange={(event) => setForm((current) => ({ ...current, systemType: event.target.value }))}>
             {SYSTEM_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
           </NativeSelect>
-        </FormField>
-        <FormField label="接入协议" htmlFor="source-protocol">
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="source-protocol">接入协议</FieldLabel>
           <NativeSelect id="source-protocol" value={form.protocol} onChange={(event) => setForm((current) => ({ ...current, protocol: event.target.value }))}>
             {PROTOCOLS.map((protocol) => <option key={protocol} value={protocol}>{protocol}</option>)}
           </NativeSelect>
-        </FormField>
-      </div>
+        </Field>
+      </FormGrid>
       {error ? (
         <Alert variant="error" className="mt-3">
           <CircleAlert />
@@ -172,7 +178,8 @@ export function SourceCheckDialog({
         </DialogFooter>
       }
     >
-      <FormField label="检查配置 JSON" htmlFor="source-check-config">
+      <Field className="mb-4">
+        <FieldLabel>检查配置 JSON</FieldLabel>
         <CodeTextarea
           id="source-check-config"
           value={text}
@@ -180,7 +187,7 @@ export function SourceCheckDialog({
           disabled={mutation.isPending}
           className="min-h-[200px]"
         />
-      </FormField>
+      </Field>
       {error ? (
         <Alert variant="error" className="mb-3">
           <CircleAlert />
@@ -254,8 +261,9 @@ export function CopyJobDialog({
         </DialogFooter>
       }
     >
-      <div className="grid grid-cols-2 gap-4">
-        <FormField label="目标数据源" htmlFor="copy-source">
+      <FormGrid>
+        <Field>
+          <FieldLabel htmlFor="copy-source">目标数据源</FieldLabel>
           <NativeSelect
             id="copy-source"
             className="min-h-[35px]"
@@ -268,11 +276,12 @@ export function CopyJobDialog({
               </option>
             ))}
           </NativeSelect>
-        </FormField>
-        <FormField label="副本名称" htmlFor="copy-name">
+        </Field>
+        <Field>
+          <FieldLabel>副本名称</FieldLabel>
           <Input id="copy-name" value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} />
-        </FormField>
-      </div>
+        </Field>
+      </FormGrid>
       {error ? (
         <Alert variant="error" className="mt-3">
           <CircleAlert />

@@ -1,5 +1,6 @@
 import { LoadingBlock } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
+import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CodeTextarea } from '@/components/app/code-textarea'
 import { Badge } from '@/components/ui/badge'
@@ -9,7 +10,7 @@ import { CircleAlert, Download, FlaskConical, Plus, Save, ShieldQuestion, Trash2
 import { useEffect, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { FormField, FormGrid } from '../../components/kit/form'
+import { FormGrid } from '@/components/app/form-grid'
 import { NativeSelect } from '../../components/kit/input'
 import { Confirm } from '../../components/kit/overlay'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
@@ -237,19 +238,30 @@ export function QuestionEditorPage({ questionCode }: { questionCode?: string }) 
               </AlertDescription>
             </Alert>
             <FormGrid>
-              <FormField label="问题代码" required htmlFor="question-code" hint="小写字母/数字/连字符，创建后不可修改">
+              <Field>
+                <FieldLabel>
+                  问题代码 <span className="text-destructive-foreground">*</span>
+                </FieldLabel>
                 <Input id="question-code" value={form.code} disabled={Boolean(questionCode)} onChange={(event) => setForm({ ...form, code: event.target.value })} placeholder="prescription-daily-summary" />
-              </FormField>
-              <FormField label="数据服务代码" required htmlFor="question-service">
+                <FieldDescription>小写字母/数字/连字符，创建后不可修改</FieldDescription>
+              </Field>
+              <Field>
+                <FieldLabel>
+                  数据服务代码 <span className="text-destructive-foreground">*</span>
+                </FieldLabel>
                 <Input id="question-service" value={form.serviceCode} disabled={readOnly} onChange={(event) => setForm({ ...form, serviceCode: event.target.value })} placeholder="已发布的数据服务（Data API registry）" />
-              </FormField>
+              </Field>
             </FormGrid>
-            <FormField label="问题原文" required htmlFor="question-text">
+            <Field className="mb-4">
+              <FieldLabel>
+                问题原文 <span className="text-destructive-foreground">*</span>
+              </FieldLabel>
               <Input id="question-text" value={form.question} disabled={readOnly} onChange={(event) => setForm({ ...form, question: event.target.value })} placeholder="用户将以此原文或别名命中该问题" />
-            </FormField>
-            <FormField label="同义别名（每行一个）" htmlFor="question-aliases">
+            </Field>
+            <Field className="mb-4">
+              <FieldLabel>同义别名（每行一个）</FieldLabel>
               <CodeTextarea id="question-aliases" className="min-h-[90px]" value={form.aliasesText} disabled={readOnly} onChange={(event) => setForm({ ...form, aliasesText: event.target.value })} placeholder={'每日处方量趋势\n按天统计处方量'} />
-            </FormField>
+            </Field>
 
             <div className="mb-4">
               <div className="mb-1.5 flex items-center justify-between">
@@ -280,9 +292,10 @@ export function QuestionEditorPage({ questionCode }: { questionCode?: string }) 
               {form.paramRows.length === 0 ? <p className="text-label text-muted-foreground">无参数问题可直接执行；有参数时问数面会要求填写。</p> : null}
             </div>
 
-            <FormField label="回答模板" htmlFor="question-template">
+            <Field className="mb-4">
+              <FieldLabel>回答模板</FieldLabel>
               <CodeTextarea id="question-template" className="min-h-[90px]" value={form.answerTemplate} disabled={readOnly} onChange={(event) => setForm({ ...form, answerTemplate: event.target.value })} placeholder="回答前缀或口径说明（可选）" />
-            </FormField>
+            </Field>
 
             {error ? (
               <Alert variant="error" className="mb-3">
@@ -327,15 +340,17 @@ export function QuestionEditorPage({ questionCode }: { questionCode?: string }) 
                   {(question?.paramSchema ?? []).map((contract) => {
                     const label = assistantParamLabel(contract.name, contract.description)
                     return (
-                      <label key={contract.name} className="min-w-[150px]">
-                        <span className="mb-1 block text-meta text-muted-foreground">{label}{contract.required ? ' *' : ''}</span>
+                      <Field key={contract.name} className="w-[170px]">
+                        <FieldLabel>
+                          {label}{' '}{contract.required ? <span className="text-destructive-foreground">*</span> : null}
+                        </FieldLabel>
                         <Input
                           type={contract.type === 'date' ? 'date' : contract.type === 'number' ? 'number' : 'text'}
                           aria-label={label}
                           value={testParams[contract.name] ?? contract.defaultValue ?? ''}
                           onChange={(event) => setTestParams({ ...testParams, [contract.name]: event.target.value })}
                         />
-                      </label>
+                      </Field>
                     )
                   })}
                   <Button disabled={testMutation.isPending} onClick={() => testMutation.mutate()}>

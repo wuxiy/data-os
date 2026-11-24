@@ -1,5 +1,6 @@
 import { LoadingBlock } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
+import { Field, FieldLabel } from '@/components/ui/field'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CodeTextarea } from '@/components/app/code-textarea'
 import { Badge } from '@/components/ui/badge'
@@ -8,7 +9,7 @@ import { AlertTriangle, CalendarClock, CircleAlert, FileCog, KeyRound, LoaderCir
 import { useEffect, useMemo, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { FormField, FormGrid } from '../../components/kit/form'
+import { FormGrid } from '@/components/app/form-grid'
 import { NativeSelect } from '../../components/kit/input'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel, ScopeNote } from '../../components/kit/panel'
@@ -279,7 +280,10 @@ export function JobConfigurationEditor({ jobId }: { jobId?: string }) {
 
           {jobId ? null : (
             <FormGrid>
-              <FormField label="数据源" required htmlFor="job-source">
+              <Field>
+                <FieldLabel htmlFor="job-source">
+                  数据源 <span className="text-destructive-foreground">*</span>
+                </FieldLabel>
                 <NativeSelect id="job-source" className="min-h-[35px]" value={sourceId} onChange={(event) => setSourceId(event.target.value)}>
                   <option value="">选择数据源</option>
                   {sources.map((source) => (
@@ -288,11 +292,15 @@ export function JobConfigurationEditor({ jobId }: { jobId?: string }) {
                     </option>
                   ))}
                 </NativeSelect>
-              </FormField>
-              <FormField label="任务名称" required htmlFor="job-name">
+              </Field>
+              <Field>
+                <FieldLabel>
+                  任务名称 <span className="text-destructive-foreground">*</span>
+                </FieldLabel>
                 <Input id="job-name" value={name} onChange={(event) => setName(event.target.value)} placeholder="例如：LIS 检验结果批量同步" />
-              </FormField>
-              <FormField label="运行模式" htmlFor="job-mode">
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="job-mode">运行模式</FieldLabel>
                 <NativeSelect id="job-mode" className="min-h-[35px]" value={mode} onChange={(event) => {
                   const nextMode = event.target.value
                   setMode(nextMode)
@@ -301,13 +309,14 @@ export function JobConfigurationEditor({ jobId }: { jobId?: string }) {
                   <option value="BATCH">批量同步</option>
                   <option value="CDC">增量变更</option>
                 </NativeSelect>
-              </FormField>
-              <FormField label="执行通道" htmlFor="job-executor">
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="job-executor">执行通道</FieldLabel>
                 <NativeSelect id="job-executor" className="min-h-[35px]" value={executor} onChange={(event) => setExecutor(event.target.value as 'SEATUNNEL' | 'DOLPHINSCHEDULER')} disabled={Boolean(job)}>
                   <option value="SEATUNNEL">中心采集执行器</option>
                   <option value="DOLPHINSCHEDULER">平台调度</option>
                 </NativeSelect>
-              </FormField>
+              </Field>
             </FormGrid>
           )}
 
@@ -322,16 +331,19 @@ export function JobConfigurationEditor({ jobId }: { jobId?: string }) {
 
           {dolphin ? (
             <FormGrid>
-              <FormField label="平台调度项目编号" htmlFor="job-ds-project">
+              <Field>
+                <FieldLabel>平台调度项目编号</FieldLabel>
                 <Input id="job-ds-project" type="number" min={1} value={dsProject} onChange={(event) => setDsProject(event.target.value)} placeholder="例如：15187263948032" />
-              </FormField>
-              <FormField label="平台调度工作流编号" htmlFor="job-ds-workflow">
+              </Field>
+              <Field>
+                <FieldLabel>平台调度工作流编号</FieldLabel>
                 <Input id="job-ds-workflow" type="number" min={1} value={dsWorkflow} onChange={(event) => setDsWorkflow(event.target.value)} placeholder="工作流定义编号" />
-              </FormField>
+              </Field>
             </FormGrid>
           ) : (
             <>
-              <FormField label="配置方式">
+              <Field className="mb-4">
+                <FieldLabel>配置方式</FieldLabel>
                 <div role="radiogroup" aria-label="配置方式" className="inline-flex gap-1 rounded-control border border-line bg-wash p-0.5">
                   {([
                     { value: 'structured' as const, label: '结构化表单' },
@@ -350,20 +362,22 @@ export function JobConfigurationEditor({ jobId }: { jobId?: string }) {
                     </button>
                   ))}
                 </div>
-              </FormField>
+              </Field>
 
               {configMode === 'json' ? (
                 <>
-                  <FormField label="配置模板" htmlFor="job-template">
+                  <Field className="mb-4">
+                    <FieldLabel htmlFor="job-template">配置模板</FieldLabel>
                     <NativeSelect id="job-template" className="min-h-[35px]" value={templateKey} onChange={(event) => selectTemplate(event.target.value)}>
                       {offersDemoTemplate() ? <option value={DEFAULT_TEMPLATE_KEY}>FakeSource → Console（演示）</option> : null}
                       {templates.map((template) => <option key={template.key} value={template.key}>{template.displayName} · {template.systemType}</option>)}
                       <option value={LIVE_TEMPLATE_KEY}>自定义 JSON</option>
                     </NativeSelect>
-                  </FormField>
-                  <FormField label="模板版本" htmlFor="job-template-version">
+                  </Field>
+                  <Field className="mb-4">
+                    <FieldLabel>模板版本</FieldLabel>
                     <Input id="job-template-version" type="number" min={1} value={templateVersion} onChange={(event) => setTemplateVersion(Math.max(1, Number(event.target.value) || 1))} className="w-[140px]" />
-                  </FormField>
+                  </Field>
                 </>
               ) : !structuredReady && !editingStructured ? (
                 <Alert variant="info" role="note" className="mb-4">

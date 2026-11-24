@@ -1,5 +1,6 @@
 import { LoadingBlock } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
+import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -7,7 +8,7 @@ import { CircleAlert, CloudCog, History, LockKeyhole, RefreshCw, Server, ShieldC
 import { useState } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { FormField, FormGrid } from '../../components/kit/form'
+import { FormGrid } from '@/components/app/form-grid'
 import { NativeSelect } from '../../components/kit/input'
 import { Confirm, Dialog, DialogFooter, Sheet, SheetBody, SheetFooterActions } from '../../components/kit/overlay'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
@@ -299,16 +300,40 @@ export function PlatformOperationsPage() {
         }
       >
         <FormGrid>
-          <FormField label="名称" required htmlFor="edge-name"><Input id="edge-name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="例如：门诊前置机 01" /></FormField>
-          <FormField label="分组" htmlFor="edge-group"><Input id="edge-group" value={form.groupName} onChange={(event) => setForm({ ...form, groupName: event.target.value })} placeholder="例如：门诊楼" /></FormField>
-          <FormField label="站点" htmlFor="edge-site"><Input id="edge-site" value={form.site} onChange={(event) => setForm({ ...form, site: event.target.value })} placeholder="例如：主院区" /></FormField>
-          <FormField label="版本" htmlFor="edge-version"><Input id="edge-version" value={form.version} onChange={(event) => setForm({ ...form, version: event.target.value })} placeholder="例如：1.4.2" /></FormField>
-          <FormField label="主机" required htmlFor="edge-host"><Input id="edge-host" value={form.host} onChange={(event) => setForm({ ...form, host: event.target.value })} placeholder="10.0.0.12" /></FormField>
-          <FormField label="端口" htmlFor="edge-port"><Input id="edge-port" type="number" min={1} max={65535} value={form.port} onChange={(event) => setForm({ ...form, port: event.target.value })} /></FormField>
+          <Field>
+            <FieldLabel>
+              名称 <span className="text-destructive-foreground">*</span>
+            </FieldLabel>
+            <Input id="edge-name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="例如：门诊前置机 01" />
+          </Field>
+          <Field>
+            <FieldLabel>分组</FieldLabel>
+            <Input id="edge-group" value={form.groupName} onChange={(event) => setForm({ ...form, groupName: event.target.value })} placeholder="例如：门诊楼" />
+          </Field>
+          <Field>
+            <FieldLabel>站点</FieldLabel>
+            <Input id="edge-site" value={form.site} onChange={(event) => setForm({ ...form, site: event.target.value })} placeholder="例如：主院区" />
+          </Field>
+          <Field>
+            <FieldLabel>版本</FieldLabel>
+            <Input id="edge-version" value={form.version} onChange={(event) => setForm({ ...form, version: event.target.value })} placeholder="例如：1.4.2" />
+          </Field>
+          <Field>
+            <FieldLabel>
+              主机 <span className="text-destructive-foreground">*</span>
+            </FieldLabel>
+            <Input id="edge-host" value={form.host} onChange={(event) => setForm({ ...form, host: event.target.value })} placeholder="10.0.0.12" />
+          </Field>
+          <Field>
+            <FieldLabel>端口</FieldLabel>
+            <Input id="edge-port" type="number" min={1} max={65535} value={form.port} onChange={(event) => setForm({ ...form, port: event.target.value })} />
+          </Field>
         </FormGrid>
-        <FormField label="转发前缀（可选）" htmlFor="edge-prefix" hint="院内代理的受控转发路径前缀；不是地址或凭据。">
+        <Field className="mb-4">
+          <FieldLabel>转发前缀（可选）</FieldLabel>
           <Input id="edge-prefix" value={form.relayPrefix} onChange={(event) => setForm({ ...form, relayPrefix: event.target.value })} placeholder="例如：/edge/outpatient" />
-        </FormField>
+          <FieldDescription>院内代理的受控转发路径前缀；不是地址或凭据。</FieldDescription>
+        </Field>
         {formError ? (
           <Alert variant="error" className="mt-2">
             <CircleAlert />
@@ -340,10 +365,21 @@ export function PlatformOperationsPage() {
 
           <h3 className="mb-1.5 text-label font-medium text-ink-soft">追加版本记录</h3>
           <FormGrid>
-            <FormField label="版本" required htmlFor="deploy-version"><Input id="deploy-version" value={deployForm.version} onChange={(event) => setDeployForm({ ...deployForm, version: event.target.value })} placeholder="例如：1.4.3" /></FormField>
-            <FormField label="制品引用" htmlFor="deploy-artifact"><Input id="deploy-artifact" value={deployForm.artifactRef} onChange={(event) => setDeployForm({ ...deployForm, artifactRef: event.target.value })} placeholder="构建号/镜像标签" /></FormField>
+            <Field>
+              <FieldLabel>
+                版本 <span className="text-destructive-foreground">*</span>
+              </FieldLabel>
+              <Input id="deploy-version" value={deployForm.version} onChange={(event) => setDeployForm({ ...deployForm, version: event.target.value })} placeholder="例如：1.4.3" />
+            </Field>
+            <Field>
+              <FieldLabel>制品引用</FieldLabel>
+              <Input id="deploy-artifact" value={deployForm.artifactRef} onChange={(event) => setDeployForm({ ...deployForm, artifactRef: event.target.value })} placeholder="构建号/镜像标签" />
+            </Field>
           </FormGrid>
-          <FormField label="说明" htmlFor="deploy-note"><Input id="deploy-note" value={deployForm.note} onChange={(event) => setDeployForm({ ...deployForm, note: event.target.value })} placeholder="变更内容或回滚依据" /></FormField>
+          <Field className="mb-4">
+            <FieldLabel>说明</FieldLabel>
+            <Input id="deploy-note" value={deployForm.note} onChange={(event) => setDeployForm({ ...deployForm, note: event.target.value })} placeholder="变更内容或回滚依据" />
+          </Field>
           {deployError ? (
             <Alert variant="error" className="mb-2">
               <CircleAlert />

@@ -2,6 +2,7 @@ import { TableSkeleton } from '@/components/app/table-skeleton'
 import { LoadingBlock } from '@/components/app/loading'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
+import { Field, FieldLabel } from '@/components/ui/field'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, RefreshCw, ShieldCheck } from 'lucide-react'
 import { useMemo, useState } from 'react'
@@ -339,18 +340,18 @@ function KeyPanel({ service }: { service: DataService }) {
       ) : null}
 
       <div className="mb-3 flex flex-wrap items-end gap-2 rounded-control border border-line bg-wash px-3 py-2.5">
-        <label className="min-w-[150px]">
-          <span className="mb-1 block text-meta text-muted-foreground">调用方名称</span>
-          <Input className="block" aria-label="调用方名称" value={callerName} onChange={(event) => setCallerName(event.target.value)} placeholder="例如：医联体平台" />
-        </label>
-        <label className="min-w-[110px]">
-          <span className="mb-1 block text-meta text-muted-foreground">每日配额</span>
-          <Input className="block" aria-label="每日配额" type="number" min={1} value={quota} onChange={(event) => setQuota(event.target.value)} />
-        </label>
-        <label className="min-w-[150px]">
-          <span className="mb-1 block text-meta text-muted-foreground">允许机构（* 或逗号分隔）</span>
-          <Input className="block" aria-label="允许机构" value={hospitals} onChange={(event) => setHospitals(event.target.value)} />
-        </label>
+        <Field className="w-[190px]">
+          <FieldLabel>调用方名称</FieldLabel>
+          <Input value={callerName} onChange={(event) => setCallerName(event.target.value)} placeholder="例如：医联体平台" />
+        </Field>
+        <Field className="w-[110px]">
+          <FieldLabel>每日配额</FieldLabel>
+          <Input type="number" min={1} value={quota} onChange={(event) => setQuota(event.target.value)} />
+        </Field>
+        <Field className="w-[220px]">
+          <FieldLabel>允许机构（* 或逗号分隔）</FieldLabel>
+          <Input value={hospitals} onChange={(event) => setHospitals(event.target.value)} />
+        </Field>
         <Button size="sm" disabled={!callerName.trim() || issue.isPending} onClick={() => issue.mutate()}>
           {issue.isPending ? '发放中…' : '发放 Key'}
         </Button>

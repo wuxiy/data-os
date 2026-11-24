@@ -1,5 +1,6 @@
 import { LoadingBlock, LoadingInline } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
+import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CodeTextarea } from '@/components/app/code-textarea'
 import { Badge } from '@/components/ui/badge'
@@ -8,7 +9,6 @@ import { ChevronDown, ChevronRight, CircleAlert, Database, KeyRound, Play, Table
 import { useEffect, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { FormField } from '../../components/kit/form'
 
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel, PanelHead, ScopeNote } from '../../components/kit/panel'
@@ -103,15 +103,21 @@ function ConnectionForm({ source }: { source: SourceApiItem }) {
             仅保存库地址、账号与凭据引用；明文密码不会被接受。连接登记不等于连通性检查，检查在数据源列表发起。
           </AlertDescription>
         </Alert>
-        <FormField label="连接地址（JDBC URL）" required htmlFor="explorer-jdbc-url">
+        <Field className="mb-4">
+          <FieldLabel>
+            连接地址（JDBC URL） <span className="text-destructive-foreground">*</span>
+          </FieldLabel>
           <Input id="explorer-jdbc-url" value={jdbcUrl} onChange={(event) => setJdbcUrl(event.target.value)} placeholder="jdbc:postgresql://主机:5432/数据库" />
-        </FormField>
-        <FormField label="用户名（只读账号）" htmlFor="explorer-username">
+        </Field>
+        <Field className="mb-4">
+          <FieldLabel>用户名（只读账号）</FieldLabel>
           <Input id="explorer-username" value={username} onChange={(event) => setUsername(event.target.value)} placeholder="例如：dataos_ro" />
-        </FormField>
-        <FormField label="凭据引用" htmlFor="explorer-credential-ref" hint="已登记凭据的引用名；密码由凭据服务托管。">
+        </Field>
+        <Field className="mb-4">
+          <FieldLabel>凭据引用</FieldLabel>
           <Input id="explorer-credential-ref" value={credentialRef} onChange={(event) => setCredentialRef(event.target.value)} placeholder="例如：cred-lis-ro" />
-        </FormField>
+          <FieldDescription>已登记凭据的引用名；密码由凭据服务托管。</FieldDescription>
+        </Field>
         <div className="flex items-center gap-2">
           <Button disabled={!jdbcUrl.trim() || mutation.isPending} onClick={() => mutation.mutate()}>
             {mutation.isPending ? '登记中…' : '保存连接配置'}

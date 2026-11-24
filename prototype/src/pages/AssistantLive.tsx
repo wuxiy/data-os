@@ -1,6 +1,7 @@
 import { TableSkeleton } from '@/components/app/table-skeleton'
 import { LoadingBlock } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
+import { Field, FieldLabel } from '@/components/ui/field'
 import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -204,8 +205,10 @@ function AssistantWorkspace({
               {selected.paramSchema.map((contract) => {
                 const label = assistantParamLabel(contract.name, contract.description)
                 return (
-                  <label key={contract.name} className="min-w-[140px]">
-                    <span className="mb-1 block text-meta text-muted-foreground">{label}{contract.required ? ' *' : ''}</span>
+                  <Field key={contract.name} className="w-[170px]">
+                    <FieldLabel>
+                      {label}{' '}{contract.required ? <span className="text-destructive-foreground">*</span> : null}
+                    </FieldLabel>
                     {contract.type === 'date' ? (
                       <Input
                         type="date"
@@ -243,7 +246,7 @@ function AssistantWorkspace({
                         onChange={(event) => setParams({ ...params, [contract.name]: event.target.value })}
                       />
                     )}
-                  </label>
+                  </Field>
                 )
               })}
               <Button type="submit" disabled={asking || !draft.trim()}>

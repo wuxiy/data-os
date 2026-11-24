@@ -1,5 +1,6 @@
 import { LoadingBlock } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
+import { Field, FieldLabel } from '@/components/ui/field'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -7,7 +8,7 @@ import { CircleAlert, Gauge, Plus, Save } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { FormField, FormGrid } from '../../components/kit/form'
+import { FormGrid } from '@/components/app/form-grid'
 
 import { Dialog, DialogFooter } from '../../components/kit/overlay'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
@@ -108,12 +109,16 @@ export function ScoringPage() {
                 无终态运行的规则不计入维度均值；权重全为 1 时即等权平均。修改标准不影响历史运行记录，只影响下一次评分读数的计算口径。
               </AlertDescription>
             </Alert>
-            <FormField label="规则通过线（0-100）" required htmlFor="pass-score">
+            <Field className="mb-4">
+              <FieldLabel>
+                规则通过线（0-100） <span className="text-destructive-foreground">*</span>
+              </FieldLabel>
               <Input id="pass-score" type="number" min={0} max={100} value={passScore} onChange={(event) => setPassScore(event.target.value)} className="w-[160px]" />
-            </FormField>
+            </Field>
             <FormGrid>
               {QUALITY_DIMENSIONS.map((dimension) => (
-                <FormField key={dimension} label={dimension} htmlFor={`weight-${dimension}`}>
+                <Field key={dimension}>
+                  <FieldLabel>{dimension}</FieldLabel>
                   <Input
                     id={`weight-${dimension}`}
                     type="number"
@@ -123,7 +128,7 @@ export function ScoringPage() {
                     aria-label={`${dimension}权重`}
                     onChange={(event) => setWeights((current) => ({ ...current, [dimension]: event.target.value }))}
                   />
-                </FormField>
+                </Field>
               ))}
             </FormGrid>
           </div>

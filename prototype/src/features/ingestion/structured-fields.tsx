@@ -1,5 +1,6 @@
 import { LoadingInline } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
+import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CodeTextarea } from '@/components/app/code-textarea'
 import { Badge } from '@/components/ui/badge'
@@ -9,7 +10,7 @@ import { CircleAlert, FlaskConical, Play, Table2 } from 'lucide-react'
 import { useEffect, useMemo, useRef } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { FormField, FormGrid } from '../../components/kit/form'
+import { FormGrid } from '@/components/app/form-grid'
 import { NativeSelect } from '../../components/kit/input'
 
 import { cn } from '../../lib/utils'
@@ -193,7 +194,8 @@ export function StructuredTaskFields({
         </Alert>
       ) : null}
 
-      <FormField label="任务形态">
+      <Field className="mb-4">
+        <FieldLabel>任务形态</FieldLabel>
         <div role="radiogroup" aria-label="任务形态" className="inline-flex gap-1 rounded-control border border-line bg-wash p-0.5">
           {([
             { value: 'TABLE' as const, label: '表任务', icon: <Table2 size={13} /> },
@@ -219,12 +221,13 @@ export function StructuredTaskFields({
             )
           })}
         </div>
-      </FormField>
+      </Field>
 
       {values.form === 'TABLE' ? (
         <>
           <FormGrid>
-            <FormField label="源库" htmlFor="structured-catalog">
+            <Field>
+              <FieldLabel htmlFor="structured-catalog">源库</FieldLabel>
               <NativeSelect
                 id="structured-catalog"
                 className="min-h-[35px]"
@@ -240,8 +243,9 @@ export function StructuredTaskFields({
                 {(catalogsQuery.data?.catalogs ?? []).map((catalog) => <option key={catalog} value={catalog}>{catalog}</option>)}
               </NativeSelect>
               {catalogsQuery.isError ? <p className="mt-1 text-meta text-red">库清单读取失败，请确认连接配置</p> : null}
-            </FormField>
-            <FormField label="采集方式" htmlFor="structured-mode">
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="structured-mode">采集方式</FieldLabel>
               <NativeSelect
                 id="structured-mode"
                 className="min-h-[35px]"
@@ -251,13 +255,14 @@ export function StructuredTaskFields({
                 <option value="FULL">全量（幂等唯一键目标模型可重跑）</option>
                 <option value="INCREMENTAL">增量（时间序列键水位回放）</option>
               </NativeSelect>
-            </FormField>
+            </Field>
           </FormGrid>
 
           {values.catalog ? (
-            <FormField label={`源表${editLocked ? '' : '（可多选，每表一个任务）'}`}>
+            <Field className="mb-4">
+              <FieldLabel>{`源表${editLocked ? '' : '（可多选，每表一个任务）'}`}</FieldLabel>
               {tablesQuery.isPending ? <LoadingInline>正在读取表清单…</LoadingInline> : (
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex w-full flex-wrap gap-1.5">
                   {(tablesQuery.data?.tables ?? []).map((table) => (
                     <button
                       key={table.name}
@@ -277,12 +282,13 @@ export function StructuredTaskFields({
                 </div>
               )}
               {tablesQuery.data?.truncated ? <p className="mt-1 text-meta text-amber">表数量较多，仅显示前 500 个</p> : null}
-            </FormField>
+            </Field>
           ) : null}
 
           {activeColumns ? (
-            <FormField label={`字段白名单（不选 = 全部字段）${columnsQuery.isFetching ? ' · 读取中…' : ''}`}>
-              <div className="flex max-h-[220px] flex-wrap gap-1.5 overflow-y-auto rounded-control border border-line bg-wash p-2.5">
+            <Field className="mb-4">
+              <FieldLabel>{`字段白名单（不选 = 全部字段）${columnsQuery.isFetching ? ' · 读取中…' : ''}`}</FieldLabel>
+              <div className="flex w-full max-h-[220px] flex-wrap gap-1.5 overflow-y-auto rounded-control border border-line bg-wash p-2.5">
                 {activeColumns.map((column) => (
                   <label key={column.name} className="inline-flex items-center gap-1.5 rounded-chip bg-paper px-2 py-1 text-label text-ink-soft">
                     <input
@@ -296,13 +302,14 @@ export function StructuredTaskFields({
                   </label>
                 ))}
               </div>
-            </FormField>
+            </Field>
           ) : values.tables.length > 1 ? (
             <p className="mb-4 text-label text-muted-foreground">多表批量任务使用全量字段；如需字段白名单或增量序列键，请单选表配置。</p>
           ) : null}
 
           {values.mode === 'INCREMENTAL' && activeColumns !== undefined ? (
-            <FormField label="增量序列键（时间类型）" htmlFor="structured-order-key">
+            <Field className="mb-4">
+              <FieldLabel htmlFor="structured-order-key">增量序列键（时间类型）</FieldLabel>
               <NativeSelect
                 id="structured-order-key"
                 className="min-h-[35px]"
@@ -313,17 +320,14 @@ export function StructuredTaskFields({
                 {timeColumns.map((column) => <option key={column} value={column}>{column}</option>)}
               </NativeSelect>
               {timeColumns.length === 0 ? <p className="mt-1 text-meta text-amber">该表没有时间类型字段；整数序列键不支持增量回放，请改用全量。</p> : null}
-            </FormField>
+            </Field>
           ) : null}
         </>
       ) : (
         <>
-          <FormField
-            label="查询语句（只读 · 单条 SELECT/WITH）"
-            htmlFor="structured-sql"
-            hint={sqlTest.data ? `可执行：${sqlTest.data.columns.length} 列 × ${sqlTest.data.rows.length} 行样本${sqlTest.data.truncated ? '（已截断）' : ''}` : sqlTest.error ? errorMessage(sqlTest.error, '测试失败') : undefined}
-          >
-            <div className="mb-1.5 flex justify-end">
+          <Field className="mb-4">
+            <FieldLabel htmlFor="structured-sql">查询语句（只读 · 单条 SELECT/WITH）</FieldLabel>
+            <div className="mb-1.5 flex w-full justify-end">
               <Button
                 size="sm"
                 variant="link"
@@ -340,30 +344,36 @@ export function StructuredTaskFields({
               onChange={(event) => form.setFieldValue('customSql', event.target.value)}
               placeholder="例如：SELECT id, name FROM patient_info WHERE update_time >= '${last_success_time}'"
             />
-          </FormField>
-          <FormField label="目标表名" htmlFor="structured-sql-target">
+            <FieldDescription>{sqlTest.data ? `可执行：${sqlTest.data.columns.length} 列 × ${sqlTest.data.rows.length} 行样本${sqlTest.data.truncated ? '（已截断）' : ''}` : sqlTest.error ? errorMessage(sqlTest.error, '测试失败') : undefined}</FieldDescription>
+          </Field>
+          <Field className="mb-4">
+            <FieldLabel>目标表名</FieldLabel>
             <Input id="structured-sql-target" value={values.targetTable} onChange={(event) => form.setFieldValue('targetTable', event.target.value)} placeholder="例如：src_patient_overview" />
-          </FormField>
+          </Field>
         </>
       )}
 
       <FormGrid>
         {values.form === 'TABLE' ? (
-          <FormField label="目标表名（缺省 = 源表名）" htmlFor="structured-target-table">
+          <Field>
+            <FieldLabel>目标表名（缺省 = 源表名）</FieldLabel>
             <Input id="structured-target-table" value={values.targetTable} onChange={(event) => form.setFieldValue('targetTable', event.target.value)} placeholder={activeTable ?? '与源表同名'} />
-          </FormField>
+          </Field>
         ) : null}
-        <FormField label="目标库（缺省按系统类型命名）" htmlFor="structured-target-database">
+        <Field>
+          <FieldLabel>目标库（缺省按系统类型命名）</FieldLabel>
           <Input id="structured-target-database" value={values.targetDatabase} onChange={(event) => form.setFieldValue('targetDatabase', event.target.value)} placeholder={`ods_${source.systemType.toLowerCase()}`} />
-        </FormField>
+        </Field>
       </FormGrid>
       <FormGrid>
-        <FormField label="目标仓库 FE 地址" htmlFor="structured-fenodes">
+        <Field>
+          <FieldLabel>目标仓库 FE 地址</FieldLabel>
           <Input id="structured-fenodes" value={values.sinkFenodes} onChange={(event) => form.setFieldValue('sinkFenodes', event.target.value)} placeholder="例如：doris-fe.internal:8030" />
-        </FormField>
-        <FormField label="目标仓库凭据引用" htmlFor="structured-sink-credential">
+        </Field>
+        <Field>
+          <FieldLabel>目标仓库凭据引用</FieldLabel>
           <Input id="structured-sink-credential" value={values.sinkCredentialRef} onChange={(event) => form.setFieldValue('sinkCredentialRef', event.target.value)} placeholder="已登记凭据的引用 id" />
-        </FormField>
+        </Field>
       </FormGrid>
 
       <form.Subscribe selector={(state) => state.errors}>

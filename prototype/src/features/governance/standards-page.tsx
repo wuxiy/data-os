@@ -1,5 +1,6 @@
 import { LoadingBlock, LoadingInline } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
+import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CodeTextarea } from '@/components/app/code-textarea'
 import { Badge } from '@/components/ui/badge'
@@ -8,7 +9,7 @@ import { Archive, ArrowRightLeft, CircleAlert, Download, FileSearch, GitCompareA
 import { useEffect, useMemo, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { FormField, FormGrid } from '../../components/kit/form'
+import { FormGrid } from '@/components/app/form-grid'
 import { NativeSelect, SearchField } from '../../components/kit/input'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel, PanelHead } from '../../components/kit/panel'
@@ -331,11 +332,21 @@ export function StandardsPage() {
                 <div className="mt-4 rounded-control border border-line bg-wash px-3.5 py-3">
                   <h3 className="mb-2 text-label font-medium text-ink-soft">草稿修改（仅 DRAFT 可改）</h3>
                   <FormGrid>
-                    <FormField label="标准名称" htmlFor="standard-name"><Input id="standard-name" value={metaDraft.name} onChange={(event) => setMetaDraft((current) => ({ ...current, name: event.target.value }))} placeholder={detail.standard.name} /></FormField>
-                    <FormField label="负责人" htmlFor="standard-owner"><Input id="standard-owner" value={metaDraft.owner} onChange={(event) => setMetaDraft((current) => ({ ...current, owner: event.target.value }))} placeholder={detail.standard.owner || '未指定'} /></FormField>
+                    <Field>
+                      <FieldLabel>标准名称</FieldLabel>
+                      <Input id="standard-name" value={metaDraft.name} onChange={(event) => setMetaDraft((current) => ({ ...current, name: event.target.value }))} placeholder={detail.standard.name} />
+                    </Field>
+                    <Field>
+                      <FieldLabel>负责人</FieldLabel>
+                      <Input id="standard-owner" value={metaDraft.owner} onChange={(event) => setMetaDraft((current) => ({ ...current, owner: event.target.value }))} placeholder={detail.standard.owner || '未指定'} />
+                    </Field>
                   </FormGrid>
-                  <FormField label="描述" htmlFor="standard-description"><Input id="standard-description" value={metaDraft.description} onChange={(event) => setMetaDraft((current) => ({ ...current, description: event.target.value }))} placeholder={detail.standard.description || '补充标准描述'} /></FormField>
-                  <FormField label="元素集整体替换" htmlFor="standard-elements" hint="JSON 数组，与创建接口的元素结构同构；留空则不修改元素集。">
+                  <Field className="mb-4">
+                    <FieldLabel>描述</FieldLabel>
+                    <Input id="standard-description" value={metaDraft.description} onChange={(event) => setMetaDraft((current) => ({ ...current, description: event.target.value }))} placeholder={detail.standard.description || '补充标准描述'} />
+                  </Field>
+                  <Field className="mb-4">
+                    <FieldLabel>元素集整体替换</FieldLabel>
                     <CodeTextarea
                       id="standard-elements"
                       className="min-h-[120px]"
@@ -343,7 +354,8 @@ export function StandardsPage() {
                       onChange={(event) => setElementsDraft(event.target.value)}
                       placeholder='[{"code":"channel","name":"挂号渠道","dataType":"CODE","required":true,"definition":"渠道枚举","sensitivity":"NORMAL","assetRef":"","values":[{"code":"OPD","displayName":"门诊"}]}]'
                     />
-                  </FormField>
+                    <FieldDescription>JSON 数组，与创建接口的元素结构同构；留空则不修改元素集。</FieldDescription>
+                  </Field>
                   <div className="flex justify-end">
                     <Button variant="outline" size="sm" disabled={busy} onClick={() => saveDraft.mutate()}>保存草稿修改</Button>
                   </div>
@@ -424,11 +436,8 @@ export function StandardsPage() {
       <Panel>
         <PanelHead title="导入标准" description="粘贴 CSV 或 JSON → 预检内容 → 确认创建草稿" />
         <div className="px-5 pb-5">
-          <FormField
-            label="导入内容"
-            htmlFor="standard-import"
-            hint="支持平台 CSV 模板（standard_code, standard_name, element_code, element_name, data_type, required, definition, sensitivity, value_code, value_display）或与创建接口同构的 JSON。"
-          >
+          <Field className="mb-4">
+            <FieldLabel>导入内容</FieldLabel>
             <CodeTextarea
               id="standard-import"
               className="min-h-[120px]"
@@ -436,7 +445,8 @@ export function StandardsPage() {
               onChange={(event) => { setImportBody(event.target.value); setImportReport(null) }}
               placeholder={'standard_code,standard_name,element_code,element_name,data_type,required,definition,sensitivity,value_code,value_display\nreg-channel,挂号渠道,channel,挂号渠道,CODE,true,渠道枚举,NORMAL,OPD,门诊'}
             />
-          </FormField>
+            <FieldDescription>支持平台 CSV 模板（standard_code, standard_name, element_code, element_name, data_type, required, definition, sensitivity, value_code, value_display）或与创建接口同构的 JSON。</FieldDescription>
+          </Field>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" disabled={!importBody.trim() || importMutation.isPending} onClick={() => { setError(null); importMutation.mutate(true) }}>
               <UploadCloud size={13} />预检（dry-run）

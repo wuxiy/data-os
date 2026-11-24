@@ -1,6 +1,7 @@
 import { TableSkeleton } from '@/components/app/table-skeleton'
 import { LoadingBlock } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
+import { Field, FieldLabel } from '@/components/ui/field'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -8,7 +9,7 @@ import { CircleAlert, Download, Plus, RefreshCw, ShieldCheck, Trash2, TriangleAl
 import { useState } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { FormField, FormGrid } from '../../components/kit/form'
+import { FormGrid } from '@/components/app/form-grid'
 import { NativeSelect, SearchField } from '../../components/kit/input'
 import { Confirm, Dialog, DialogFooter } from '../../components/kit/overlay'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
@@ -344,12 +345,33 @@ export function DeliveryCenterPage() {
         }
       >
         <FormGrid>
-          <FormField label="项目代码" required htmlFor="delivery-code"><Input id="delivery-code" value={createForm.code} onChange={(event) => setCreateForm({ ...createForm, code: event.target.value })} placeholder="例如：DEL-2026-EP" /></FormField>
-          <FormField label="项目名称" required htmlFor="delivery-name"><Input id="delivery-name" value={createForm.name} onChange={(event) => setCreateForm({ ...createForm, name: event.target.value })} placeholder="例如：电子处方域交付" /></FormField>
-          <FormField label="交付范围" htmlFor="delivery-scope"><Input id="delivery-scope" value={createForm.scope} onChange={(event) => setCreateForm({ ...createForm, scope: event.target.value })} placeholder="域/系统/数据集范围" /></FormField>
-          <FormField label="负责人" required htmlFor="delivery-owner"><Input id="delivery-owner" value={createForm.owner} onChange={(event) => setCreateForm({ ...createForm, owner: event.target.value })} placeholder="责任人" /></FormField>
+          <Field>
+            <FieldLabel>
+              项目代码 <span className="text-destructive-foreground">*</span>
+            </FieldLabel>
+            <Input id="delivery-code" value={createForm.code} onChange={(event) => setCreateForm({ ...createForm, code: event.target.value })} placeholder="例如：DEL-2026-EP" />
+          </Field>
+          <Field>
+            <FieldLabel>
+              项目名称 <span className="text-destructive-foreground">*</span>
+            </FieldLabel>
+            <Input id="delivery-name" value={createForm.name} onChange={(event) => setCreateForm({ ...createForm, name: event.target.value })} placeholder="例如：电子处方域交付" />
+          </Field>
+          <Field>
+            <FieldLabel>交付范围</FieldLabel>
+            <Input id="delivery-scope" value={createForm.scope} onChange={(event) => setCreateForm({ ...createForm, scope: event.target.value })} placeholder="域/系统/数据集范围" />
+          </Field>
+          <Field>
+            <FieldLabel>
+              负责人 <span className="text-destructive-foreground">*</span>
+            </FieldLabel>
+            <Input id="delivery-owner" value={createForm.owner} onChange={(event) => setCreateForm({ ...createForm, owner: event.target.value })} placeholder="责任人" />
+          </Field>
         </FormGrid>
-        <FormField label="目标日期" htmlFor="delivery-target"><Input id="delivery-target" type="date" value={createForm.targetDate} onChange={(event) => setCreateForm({ ...createForm, targetDate: event.target.value })} className="w-[200px]" /></FormField>
+        <Field className="mb-4">
+          <FieldLabel>目标日期</FieldLabel>
+          <Input id="delivery-target" type="date" value={createForm.targetDate} onChange={(event) => setCreateForm({ ...createForm, targetDate: event.target.value })} className="w-[200px]" />
+        </Field>
         {createError ? (
           <Alert variant="error" className="mt-2">
             <CircleAlert />
@@ -379,14 +401,23 @@ export function DeliveryCenterPage() {
           <AlertDescription>被引用对象必须已发布或已认证；未满足可交付性的对象会在提交验收时被逐项阻断。</AlertDescription>
         </Alert>
         <FormGrid>
-          <FormField label="对象类型" htmlFor="item-type">
+          <Field>
+            <FieldLabel htmlFor="item-type">对象类型</FieldLabel>
             <NativeSelect id="item-type" className="min-h-[35px]" value={itemForm.refType} onChange={(event) => setItemForm({ ...itemForm, refType: event.target.value as DeliveryRefType })}>
               {DELIVERY_REF_TYPES.map((type) => <option key={type} value={type}>{REF_TYPE_LABEL[type]}</option>)}
             </NativeSelect>
-          </FormField>
-          <FormField label="对象标识" required htmlFor="item-ref"><Input id="item-ref" value={itemForm.refId} onChange={(event) => setItemForm({ ...itemForm, refId: event.target.value })} placeholder="资产 FQN / 看板 id / 服务代码 / 产品 id" /></FormField>
+          </Field>
+          <Field>
+            <FieldLabel>
+              对象标识 <span className="text-destructive-foreground">*</span>
+            </FieldLabel>
+            <Input id="item-ref" value={itemForm.refId} onChange={(event) => setItemForm({ ...itemForm, refId: event.target.value })} placeholder="资产 FQN / 看板 id / 服务代码 / 产品 id" />
+          </Field>
         </FormGrid>
-        <FormField label="备注" htmlFor="item-note"><Input id="item-note" value={itemForm.note} onChange={(event) => setItemForm({ ...itemForm, note: event.target.value })} placeholder="引用口径或验收说明" /></FormField>
+        <Field className="mb-4">
+          <FieldLabel>备注</FieldLabel>
+          <Input id="item-note" value={itemForm.note} onChange={(event) => setItemForm({ ...itemForm, note: event.target.value })} placeholder="引用口径或验收说明" />
+        </Field>
         {itemError ? (
           <Alert variant="error" className="mt-2">
             <CircleAlert />

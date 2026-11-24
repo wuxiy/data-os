@@ -1,6 +1,7 @@
 import { TableSkeleton } from '@/components/app/table-skeleton'
 import { LoadingBlock } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
+import { Field, FieldLabel } from '@/components/ui/field'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CodeTextarea } from '@/components/app/code-textarea'
 import { Badge } from '@/components/ui/badge'
@@ -10,7 +11,7 @@ import { AlertTriangle, Boxes, CircleAlert, FlaskConical, MessageSquareText, Plu
 import { useEffect, useRef, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { FormField, FormGrid } from '../../components/kit/form'
+import { FormGrid } from '@/components/app/form-grid'
 import { NativeSelect, SearchField } from '../../components/kit/input'
 import { Dialog, DialogFooter, Confirm } from '../../components/kit/overlay'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
@@ -524,16 +525,33 @@ export function AIDataPage() {
         }
       >
         <FormGrid>
-          <FormField label="产品名称" required htmlFor="ai-name"><Input id="ai-name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="例如：门诊病历 RAG 语料" /></FormField>
-          <FormField label="产品类型" htmlFor="ai-type">
+          <Field>
+            <FieldLabel>
+              产品名称 <span className="text-destructive-foreground">*</span>
+            </FieldLabel>
+            <Input id="ai-name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="例如：门诊病历 RAG 语料" />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="ai-type">产品类型</FieldLabel>
             <NativeSelect id="ai-type" className="min-h-[35px]" value={form.type} onChange={(event) => setForm({ ...form, type: event.target.value as AIDataProductType })}>
               {PRODUCT_TYPES.map((type) => <option key={type} value={type}>{productTypeLabel[type]}</option>)}
             </NativeSelect>
-          </FormField>
-          <FormField label="负责人" required htmlFor="ai-owner"><Input id="ai-owner" value={form.owner} onChange={(event) => setForm({ ...form, owner: event.target.value })} placeholder="data-team" /></FormField>
-          <FormField label="工作流" htmlFor="ai-workflow"><Input id="ai-workflow" value={form.workflow} onChange={(event) => setForm({ ...form, workflow: event.target.value })} placeholder="ai-ready" /></FormField>
+          </Field>
+          <Field>
+            <FieldLabel>
+              负责人 <span className="text-destructive-foreground">*</span>
+            </FieldLabel>
+            <Input id="ai-owner" value={form.owner} onChange={(event) => setForm({ ...form, owner: event.target.value })} placeholder="data-team" />
+          </Field>
+          <Field>
+            <FieldLabel>工作流</FieldLabel>
+            <Input id="ai-workflow" value={form.workflow} onChange={(event) => setForm({ ...form, workflow: event.target.value })} placeholder="ai-ready" />
+          </Field>
         </FormGrid>
-        <FormField label="数据来源说明" htmlFor="ai-source"><Input id="ai-source" value={form.source} onChange={(event) => setForm({ ...form, source: event.target.value })} placeholder="例如：ods_ep 处方表 + 标准值域" /></FormField>
+        <Field className="mb-4">
+          <FieldLabel>数据来源说明</FieldLabel>
+          <Input id="ai-source" value={form.source} onChange={(event) => setForm({ ...form, source: event.target.value })} placeholder="例如：ods_ep 处方表 + 标准值域" />
+        </Field>
         {createError ? (
           <Alert variant="error" className="mt-2">
             <CircleAlert />
@@ -558,9 +576,12 @@ export function AIDataPage() {
           </DialogFooter>
         }
       >
-        <FormField label="问题描述" required htmlFor="ai-feedback">
+        <Field className="mb-4">
+          <FieldLabel>
+            问题描述 <span className="text-destructive-foreground">*</span>
+          </FieldLabel>
           <CodeTextarea id="ai-feedback" className="min-h-[120px]" value={feedbackQuestion} onChange={(event) => setFeedbackQuestion(event.target.value)} placeholder="例如：检索命中错误分块，引用与答案不一致" />
-        </FormField>
+        </Field>
       </Dialog>
 
       <Confirm

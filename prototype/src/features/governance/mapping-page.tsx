@@ -1,5 +1,6 @@
 import { LoadingBlock, LoadingInline } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
+import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CodeTextarea } from '@/components/app/code-textarea'
 import { Badge } from '@/components/ui/badge'
@@ -8,7 +9,7 @@ import { Archive, ArrowRightLeft, CircleAlert, ClipboardCheck, GitCompareArrows,
 import { useEffect, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { FormField, FormGrid } from '../../components/kit/form'
+import { FormGrid } from '@/components/app/form-grid'
 import { NativeSelect, SearchField } from '../../components/kit/input'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel, PanelHead } from '../../components/kit/panel'
@@ -262,14 +263,37 @@ export function MappingPage() {
           <PanelHead title="新建映射集" description="目标标准须为已发布；映射项用导入补齐" />
           <div className="px-5 pb-5">
             <FormGrid>
-              <FormField label="映射集代码" required htmlFor="mapping-code"><Input id="mapping-code" value={createForm.code} onChange={(event) => setCreateForm({ ...createForm, code: event.target.value })} placeholder="MAP-EP-CFZB" /></FormField>
-              <FormField label="名称" required htmlFor="mapping-name"><Input id="mapping-name" value={createForm.name} onChange={(event) => setCreateForm({ ...createForm, name: event.target.value })} placeholder="门诊处方表映射" /></FormField>
+              <Field>
+                <FieldLabel>
+                  映射集代码 <span className="text-destructive-foreground">*</span>
+                </FieldLabel>
+                <Input id="mapping-code" value={createForm.code} onChange={(event) => setCreateForm({ ...createForm, code: event.target.value })} placeholder="MAP-EP-CFZB" />
+              </Field>
+              <Field>
+                <FieldLabel>
+                  名称 <span className="text-destructive-foreground">*</span>
+                </FieldLabel>
+                <Input id="mapping-name" value={createForm.name} onChange={(event) => setCreateForm({ ...createForm, name: event.target.value })} placeholder="门诊处方表映射" />
+              </Field>
             </FormGrid>
             <FormGrid>
-              <FormField label="源资产（fqn）" required htmlFor="mapping-source"><Input id="mapping-source" value={createForm.sourceAsset} onChange={(event) => setCreateForm({ ...createForm, sourceAsset: event.target.value })} placeholder="doris.dataos.ods_ep.ep_order" /></FormField>
-              <FormField label="验证数据集（须已登记）" required htmlFor="mapping-dataset"><Input id="mapping-dataset" value={createForm.dataset} onChange={(event) => setCreateForm({ ...createForm, dataset: event.target.value })} placeholder="ods_ep.ep_order" /></FormField>
+              <Field>
+                <FieldLabel>
+                  源资产（fqn） <span className="text-destructive-foreground">*</span>
+                </FieldLabel>
+                <Input id="mapping-source" value={createForm.sourceAsset} onChange={(event) => setCreateForm({ ...createForm, sourceAsset: event.target.value })} placeholder="doris.dataos.ods_ep.ep_order" />
+              </Field>
+              <Field>
+                <FieldLabel>
+                  验证数据集（须已登记） <span className="text-destructive-foreground">*</span>
+                </FieldLabel>
+                <Input id="mapping-dataset" value={createForm.dataset} onChange={(event) => setCreateForm({ ...createForm, dataset: event.target.value })} placeholder="ods_ep.ep_order" />
+              </Field>
             </FormGrid>
-            <FormField label="目标标准" required htmlFor="mapping-standard" hint={publishedStandards.isError ? '已发布标准读取失败，请重试连接后创建映射集。' : publishedStandards.isSuccess && (publishedStandards.data?.length ?? 0) === 0 ? '尚无已发布标准。' : undefined}>
+            <Field className="mb-4">
+              <FieldLabel htmlFor="mapping-standard">
+                目标标准 <span className="text-destructive-foreground">*</span>
+              </FieldLabel>
               <NativeSelect
                 id="mapping-standard"
                 className="min-h-[35px]"
@@ -280,7 +304,8 @@ export function MappingPage() {
                 <option value="">{publishedStandards.isPending ? '读取中…' : '选择已发布标准…'}</option>
                 {(publishedStandards.data ?? []).map((standard) => <option key={standard.id} value={standard.id}>{standard.code} · {standard.name}</option>)}
               </NativeSelect>
-            </FormField>
+              <FieldDescription>{publishedStandards.isError ? '已发布标准读取失败，请重试连接后创建映射集。' : publishedStandards.isSuccess && (publishedStandards.data?.length ?? 0) === 0 ? '尚无已发布标准。' : undefined}</FieldDescription>
+            </Field>
             <div className="flex justify-end gap-2">
               <Button variant="outline" size="sm" onClick={() => setCreateOpen(false)}>取消</Button>
               <Button
@@ -421,11 +446,8 @@ export function MappingPage() {
         <Panel>
           <PanelHead title="草稿维护（仅 DRAFT）" description="导入映射项（CSV/JSON，先预检）或整体替换（JSON）" />
           <div className="px-5 pb-5">
-            <FormField
-              label="导入内容"
-              htmlFor="mapping-import"
-              hint='支持 CSV（列：source_column, target_element_code, transform, transform_param, conclusion）或 JSON（{"items":[…]}）。'
-            >
+            <Field className="mb-4">
+              <FieldLabel>导入内容</FieldLabel>
               <CodeTextarea
                 id="mapping-import"
                 className="min-h-[110px]"
@@ -433,7 +455,8 @@ export function MappingPage() {
                 onChange={(event) => { setImportBody(event.target.value); setImportReport(null) }}
                 placeholder={'source_column,target_element_code,transform,transform_param,conclusion\nchannel_code,channel,VALUE_MAP,"{""OPD"":""OPD""}",CONFIRMED'}
               />
-            </FormField>
+              <FieldDescription>{'支持 CSV（列：source_column, target_element_code, transform, transform_param, conclusion）或 JSON（{"items":[…]}）。'}</FieldDescription>
+            </Field>
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" disabled={!importBody.trim() || importItems.isPending} onClick={() => { setError(null); importItems.mutate(true) }}>
                 <UploadCloud size={13} />预检（dry-run）
@@ -456,7 +479,8 @@ export function MappingPage() {
               </div>
             ) : null}
 
-            <FormField label="元素整体替换" htmlFor="mapping-items" hint="JSON 数组，整体替换该草稿的映射项并重算 checksum；留空不修改。" className="mt-4">
+            <Field className="mt-4 mb-4">
+              <FieldLabel>元素整体替换</FieldLabel>
               <CodeTextarea
                 id="mapping-items"
                 className="min-h-[90px]"
@@ -464,7 +488,8 @@ export function MappingPage() {
                 onChange={(event) => setItemsDraft(event.target.value)}
                 placeholder='[{"sourceColumn":"channel_code","targetElementCode":"channel","transform":"VALUE_MAP","transformParam":"{\"OPD\":\"OPD\"}","conclusion":"CONFIRMED"}]'
               />
-            </FormField>
+              <FieldDescription>JSON 数组，整体替换该草稿的映射项并重算 checksum；留空不修改。</FieldDescription>
+            </Field>
             <div className="flex justify-end">
               <Button size="sm" disabled={!itemsDraft.trim() || replaceItems.isPending} onClick={() => { setError(null); replaceItems.mutate() }}>
                 整体替换并重算 checksum

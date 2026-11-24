@@ -1,5 +1,6 @@
 import { LoadingInline } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
+import { Field, FieldLabel } from '@/components/ui/field'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { StatusBadge } from '@/components/app/status-badge'
 import { Badge } from '@/components/ui/badge'
@@ -8,7 +9,7 @@ import { CalendarClock, CircleAlert, Eye, ListTree, Power, RotateCcw, Save, Squa
 import { useEffect, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { FormField, FormGrid } from '../../components/kit/form'
+import { FormGrid } from '@/components/app/form-grid'
 import { NativeSelect } from '../../components/kit/input'
 import { Confirm } from '../../components/kit/overlay'
 import { Panel, PanelHead } from '../../components/kit/panel'
@@ -244,15 +245,29 @@ export function SchedulePanel({ jobId, jobName }: { jobId: string; jobName: stri
 
           {schedule ? (
             <>
-              <FormGrid className="mb-1">
-                <FormField label="下次触发">{schedule.nextFireTime ? formatDateTime(schedule.nextFireTime) : '—'}</FormField>
-                <FormField label="当前 CRON"><code className="font-mono text-label">{schedule.crontab ?? '（未配置）'}</code></FormField>
-                <FormField label="生效窗口">{schedule.startTime || schedule.endTime ? `${schedule.startTime ?? '…'} ~ ${schedule.endTime ?? '…'}` : '长期有效'}</FormField>
-                <FormField label="时区">{schedule.timezoneId ?? '平台默认'}</FormField>
-              </FormGrid>
+              {/* 调度现状是只读事实，用定义列表呈现，不占用表单字段的标签语义。 */}
+              <dl className="mb-5 grid grid-cols-2 gap-x-4 gap-y-3">
+                <div>
+                  <dt className="mb-1 text-meta text-muted-foreground">下次触发</dt>
+                  <dd className="m-0 text-body-sm text-ink-soft">{schedule.nextFireTime ? formatDateTime(schedule.nextFireTime) : '—'}</dd>
+                </div>
+                <div>
+                  <dt className="mb-1 text-meta text-muted-foreground">当前 CRON</dt>
+                  <dd className="m-0 font-mono text-label text-ink-soft">{schedule.crontab ?? '（未配置）'}</dd>
+                </div>
+                <div>
+                  <dt className="mb-1 text-meta text-muted-foreground">生效窗口</dt>
+                  <dd className="m-0 text-body-sm text-ink-soft">{schedule.startTime || schedule.endTime ? `${schedule.startTime ?? '…'} ~ ${schedule.endTime ?? '…'}` : '长期有效'}</dd>
+                </div>
+                <div>
+                  <dt className="mb-1 text-meta text-muted-foreground">时区</dt>
+                  <dd className="m-0 text-body-sm text-ink-soft">{schedule.timezoneId ?? '平台默认'}</dd>
+                </div>
+              </dl>
 
-              <FormField label={`调度策略${advanced ? '（高级模式 · 直接编辑 CRON）' : ''}`} htmlFor="schedule-preset">
-                <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4">
+              <Field className="mb-4">
+                <FieldLabel htmlFor="schedule-preset">{`调度策略${advanced ? '（高级模式 · 直接编辑 CRON）' : ''}`}</FieldLabel>
+                <div className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-4">
                   <NativeSelect
                     id="schedule-preset"
                     className="min-h-[35px]"
@@ -272,47 +287,62 @@ export function SchedulePanel({ jobId, jobName }: { jobId: string; jobName: stri
                     高级模式（直接编辑 CRON）
                   </label>
                 </div>
-              </FormField>
+              </Field>
 
               {advanced ? (
-                <FormField label="CRON 表达式（秒 分 时 日 月 周，六位）" htmlFor="schedule-cron">
+                <Field className="mb-4">
+                  <FieldLabel>CRON 表达式（秒 分 时 日 月 周，六位）</FieldLabel>
                   <Input id="schedule-cron" className="font-mono" value={crontab} onChange={(event) => setCrontab(event.target.value)} spellCheck={false} placeholder="0 30 2 * * ?" />
-                </FormField>
+                </Field>
               ) : preset === 'daily' ? (
-                <FormField label="每天执行时刻" htmlFor="schedule-daily">
+                <Field className="mb-4">
+                  <FieldLabel>每天执行时刻</FieldLabel>
                   <Input id="schedule-daily" type="time" value={dailyTime} onChange={(event) => setDailyTime(event.target.value)} className="w-[160px]" />
-                </FormField>
+                </Field>
               ) : preset === 'once' ? (
-                <FormField label="触发时刻（到点触发一次；触发后建议删除调度）" htmlFor="schedule-once">
+                <Field className="mb-4">
+                  <FieldLabel>触发时刻（到点触发一次；触发后建议删除调度）</FieldLabel>
                   <Input id="schedule-once" type="datetime-local" value={onceAt} onChange={(event) => setOnceAt(event.target.value)} className="w-[220px]" />
-                </FormField>
+                </Field>
               ) : (
                 <FormGrid>
-                  <FormField label="每日时段起（时:分）" htmlFor="schedule-range-start">
+                  <Field>
+                    <FieldLabel>每日时段起（时:分）</FieldLabel>
                     <Input id="schedule-range-start" type="time" value={rangeStart} onChange={(event) => setRangeStart(event.target.value)} />
-                  </FormField>
-                  <FormField label="每日时段止（时:分）" htmlFor="schedule-range-end">
+                  </Field>
+                  <Field>
+                    <FieldLabel>每日时段止（时:分）</FieldLabel>
                     <Input id="schedule-range-end" type="time" value={rangeEnd} onChange={(event) => setRangeEnd(event.target.value)} />
-                  </FormField>
+                  </Field>
                   {preset !== 'hourly' ? (
-                    <FormField label={`间隔（${preset === 'everyNHours' ? '小时 1-11' : '分钟 1-59'}）`} htmlFor="schedule-interval">
+                    <Field>
+                      <FieldLabel>{`间隔（${preset === 'everyNHours' ? '小时 1-11' : '分钟 1-59'}）`}</FieldLabel>
                       <Input id="schedule-interval" type="number" min={1} max={preset === 'everyNHours' ? 11 : 59} value={interval} onChange={(event) => setIntervalValue(event.target.value)} />
-                    </FormField>
+                    </Field>
                   ) : null}
                 </FormGrid>
               )}
 
               {preset !== 'once' && !advanced ? (
                 <FormGrid>
-                  <FormField label="生效开始（可空）" htmlFor="schedule-start"><Input id="schedule-start" type="datetime-local" value={startTime} onChange={(event) => setStartTime(event.target.value)} /></FormField>
-                  <FormField label="生效结束（可空）" htmlFor="schedule-end"><Input id="schedule-end" type="datetime-local" value={endTime} onChange={(event) => setEndTime(event.target.value)} /></FormField>
+                  <Field>
+                    <FieldLabel>生效开始（可空）</FieldLabel>
+                    <Input id="schedule-start" type="datetime-local" value={startTime} onChange={(event) => setStartTime(event.target.value)} />
+                  </Field>
+                  <Field>
+                    <FieldLabel>生效结束（可空）</FieldLabel>
+                    <Input id="schedule-end" type="datetime-local" value={endTime} onChange={(event) => setEndTime(event.target.value)} />
+                  </Field>
                 </FormGrid>
               ) : null}
 
-              <FormField label="编译结果">
-                <code className="font-mono text-label text-ink-soft">{composedCrontab || '（待填写）'}</code>
-                {composedStart ? <small className="ml-2 text-meta text-muted-foreground">生效 {toDsTime(composedStart)} ~ {toDsTime(composedEnd ?? '')}</small> : null}
-              </FormField>
+              <Field className="mb-4">
+                <FieldLabel>编译结果</FieldLabel>
+                <div>
+                  <code className="font-mono text-label text-ink-soft">{composedCrontab || '（待填写）'}</code>
+                  {composedStart ? <small className="ml-2 text-meta text-muted-foreground">生效 {toDsTime(composedStart)} ~ {toDsTime(composedEnd ?? '')}</small> : null}
+                </div>
+              </Field>
 
               {preview ? (
                 <div className="mb-3 rounded-control border border-line bg-wash px-3 py-2.5">
