@@ -1,15 +1,16 @@
 import { TableSkeleton } from '@/components/app/table-skeleton'
 import { LoadingBlock } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CodeTextarea } from '@/components/app/code-textarea'
 import { Badge } from '@/components/ui/badge'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearch } from '@tanstack/react-router'
-import { AlertTriangle, Boxes, FlaskConical, MessageSquareText, Plus, RefreshCw, ShieldCheck } from 'lucide-react'
+import { AlertTriangle, Boxes, CircleAlert, FlaskConical, MessageSquareText, Plus, RefreshCw, ShieldCheck } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { FormField, FormGrid, FormNotice } from '../../components/kit/form'
+import { FormField, FormGrid } from '../../components/kit/form'
 import { NativeSelect, SearchField } from '../../components/kit/input'
 import { Dialog, DialogFooter, Confirm } from '../../components/kit/overlay'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
@@ -447,9 +448,12 @@ export function AIDataPage() {
                         </span>
                       ))}
                     </div>
-                    <FormNotice icon={<ShieldCheck />}>
-                      CERTIFIED 只能经人工审批流转；就绪度与评测结论来自 ai-ready-service，未通过不冒充通过。
-                    </FormNotice>
+                    <Alert variant="info" role="note" className="mb-4">
+                      <ShieldCheck />
+                      <AlertDescription>
+                        CERTIFIED 只能经人工审批流转；就绪度与评测结论来自 ai-ready-service，未通过不冒充通过。
+                      </AlertDescription>
+                    </Alert>
                     <dl className="grid grid-cols-4 gap-4 rounded-control border border-line bg-wash px-3 py-2.5 max-[1100px]:grid-cols-2">
                       <Fact label="最新版本" value={latestVersion?.versionSn ?? '—'} />
                       <Fact label="构建状态" value={latestVersion ? (aiBuildStatusLabel[latestVersion.buildStatus] ?? latestVersion.buildStatus) : '—'} />
@@ -530,7 +534,12 @@ export function AIDataPage() {
           <FormField label="工作流" htmlFor="ai-workflow"><Input id="ai-workflow" value={form.workflow} onChange={(event) => setForm({ ...form, workflow: event.target.value })} placeholder="ai-ready" /></FormField>
         </FormGrid>
         <FormField label="数据来源说明" htmlFor="ai-source"><Input id="ai-source" value={form.source} onChange={(event) => setForm({ ...form, source: event.target.value })} placeholder="例如：ods_ep 处方表 + 标准值域" /></FormField>
-        {createError ? <p role="alert" className="mt-2 text-body-sm text-red">{createError}</p> : null}
+        {createError ? (
+          <Alert variant="error" className="mt-2">
+            <CircleAlert />
+            <AlertDescription>{createError}</AlertDescription>
+          </Alert>
+        ) : null}
       </Dialog>
 
       <Dialog

@@ -1,13 +1,14 @@
 import { LoadingBlock } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CodeTextarea } from '@/components/app/code-textarea'
 import { Badge } from '@/components/ui/badge'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, Save, Shield } from 'lucide-react'
+import { CircleAlert, Plus, Save, Shield } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { FormField, FormGrid, FormNotice } from '../../components/kit/form'
+import { FormField, FormGrid } from '../../components/kit/form'
 import { NativeSelect } from '../../components/kit/input'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel } from '../../components/kit/panel'
@@ -125,9 +126,12 @@ export function RuleEditorPage({ ruleId }: { ruleId?: string }) {
 
       <Panel className="max-w-[880px]">
         <div className="px-6 py-5">
-          <FormNotice icon={<Shield />}>
-            保存即推送执行器编译；证据列是失败样本的展示白名单与脱敏策略，不决定规则语义。
-          </FormNotice>
+          <Alert variant="info" role="note" className="mb-4">
+            <Shield />
+            <AlertDescription>
+              保存即推送执行器编译；证据列是失败样本的展示白名单与脱敏策略，不决定规则语义。
+            </AlertDescription>
+          </Alert>
 
           <FormGrid>
             <FormField label="规则编号" required htmlFor="rule-id" hint="字母、数字、点、下划线与连字符；编辑时不可修改">
@@ -276,9 +280,12 @@ export function RuleEditorPage({ ruleId }: { ruleId?: string }) {
           ) : null}
 
           {form.ruleType === 'TIME_CONTINUITY' ? (
-            <FormNotice icon={<Shield />}>
-              时间连续性检查目标列的全历史断档（相邻两期间隔 &gt; 1 天即失败行），失败列为（上一期, 本期）。目标列须为 DATE/DATETIME。
-            </FormNotice>
+            <Alert variant="info" role="note" className="mb-4">
+              <Shield />
+              <AlertDescription>
+                时间连续性检查目标列的全历史断档（相邻两期间隔 &gt; 1 天即失败行），失败列为（上一期, 本期）。目标列须为 DATE/DATETIME。
+              </AlertDescription>
+            </Alert>
           ) : null}
 
           {computedEvidence ? (
@@ -313,7 +320,12 @@ export function RuleEditorPage({ ruleId }: { ruleId?: string }) {
             </div>
           )}
 
-          {error ? <p role="alert" className="mb-3 text-body-sm leading-relaxed text-red">{error}</p> : null}
+          {error ? (
+            <Alert variant="error" className="mb-3">
+              <CircleAlert />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          ) : null}
 
           <div className="flex items-center justify-between gap-3 border-t border-line pt-4">
             <span className="text-meta text-muted-foreground"><Badge variant="info">保存即推送</Badge> 执行器对目标表列做实校验</span>

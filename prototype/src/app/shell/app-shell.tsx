@@ -1,4 +1,5 @@
 import { Kbd } from '@/components/ui/kbd'
+import { Separator } from '@/components/ui/separator'
 import { useLocation, useNavigate } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import {
@@ -145,7 +146,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             >
               {collapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}
             </button>
-            <span aria-hidden="true" className="my-0.5 h-[17px] w-px bg-line" />
+            <Separator orientation="vertical" aria-hidden="true" className="mx-0.5 h-[17px]" />
             <button
               type="button"
               onClick={() => setPaletteOpen(true)}

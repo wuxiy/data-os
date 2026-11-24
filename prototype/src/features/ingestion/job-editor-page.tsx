@@ -1,13 +1,14 @@
 import { LoadingBlock } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CodeTextarea } from '@/components/app/code-textarea'
 import { Badge } from '@/components/ui/badge'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, CalendarClock, FileCog, KeyRound, LoaderCircle, Save } from 'lucide-react'
+import { AlertTriangle, CalendarClock, CircleAlert, FileCog, KeyRound, LoaderCircle, Save } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { FormField, FormGrid, FormNotice } from '../../components/kit/form'
+import { FormField, FormGrid } from '../../components/kit/form'
 import { NativeSelect } from '../../components/kit/input'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel, ScopeNote } from '../../components/kit/panel'
@@ -311,9 +312,12 @@ export function JobConfigurationEditor({ jobId }: { jobId?: string }) {
           )}
 
           {dolphin ? (
-            <FormNotice icon={<CalendarClock />}>
-              平台调度通道绑定平台调度中已发布的工作流；门户负责调度与运行面的统一管理。周期配置在任务详情「调度」页。
-            </FormNotice>
+            <Alert variant="info" role="note" className="mb-4">
+              <CalendarClock />
+              <AlertDescription>
+                平台调度通道绑定平台调度中已发布的工作流；门户负责调度与运行面的统一管理。周期配置在任务详情「调度」页。
+              </AlertDescription>
+            </Alert>
           ) : null}
 
           {dolphin ? (
@@ -362,14 +366,19 @@ export function JobConfigurationEditor({ jobId }: { jobId?: string }) {
                   </FormField>
                 </>
               ) : !structuredReady && !editingStructured ? (
-                <FormNotice icon={<KeyRound />}>
-                  结构化配置要求所选数据源已登记连接配置。
-                  {selectedSource ? (
-                    <button type="button" className="ml-2 text-blue underline underline-offset-2" onClick={() => requestLeave(workLinks.ingestionSourceExplorer(selectedSource.id))}>
-                      去登记「{sourceDisplayName(selectedSource)}」连接
-                    </button>
-                  ) : null}
-                </FormNotice>
+                <Alert variant="info" role="note" className="mb-4">
+                  <KeyRound />
+                  <AlertDescription>
+                    <p>
+                      结构化配置要求所选数据源已登记连接配置。
+                      {selectedSource ? (
+                        <Button variant="link" size="xs" className="ml-1 h-auto p-0" onClick={() => requestLeave(workLinks.ingestionSourceExplorer(selectedSource.id))}>
+                          去登记「{sourceDisplayName(selectedSource)}」连接
+                        </Button>
+                      ) : null}
+                    </p>
+                  </AlertDescription>
+                </Alert>
               ) : null}
             </>
           )}
@@ -394,7 +403,12 @@ export function JobConfigurationEditor({ jobId }: { jobId?: string }) {
               </Button>
             </div>
           )}
-          {error ? <p role="alert" className="mt-3 text-body-sm leading-relaxed text-red">{error}</p> : null}
+          {error ? (
+            <Alert variant="error" className="mt-3">
+              <CircleAlert />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          ) : null}
         </section>
 
         <section className="bg-wash px-6 py-5">
@@ -453,7 +467,10 @@ export function JobConfigurationEditor({ jobId }: { jobId?: string }) {
               onCancel={() => requestLeave('/ingestion')}
             />
           ) : (
-            <FormNotice icon={<FileCog />}>所选数据源还没有可用的连接配置；先保存连接，或改用模板 JSON。</FormNotice>
+            <Alert variant="info" role="note" className="mb-4">
+              <FileCog />
+              <AlertDescription>所选数据源还没有可用的连接配置；先保存连接，或改用模板 JSON。</AlertDescription>
+            </Alert>
           )}
         </section>
       </div>

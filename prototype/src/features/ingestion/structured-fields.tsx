@@ -1,5 +1,6 @@
 import { LoadingInline } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CodeTextarea } from '@/components/app/code-textarea'
 import { Badge } from '@/components/ui/badge'
 import { useMutation, useQuery } from '@tanstack/react-query'
@@ -8,7 +9,7 @@ import { CircleAlert, FlaskConical, Play, Table2 } from 'lucide-react'
 import { useEffect, useMemo, useRef } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { FormField, FormGrid, FormNotice } from '../../components/kit/form'
+import { FormField, FormGrid } from '../../components/kit/form'
 import { NativeSelect } from '../../components/kit/input'
 
 import { cn } from '../../lib/utils'
@@ -184,9 +185,12 @@ export function StructuredTaskFields({
       onChange={() => onDirtyChange?.(form.state.isDirty)}
     >
       {lastSuccessWatermark ? (
-        <FormNotice icon={<CircleAlert />}>
-          上次成功水位：{formatDateTime(lastSuccessWatermark)}。增量任务从该时间点继续回放；重新保存配置不会重置进度。
-        </FormNotice>
+        <Alert variant="info" role="note" className="mb-4">
+          <CircleAlert />
+          <AlertDescription>
+            上次成功水位：{formatDateTime(lastSuccessWatermark)}。增量任务从该时间点继续回放；重新保存配置不会重置进度。
+          </AlertDescription>
+        </Alert>
       ) : null}
 
       <FormField label="任务形态">
@@ -364,7 +368,12 @@ export function StructuredTaskFields({
 
       <form.Subscribe selector={(state) => state.errors}>
         {(errors) => errors.length > 0
-          ? <p role="alert" className="mb-3 text-body-sm text-red">{errors[0]}</p>
+          ? (
+            <Alert variant="error" className="mb-3">
+              <CircleAlert />
+              <AlertDescription>{errors[0]}</AlertDescription>
+            </Alert>
+          )
           : null}
       </form.Subscribe>
 

@@ -1,6 +1,6 @@
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Database, FileText, Inbox, Shield, User } from 'lucide-react'
 import { Sheet, SheetBody } from '../../components/kit/overlay'
-import { InlineNotice } from '../../components/kit/panel'
 import { formatDateTime } from '../../data/domain'
 import type { GovernanceApiIssue } from '../../data/controlPlane'
 
@@ -36,7 +36,10 @@ export function ResponsibilitySheet({
       width={470}
     >
       <SheetBody>
-        <InlineNotice icon={<Shield />}>以下字段来自治理问题记录；数据集编号不等同于资产编号，未提供的标识不作推断。</InlineNotice>
+        <Alert variant="info" role="note">
+          <Shield />
+          <AlertDescription>以下字段来自治理问题记录；数据集编号不等同于资产编号，未提供的标识不作推断。</AlertDescription>
+        </Alert>
         <p className="mt-3 text-label text-muted-foreground">问题记录更新于 {updatedAt ? formatDateTime(updatedAt) : '未提供'}</p>
         <ol className="mt-4 ml-2 list-none border-l border-line-strong p-0">
           {nodes.map((node, index) => (

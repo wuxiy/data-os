@@ -1,13 +1,14 @@
 import { LoadingBlock, LoadingInline } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CodeTextarea } from '@/components/app/code-textarea'
 import { Badge } from '@/components/ui/badge'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ChevronDown, ChevronRight, Database, KeyRound, Play, Table2, TriangleAlert } from 'lucide-react'
+import { ChevronDown, ChevronRight, CircleAlert, Database, KeyRound, Play, Table2, TriangleAlert } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { FormField, FormNotice } from '../../components/kit/form'
+import { FormField } from '../../components/kit/form'
 
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel, PanelHead, ScopeNote } from '../../components/kit/panel'
@@ -96,9 +97,12 @@ function ConnectionForm({ source }: { source: SourceApiItem }) {
     <Panel className="max-w-[640px]">
       <PanelHead title="登记连接配置" description="浏览前先登记连接参数；密码、Secret 经凭据服务托管。" />
       <div className="px-5 pb-5">
-        <FormNotice icon={<KeyRound />}>
-          仅保存库地址、账号与凭据引用；明文密码不会被接受。连接登记不等于连通性检查，检查在数据源列表发起。
-        </FormNotice>
+        <Alert variant="info" role="note" className="mb-4">
+          <KeyRound />
+          <AlertDescription>
+            仅保存库地址、账号与凭据引用；明文密码不会被接受。连接登记不等于连通性检查，检查在数据源列表发起。
+          </AlertDescription>
+        </Alert>
         <FormField label="连接地址（JDBC URL）" required htmlFor="explorer-jdbc-url">
           <Input id="explorer-jdbc-url" value={jdbcUrl} onChange={(event) => setJdbcUrl(event.target.value)} placeholder="jdbc:postgresql://主机:5432/数据库" />
         </FormField>
@@ -165,10 +169,15 @@ function ExplorerWorkspace({ source }: { source: SourceApiItem }) {
         <h2 className="px-2 pb-3 text-label font-medium text-muted-foreground">库与表</h2>
         {catalogsRequest.isPending ? <LoadingInline>正在读取库清单…</LoadingInline> : null}
         {catalogsRequest.isError ? (
-          <div role="alert" className="rounded-control border border-red-line bg-red-soft px-2.5 py-2 text-label text-red">
-            库清单读取失败
-            <Button size="sm" variant="link" className="ml-1" onClick={() => void catalogsRequest.refetch()}>重试</Button>
-          </div>
+          <Alert variant="error">
+            <CircleAlert />
+            <AlertDescription>
+              <p>
+                库清单读取失败
+                <Button size="xs" variant="link" className="ml-1 h-auto p-0" onClick={() => void catalogsRequest.refetch()}>重试</Button>
+              </p>
+            </AlertDescription>
+          </Alert>
         ) : null}
         {(catalogsRequest.data?.catalogs.length ?? 0) === 0 && catalogsRequest.isSuccess ? (
           <p className="px-2 text-label text-muted-foreground">该数据源未返回任何库，请确认连接地址与账号权限。</p>
@@ -258,7 +267,12 @@ function ExplorerWorkspace({ source }: { source: SourceApiItem }) {
             </Button>
             <span className="text-meta text-muted-foreground">使用只读账号；结果不写入任何业务表。</span>
           </div>
-          {queryMutation.isError ? <p role="alert" className="mt-2 text-body-sm text-red">{errorMessage(queryMutation.error, '查询执行失败')}</p> : null}
+          {queryMutation.isError ? (
+            <Alert variant="error" className="mt-2">
+              <CircleAlert />
+              <AlertDescription>{errorMessage(queryMutation.error, '查询执行失败')}</AlertDescription>
+            </Alert>
+          ) : null}
           {result ? (
             <div className="mt-3">
               {result.truncated ? <p role="status" className="mb-2 text-meta text-amber">结果超出返回上限，已截断显示前 {result.rows.length} 行。</p> : null}

@@ -1,13 +1,14 @@
 import { TableSkeleton } from '@/components/app/table-skeleton'
 import { LoadingBlock } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Download, Plus, RefreshCw, ShieldCheck, Trash2 } from 'lucide-react'
+import { CircleAlert, Download, Plus, RefreshCw, ShieldCheck, Trash2, TriangleAlert } from 'lucide-react'
 import { useState } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { FormField, FormGrid, FormNotice } from '../../components/kit/form'
+import { FormField, FormGrid } from '../../components/kit/form'
 import { NativeSelect, SearchField } from '../../components/kit/input'
 import { Confirm, Dialog, DialogFooter } from '../../components/kit/overlay'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
@@ -266,16 +267,19 @@ export function DeliveryCenterPage() {
                   </div>
 
                   {blockers && blockers.length > 0 ? (
-                    <div role="alert" className="border-b border-line bg-[#fdf9ef] px-5 py-3 text-label text-amber">
-                      <strong>提交被阻断：</strong>以下交付项尚不可交付
-                      <ul className="mt-1 space-y-1">
-                        {blockers.map((blocker) => (
-                          <li key={`${blocker.refType}-${blocker.refId}`}>
-                            {REF_TYPE_LABEL[blocker.refType as DeliveryRefType] ?? blocker.refType} · <span className="font-mono">{blocker.refId}</span>：{blocker.reasons.join('；')}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
+                    <Alert variant="warning" className="mx-5 mt-4">
+                      <TriangleAlert />
+                      <AlertDescription>
+                        <p><strong>提交被阻断：</strong>以下交付项尚不可交付</p>
+                        <ul className="list-disc space-y-1 pl-4">
+                          {blockers.map((blocker) => (
+                            <li key={`${blocker.refType}-${blocker.refId}`}>
+                              {REF_TYPE_LABEL[blocker.refType as DeliveryRefType] ?? blocker.refType} · <span className="font-mono">{blocker.refId}</span>：{blocker.reasons.join('；')}
+                            </li>
+                          ))}
+                        </ul>
+                      </AlertDescription>
+                    </Alert>
                   ) : null}
 
                   <div className="px-5 py-4">
@@ -346,7 +350,12 @@ export function DeliveryCenterPage() {
           <FormField label="负责人" required htmlFor="delivery-owner"><Input id="delivery-owner" value={createForm.owner} onChange={(event) => setCreateForm({ ...createForm, owner: event.target.value })} placeholder="责任人" /></FormField>
         </FormGrid>
         <FormField label="目标日期" htmlFor="delivery-target"><Input id="delivery-target" type="date" value={createForm.targetDate} onChange={(event) => setCreateForm({ ...createForm, targetDate: event.target.value })} className="w-[200px]" /></FormField>
-        {createError ? <p role="alert" className="mt-2 text-body-sm text-red">{createError}</p> : null}
+        {createError ? (
+          <Alert variant="error" className="mt-2">
+            <CircleAlert />
+            <AlertDescription>{createError}</AlertDescription>
+          </Alert>
+        ) : null}
       </Dialog>
 
       <Dialog
@@ -365,7 +374,10 @@ export function DeliveryCenterPage() {
           </DialogFooter>
         }
       >
-        <FormNotice icon={<ShieldCheck />}>被引用对象必须已发布或已认证；未满足可交付性的对象会在提交验收时被逐项阻断。</FormNotice>
+        <Alert variant="info" role="note" className="mb-4">
+          <ShieldCheck />
+          <AlertDescription>被引用对象必须已发布或已认证；未满足可交付性的对象会在提交验收时被逐项阻断。</AlertDescription>
+        </Alert>
         <FormGrid>
           <FormField label="对象类型" htmlFor="item-type">
             <NativeSelect id="item-type" className="min-h-[35px]" value={itemForm.refType} onChange={(event) => setItemForm({ ...itemForm, refType: event.target.value as DeliveryRefType })}>
@@ -375,7 +387,12 @@ export function DeliveryCenterPage() {
           <FormField label="对象标识" required htmlFor="item-ref"><Input id="item-ref" value={itemForm.refId} onChange={(event) => setItemForm({ ...itemForm, refId: event.target.value })} placeholder="资产 FQN / 看板 id / 服务代码 / 产品 id" /></FormField>
         </FormGrid>
         <FormField label="备注" htmlFor="item-note"><Input id="item-note" value={itemForm.note} onChange={(event) => setItemForm({ ...itemForm, note: event.target.value })} placeholder="引用口径或验收说明" /></FormField>
-        {itemError ? <p role="alert" className="mt-2 text-body-sm text-red">{itemError}</p> : null}
+        {itemError ? (
+          <Alert variant="error" className="mt-2">
+            <CircleAlert />
+            <AlertDescription>{itemError}</AlertDescription>
+          </Alert>
+        ) : null}
       </Dialog>
 
       <Confirm

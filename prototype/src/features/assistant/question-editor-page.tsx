@@ -1,14 +1,15 @@
 import { LoadingBlock } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CodeTextarea } from '@/components/app/code-textarea'
 import { Badge } from '@/components/ui/badge'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearch } from '@tanstack/react-router'
-import { Download, FlaskConical, Plus, Save, ShieldQuestion, Trash2 } from 'lucide-react'
+import { CircleAlert, Download, FlaskConical, Plus, Save, ShieldQuestion, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { FormField, FormGrid, FormNotice } from '../../components/kit/form'
+import { FormField, FormGrid } from '../../components/kit/form'
 import { NativeSelect } from '../../components/kit/input'
 import { Confirm } from '../../components/kit/overlay'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
@@ -227,11 +228,14 @@ export function QuestionEditorPage({ questionCode }: { questionCode?: string }) 
           ]}
         >
           <TabPanel value="definition" className="px-5 py-4">
-            <FormNotice icon={<ShieldQuestion />}>
-              {readOnly
-                ? '当前状态不可编辑定义。发布后仍可试运行核对口径；如需修改，先停用再重新起草。'
-                : '门户只声明问题与参数契约；执行由已发布的数据服务受限完成，未知问题明确拒答。'}
-            </FormNotice>
+            <Alert variant="info" role="note" className="mb-4">
+              <ShieldQuestion />
+              <AlertDescription>
+                {readOnly
+                  ? '当前状态不可编辑定义。发布后仍可试运行核对口径；如需修改，先停用再重新起草。'
+                  : '门户只声明问题与参数契约；执行由已发布的数据服务受限完成，未知问题明确拒答。'}
+              </AlertDescription>
+            </Alert>
             <FormGrid>
               <FormField label="问题代码" required htmlFor="question-code" hint="小写字母/数字/连字符，创建后不可修改">
                 <Input id="question-code" value={form.code} disabled={Boolean(questionCode)} onChange={(event) => setForm({ ...form, code: event.target.value })} placeholder="prescription-daily-summary" />
@@ -280,7 +284,12 @@ export function QuestionEditorPage({ questionCode }: { questionCode?: string }) 
               <CodeTextarea id="question-template" className="min-h-[90px]" value={form.answerTemplate} disabled={readOnly} onChange={(event) => setForm({ ...form, answerTemplate: event.target.value })} placeholder="回答前缀或口径说明（可选）" />
             </FormField>
 
-            {error ? <p role="alert" className="mb-3 text-body-sm text-red">{error}</p> : null}
+            {error ? (
+              <Alert variant="error" className="mb-3">
+                <CircleAlert />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            ) : null}
 
             <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line pt-4">
               <span className="text-meta text-muted-foreground">{question ? `最近${question.verified ? '已试运行通过' : '未验证'}` : '保存后进入草稿'}</span>
@@ -308,9 +317,12 @@ export function QuestionEditorPage({ questionCode }: { questionCode?: string }) 
               <EmptyState minHeight={220} icon={<FlaskConical />} title="先保存草稿再试运行" description="试运行需要问题代码与服务绑定；创建后即可在此验证参数与回答。" />
             ) : (
               <>
-                <FormNotice icon={<FlaskConical />}>
-                  试运行使用与问数面相同的执行链路；结果与拒答信封同构，参数与结果留在此页以便往返核对。
-                </FormNotice>
+                <Alert variant="info" role="note" className="mb-4">
+                  <FlaskConical />
+                  <AlertDescription>
+                    试运行使用与问数面相同的执行链路；结果与拒答信封同构，参数与结果留在此页以便往返核对。
+                  </AlertDescription>
+                </Alert>
                 <div className="mb-3 flex flex-wrap items-end gap-2.5">
                   {(question?.paramSchema ?? []).map((contract) => {
                     const label = assistantParamLabel(contract.name, contract.description)

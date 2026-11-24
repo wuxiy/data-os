@@ -1,11 +1,12 @@
 import { Input } from '@/components/ui/input'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CodeTextarea } from '@/components/app/code-textarea'
 import { useMutation } from '@tanstack/react-query'
 import { useQueryClient } from '@tanstack/react-query'
-import { Save, ShieldCheck } from 'lucide-react'
+import { CircleAlert, Save, ShieldCheck } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { FormField, FormGrid, FormNotice } from '../../components/kit/form'
+import { FormField, FormGrid } from '../../components/kit/form'
 
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel } from '../../components/kit/panel'
@@ -92,9 +93,12 @@ export function ServiceEditorPage() {
       <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3.5 max-[1100px]:grid-cols-1">
         <Panel>
           <div className="px-5 py-4">
-            <FormNotice icon={<ShieldCheck />}>
-              服务执行使用只读账号；参数为命名占位（如 :start_date），由调用方按契约传入。发布后定义变更会形成合同事件。
-            </FormNotice>
+            <Alert variant="info" role="note" className="mb-4">
+              <ShieldCheck />
+              <AlertDescription>
+                服务执行使用只读账号；参数为命名占位（如 :start_date），由调用方按契约传入。发布后定义变更会形成合同事件。
+              </AlertDescription>
+            </Alert>
             <FormGrid>
               <FormField label="服务代码" required htmlFor="service-code" hint="小写字母/数字/连字符，创建后不可修改">
                 <Input id="service-code" value={form.code} onChange={(event) => setForm({ ...form, code: event.target.value })} placeholder="medicine-record-daily" />
@@ -131,7 +135,12 @@ export function ServiceEditorPage() {
             <FormField label="列契约（JSON 数组）" htmlFor="service-columns" hint='每项：{"name","type","description"}'>
               <CodeTextarea id="service-columns" className="min-h-[180px]" value={form.columns} onChange={(event) => setForm({ ...form, columns: event.target.value })} />
             </FormField>
-            {error ? <p role="alert" className="mb-3 text-body-sm leading-relaxed text-red">{error}</p> : null}
+            {error ? (
+              <Alert variant="error" className="mb-3">
+                <CircleAlert />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            ) : null}
             <div className="flex items-center justify-between gap-3 border-t border-line pt-4">
               <span className="text-meta text-muted-foreground">创建后为草稿；发布前可继续调整</span>
               <div className="flex items-center gap-2">

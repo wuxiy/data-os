@@ -2,6 +2,7 @@ import { TableSkeleton } from '@/components/app/table-skeleton'
 import { LoadingBlock, LoadingInline } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Textarea } from '@/components/ui/textarea'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearch } from '@tanstack/react-router'
@@ -374,11 +375,14 @@ export function QualityPage() {
       />
 
       {actionErrors.filter((entry) => entry.issueId !== effectiveId).map((entry) => (
-        <div key={JSON.stringify([entry.issueId, entry.action])} role="alert" className="mb-3 flex flex-wrap items-center gap-2 rounded-control border border-red-line bg-red-soft px-4 py-3 text-body-sm text-red">
-          <strong>问题 {entry.issueId} 的操作失败</strong>
-          <span>{entry.message}</span>
-          <Button variant="outline" size="sm" onClick={() => select(entry.issueId)}>查看问题 {entry.issueId}</Button>
-        </div>
+        <Alert key={JSON.stringify([entry.issueId, entry.action])} variant="error" className="mb-3">
+          <CircleAlert />
+          <AlertTitle>问题 {entry.issueId} 的操作失败</AlertTitle>
+          <AlertDescription>{entry.message}</AlertDescription>
+          <AlertAction>
+            <Button variant="outline" size="xs" onClick={() => select(entry.issueId)}>查看问题 {entry.issueId}</Button>
+          </AlertAction>
+        </Alert>
       ))}
 
       {issuesRequest.isPending ? <LoadingBlock>正在读取治理问题…</LoadingBlock> : null}
@@ -498,7 +502,10 @@ export function QualityPage() {
                   </div>
                   {selected.status === 'RECHECKING' ? <p className="mt-2 text-label text-amber">复检请求已登记，正在等待执行器异步回写；本状态尚不代表质量规则通过。</p> : null}
                   {actionErrors.filter((entry) => entry.issueId === selected.id).map((entry) => (
-                    <p key={entry.action} role="alert" className="mt-2 text-body-sm text-red">{entry.message}</p>
+                    <Alert key={entry.action} variant="error" className="mt-2">
+                      <CircleAlert />
+                      <AlertDescription>{entry.message}</AlertDescription>
+                    </Alert>
                   ))}
                 </div>
 

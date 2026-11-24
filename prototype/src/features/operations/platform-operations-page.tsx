@@ -1,12 +1,13 @@
 import { LoadingBlock } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CloudCog, History, LockKeyhole, RefreshCw, Server, ShieldCheck, TriangleAlert } from 'lucide-react'
+import { CircleAlert, CloudCog, History, LockKeyhole, RefreshCw, Server, ShieldCheck, TriangleAlert } from 'lucide-react'
 import { useState } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { FormField, FormGrid, FormNotice } from '../../components/kit/form'
+import { FormField, FormGrid } from '../../components/kit/form'
 import { NativeSelect } from '../../components/kit/input'
 import { Confirm, Dialog, DialogFooter, Sheet, SheetBody, SheetFooterActions } from '../../components/kit/overlay'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
@@ -234,12 +235,20 @@ export function PlatformOperationsPage() {
           description="登记、探活与版本历史；凭据只以引用形式保存"
           actions={<Button size="sm" onClick={openCreate}><Server size={13} />登记前置机</Button>}
         />
-        <FormNotice icon={<ShieldCheck />}>
-          前置机是院内采集代理的受控入口；门户只保存地址与版本，不含任何连接口令或令牌。
-        </FormNotice>
+        <Alert variant="info" role="note" className="mb-4">
+          <ShieldCheck />
+          <AlertDescription>
+            前置机是院内采集代理的受控入口；门户只保存地址与版本，不含任何连接口令或令牌。
+          </AlertDescription>
+        </Alert>
         <div className="px-4 pb-4">
           {nodesRequest.isPending ? <LoadingBlock className="min-h-[160px]">正在读取前置机…</LoadingBlock> : null}
-          {nodesRequest.isError ? <p role="alert" className="py-2 text-label text-red">前置机清单读取失败，请稍后重试。</p> : null}
+          {nodesRequest.isError ? (
+            <Alert variant="error" className="mb-2">
+              <CircleAlert />
+              <AlertDescription>前置机清单读取失败，请稍后重试。</AlertDescription>
+            </Alert>
+          ) : null}
           {nodesRequest.isSuccess ? (
             <DataTable
               columns={nodeColumns}
@@ -300,7 +309,12 @@ export function PlatformOperationsPage() {
         <FormField label="转发前缀（可选）" htmlFor="edge-prefix" hint="院内代理的受控转发路径前缀；不是地址或凭据。">
           <Input id="edge-prefix" value={form.relayPrefix} onChange={(event) => setForm({ ...form, relayPrefix: event.target.value })} placeholder="例如：/edge/outpatient" />
         </FormField>
-        {formError ? <p role="alert" className="mt-2 text-body-sm text-red">{formError}</p> : null}
+        {formError ? (
+          <Alert variant="error" className="mt-2">
+            <CircleAlert />
+            <AlertDescription>{formError}</AlertDescription>
+          </Alert>
+        ) : null}
       </Dialog>
 
       <Sheet
@@ -330,7 +344,12 @@ export function PlatformOperationsPage() {
             <FormField label="制品引用" htmlFor="deploy-artifact"><Input id="deploy-artifact" value={deployForm.artifactRef} onChange={(event) => setDeployForm({ ...deployForm, artifactRef: event.target.value })} placeholder="构建号/镜像标签" /></FormField>
           </FormGrid>
           <FormField label="说明" htmlFor="deploy-note"><Input id="deploy-note" value={deployForm.note} onChange={(event) => setDeployForm({ ...deployForm, note: event.target.value })} placeholder="变更内容或回滚依据" /></FormField>
-          {deployError ? <p role="alert" className="mb-2 text-body-sm text-red">{deployError}</p> : null}
+          {deployError ? (
+            <Alert variant="error" className="mb-2">
+              <CircleAlert />
+              <AlertDescription>{deployError}</AlertDescription>
+            </Alert>
+          ) : null}
           <div className="mb-4 flex justify-end">
             <Button size="sm" disabled={!deployForm.version.trim() || recordDeployment.isPending} onClick={() => { setDeployError(null); recordDeployment.mutate() }}>
               {recordDeployment.isPending ? '登记中…' : '追加记录'}

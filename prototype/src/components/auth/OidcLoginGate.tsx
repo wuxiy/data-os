@@ -1,9 +1,10 @@
 import { LoadingBlock } from '@/components/app/loading'
-import { LogIn, ShieldCheck } from 'lucide-react'
+import { CircleAlert, LogIn, ShieldCheck } from 'lucide-react'
 import { useState } from 'react'
 import type { AuthSnapshot } from '../../data/oidc'
 import { startOidcLogin } from '../../data/oidc'
 import { Button } from '@/components/ui/button'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 
 
 /** 登录门（新主题）：未认证会话在进入任何工作区前阻断。 */
@@ -44,7 +45,12 @@ export function OidcLoginGate({ snapshot }: { snapshot: AuthSnapshot }) {
         <p className="mb-5 text-body-sm leading-relaxed text-muted-foreground">
           请使用医院或区域平台统一身份认证登录。平台会根据您的组织和角色加载可用数据范围。
         </p>
-        {snapshot.error ? <p role="alert" className="mb-4 rounded-control border border-red-line bg-red-soft px-3 py-2 text-label text-red">{snapshot.error}</p> : null}
+        {snapshot.error ? (
+          <Alert variant="error" className="mb-4">
+            <CircleAlert />
+            <AlertDescription>{snapshot.error}</AlertDescription>
+          </Alert>
+        ) : null}
         <Button className="w-full" onClick={login} disabled={busy}>
           <LogIn size={16} />
           {busy ? '正在跳转…' : '使用统一身份认证登录'}

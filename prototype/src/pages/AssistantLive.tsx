@@ -3,8 +3,9 @@ import { LoadingBlock } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { Ban, MessageSquareText, Send, ShieldCheck, ThumbsDown, ThumbsUp } from 'lucide-react'
+import { Ban, CircleAlert, MessageSquareText, Send, ShieldCheck, ThumbsDown, ThumbsUp } from 'lucide-react'
 import { useMemo, useState, type FormEvent } from 'react'
 import { QueryBoundary } from '../app/query-boundary'
 
@@ -274,10 +275,11 @@ function AssistantWorkspace({
 
             {asking ? <LoadingBlock className="min-h-[120px]">正在执行受控查询，完成后展示结果与本次证据。</LoadingBlock> : null}
             {ask.isError ? (
-              <div role="alert" className="mt-3 rounded-control border border-red-line bg-red-soft px-3 py-2 text-label text-[#8f1d13]">
-                <strong>本次查询未完成</strong>
-                <p className="mt-1">{ask.error instanceof Error ? ask.error.message : '请核对问题与参数后重新发送。'}</p>
-              </div>
+              <Alert variant="error" className="mt-3">
+                <CircleAlert />
+                <AlertTitle>本次查询未完成</AlertTitle>
+                <AlertDescription>{ask.error instanceof Error ? ask.error.message : '请核对问题与参数后重新发送。'}</AlertDescription>
+              </Alert>
             ) : null}
 
             {answer && !answer.answered ? (

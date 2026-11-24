@@ -52,31 +52,6 @@ export function Fact({ label, children }: { label: ReactNode; children: ReactNod
   )
 }
 
-const noticeTones = {
-  info: 'border-[#dae5f8] bg-blue-soft text-blue [&_svg]:text-blue',
-  warn: 'border-[#eee2c5] bg-[#fdf9ef] text-amber [&_svg]:text-amber',
-} as const
-
-/** 页内说明：不阻断操作，用于边界声明、结果提示与恢复入口。 */
-export function InlineNotice({
-  tone = 'info',
-  icon,
-  children,
-  className,
-}: {
-  tone?: keyof typeof noticeTones
-  icon?: ReactNode
-  children: ReactNode
-  className?: string
-}) {
-  return (
-    <div className={cn('flex items-start gap-[7px] rounded-control border px-3 py-[11px] text-label leading-relaxed', noticeTones[tone], className)}>
-      {icon ? <span className="mt-0.5 [&_svg]:size-3.5">{icon}</span> : null}
-      <div className="min-w-0">{children}</div>
-    </div>
-  )
-}
-
 /** 范围声明行：列表顶部的浅底口径说明。 */
 export function ScopeNote({ children }: { children: ReactNode }) {
   return <div className="border-b border-line bg-wash px-[18px] py-2 text-meta text-muted-foreground">{children}</div>

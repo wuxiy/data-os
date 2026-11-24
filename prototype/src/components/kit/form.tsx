@@ -39,13 +39,3 @@ export function FormField({
 export function FormGrid({ children, className }: { children: ReactNode; className?: string }) {
   return <div className={cn('grid grid-cols-2 gap-4', className)}>{children}</div>
 }
-
-/** 表单顶部说明：边界与口径先于输入。 */
-export function FormNotice({ icon, children }: { icon?: ReactNode; children: ReactNode }) {
-  return (
-    <div className="mb-4 flex items-start gap-2 rounded-control border border-blue-line bg-blue-soft px-3 py-[11px] text-label leading-relaxed text-blue">
-      {icon ? <span className="mt-0.5 [&_svg]:size-4">{icon}</span> : null}
-      <span className="min-w-0">{children}</span>
-    </div>
-  )
-}

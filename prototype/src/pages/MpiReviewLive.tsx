@@ -1,6 +1,7 @@
 import { TableSkeleton } from '@/components/app/table-skeleton'
 import { LoadingBlock } from '@/components/app/loading'
 import { Badge } from '@/components/ui/badge'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CheckCircle2, CircleAlert, GitMerge, GitPullRequestArrow, LoaderCircle, RefreshCw, ShieldCheck, XCircle } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
@@ -189,7 +190,12 @@ function MpiWorkspace({ onNotice }: { onNotice: (message: string) => void }) {
             <div className="px-[18px] pb-2">
               <SearchField value={query} onValueChange={(value) => { setQuery(value); setPage(0) }} placeholder="姓名 / 卡号 / 规则（全队列检索）" label="搜索复核候选" className="w-full" />
             </div>
-            {searchRequest.isError ? <p role="alert" className="px-[18px] pb-2 text-label text-red">候选搜索失败，请调整关键词后重试</p> : null}
+            {searchRequest.isError ? (
+              <Alert variant="error" className="mx-[18px] mb-2">
+                <CircleAlert />
+                <AlertDescription>候选搜索失败，请调整关键词后重试</AlertDescription>
+              </Alert>
+            ) : null}
             {searchRequest.isFetching ? <p className="px-[18px] pb-2 text-meta text-muted-foreground">正在全队列检索…</p> : null}
             <ul className="m-0 min-h-0 flex-1 list-none px-2 pb-2">
               {paged.map((candidate) => {
@@ -379,7 +385,12 @@ function MpiPersonSheet({
     >
       <SheetBody>
         {personRequest.isPending ? <LoadingBlock className="min-h-[200px]">正在读取黄金人…</LoadingBlock> : null}
-        {personRequest.isError ? <p role="alert" className="text-body-sm text-red">黄金人详情不可用，请稍后重试</p> : null}
+        {personRequest.isError ? (
+          <Alert variant="error">
+            <CircleAlert />
+            <AlertDescription>黄金人详情不可用，请稍后重试</AlertDescription>
+          </Alert>
+        ) : null}
         {person ? (
           <>
             <h3 className="mb-1 text-label font-medium text-ink-soft">身份链接（当前有效成员）</h3>

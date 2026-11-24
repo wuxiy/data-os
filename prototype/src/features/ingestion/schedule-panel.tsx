@@ -1,13 +1,14 @@
 import { LoadingInline } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { StatusBadge } from '@/components/app/status-badge'
 import { Badge } from '@/components/ui/badge'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CalendarClock, Eye, ListTree, Power, RotateCcw, Save, Square, Trash2 } from 'lucide-react'
+import { CalendarClock, CircleAlert, Eye, ListTree, Power, RotateCcw, Save, Square, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { FormField, FormGrid, FormNotice } from '../../components/kit/form'
+import { FormField, FormGrid } from '../../components/kit/form'
 import { NativeSelect } from '../../components/kit/input'
 import { Confirm } from '../../components/kit/overlay'
 import { Panel, PanelHead } from '../../components/kit/panel'
@@ -226,12 +227,20 @@ export function SchedulePanel({ jobId, jobName }: { jobId: string; jobName: stri
       <Panel>
         <PanelHead title="调度配置" description={`周期调度 · ${jobName}`} actions={<Badge variant={strategy.tone}>{strategy.label}</Badge>} />
         <div className="px-5 pb-5">
-          <FormNotice icon={<CalendarClock />}>
-            调度由平台调度引擎执行，调度平台是唯一事实源；本页每次打开实时读取。保存不改变上下线状态，新建调度需显式上线。平台定时触发的运行在「调度实例」中查看（门户发起的运行才进任务运行记录）。
-          </FormNotice>
+          <Alert variant="info" role="note" className="mb-4">
+            <CalendarClock />
+            <AlertDescription>
+              调度由平台调度引擎执行，调度平台是唯一事实源；本页每次打开实时读取。保存不改变上下线状态，新建调度需显式上线。平台定时触发的运行在「调度实例」中查看（门户发起的运行才进任务运行记录）。
+            </AlertDescription>
+          </Alert>
 
           {scheduleRequest.isPending ? <LoadingInline>正在读取当前调度状态…</LoadingInline> : null}
-          {scheduleRequest.isError ? <p role="alert" className="text-body-sm text-red">{errorMessage(scheduleRequest.error, '调度状态读取失败')}</p> : null}
+          {scheduleRequest.isError ? (
+            <Alert variant="error">
+              <CircleAlert />
+              <AlertDescription>{errorMessage(scheduleRequest.error, '调度状态读取失败')}</AlertDescription>
+            </Alert>
+          ) : null}
 
           {schedule ? (
             <>

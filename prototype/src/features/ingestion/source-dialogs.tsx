@@ -1,12 +1,13 @@
 import { Input } from '@/components/ui/input'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CodeTextarea } from '@/components/app/code-textarea'
 import { Badge } from '@/components/ui/badge'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Cable, CheckCircle2, Copy } from 'lucide-react'
+import { Cable, CheckCircle2, CircleAlert, Copy } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { FormField, FormNotice } from '../../components/kit/form'
+import { FormField } from '../../components/kit/form'
 import { NativeSelect } from '../../components/kit/input'
 import { Dialog, DialogFooter } from '../../components/kit/overlay'
 import { useNotice } from '../../components/kit/toast'
@@ -74,7 +75,10 @@ export function SourceRegisterDialog({
         </DialogFooter>
       }
     >
-      <FormNotice icon={<Cable />}>系统类型与接入协议决定后续可用的配置形态；凭据只以引用形式登记，不写入来源记录。</FormNotice>
+      <Alert variant="info" role="note" className="mb-4">
+        <Cable />
+        <AlertDescription>系统类型与接入协议决定后续可用的配置形态；凭据只以引用形式登记，不写入来源记录。</AlertDescription>
+      </Alert>
       <FormField label="来源名称" required htmlFor="source-name">
         <Input
           id="source-name"
@@ -95,7 +99,12 @@ export function SourceRegisterDialog({
           </NativeSelect>
         </FormField>
       </div>
-      {error ? <p role="alert" className="mt-3 text-body-sm text-red">{error}</p> : null}
+      {error ? (
+        <Alert variant="error" className="mt-3">
+          <CircleAlert />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : null}
     </Dialog>
   )
 }
@@ -172,7 +181,12 @@ export function SourceCheckDialog({
           className="min-h-[200px]"
         />
       </FormField>
-      {error ? <p role="alert" className="mb-3 text-body-sm text-red">{error}</p> : null}
+      {error ? (
+        <Alert variant="error" className="mb-3">
+          <CircleAlert />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : null}
       {source?.lastCheckMessage ? (
         <div className="rounded-control border border-line bg-wash px-3 py-2.5">
           <div className="flex items-center gap-2">
@@ -259,7 +273,12 @@ export function CopyJobDialog({
           <Input id="copy-name" value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} />
         </FormField>
       </div>
-      {error ? <p role="alert" className="mt-3 text-body-sm text-red">{error}</p> : null}
+      {error ? (
+        <Alert variant="error" className="mt-3">
+          <CircleAlert />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : null}
     </Dialog>
   )
 }

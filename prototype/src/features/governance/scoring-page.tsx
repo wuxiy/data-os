@@ -1,12 +1,13 @@
 import { LoadingBlock } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Gauge, Plus, Save } from 'lucide-react'
+import { CircleAlert, Gauge, Plus, Save } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { FormField, FormGrid, FormNotice } from '../../components/kit/form'
+import { FormField, FormGrid } from '../../components/kit/form'
 
 import { Dialog, DialogFooter } from '../../components/kit/overlay'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
@@ -101,9 +102,12 @@ export function ScoringPage() {
         <Panel>
           <PanelHead title="通过线与维度权重" description="标准单一生效，保存后立即重算总分与等级" />
           <div className="px-5 pb-5">
-            <FormNotice icon={<Gauge />}>
-              无终态运行的规则不计入维度均值；权重全为 1 时即等权平均。修改标准不影响历史运行记录，只影响下一次评分读数的计算口径。
-            </FormNotice>
+            <Alert variant="info" role="note" className="mb-4">
+              <Gauge />
+              <AlertDescription>
+                无终态运行的规则不计入维度均值；权重全为 1 时即等权平均。修改标准不影响历史运行记录，只影响下一次评分读数的计算口径。
+              </AlertDescription>
+            </Alert>
             <FormField label="规则通过线（0-100）" required htmlFor="pass-score">
               <Input id="pass-score" type="number" min={0} max={100} value={passScore} onChange={(event) => setPassScore(event.target.value)} className="w-[160px]" />
             </FormField>
@@ -159,7 +163,12 @@ export function ScoringPage() {
               <p className="mt-1">保存后立即按新标准重算总分与等级；<Badge variant="warning">受影响</Badge> 只影响评分读数，不重跑规则、不改变已产生的治理问题。</p>
             </div>
 
-            {error ? <p role="alert" className="mt-3 text-body-sm text-red">{error}</p> : null}
+            {error ? (
+              <Alert variant="error" className="mt-3">
+                <CircleAlert />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            ) : null}
             <div className="mt-4 flex justify-end gap-2 border-t border-line pt-4">
               <Button variant="outline" onClick={leave}>取消</Button>
               <Button disabled={mutation.isPending || !initialized} onClick={submit}>
