@@ -13,9 +13,9 @@ import { Button } from '@/components/ui/button'
 import { SearchField } from '@/components/app/search-field'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel, PanelHead } from '../../components/kit/panel'
-import { Tabs, TabPanel } from '../../components/kit/popover'
+import { Tabs, TabsList, TabsPanel, TabsTab } from '@/components/ui/tabs'
 import { ConfirmDialog } from '@/components/app/confirm-dialog'
-import { EmptyState } from '../../components/kit/states'
+import { EmptyState } from '@/components/app/empty-state'
 import { DataTable, TablePagination, listColumnHelper } from '../../components/table/data-table'
 import { useNotice } from '../../components/kit/toast'
 import {
@@ -263,29 +263,33 @@ export function DataServicesPage() {
                 <Tabs
                   value={tab}
                   onValueChange={(value) => setTab(value as typeof tab)}
-                  items={[
-                    { value: 'keys', label: 'Key 与授权', count: detailRequest.data?.keys.length },
-                    { value: 'calls', label: '调用记录', count: detailRequest.data?.totalCalls },
-                    { value: 'exports', label: '导出任务' },
-                    { value: 'contract', label: '合同事件' },
-                    { value: 'subscriptions', label: '订阅' },
-                  ]}
                 >
-                  <TabPanel value="keys" className="px-5 py-4">
+                  <TabsList variant="underline">
+                    <TabsTab key="keys" value="keys">Key 与授权
+                      <Badge variant="outline">{detailRequest.data?.keys.length}</Badge>
+                    </TabsTab>
+                    <TabsTab key="calls" value="calls">调用记录
+                      <Badge variant="outline">{detailRequest.data?.totalCalls}</Badge>
+                    </TabsTab>
+                    <TabsTab key="exports" value="exports">导出任务</TabsTab>
+                    <TabsTab key="contract" value="contract">合同事件</TabsTab>
+                    <TabsTab key="subscriptions" value="subscriptions">订阅</TabsTab>
+                  </TabsList>
+                  <TabsPanel value="keys" className="px-5 py-4">
                     <KeyPanel service={selected} />
-                  </TabPanel>
-                  <TabPanel value="calls" className="px-0 py-2">
+                  </TabsPanel>
+                  <TabsPanel value="calls" className="px-0 py-2">
                     <DataTable columns={callColumns} data={callsRequest.data ?? []} getRowId={(call) => call.id} loading={callsRequest.isPending} empty={<EmptyState minHeight={180} title="暂无调用记录" description="调用方使用 Key 请求后在这里留痕。" />} />
-                  </TabPanel>
-                  <TabPanel value="exports" className="px-0 py-2">
+                  </TabsPanel>
+                  <TabsPanel value="exports" className="px-0 py-2">
                     <DataTable columns={exportColumns} data={exportsRequest.data ?? []} getRowId={(item) => item.id} loading={exportsRequest.isPending} empty={<EmptyState minHeight={180} title="暂无导出任务" description="大结果集导出会在这里显示进度与保留期。" />} />
-                  </TabPanel>
-                  <TabPanel value="contract" className="px-0 py-2">
+                  </TabsPanel>
+                  <TabsPanel value="contract" className="px-0 py-2">
                     <DataTable columns={contractColumns} data={contractRequest.data ?? []} getRowId={(event) => event.eventId} loading={contractRequest.isPending} empty={<EmptyState minHeight={180} title="暂无合同事件" description="定义发布、更新与下线都会形成合同事件。" />} />
-                  </TabPanel>
-                  <TabPanel value="subscriptions" className="px-0 py-2">
+                  </TabsPanel>
+                  <TabsPanel value="subscriptions" className="px-0 py-2">
                     <DataTable columns={subscriptionColumns} data={subscriptionsRequest.data ?? []} getRowId={(item) => item.id} loading={subscriptionsRequest.isPending} empty={<EmptyState minHeight={180} title="暂无订阅" description="调用方可订阅合同变更通知。" />} />
-                  </TabPanel>
+                  </TabsPanel>
                 </Tabs>
 
                 <div className="border-t border-line px-5 py-3">

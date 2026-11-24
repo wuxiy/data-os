@@ -11,7 +11,7 @@ import { Panel, PanelHead } from '../../components/kit/panel'
 
 import { Button } from '@/components/ui/button'
 import { DataTable, listColumnHelper } from '../../components/table/data-table'
-import { EmptyState } from '../../components/kit/states'
+import { EmptyState } from '@/components/app/empty-state'
 import { formatDateTime } from '../../data/domain'
 import {
   EVENT_DOMAIN_LABEL,

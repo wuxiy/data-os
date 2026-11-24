@@ -1,4 +1,11 @@
-import { ChevronRight, House } from 'lucide-react'
+import { House } from 'lucide-react'
+import {
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb'
 import type { ReactNode } from 'react'
 import { cn } from '../../lib/utils'
 
@@ -7,26 +14,22 @@ export interface Crumb {
   href?: string
 }
 
-/** 面包屑：首页图标 + 分组 + 当前页；当前页用深一档文字，不做链接。 */
+/** 面包屑：首页图标 + 分组 + 当前页，由 coss Breadcrumb 组合；当前页不是链接。 */
 export function Breadcrumb({ items, trailing }: { items: Crumb[]; trailing?: ReactNode }) {
   return (
-    <nav aria-label="面包屑" className="mb-4 flex items-center gap-2 text-label text-muted-foreground">
-      <House aria-hidden="true" className="size-[13px] opacity-70" />
-      {items.map((item, index) => {
-        const last = index === items.length - 1
-        return (
-          <span key={index} className="flex items-center gap-2">
-            {item.href && !last ? (
-              <a href={item.href} className="hover:text-blue">
-                {item.label}
-              </a>
-            ) : (
-              <span className={last ? 'font-medium text-ink-soft' : undefined}>{item.label}</span>
-            )}
-            {!last ? <ChevronRight aria-hidden="true" className="size-3 text-faint" /> : null}
-          </span>
-        )
-      })}
+    <nav aria-label="面包屑" className="mb-4 flex items-center gap-2">
+      <House aria-hidden="true" className="size-3.5 shrink-0 text-muted-foreground" />
+      <BreadcrumbList className="text-xs">
+        {items.map((item, index) => {
+          const last = index === items.length - 1
+          return (
+            <BreadcrumbItem key={index}>
+              {index > 0 ? <BreadcrumbSeparator /> : null}
+              {item.href && !last ? <BreadcrumbLink href={item.href}>{item.label}</BreadcrumbLink> : <BreadcrumbPage>{item.label}</BreadcrumbPage>}
+            </BreadcrumbItem>
+          )
+        })}
+      </BreadcrumbList>
       {trailing ? <div className="ml-auto flex items-center gap-2 text-meta text-muted-foreground">{trailing}</div> : null}
     </nav>
   )

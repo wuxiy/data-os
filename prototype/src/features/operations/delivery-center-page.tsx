@@ -18,7 +18,7 @@ import { SearchField } from '@/components/app/search-field'
 import { ConfirmDialog } from '@/components/app/confirm-dialog'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel, PanelHead } from '../../components/kit/panel'
-import { EmptyState } from '../../components/kit/states'
+import { EmptyState } from '@/components/app/empty-state'
 import { DataTable, listColumnHelper } from '../../components/table/data-table'
 import { useNotice } from '../../components/kit/toast'
 import {

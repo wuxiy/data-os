@@ -1,6 +1,8 @@
 import { TableSkeleton } from '@/components/app/table-skeleton'
 import { LoadingBlock } from '@/components/app/loading'
 import { Badge } from '@/components/ui/badge'
+import { SegmentedControl, SegmentedControlItem } from '@/components/ui/segmented-control'
+import { RadioGroupPrimitive, RadioPrimitive } from '@/components/ui/radio-group'
 import { Tooltip, TooltipPopup, TooltipTrigger } from '@/components/ui/tooltip'
 import { useQuery } from '@tanstack/react-query'
 import { ChartNoAxesCombined, Database, Download, RefreshCw, Search, Table2 } from 'lucide-react'
@@ -11,8 +13,8 @@ import { Button } from '@/components/ui/button'
 import { SearchField } from '@/components/app/search-field'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel, PanelHead } from '../../components/kit/panel'
-import { Tabs, TabPanel } from '../../components/kit/popover'
-import { EmptyState } from '../../components/kit/states'
+import { Tabs, TabsList, TabsPanel, TabsTab } from '@/components/ui/tabs'
+import { EmptyState } from '@/components/app/empty-state'
 import { DataTable, TablePagination, listColumnHelper } from '../../components/table/data-table'
 import { formatDateTime } from '../../data/domain'
 import {
@@ -171,20 +173,17 @@ export function AssetCatalogPage() {
         <div className="grid grid-cols-[300px_minmax(0,1fr)] gap-3.5 max-[1100px]:grid-cols-1">
           <Panel className="flex flex-col">
             {schemas.length > 1 ? (
-              <div role="tablist" aria-label="资产库切换" className="flex flex-wrap gap-1 border-b border-line px-3 py-2">
+              <SegmentedControl
+                size="sm"
+                className="px-3 py-2"
+                render={<RadioGroupPrimitive aria-label="资产库切换" value={schema} onValueChange={(next) => { setSchema(next); setFqn(''); setPage(0) }} />}
+              >
                 {schemas.map((item) => (
-                  <button
-                    key={item}
-                    type="button"
-                    role="tab"
-                    aria-selected={item === schema}
-                    onClick={() => { setSchema(item); setFqn(''); setPage(0) }}
-                    className={`rounded-chip px-2 py-1 text-label ${item === schema ? 'bg-blue-soft text-blue' : 'text-muted-foreground hover:bg-wash'}`}
-                  >
+                  <SegmentedControlItem key={item} className="min-h-[26px]" render={<RadioPrimitive.Root value={item} />}>
                     {lineageSchemaLabel(item)}
-                  </button>
+                  </SegmentedControlItem>
                 ))}
-              </div>
+              </SegmentedControl>
             ) : null}
             <div className="flex items-center justify-between px-[18px] pt-3 pb-2">
               <h2 className="text-title font-semibold">{instanceServiceLabel(catalogRequest.data.service)} · {lineageSchemaLabel(catalogRequest.data.schema)}<Badge variant="outline">{visible.length}</Badge></h2>
@@ -248,14 +247,18 @@ export function AssetCatalogPage() {
                 <Tabs
                   value={tab}
                   onValueChange={(value) => setTab(value as typeof tab)}
-                  items={[
-                    { value: 'fields', label: '字段结构', count: detail?.columns.length },
-                    { value: 'quality', label: '质量测试', count: qualityRequest.data?.length },
-                    { value: 'lineage', label: '血缘与消费' },
-                    { value: 'evidence', label: '资产证据' },
-                  ]}
                 >
-                  <TabPanel value="fields" className="px-5 py-4">
+                  <TabsList variant="underline">
+                    <TabsTab key="fields" value="fields">字段结构
+                      <Badge variant="outline">{detail?.columns.length}</Badge>
+                    </TabsTab>
+                    <TabsTab key="quality" value="quality">质量测试
+                      <Badge variant="outline">{qualityRequest.data?.length}</Badge>
+                    </TabsTab>
+                    <TabsTab key="lineage" value="lineage">血缘与消费</TabsTab>
+                    <TabsTab key="evidence" value="evidence">资产证据</TabsTab>
+                  </TabsList>
+                  <TabsPanel value="fields" className="px-5 py-4">
                     {detailRequest.isPending ? <TableSkeleton rows={4} /> : null}
                     {detailRequest.isError ? (
                       <div className="py-6 text-center">
@@ -278,9 +281,9 @@ export function AssetCatalogPage() {
                         <p className="mt-2 text-meta text-muted-foreground">{detail.columns.length} 列 · 最近更新 {formatDateTime(detail.updatedAt)}</p>
                       </>
                     ) : null}
-                  </TabPanel>
+                  </TabsPanel>
 
-                  <TabPanel value="quality" className="px-5 py-4">
+                  <TabsPanel value="quality" className="px-5 py-4">
                     {qualityRequest.isPending ? <TableSkeleton rows={3} /> : null}
                     {qualityRequest.isError ? (
                       <div className="py-6 text-center">
@@ -299,9 +302,9 @@ export function AssetCatalogPage() {
                         <EmptyState minHeight={200} icon={<Database />} title="当前资产尚未关联质量规则" description="质量结论来自独立的规则运行；目录已摄取不代表质量通过。" />
                       )
                     ) : null}
-                  </TabPanel>
+                  </TabsPanel>
 
-                  <TabPanel value="lineage" className="px-5 py-4">
+                  <TabsPanel value="lineage" className="px-5 py-4">
                     {lineageRequest.isPending ? <TableSkeleton rows={3} /> : null}
                     {lineageRequest.isError ? (
                       <div className="py-6 text-center">
@@ -332,9 +335,9 @@ export function AssetCatalogPage() {
                         )}
                       </>
                     ) : null}
-                  </TabPanel>
+                  </TabsPanel>
 
-                  <TabPanel value="evidence" className="px-5 py-4">
+                  <TabsPanel value="evidence" className="px-5 py-4">
                     <dl className="grid grid-cols-2 gap-4">
                       <div><dt className="text-meta text-muted-foreground">元数据服务</dt><dd className="m-0 text-body-sm text-ink-soft">{instanceServiceLabel(catalogRequest.data.service)}</dd></div>
                       <div><dt className="text-meta text-muted-foreground">摄取范围</dt><dd className="m-0 text-body-sm text-ink-soft">{schemas.map(lineageSchemaLabel).join('、')}（只读结构元数据，无数据采样）</dd></div>
@@ -353,7 +356,7 @@ export function AssetCatalogPage() {
                         </ul>
                       </div>
                     ) : null}
-                  </TabPanel>
+                  </TabsPanel>
                 </Tabs>
                 {detailRequest.isSuccess && detail ? <p className="border-t border-line px-5 py-2 text-meta text-muted-foreground">结构元数据只读；业务定义、质量结论与血缘证据各自独立来源，不互相替代。</p> : null}
               </>

@@ -17,7 +17,7 @@ import { Button } from '@/components/ui/button'
 import { FormGrid } from '@/components/app/form-grid'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel, ScopeNote } from '../../components/kit/panel'
-import { EmptyState } from '../../components/kit/states'
+import { EmptyState } from '@/components/app/empty-state'
 import { useNotice } from '../../components/kit/toast'
 import {
   createIngestionJob,

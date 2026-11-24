@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button'
 import { FormGrid } from '@/components/app/form-grid'
 import { ConfirmDialog } from '@/components/app/confirm-dialog'
 import { Panel, PanelHead } from '../../components/kit/panel'
-import { EmptyState } from '../../components/kit/states'
+import { EmptyState } from '@/components/app/empty-state'
 import { DataTable, listColumnHelper, TablePagination } from '../../components/table/data-table'
 import { useNotice } from '../../components/kit/toast'
 import {

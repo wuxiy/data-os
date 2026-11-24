@@ -19,8 +19,8 @@ import { FormGrid } from '@/components/app/form-grid'
 import { ConfirmDialog } from '@/components/app/confirm-dialog'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel, PanelHead } from '../../components/kit/panel'
-import { Tabs, TabPanel } from '../../components/kit/popover'
-import { EmptyState } from '../../components/kit/states'
+import { Tabs, TabsList, TabsPanel, TabsTab } from '@/components/ui/tabs'
+import { EmptyState } from '@/components/app/empty-state'
 import { DataTable, listColumnHelper } from '../../components/table/data-table'
 import { useNotice } from '../../components/kit/toast'
 import {
@@ -233,13 +233,15 @@ export function QuestionEditorPage({ questionCode }: { questionCode?: string }) 
         <Tabs
           value={tab}
           onValueChange={(value) => goTab(value as TabValue)}
-          items={[
-            { value: 'definition', label: '定义' },
-            { value: 'try', label: '试运行' },
-            { value: 'events', label: '事件', count: eventsRequest.data?.total },
-          ]}
         >
-          <TabPanel value="definition" className="px-5 py-4">
+          <TabsList variant="underline">
+            <TabsTab key="definition" value="definition">定义</TabsTab>
+            <TabsTab key="try" value="try">试运行</TabsTab>
+            <TabsTab key="events" value="events">事件
+              <Badge variant="outline">{eventsRequest.data?.total}</Badge>
+            </TabsTab>
+          </TabsList>
+          <TabsPanel value="definition" className="px-5 py-4">
             <Alert variant="info" role="note" className="mb-4">
               <ShieldQuestion />
               <AlertDescription>
@@ -354,9 +356,9 @@ export function QuestionEditorPage({ questionCode }: { questionCode?: string }) 
                 {!questionCode ? <Button disabled={saveMutation.isPending} onClick={() => saveMutation.mutate()}><Save size={13} />{saveMutation.isPending ? '保存中…' : '创建草稿'}</Button> : null}
               </div>
             </div>
-          </TabPanel>
+          </TabsPanel>
 
-          <TabPanel value="try" className="px-5 py-4">
+          <TabsPanel value="try" className="px-5 py-4">
             {!questionCode ? (
               <EmptyState minHeight={220} icon={<FlaskConical />} title="先保存草稿再试运行" description="试运行需要问题代码与服务绑定；创建后即可在此验证参数与回答。" />
             ) : (
@@ -425,9 +427,9 @@ export function QuestionEditorPage({ questionCode }: { questionCode?: string }) 
                 ) : null}
               </>
             )}
-          </TabPanel>
+          </TabsPanel>
 
-          <TabPanel value="events" className="px-5 py-4">
+          <TabsPanel value="events" className="px-5 py-4">
             {!questionCode ? (
               <EmptyState minHeight={200} icon={<ShieldQuestion />} title="先保存草稿" description="问题创建后才有事件留痕。" />
             ) : (
@@ -442,7 +444,7 @@ export function QuestionEditorPage({ questionCode }: { questionCode?: string }) 
                   : undefined}
               />
             )}
-          </TabPanel>
+          </TabsPanel>
         </Tabs>
       </Panel>
 

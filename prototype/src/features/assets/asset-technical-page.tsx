@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button'
 import { SearchField } from '@/components/app/search-field'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel, PanelHead } from '../../components/kit/panel'
-import { EmptyState } from '../../components/kit/states'
+import { EmptyState } from '@/components/app/empty-state'
 import { DataTable, TablePagination, listColumnHelper } from '../../components/table/data-table'
 import { formatDateTime } from '../../data/domain'
 import {

@@ -21,7 +21,7 @@ import { Popover, PopoverPopup, PopoverTitle, PopoverTrigger } from '@/component
 import { CheckboxGroup } from '@/components/ui/checkbox-group'
 import { Label } from '@/components/ui/label'
 import { SearchField } from '@/components/app/search-field'
-import { EmptyState } from '../kit/states'
+import { EmptyState } from '@/components/app/empty-state'
 
 /**
  * 列表面板：批准原型的连续表格工作面（39px 表头、56px 行、细分隔线、数字右对齐）。

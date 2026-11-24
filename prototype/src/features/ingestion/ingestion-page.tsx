@@ -27,8 +27,9 @@ import { SearchField } from '@/components/app/search-field'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel, PanelHead, ScopeNote } from '../../components/kit/panel'
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from '@/components/ui/menu'
+import { Tabs, TabsList, TabsPanel, TabsTab } from '@/components/ui/tabs'
 import { ConfirmDialog } from '@/components/app/confirm-dialog'
-import { EmptyState } from '../../components/kit/states'
+import { EmptyState } from '@/components/app/empty-state'
 import { DataTable, SelectionBar, TablePagination, listColumnHelper } from '../../components/table/data-table'
 import { useNotice } from '../../components/kit/toast'
 import {
@@ -553,24 +554,25 @@ export function IngestionPage() {
       </section>
 
       <Panel>
-        <div role="tablist" aria-label="数据接入类型" className="flex items-center gap-[21px] border-b border-line px-[18px]">
-          {([
-            { value: 'sources' as const, label: '数据源', count: sources.length },
-            { value: 'jobs' as const, label: '采集任务', count: jobs.length },
-            { value: 'runs' as const, label: '运行记录', count: runRows.length },
-          ]).map((item) => (
-            <button
-              key={item.value}
-              type="button"
-              role="tab"
-              aria-selected={tab === item.value}
-              onClick={() => { setTab(item.value); setKeyword(''); setStatusFilter(''); setModeFilter('') }}
-              className={`-mb-px border-b-2 px-px pt-[13px] pb-3 text-body-sm transition-colors ${tab === item.value ? 'border-blue font-medium text-blue' : 'border-transparent text-muted-foreground hover:text-ink'}`}
-            >
-              {item.label}<Badge variant="outline">{item.count}</Badge>
-            </button>
-          ))}
-        </div>
+        <Tabs
+          value={tab}
+          onValueChange={(value) => { setTab(value as typeof tab); setKeyword(''); setStatusFilter(''); setModeFilter('') }}
+          className="gap-0"
+        >
+          <TabsList variant="underline" aria-label="数据接入类型" className="px-[18px]">
+            {[
+              { value: 'sources' as const, label: '数据源', count: sources.length },
+              { value: 'jobs' as const, label: '采集任务', count: jobs.length },
+              { value: 'runs' as const, label: '运行记录', count: runRows.length },
+            ].map((item) => (
+              <TabsTab key={item.value} value={item.value}>
+                {item.label}
+                <Badge variant="outline">{item.count}</Badge>
+              </TabsTab>
+            ))}
+          </TabsList>
+          {/* 三类清单共用一套工具栏与表格，面板跟随当前页签。 */}
+          <TabsPanel value={tab} keepMounted className="outline-none">
 
         <div className="flex items-center justify-between gap-2.5 px-[18px] py-4">
           <div className="flex min-w-0 items-center gap-2">
@@ -680,6 +682,8 @@ export function IngestionPage() {
           </>
         )}
         {templatesRequest.isError ? <p className="px-[18px] pb-3 text-meta text-amber">模板目录读取失败：新建任务仍可使用自定义 JSON。</p> : null}
+          </TabsPanel>
+        </Tabs>
       </Panel>
 
       <SourceRegisterDialog

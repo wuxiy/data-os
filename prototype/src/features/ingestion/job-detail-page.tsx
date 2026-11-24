@@ -9,8 +9,8 @@ import { useSearch } from '@tanstack/react-router'
 import { Button } from '@/components/ui/button'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel } from '../../components/kit/panel'
-import { Tabs, TabPanel } from '../../components/kit/popover'
-import { EmptyState } from '../../components/kit/states'
+import { Tabs, TabsList, TabsPanel, TabsTab } from '@/components/ui/tabs'
+import { EmptyState } from '@/components/app/empty-state'
 import { useNotice } from '../../components/kit/toast'
 import {
   confirmIngestionRunAbsent,
@@ -154,14 +154,16 @@ export function JobDetailPage({ jobId }: { jobId: string }) {
         <Tabs
           value={tab}
           onValueChange={(value) => goTab(value as DetailTab)}
-          items={[
-            { value: 'overview', label: '概览' },
-            { value: 'configuration', label: '配置' },
-            { value: 'scheduling', label: '调度' },
-            { value: 'runs', label: '运行记录', count: runs.length },
-          ]}
         >
-          <TabPanel value="overview" className="px-5 py-4">
+          <TabsList variant="underline">
+            <TabsTab key="overview" value="overview">概览</TabsTab>
+            <TabsTab key="configuration" value="configuration">配置</TabsTab>
+            <TabsTab key="scheduling" value="scheduling">调度</TabsTab>
+            <TabsTab key="runs" value="runs">运行记录
+              <Badge variant="outline">{runs.length}</Badge>
+            </TabsTab>
+          </TabsList>
+          <TabsPanel value="overview" className="px-5 py-4">
             <div className="mb-4 flex flex-wrap items-center gap-2.5">
               <Badge variant={lifecycle.tone}>{lifecycle.label}</Badge>
               <Badge variant={job.configured ? 'info' : 'warning'}>{job.configured ? `${job.templateKey ?? '自定义'} v${job.templateVersion ?? 1}` : '未配置'}</Badge>
@@ -192,15 +194,15 @@ export function JobDetailPage({ jobId }: { jobId: string }) {
             {job.latestRunStatus === null && runs.length === 0 && !runsRequest.isPending ? (
               <p className="mt-4 text-label text-muted-foreground">还没有运行记录。保存任务配置后，可从右上角启动一次采集。</p>
             ) : null}
-          </TabPanel>
+          </TabsPanel>
 
-          <TabPanel value="configuration" className="py-0">
+          <TabsPanel value="configuration" className="py-0">
             <div className="px-5 py-4">
               <JobConfigurationEditor jobId={jobId} />
             </div>
-          </TabPanel>
+          </TabsPanel>
 
-          <TabPanel value="scheduling" className="px-5 py-4">
+          <TabsPanel value="scheduling" className="px-5 py-4">
             {dolphin ? <SchedulePanel jobId={jobId} jobName={job.name} /> : (
               <EmptyState
                 minHeight={220}
@@ -209,9 +211,9 @@ export function JobDetailPage({ jobId }: { jobId: string }) {
                 description="中心采集执行器的任务由门户启动，或由平台调度绑定的工作流触发。需要周期执行时，请选择平台调度通道。"
               />
             )}
-          </TabPanel>
+          </TabsPanel>
 
-          <TabPanel value="runs" className="px-0 py-0">
+          <TabsPanel value="runs" className="px-0 py-0">
             <RunsTable
               runs={runs}
               loading={runsRequest.isPending}
@@ -222,7 +224,7 @@ export function JobDetailPage({ jobId }: { jobId: string }) {
               onRetry={(run) => runAction.mutate({ run, action: 'retry' })}
               onConfirmAbsent={(run) => runAction.mutate({ run, action: 'confirm-absent' })}
             />
-          </TabPanel>
+          </TabsPanel>
         </Tabs>
       </Panel>
 

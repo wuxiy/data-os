@@ -14,7 +14,7 @@ import { QueryBoundary } from '../app/query-boundary'
 
 import { Button } from '@/components/ui/button'
 import { Panel, PanelHead } from '../components/kit/panel'
-import { EmptyState } from '../components/kit/states'
+import { EmptyState } from '@/components/app/empty-state'
 import { DataTable, listColumnHelper } from '../components/table/data-table'
 import {
   assistantParamLabel,

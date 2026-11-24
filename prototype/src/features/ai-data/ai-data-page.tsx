@@ -19,8 +19,8 @@ import { SearchField } from '@/components/app/search-field'
 import { ConfirmDialog } from '@/components/app/confirm-dialog'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel, PanelHead } from '../../components/kit/panel'
-import { Tabs, TabPanel } from '../../components/kit/popover'
-import { EmptyState } from '../../components/kit/states'
+import { Tabs, TabsList, TabsPanel, TabsTab } from '@/components/ui/tabs'
+import { EmptyState } from '@/components/app/empty-state'
 import { DataTable, TablePagination, listColumnHelper } from '../../components/table/data-table'
 import { useNotice } from '../../components/kit/toast'
 import {
@@ -457,14 +457,20 @@ export function AIDataPage() {
                 <Tabs
                   value={tab}
                   onValueChange={(value) => setTab(value as typeof tab)}
-                  items={[
-                    { value: 'overview', label: '概览' },
-                    { value: 'versions', label: '版本与构建', count: versions.length },
-                    { value: 'certification', label: '认证审批', count: certificationsRequest.data?.length },
-                    { value: 'feedback', label: '评测反馈', count: feedbackRequest.data?.length },
-                  ]}
                 >
-                  <TabPanel value="overview" className="px-5 py-4">
+                  <TabsList variant="underline">
+                    <TabsTab key="overview" value="overview">概览</TabsTab>
+                    <TabsTab key="versions" value="versions">版本与构建
+                      <Badge variant="outline">{versions.length}</Badge>
+                    </TabsTab>
+                    <TabsTab key="certification" value="certification">认证审批
+                      <Badge variant="outline">{certificationsRequest.data?.length}</Badge>
+                    </TabsTab>
+                    <TabsTab key="feedback" value="feedback">评测反馈
+                      <Badge variant="outline">{feedbackRequest.data?.length}</Badge>
+                    </TabsTab>
+                  </TabsList>
+                  <TabsPanel value="overview" className="px-5 py-4">
                     {detailRequest.isPending ? <TableSkeleton rows={4} /> : null}
                     <div className="mb-3 flex flex-wrap items-center gap-1.5">
                       {lifecycleMainChain.map((step) => (
@@ -495,9 +501,9 @@ export function AIDataPage() {
                         <Fact label="评测集规模" value={String(latestVersion.readiness.evaluation.evalSetSize ?? '—')} />
                       </dl>
                     ) : <p className="mt-3 text-label text-muted-foreground">还没有评测报告；执行「评测」后写入版本报告。</p>}
-                  </TabPanel>
+                  </TabsPanel>
 
-                  <TabPanel value="versions" className="px-0 py-2">
+                  <TabsPanel value="versions" className="px-0 py-2">
                     <DataTable
                       columns={versionColumns}
                       data={versions}
@@ -513,15 +519,15 @@ export function AIDataPage() {
                       </div>
                       <DataTable columns={buildColumns} data={buildsRequest.data ?? []} getRowId={(job) => job.id} loading={buildsRequest.isPending} empty={<p className="py-2 text-label text-muted-foreground">还没有构建任务。</p>} />
                     </div>
-                  </TabPanel>
+                  </TabsPanel>
 
-                  <TabPanel value="certification" className="px-0 py-2">
+                  <TabsPanel value="certification" className="px-0 py-2">
                     <DataTable columns={certColumns} data={certificationsRequest.data ?? []} getRowId={(request) => request.id} loading={certificationsRequest.isPending} empty={<EmptyState minHeight={160} title="还没有认证审批" description="问题在「已评估」状态可提交认证审批。" />} />
-                  </TabPanel>
+                  </TabsPanel>
 
-                  <TabPanel value="feedback" className="px-0 py-2">
+                  <TabsPanel value="feedback" className="px-0 py-2">
                     <DataTable columns={feedbackColumns} data={feedbackRequest.data ?? []} getRowId={(item) => item.id} loading={feedbackRequest.isPending} empty={<EmptyState minHeight={160} title="还没有评测反馈" description="失败样本进入 Learning Plane 队列，由人工决定吸收或驳回。" />} />
-                  </TabPanel>
+                  </TabsPanel>
                 </Tabs>
               </>
             )}
