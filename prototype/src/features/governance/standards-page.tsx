@@ -5,6 +5,8 @@ import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CodeTextarea } from '@/components/app/code-textarea'
 import { Badge } from '@/components/ui/badge'
+import { SegmentedControl, SegmentedControlItem } from '@/components/ui/segmented-control'
+import { RadioGroupPrimitive, RadioPrimitive } from '@/components/ui/radio-group'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Archive, ArrowRightLeft, CircleAlert, Download, FileSearch, GitCompareArrows, RefreshCw, Send, ShieldCheck, UploadCloud } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
@@ -308,21 +310,19 @@ export function StandardsPage() {
                 <Badge variant={statusTone(version.status)}>{STATUS_LABEL[version.status]}</Badge>
                 <span>{version.elements.length} 个数据元 · {version.status === 'DRAFT' ? '修改后提交评审，发布后供资产与映射引用' : version.status === 'IN_REVIEW' ? '评审通过后由管理员发布' : version.status === 'PUBLISHED' ? '已发布版本只读，变更请新建草稿' : '该版本已停用，保留历史追溯'}</span>
               </div>
-              <div className="mt-2 flex flex-wrap gap-1.5">
+              <SegmentedControl
+                className="mt-2 flex-wrap"
+                size="sm"
+                render={<RadioGroupPrimitive aria-label="选择查看的版本" value={version.id} onValueChange={setVersionId} />}
+              >
                 {detail.versions.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    aria-pressed={item.id === version.id}
-                    onClick={() => setVersionId(item.id)}
-                    className={`inline-flex min-h-[36px] items-center gap-2 rounded-control border px-2.5 py-1.5 text-label ${item.id === version.id ? 'border-blue-line bg-blue-soft text-blue' : 'border-line bg-paper text-ink-soft hover:bg-wash'}`}
-                  >
-                    <strong>v{item.versionNo}</strong>
+                  <SegmentedControlItem key={item.id} className="min-h-[36px]" render={<RadioPrimitive.Root value={item.id} />}>
+                    v{item.versionNo}
                     <Badge variant={statusTone(item.status)}>{STATUS_LABEL[item.status]}</Badge>
-                    <span className="text-meta text-muted-foreground">{item.syncStatus === 'SYNCED' ? '术语已投影' : item.status === 'PUBLISHED' ? '投影待同步' : ''}</span>
-                  </button>
+                    {item.syncStatus === 'SYNCED' ? '术语已投影' : item.status === 'PUBLISHED' ? '投影待同步' : ''}
+                  </SegmentedControlItem>
                 ))}
-              </div>
+              </SegmentedControl>
 
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 {version.status === 'DRAFT' ? <Button variant="outline" size="sm" disabled={busy} onClick={() => versionAction.mutate({ action: 'submit', versionId: version.id })}><Send size={13} />提交评审</Button> : null}

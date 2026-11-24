@@ -1,5 +1,7 @@
 import { LoadingBlock } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Label } from '@/components/ui/label'
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -301,10 +303,10 @@ export function QuestionEditorPage({ questionCode }: { questionCode?: string }) 
                       ))}
                     </SelectPopup>
                   </Select>
-                  <label className="flex items-center gap-1.5 text-label text-ink-soft">
-                    <input type="checkbox" className="size-[13px] accent-blue" checked={row.required} disabled={readOnly} onChange={(event) => setForm({ ...form, paramRows: form.paramRows.map((item, itemIndex) => itemIndex === index ? { ...item, required: event.target.checked } : item) })} />
+                  <Label>
+                    <Checkbox checked={row.required} disabled={readOnly} onCheckedChange={(checked) => setForm({ ...form, paramRows: form.paramRows.map((item, itemIndex) => itemIndex === index ? { ...item, required: checked } : item) })} />
                     必填
-                  </label>
+                  </Label>
                   <Input aria-label={`参数 ${index + 1} 默认值`} value={row.defaultValue} disabled={readOnly} onChange={(event) => setForm({ ...form, paramRows: form.paramRows.map((item, itemIndex) => itemIndex === index ? { ...item, defaultValue: event.target.value } : item) })} placeholder="默认值" />
                   <Input aria-label={`参数 ${index + 1} 枚举`} value={row.valuesText} disabled={readOnly} onChange={(event) => setForm({ ...form, paramRows: form.paramRows.map((item, itemIndex) => itemIndex === index ? { ...item, valuesText: event.target.value } : item) })} placeholder="枚举（逗号分隔）" />
                   {!readOnly ? <Button size="sm" variant="link" aria-label={`移除参数 ${index + 1}`} onClick={() => setForm({ ...form, paramRows: form.paramRows.filter((_, itemIndex) => itemIndex !== index) })}><Trash2 size={12} /></Button> : null}

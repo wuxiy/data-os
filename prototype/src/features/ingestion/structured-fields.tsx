@@ -1,19 +1,26 @@
 import { LoadingInline } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { SegmentedControl, SegmentedControlItem } from '@/components/ui/segmented-control'
+import { RadioGroupPrimitive, RadioPrimitive } from '@/components/ui/radio-group'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { CheckboxGroup } from '@/components/ui/checkbox-group'
+import { Fieldset, FieldsetLegend } from '@/components/ui/fieldset'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Label } from '@/components/ui/label'
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CodeTextarea } from '@/components/app/code-textarea'
 import { Badge } from '@/components/ui/badge'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useForm } from '@tanstack/react-form'
+import { useStore } from '@tanstack/react-store'
 import { CircleAlert, FlaskConical, Play, Table2 } from 'lucide-react'
 import { useEffect, useMemo, useRef } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { FormGrid } from '@/components/app/form-grid'
 
-import { cn } from '../../lib/utils'
 import {
   runSourceQuery,
   type SourceApiItem,
@@ -144,7 +151,9 @@ export function StructuredTaskFields({
 
   useEffect(() => () => onDirtyChange?.(false), [onDirtyChange])
 
-  const values = form.state.values
+  // 这一版 @tanstack/react-form 的 useForm 不随表单状态重渲染；必须显式订阅 values，
+  // 受控控件（coss Input / Select / ToggleGroup 等）才会跟着状态走，否则打字丢字、选库不联动。
+  const values = useStore(form.store, (state) => state.values)
   const catalogsQuery = useQuery(sourceCatalogsQuery(source.id))
   const activeTable = editLocked || values.tables.length === 1 ? values.tables[0] : undefined
   const tablesQuery = useQuery(sourceTablesQuery(source.id, values.catalog))
@@ -159,26 +168,16 @@ export function StructuredTaskFields({
     mutationFn: (sql: string) => runSourceQuery(source.id, { sql, catalog: values.catalog || undefined, maxRows: 5 }),
   })
 
-  function toggleTable(table: string) {
+  /** 表选择变化：已锁定的任务只保留最后点选的一张表；每次变化都重置字段白名单与序列键。 */
+  function selectTables(next: string[]) {
     const current = form.getFieldValue('tables')
-    if (current.includes(table)) {
-      form.setFieldValue('tables', current.filter((item) => item !== table))
-      form.setFieldValue('columns', [])
-      form.setFieldValue('orderKey', '')
-      return
-    }
-    const next = editLocked ? [table] : [...current, table]
-    form.setFieldValue('tables', next)
+    const added = next.find((table) => !current.includes(table))
+    form.setFieldValue('tables', editLocked && added ? [added] : next)
     form.setFieldValue('columns', [])
     form.setFieldValue('orderKey', '')
   }
 
-  function toggleColumn(column: string) {
-    const current = form.getFieldValue('columns')
-    form.setFieldValue('columns', current.includes(column) ? current.filter((item) => item !== column) : [...current, column])
-  }
-
-  const canSubmit = !saving && form.state.values.form !== undefined
+  const canSubmit = !saving && values.form !== undefined
 
   const orderKeyItems = [
     { value: '', label: '选择序列键' },
@@ -207,33 +206,21 @@ export function StructuredTaskFields({
         </Alert>
       ) : null}
 
-      <Field className="mb-4">
-        <FieldLabel>任务形态</FieldLabel>
-        <div role="radiogroup" aria-label="任务形态" className="inline-flex gap-1 rounded-control border border-line bg-wash p-0.5">
-          {([
-            { value: 'TABLE' as const, label: '表任务', icon: <Table2 size={13} /> },
-            { value: 'SQL' as const, label: 'SQL 任务', icon: <Play size={13} /> },
-          ]).map((option) => {
-            const active = values.form === option.value
-            return (
-              <button
-                key={option.value}
-                type="button"
-                role="radio"
-                aria-checked={active}
-                disabled={editLocked}
-                onClick={() => form.setFieldValue('form', option.value)}
-                className={cn(
-                  'inline-flex items-center gap-1.5 rounded-chip px-2.5 py-1 text-label',
-                  active ? 'bg-paper text-blue shadow-focus' : 'text-muted-foreground hover:text-ink',
-                  editLocked && 'opacity-60',
-                )}
-              >
-                {option.icon}{option.label}
-              </button>
-            )
-          })}
-        </div>
+      <Field className="mb-4" render={(props) => <Fieldset {...props} />}>
+        <FieldsetLegend className="font-medium text-sm">任务形态</FieldsetLegend>
+        <SegmentedControl
+          size="sm"
+          render={<RadioGroupPrimitive value={values.form} onValueChange={(next) => form.setFieldValue('form', next)} disabled={editLocked} />}
+        >
+          <SegmentedControlItem render={<RadioPrimitive.Root value="TABLE" />}>
+            <Table2 />
+            表任务
+          </SegmentedControlItem>
+          <SegmentedControlItem render={<RadioPrimitive.Root value="SQL" />}>
+            <Play />
+            SQL 任务
+          </SegmentedControlItem>
+        </SegmentedControl>
       </Field>
 
       {values.form === 'TABLE' ? (
@@ -286,49 +273,48 @@ export function StructuredTaskFields({
           </FormGrid>
 
           {values.catalog ? (
-            <Field className="mb-4">
-              <FieldLabel>{`源表${editLocked ? '' : '（可多选，每表一个任务）'}`}</FieldLabel>
-              {tablesQuery.isPending ? <LoadingInline>正在读取表清单…</LoadingInline> : (
-                <div className="flex w-full flex-wrap gap-1.5">
+            <Field className="mb-4" render={(props) => <Fieldset {...props} />}>
+              <FieldsetLegend className="font-medium text-sm">{`源表${editLocked ? '' : '（可多选，每表一个任务）'}`}</FieldsetLegend>
+              {tablesQuery.isPending ? <LoadingInline>正在读取表清单…</LoadingInline> : (tablesQuery.data?.tables.length ?? 0) === 0 ? (
+                <p className="text-label text-muted-foreground">该库没有可采集的表</p>
+              ) : (
+                <ToggleGroup
+                  multiple
+                  aria-label="源表"
+                  className="flex-wrap"
+                  size="sm"
+                  value={values.tables}
+                  onValueChange={selectTables}
+                >
                   {(tablesQuery.data?.tables ?? []).map((table) => (
-                    <button
-                      key={table.name}
-                      type="button"
-                      title={table.remark || table.type}
-                      aria-pressed={values.tables.includes(table.name)}
-                      onClick={() => toggleTable(table.name)}
-                      className={cn(
-                        'inline-flex items-center gap-1 rounded-chip border border-line px-2 py-1 text-label hover:border-blue-line',
-                        values.tables.includes(table.name) ? 'border-blue-line bg-blue-soft text-blue' : 'bg-paper text-ink-soft',
-                      )}
-                    >
-                      <Table2 size={12} />{table.name}
-                    </button>
+                    <ToggleGroupItem key={table.name} value={table.name} title={table.remark || table.type}>
+                      <Table2 />
+                      {table.name}
+                    </ToggleGroupItem>
                   ))}
-                  {(tablesQuery.data?.tables.length ?? 0) === 0 && !tablesQuery.isPending ? <p className="text-label text-muted-foreground">该库没有可采集的表</p> : null}
-                </div>
+                </ToggleGroup>
               )}
               {tablesQuery.data?.truncated ? <p className="mt-1 text-meta text-amber">表数量较多，仅显示前 500 个</p> : null}
             </Field>
           ) : null}
 
           {activeColumns ? (
-            <Field className="mb-4">
-              <FieldLabel>{`字段白名单（不选 = 全部字段）${columnsQuery.isFetching ? ' · 读取中…' : ''}`}</FieldLabel>
-              <div className="flex w-full max-h-[220px] flex-wrap gap-1.5 overflow-y-auto rounded-control border border-line bg-wash p-2.5">
+            <Field className="mb-4" render={(props) => <Fieldset {...props} />}>
+              <FieldsetLegend className="font-medium text-sm">{`字段白名单（不选 = 全部字段）${columnsQuery.isFetching ? ' · 读取中…' : ''}`}</FieldsetLegend>
+              <CheckboxGroup
+                aria-label="字段白名单"
+                className="w-full max-h-[220px] flex-row flex-wrap gap-1.5 overflow-y-auto rounded-control border border-line bg-wash p-2.5"
+                value={values.columns}
+                onValueChange={(next) => form.setFieldValue('columns', next)}
+              >
                 {activeColumns.map((column) => (
-                  <label key={column.name} className="inline-flex items-center gap-1.5 rounded-chip bg-paper px-2 py-1 text-label text-ink-soft">
-                    <input
-                      type="checkbox"
-                      className="size-[13px] accent-blue"
-                      checked={values.columns.includes(column.name)}
-                      onChange={() => toggleColumn(column.name)}
-                    />
-                    <span>{column.name}</span>
+                  <Label key={column.name} className="rounded-chip bg-paper px-2 py-1">
+                    <Checkbox value={column.name} />
+                    <span className="text-label">{column.name}</span>
                     <small className="text-meta text-muted-foreground">{column.typeName}</small>
-                  </label>
+                  </Label>
                 ))}
-              </div>
+              </CheckboxGroup>
             </Field>
           ) : values.tables.length > 1 ? (
             <p className="mb-4 text-label text-muted-foreground">多表批量任务使用全量字段；如需字段白名单或增量序列键，请单选表配置。</p>

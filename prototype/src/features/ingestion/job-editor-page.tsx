@@ -2,6 +2,9 @@ import { LoadingBlock } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Field, FieldLabel } from '@/components/ui/field'
+import { SegmentedControl, SegmentedControlItem } from '@/components/ui/segmented-control'
+import { RadioGroupPrimitive, RadioPrimitive } from '@/components/ui/radio-group'
+import { Fieldset, FieldsetLegend } from '@/components/ui/fieldset'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CodeTextarea } from '@/components/app/code-textarea'
 import { Badge } from '@/components/ui/badge'
@@ -394,26 +397,19 @@ export function JobConfigurationEditor({ jobId }: { jobId?: string }) {
             </FormGrid>
           ) : (
             <>
-              <Field className="mb-4">
-                <FieldLabel>配置方式</FieldLabel>
-                <div role="radiogroup" aria-label="配置方式" className="inline-flex gap-1 rounded-control border border-line bg-wash p-0.5">
-                  {([
-                    { value: 'structured' as const, label: '结构化表单' },
-                    { value: 'json' as const, label: '模板 JSON' },
-                  ]).map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      role="radio"
-                      aria-checked={configMode === option.value}
-                      disabled={option.value === 'structured' && !structuredReady && !editingStructured}
-                      onClick={() => setConfigMode(option.value)}
-                      className={`rounded-chip px-2.5 py-1 text-label ${configMode === option.value ? 'bg-paper text-blue shadow-focus' : 'text-muted-foreground hover:text-ink'} disabled:opacity-50`}
-                    >
-                      {option.label}{option.value === 'structured' && !structuredReady ? '（需先登记连接）' : ''}
-                    </button>
-                  ))}
-                </div>
+              <Field className="mb-4" render={(props) => <Fieldset {...props} />}>
+                <FieldsetLegend className="font-medium text-sm">配置方式</FieldsetLegend>
+                <SegmentedControl
+                  size="sm"
+                  render={<RadioGroupPrimitive value={configMode} onValueChange={setConfigMode} />}
+                >
+                  <SegmentedControlItem render={<RadioPrimitive.Root value="structured" disabled={!structuredReady && !editingStructured} />}>
+                    结构化表单{!structuredReady ? '（需先登记连接）' : ''}
+                  </SegmentedControlItem>
+                  <SegmentedControlItem render={<RadioPrimitive.Root value="json" />}>
+                    模板 JSON
+                  </SegmentedControlItem>
+                </SegmentedControl>
               </Field>
 
               {configMode === 'json' ? (

@@ -208,7 +208,8 @@ try {
     await page.goto(`${base}/governance/standards`, { waitUntil: 'domcontentloaded' })
     await page.waitForTimeout(700)
     record((await page.locator('main').textContent())?.includes('挂号渠道标准') ?? false, '标准清单必须渲染')
-    await page.getByRole('button', { name: /v1/ }).first().click()
+    // 版本切换是 coss SegmentedControl + 单选原语：当前版本由 radio 角色承载。
+    await page.getByRole('radio', { name: /v1/ }).first().click()
     await page.waitForTimeout(400)
     record((await page.locator('main').textContent())?.includes('当前查看 v1') ?? false, '版本切换必须改变当前查看版本')
   }

@@ -1,6 +1,8 @@
 import { TableSkeleton } from '@/components/app/table-skeleton'
 import { LoadingBlock } from '@/components/app/loading'
 import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CheckCircle2, CircleAlert, GitMerge, GitPullRequestArrow, LoaderCircle, RefreshCw, ShieldCheck, XCircle } from 'lucide-react'
@@ -291,10 +293,13 @@ function MpiWorkspace({ onNotice }: { onNotice: (message: string) => void }) {
                   </section>
                 </div>
                 <div className="border-t border-line px-5 py-4">
-                  <label className="flex items-start gap-2 text-label text-muted-foreground">
-                    <input type="checkbox" className="mt-0.5 size-[13px] accent-blue" checked={confirmed} disabled={decision.isPending} onChange={(event) => setConfirmed(event.target.checked)} />
-                    我已核对身份属性与证据。错误合并的临床风险高于漏合并——弱证据冲突请确认不同人。
-                  </label>
+                  <div className="flex items-start gap-2">
+                    <Checkbox id="mpi-review-confirm" className="mt-0.5" checked={confirmed} disabled={decision.isPending} onCheckedChange={setConfirmed} />
+                    <div className="flex flex-col gap-1">
+                      <Label htmlFor="mpi-review-confirm">我已核对身份属性与证据</Label>
+                      <p className="text-muted-foreground text-xs">错误合并的临床风险高于漏合并——弱证据冲突请确认不同人。</p>
+                    </div>
+                  </div>
                   <div className="mt-3 flex justify-end gap-2">
                     <Button variant="outline" onClick={() => decision.mutate({ taskId: selected.taskId, resolution: 'DIFFERENT_PERSON' })} disabled={decision.isPending}>
                       <GitPullRequestArrow size={14} />确认不同人

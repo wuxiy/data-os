@@ -5,6 +5,8 @@ import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CodeTextarea } from '@/components/app/code-textarea'
 import { Badge } from '@/components/ui/badge'
+import { SegmentedControl, SegmentedControlItem } from '@/components/ui/segmented-control'
+import { RadioGroupPrimitive, RadioPrimitive } from '@/components/ui/radio-group'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Archive, ArrowRightLeft, CircleAlert, ClipboardCheck, GitCompareArrows, History, RefreshCw, ShieldCheck, UploadCloud } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -357,21 +359,18 @@ export function MappingPage() {
                 <Badge variant={statusTone(version.status)}>{STATUS_LABEL[version.status] ?? version.status}</Badge>
                 <span>{version.items.length} 个字段映射 · {version.status === 'DRAFT' ? '维护映射后执行聚合验证，通过后提交评审' : version.status === 'IN_REVIEW' ? '管理员生效前需核对当前内容对应的通过证据' : version.status === 'ACTIVE' ? '当前生效版本只读，变更请新建草稿' : '该版本已停用，保留历史依据'}</span>
               </div>
-              <div className="mt-2 flex flex-wrap gap-1.5">
+              <SegmentedControl
+                className="mt-2 flex-wrap"
+                size="sm"
+                render={<RadioGroupPrimitive aria-label="选择查看的版本" value={version.id} onValueChange={setVersionId} />}
+              >
                 {detail.versions.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    aria-pressed={item.id === version.id}
-                    title={`checksum ${item.checksum} · 生效需同值 PASS 验证`}
-                    onClick={() => setVersionId(item.id)}
-                    className={`inline-flex min-h-[36px] items-center gap-2 rounded-control border px-2.5 py-1.5 text-label ${item.id === version.id ? 'border-blue-line bg-blue-soft text-blue' : 'border-line bg-paper text-ink-soft hover:bg-wash'}`}
-                  >
-                    <strong>v{item.versionNo}</strong>
+                  <SegmentedControlItem key={item.id} className="min-h-[36px]" title={`checksum ${item.checksum} · 生效需同值 PASS 验证`} render={<RadioPrimitive.Root value={item.id} />}>
+                    v{item.versionNo}
                     <Badge variant={statusTone(item.status)}>{STATUS_LABEL[item.status] ?? item.status}</Badge>
-                  </button>
+                  </SegmentedControlItem>
                 ))}
-              </div>
+              </SegmentedControl>
 
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 {version.status === 'DRAFT' ? <Button variant="outline" size="sm" disabled={busy} onClick={() => versionAction.mutate({ action: 'submit', id: version.id })}>提交评审</Button> : null}

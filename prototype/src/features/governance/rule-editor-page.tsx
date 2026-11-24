@@ -5,6 +5,7 @@ import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CodeTextarea } from '@/components/app/code-textarea'
 import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CircleAlert, Plus, Save, Shield } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -187,10 +188,12 @@ export function RuleEditorPage({ ruleId }: { ruleId?: string }) {
           </FormGrid>
 
           {form.ruleType === 'NOT_NULL' ? (
-            <label className="mb-4 flex items-center gap-2 text-body-sm text-ink-soft">
-              <input type="checkbox" className="size-[13px] accent-blue" checked={form.checkBlank} onChange={(event) => update({ checkBlank: event.target.checked })} />
-              空字符串也算失败（checkBlank）
-            </label>
+            <Field className="mb-4">
+              <FieldLabel>
+                <Checkbox checked={form.checkBlank} onCheckedChange={(checked) => update({ checkBlank: checked })} />
+                空字符串也算失败（checkBlank）
+              </FieldLabel>
+            </Field>
           ) : null}
 
           {form.ruleType === 'VAL_SET' ? (

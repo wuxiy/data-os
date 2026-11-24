@@ -144,6 +144,13 @@
     border-color: var(--border);
   }
 
+  /* 同理，浏览器给 fieldset 的默认内外边距与最小宽度会让 coss Fieldset 偏位。 */
+  fieldset {
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+  }
+
   /* coss 的列表（面包屑、分页、侧栏菜单）依赖 preflight 的列表重置；项目里另有列表
      要保留浏览器默认圆点，所以只重置带 data-slot 的列表（coss 组件的统一约定）。 */
   :where(ol, ul, menu)[data-slot] {

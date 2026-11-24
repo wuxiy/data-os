@@ -2,6 +2,8 @@ import { TableSkeleton } from '@/components/app/table-skeleton'
 import { LoadingBlock, LoadingInline } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
 import { Field, FieldLabel } from '@/components/ui/field'
+import { SegmentedControl, SegmentedControlItem } from '@/components/ui/segmented-control'
+import { RadioGroupPrimitive, RadioPrimitive } from '@/components/ui/radio-group'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Textarea } from '@/components/ui/textarea'
@@ -415,19 +417,18 @@ export function QualityPage() {
                 className="w-full"
               />
             </div>
-            <div className="flex flex-wrap items-center gap-1 px-[18px] pb-2">
-              {([['open', `待闭环 ${openIssues.length}`], ['closed', `已关闭 ${issues.length - openIssues.length}`], ['all', `全部 ${issues.length}`]] as const).map(([value, label]) => (
-                <button
-                  key={value}
-                  type="button"
-                  aria-pressed={statusFilter === value}
-                  onClick={() => { setStatusFilter(value); setPage(0) }}
-                  className={`rounded-chip border px-1.5 py-0.5 text-label ${statusFilter === value ? 'border-blue-line bg-blue-soft text-blue' : 'border-line bg-paper text-muted-foreground hover:bg-wash'}`}
-                >
-                  {label}
-                </button>
-              ))}
-              {openIssues.length > 0 ? <button type="button" onClick={() => setBatchOpen(true)} className="rounded-chip border border-line bg-paper px-1.5 py-0.5 text-label text-muted-foreground hover:bg-wash">批量提醒</button> : null}
+            <div className="flex flex-wrap items-center gap-2 px-[18px] pb-2">
+              <SegmentedControl
+                size="sm"
+                render={<RadioGroupPrimitive aria-label="按处理状态筛选" value={statusFilter} onValueChange={(next) => { setStatusFilter(next); setPage(0) }} />}
+              >
+                {([['open', `待闭环 ${openIssues.length}`], ['closed', `已关闭 ${issues.length - openIssues.length}`], ['all', `全部 ${issues.length}`]] as const).map(([value, label]) => (
+                  <SegmentedControlItem key={value} render={<RadioPrimitive.Root value={value} />}>
+                    {label}
+                  </SegmentedControlItem>
+                ))}
+              </SegmentedControl>
+              {openIssues.length > 0 ? <Button variant="outline" size="sm" onClick={() => setBatchOpen(true)}>批量提醒</Button> : null}
             </div>
             <p className="px-[18px] pb-2 text-meta text-muted-foreground">当前筛选 {visibleIssues.length} 项</p>
             <ul className="m-0 min-h-0 flex-1 list-none overflow-y-auto px-2 pb-2">

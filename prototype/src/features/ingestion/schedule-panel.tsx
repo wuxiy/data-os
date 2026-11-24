@@ -1,5 +1,7 @@
 import { LoadingInline } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Label } from '@/components/ui/label'
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -293,10 +295,10 @@ export function SchedulePanel({ jobId, jobName }: { jobId: string; jobName: stri
                       ))}
                     </SelectPopup>
                   </Select>
-                  <label className="flex items-center gap-2 text-label text-ink-soft">
-                    <input type="checkbox" className="size-[13px] accent-blue" checked={advanced} onChange={(event) => setAdvanced(event.target.checked)} />
+                  <Label className="whitespace-nowrap">
+                    <Checkbox checked={advanced} onCheckedChange={setAdvanced} />
                     高级模式（直接编辑 CRON）
-                  </label>
+                  </Label>
                 </div>
               </Field>
 

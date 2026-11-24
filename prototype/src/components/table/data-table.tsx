@@ -15,6 +15,7 @@ import { useMemo, type ReactNode } from 'react'
 import { cn } from '../../lib/utils'
 import { Button } from '@/components/ui/button'
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Popover, PopoverOption, PopoverTitle } from '../kit/popover'
 import { SearchField } from '../kit/input'
 import { EmptyState } from '../kit/states'
@@ -100,14 +101,12 @@ export function DataTable<TData extends RowData>({
       id: '__select',
       header: () => null,
       cell: ({ row }) => (
-        <input
-          type="checkbox"
+        <Checkbox
           aria-label={`选择${rowLabel ? rowLabel(row.original) : row.id}`}
           checked={row.getIsSelected()}
           disabled={selection.canSelect ? !selection.canSelect(row.id) : false}
-          onChange={row.getToggleSelectedHandler()}
+          onCheckedChange={(checked) => row.toggleSelected(checked)}
           onClick={(event) => event.stopPropagation()}
-          className="size-[13px] accent-blue"
         />
       ),
       size: 40,
