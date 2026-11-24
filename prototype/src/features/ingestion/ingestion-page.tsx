@@ -1,6 +1,7 @@
 import { LoadingInline } from '@/components/app/loading'
 import { StatusBadge } from '@/components/app/status-badge'
 import { Badge } from '@/components/ui/badge'
+import { Tooltip, TooltipPopup, TooltipTrigger } from '@/components/ui/tooltip'
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -25,8 +26,8 @@ import { Button } from '@/components/ui/button'
 import { SearchField } from '@/components/app/search-field'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel, PanelHead, ScopeNote } from '../../components/kit/panel'
-import { Popover } from '../../components/kit/popover'
-import { Confirm } from '../../components/kit/overlay'
+import { Menu, MenuItem, MenuPopup, MenuTrigger } from '@/components/ui/menu'
+import { ConfirmDialog } from '@/components/app/confirm-dialog'
 import { EmptyState } from '../../components/kit/states'
 import { DataTable, SelectionBar, TablePagination, listColumnHelper } from '../../components/table/data-table'
 import { useNotice } from '../../components/kit/toast'
@@ -266,7 +267,12 @@ export function IngestionPage() {
         ? (
           <div>
             <div className="text-label text-ink-soft">{formatDateTime(row.original.lastCheckedAt)}</div>
-            {row.original.lastCheckMessage ? <div className="mt-0.5 max-w-[220px] truncate text-meta text-muted-foreground" title={row.original.lastCheckMessage}>{row.original.lastCheckMessage}</div> : null}
+            {row.original.lastCheckMessage ? (
+              <Tooltip>
+                <TooltipTrigger render={<div className="mt-0.5 max-w-[220px] truncate text-meta text-muted-foreground" />}>{row.original.lastCheckMessage}</TooltipTrigger>
+                <TooltipPopup>{row.original.lastCheckMessage}</TooltipPopup>
+              </Tooltip>
+            ) : null}
           </div>
         )
         : <span className="text-label text-faint">未检查</span>,
@@ -332,7 +338,12 @@ export function IngestionPage() {
         return (
           <div>
             <StatusBadge tone={status.tone === 'healthy' ? 'good' : status.tone === 'danger' ? 'bad' : status.tone === 'warning' ? 'running' : 'neutral'}>{status.label}</StatusBadge>
-            {run ? <div className="mt-0.5 max-w-[200px] truncate text-meta text-muted-foreground" title={businessMessage(run.message)}>{businessMessage(run.message)}</div> : null}
+            {run ? (
+              <Tooltip>
+                <TooltipTrigger render={<div className="mt-0.5 max-w-[200px] truncate text-meta text-muted-foreground" />}>{businessMessage(run.message)}</TooltipTrigger>
+                <TooltipPopup>{businessMessage(run.message)}</TooltipPopup>
+              </Tooltip>
+            ) : null}
           </div>
         )
       },
@@ -363,21 +374,24 @@ export function IngestionPage() {
               <Button variant="outline" size="sm" disabled={busy} onClick={() => changeStatus.mutate({ job, status: 'ACTIVE' })}><Play size={12} />启用</Button>
             ) : job.status === 'ARCHIVED' ? (
               <Badge variant="outline">已归档</Badge>
+            ) : activeRun ? (
+              // 已有活动运行时按钮禁用，用提示说明原因（禁用态收不到悬停，按 coss 写法包一层可聚焦的 span）。
+              <Tooltip>
+                <TooltipTrigger render={<span className="inline-flex" tabIndex={0} />}>
+                  <Button variant="outline" size="sm" disabled><Play size={12} />已有运行</Button>
+                </TooltipTrigger>
+                <TooltipPopup>已有活动运行</TooltipPopup>
+              </Tooltip>
             ) : (
-              <Button variant="outline"
-                size="sm"
-                disabled={busy || activeRun}
-                title={activeRun ? '已有活动运行' : undefined}
-                onClick={() => {
-                  if (!job.configured) {
-                    notify('请先保存采集任务配置，再启动运行')
-                    navigate(workLinks.ingestionJob(job.id, 'configuration'))
-                    return
-                  }
-                  startRun.mutate(job)
-                }}
-              >
-                <Play size={12} />{activeRun ? '已有运行' : job.configured ? '启动' : '配置后运行'}
+              <Button variant="outline" size="sm" disabled={busy} onClick={() => {
+                if (!job.configured) {
+                  notify('请先保存采集任务配置，再启动运行')
+                  navigate(workLinks.ingestionJob(job.id, 'configuration'))
+                  return
+                }
+                startRun.mutate(job)
+              }}>
+                <Play size={12} />{job.configured ? '启动' : '配置后运行'}
               </Button>
             )}
             {canRetry ? (
@@ -386,43 +400,50 @@ export function IngestionPage() {
               </Button>
             ) : null}
             <Button variant="link" onClick={() => openJob(job)}>详情</Button>
-            <Popover
-              align="end"
-              trigger={<Button variant="ghost" size="icon" aria-label={`更多操作：${job.name}`} title="更多"><MoreHorizontal size={14} /></Button>}
-            >
-              <div className="flex flex-col">
+            <Menu>
+              <MenuTrigger render={<Button variant="ghost" size="icon" aria-label={`更多操作：${job.name}`} />}>
+                <MoreHorizontal />
+              </MenuTrigger>
+              <MenuPopup align="end">
                 {executorLabel(job.executor) === '平台调度' ? (
-                  <Button variant="ghost" size="sm" className="justify-start" onClick={() => navigate(workLinks.ingestionJob(job.id, 'scheduling'))}>
-                    <CalendarClock size={13} />调度配置
-                  </Button>
+                  <MenuItem onClick={() => navigate(workLinks.ingestionJob(job.id, 'scheduling'))}>
+                    <CalendarClock />
+                    调度配置
+                  </MenuItem>
                 ) : null}
-                <Button variant="ghost" size="sm" className="justify-start" onClick={() => navigate(workLinks.ingestionJob(job.id, 'configuration'))}>
-                  <Settings2 size={13} />任务配置
-                </Button>
+                <MenuItem onClick={() => navigate(workLinks.ingestionJob(job.id, 'configuration'))}>
+                  <Settings2 />
+                  任务配置
+                </MenuItem>
                 {job.status === 'ACTIVE' ? (
-                  <Button variant="ghost" size="sm" className="justify-start" disabled={busy} onClick={() => changeStatus.mutate({ job, status: 'PAUSED' })}>
-                    <Pause size={13} />暂停
-                  </Button>
+                  <MenuItem disabled={busy} onClick={() => changeStatus.mutate({ job, status: 'PAUSED' })}>
+                    <Pause />
+                    暂停
+                  </MenuItem>
                 ) : job.status === 'PAUSED' || job.status === 'DRAFT' ? (
-                  <Button variant="ghost" size="sm" className="justify-start" disabled={busy} onClick={() => changeStatus.mutate({ job, status: 'ACTIVE' })}>
-                    <Play size={13} />启用
-                  </Button>
+                  <MenuItem disabled={busy} onClick={() => changeStatus.mutate({ job, status: 'ACTIVE' })}>
+                    <Play />
+                    启用
+                  </MenuItem>
                 ) : null}
-                <Button variant="ghost" size="sm" className="justify-start" disabled={busy} onClick={() => setCopyTarget(job)}>
-                  <Copy size={13} />复制
-                </Button>
+                <MenuItem disabled={busy} onClick={() => setCopyTarget(job)}>
+                  <Copy />
+                  复制
+                </MenuItem>
                 {run && ACTIVE_RUN_STATUSES.includes(run.status) ? (
-                  <Button variant="ghost" size="sm" className="justify-start" disabled={busy} onClick={() => runAction.mutate({ job, run, action: 'sync' })}>
-                    <RefreshCw size={13} />同步运行状态
-                  </Button>
+                  <MenuItem disabled={busy} onClick={() => runAction.mutate({ job, run, action: 'sync' })}>
+                    <RefreshCw />
+                    同步运行状态
+                  </MenuItem>
                 ) : null}
                 {job.status !== 'ARCHIVED' ? (
-                  <Button variant="ghost" size="sm" className="justify-start" disabled={busy || activeRun} onClick={() => changeStatus.mutate({ job, status: 'ARCHIVED' })}>
-                    <Archive size={13} />归档
-                  </Button>
+                  <MenuItem variant="destructive" disabled={busy || activeRun} onClick={() => changeStatus.mutate({ job, status: 'ARCHIVED' })}>
+                    <Archive />
+                    归档
+                  </MenuItem>
                 ) : null}
-              </div>
-            </Popover>
+              </MenuPopup>
+            </Menu>
           </div>
         )
       },
@@ -593,9 +614,10 @@ export function IngestionPage() {
               </Select>
             ) : null}
           </div>
-          <Button variant="outline" size="icon" aria-label="刷新列表" title="刷新列表" onClick={refresh} disabled={refreshing}>
-            <RefreshCw size={14} className={refreshing ? 'animate-spin' : undefined} />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger render={<Button variant="outline" size="icon" aria-label="刷新列表" onClick={refresh} disabled={refreshing} />}><RefreshCw size={14} className={refreshing ? 'animate-spin' : undefined} /></TooltipTrigger>
+            <TooltipPopup>刷新列表</TooltipPopup>
+          </Tooltip>
         </div>
 
         {unavailable ? (
@@ -686,7 +708,7 @@ export function IngestionPage() {
         }}
       />
 
-      <Confirm
+      <ConfirmDialog
         open={batchAction !== null}
         onOpenChange={(open) => { if (!open) setBatchAction(null) }}
         title={batchAction === 'ACTIVE' ? '批量启用采集任务？' : '批量暂停采集任务？'}

@@ -1,15 +1,18 @@
 import { LoadingBlock } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
+import { DiscardPrompt, useDiscardGuard } from '@/components/app/discard-guard'
+import { Drawer, DrawerClose, DrawerDescription, DrawerFooter, DrawerHeader, DrawerPanel, DrawerPopup, DrawerTitle } from '@/components/ui/drawer'
+import { Dialog, DialogClose, DialogDescription, DialogFooter, DialogHeader, DialogPanel, DialogPopup, DialogTitle } from '@/components/ui/dialog'
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CircleAlert, CloudCog, History, LockKeyhole, RefreshCw, Server, ShieldCheck, TriangleAlert } from 'lucide-react'
+import { CircleAlert, CloudCog, History, LockKeyhole, RefreshCw, Server, ShieldCheck, TriangleAlert, X } from 'lucide-react'
 import { useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { FormGrid } from '@/components/app/form-grid'
-import { Confirm, Dialog, DialogFooter, Sheet, SheetBody, SheetFooterActions } from '../../components/kit/overlay'
+import { ConfirmDialog } from '@/components/app/confirm-dialog'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel, PanelHead } from '../../components/kit/panel'
 import { EmptyState } from '../../components/kit/states'
@@ -194,6 +197,7 @@ export function PlatformOperationsPage() {
     )
   }
 
+  const guard = useDiscardGuard(Boolean(form.name.trim() || form.host.trim()) && !save.isPending, setFormOpen)
   return (
     <div>
       <Breadcrumb items={[{ label: '平台管理' }, { label: '平台运维' }]} trailing={platform ? <span>检查于 {formatDateTime(platform.checkedAt)}</span> : null} />
@@ -282,130 +286,137 @@ export function PlatformOperationsPage() {
         </div>
       </Panel>
 
-      <Dialog
-        open={formOpen}
-        onOpenChange={setFormOpen}
-        title={editing ? `编辑前置机 · ${editing.name}` : '登记前置机'}
-        description="保存地址、分组与版本；连接凭据走凭据引用，不在门户保存。"
-        width={540}
-        dirty={Boolean(form.name.trim() || form.host.trim()) && !save.isPending}
-        footer={
-          <DialogFooter note="不含口令与令牌">
-            <Button variant="outline" onClick={() => setFormOpen(false)} disabled={save.isPending}>取消</Button>
+      <Dialog open={formOpen} onOpenChange={guard.requestOpenChange}>
+        <DialogPopup closeProps={{ 'aria-label': '关闭' }}>
+          <DialogHeader>
+            <DialogTitle>{editing ? `编辑前置机 · ${editing.name}` : '登记前置机'}</DialogTitle>
+            <DialogDescription>保存地址、分组与版本；连接凭据走凭据引用，不在门户保存。</DialogDescription>
+          </DialogHeader>
+          <DialogPanel>
+            {guard.discardPrompt ? <DiscardPrompt onKeepEditing={guard.keepEditing} onDiscard={guard.confirmDiscard} /> : null}
+            <FormGrid>
+              <Field>
+                <FieldLabel>
+                  名称 <span className="text-destructive-foreground">*</span>
+                </FieldLabel>
+                <Input id="edge-name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="例如：门诊前置机 01" />
+              </Field>
+              <Field>
+                <FieldLabel>分组</FieldLabel>
+                <Input id="edge-group" value={form.groupName} onChange={(event) => setForm({ ...form, groupName: event.target.value })} placeholder="例如：门诊楼" />
+              </Field>
+              <Field>
+                <FieldLabel>站点</FieldLabel>
+                <Input id="edge-site" value={form.site} onChange={(event) => setForm({ ...form, site: event.target.value })} placeholder="例如：主院区" />
+              </Field>
+              <Field>
+                <FieldLabel>版本</FieldLabel>
+                <Input id="edge-version" value={form.version} onChange={(event) => setForm({ ...form, version: event.target.value })} placeholder="例如：1.4.2" />
+              </Field>
+              <Field>
+                <FieldLabel>
+                  主机 <span className="text-destructive-foreground">*</span>
+                </FieldLabel>
+                <Input id="edge-host" value={form.host} onChange={(event) => setForm({ ...form, host: event.target.value })} placeholder="10.0.0.12" />
+              </Field>
+              <Field>
+                <FieldLabel>端口</FieldLabel>
+                <Input id="edge-port" type="number" min={1} max={65535} value={form.port} onChange={(event) => setForm({ ...form, port: event.target.value })} />
+              </Field>
+            </FormGrid>
+            <Field className="mb-4">
+              <FieldLabel>转发前缀（可选）</FieldLabel>
+              <Input id="edge-prefix" value={form.relayPrefix} onChange={(event) => setForm({ ...form, relayPrefix: event.target.value })} placeholder="例如：/edge/outpatient" />
+              <FieldDescription>院内代理的受控转发路径前缀；不是地址或凭据。</FieldDescription>
+            </Field>
+            {formError ? (
+              <Alert variant="error" className="mt-2">
+                <CircleAlert />
+                <AlertDescription>{formError}</AlertDescription>
+              </Alert>
+            ) : null}
+          </DialogPanel>
+          <DialogFooter>
+            <span className="text-muted-foreground text-xs sm:mr-auto">不含口令与令牌</span>
+            <DialogClose render={<Button variant="outline" disabled={save.isPending} />}>取消</DialogClose>
             <Button disabled={save.isPending || !form.name.trim() || !form.host.trim()} onClick={() => { setFormError(null); save.mutate() }}>
               {save.isPending ? '保存中…' : '保存前置机'}
             </Button>
           </DialogFooter>
-        }
-      >
-        <FormGrid>
-          <Field>
-            <FieldLabel>
-              名称 <span className="text-destructive-foreground">*</span>
-            </FieldLabel>
-            <Input id="edge-name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="例如：门诊前置机 01" />
-          </Field>
-          <Field>
-            <FieldLabel>分组</FieldLabel>
-            <Input id="edge-group" value={form.groupName} onChange={(event) => setForm({ ...form, groupName: event.target.value })} placeholder="例如：门诊楼" />
-          </Field>
-          <Field>
-            <FieldLabel>站点</FieldLabel>
-            <Input id="edge-site" value={form.site} onChange={(event) => setForm({ ...form, site: event.target.value })} placeholder="例如：主院区" />
-          </Field>
-          <Field>
-            <FieldLabel>版本</FieldLabel>
-            <Input id="edge-version" value={form.version} onChange={(event) => setForm({ ...form, version: event.target.value })} placeholder="例如：1.4.2" />
-          </Field>
-          <Field>
-            <FieldLabel>
-              主机 <span className="text-destructive-foreground">*</span>
-            </FieldLabel>
-            <Input id="edge-host" value={form.host} onChange={(event) => setForm({ ...form, host: event.target.value })} placeholder="10.0.0.12" />
-          </Field>
-          <Field>
-            <FieldLabel>端口</FieldLabel>
-            <Input id="edge-port" type="number" min={1} max={65535} value={form.port} onChange={(event) => setForm({ ...form, port: event.target.value })} />
-          </Field>
-        </FormGrid>
-        <Field className="mb-4">
-          <FieldLabel>转发前缀（可选）</FieldLabel>
-          <Input id="edge-prefix" value={form.relayPrefix} onChange={(event) => setForm({ ...form, relayPrefix: event.target.value })} placeholder="例如：/edge/outpatient" />
-          <FieldDescription>院内代理的受控转发路径前缀；不是地址或凭据。</FieldDescription>
-        </Field>
-        {formError ? (
-          <Alert variant="error" className="mt-2">
-            <CircleAlert />
-            <AlertDescription>{formError}</AlertDescription>
-          </Alert>
-        ) : null}
+        </DialogPopup>
       </Dialog>
 
-      <Sheet
-        open={historyNode !== null}
-        onOpenChange={(open) => { if (!open) setHistoryNode(null) }}
-        title="版本登记与历史"
-        subtitle={historyNode ? `${historyNode.name} · ${historyNode.host}:${historyNode.port}` : undefined}
-        width={560}
-        footer={<SheetFooterActions hint="版本记录只追加，不删除历史。"><Button variant="outline" onClick={() => setHistoryNode(null)}>关闭</Button></SheetFooterActions>}
-      >
-        <SheetBody>
-          <div className="mb-3 rounded-control border border-line bg-wash px-3 py-2.5">
-            <div className="flex items-center justify-between">
-              <span className="text-label text-muted-foreground">当前版本</span>
-              <span className="font-mono text-body-sm text-ink-soft">{historyNode?.version || '未登记'}</span>
+      <Drawer open={historyNode !== null} onOpenChange={(open) => { if (!open) setHistoryNode(null) }} position="right">
+        <DrawerPopup className="max-w-[560px]" variant="straight" showCloseButton={false}>
+          <DrawerClose className="absolute end-2 top-2 z-1" render={<Button size="icon" variant="ghost" aria-label="关闭" />}>
+            <X />
+          </DrawerClose>
+          <DrawerHeader className="pr-14">
+            <DrawerTitle>版本登记与历史</DrawerTitle>
+            {historyNode ? <DrawerDescription>{`${historyNode.name} · ${historyNode.host}:${historyNode.port}`}</DrawerDescription> : null}
+          </DrawerHeader>
+          <DrawerPanel>
+            <div className="mb-3 rounded-control border border-line bg-wash px-3 py-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-label text-muted-foreground">当前版本</span>
+                <span className="font-mono text-body-sm text-ink-soft">{historyNode?.version || '未登记'}</span>
+              </div>
+              <div className="mt-1 flex items-center justify-between">
+                <span className="text-label text-muted-foreground">最近探活</span>
+                <span className="text-label text-ink-soft">{historyNode?.lastProbeAt ? `${formatDateTime(historyNode.lastProbeAt)}${historyNode.lastProbeOk === false ? ' · 失败' : ' · 正常'}` : '未探活'}</span>
+              </div>
+              {historyNode?.lastProbeMessage ? <p className="mt-1 text-meta text-muted-foreground">{historyNode.lastProbeMessage}</p> : null}
             </div>
-            <div className="mt-1 flex items-center justify-between">
-              <span className="text-label text-muted-foreground">最近探活</span>
-              <span className="text-label text-ink-soft">{historyNode?.lastProbeAt ? `${formatDateTime(historyNode.lastProbeAt)}${historyNode.lastProbeOk === false ? ' · 失败' : ' · 正常'}` : '未探活'}</span>
+
+            <h3 className="mb-1.5 text-label font-medium text-ink-soft">追加版本记录</h3>
+            <FormGrid>
+              <Field>
+                <FieldLabel>
+                  版本 <span className="text-destructive-foreground">*</span>
+                </FieldLabel>
+                <Input id="deploy-version" value={deployForm.version} onChange={(event) => setDeployForm({ ...deployForm, version: event.target.value })} placeholder="例如：1.4.3" />
+              </Field>
+              <Field>
+                <FieldLabel>制品引用</FieldLabel>
+                <Input id="deploy-artifact" value={deployForm.artifactRef} onChange={(event) => setDeployForm({ ...deployForm, artifactRef: event.target.value })} placeholder="构建号/镜像标签" />
+              </Field>
+            </FormGrid>
+            <Field className="mb-4">
+              <FieldLabel>说明</FieldLabel>
+              <Input id="deploy-note" value={deployForm.note} onChange={(event) => setDeployForm({ ...deployForm, note: event.target.value })} placeholder="变更内容或回滚依据" />
+            </Field>
+            {deployError ? (
+              <Alert variant="error" className="mb-2">
+                <CircleAlert />
+                <AlertDescription>{deployError}</AlertDescription>
+              </Alert>
+            ) : null}
+            <div className="mb-4 flex justify-end">
+              <Button size="sm" disabled={!deployForm.version.trim() || recordDeployment.isPending} onClick={() => { setDeployError(null); recordDeployment.mutate() }}>
+                {recordDeployment.isPending ? '登记中…' : '追加记录'}
+              </Button>
             </div>
-            {historyNode?.lastProbeMessage ? <p className="mt-1 text-meta text-muted-foreground">{historyNode.lastProbeMessage}</p> : null}
-          </div>
 
-          <h3 className="mb-1.5 text-label font-medium text-ink-soft">追加版本记录</h3>
-          <FormGrid>
-            <Field>
-              <FieldLabel>
-                版本 <span className="text-destructive-foreground">*</span>
-              </FieldLabel>
-              <Input id="deploy-version" value={deployForm.version} onChange={(event) => setDeployForm({ ...deployForm, version: event.target.value })} placeholder="例如：1.4.3" />
-            </Field>
-            <Field>
-              <FieldLabel>制品引用</FieldLabel>
-              <Input id="deploy-artifact" value={deployForm.artifactRef} onChange={(event) => setDeployForm({ ...deployForm, artifactRef: event.target.value })} placeholder="构建号/镜像标签" />
-            </Field>
-          </FormGrid>
-          <Field className="mb-4">
-            <FieldLabel>说明</FieldLabel>
-            <Input id="deploy-note" value={deployForm.note} onChange={(event) => setDeployForm({ ...deployForm, note: event.target.value })} placeholder="变更内容或回滚依据" />
-          </Field>
-          {deployError ? (
-            <Alert variant="error" className="mb-2">
-              <CircleAlert />
-              <AlertDescription>{deployError}</AlertDescription>
-            </Alert>
-          ) : null}
-          <div className="mb-4 flex justify-end">
-            <Button size="sm" disabled={!deployForm.version.trim() || recordDeployment.isPending} onClick={() => { setDeployError(null); recordDeployment.mutate() }}>
-              {recordDeployment.isPending ? '登记中…' : '追加记录'}
-            </Button>
-          </div>
+            <h3 className="mb-1.5 text-label font-medium text-ink-soft">发布历史</h3>
+            {deploymentsRequest.isPending ? <LoadingBlock className="min-h-[120px]">正在读取历史…</LoadingBlock> : null}
+            {deploymentsRequest.isError ? <p className="text-label text-red">版本历史读取失败。</p> : null}
+            {deploymentsRequest.isSuccess ? (
+              <DataTable
+                columns={deploymentColumns}
+                data={deploymentsRequest.data ?? []}
+                getRowId={(deployment) => deployment.id}
+                empty={<p className="py-2 text-label text-muted-foreground">还没有版本记录。</p>}
+              />
+            ) : null}
+          </DrawerPanel>
+          <DrawerFooter>
+            <span className="text-muted-foreground text-xs sm:mr-auto">版本记录只追加，不删除历史。</span>
+            <Button variant="outline" onClick={() => setHistoryNode(null)}>关闭</Button>
+          </DrawerFooter>
+        </DrawerPopup>
+      </Drawer>
 
-          <h3 className="mb-1.5 text-label font-medium text-ink-soft">发布历史</h3>
-          {deploymentsRequest.isPending ? <LoadingBlock className="min-h-[120px]">正在读取历史…</LoadingBlock> : null}
-          {deploymentsRequest.isError ? <p className="text-label text-red">版本历史读取失败。</p> : null}
-          {deploymentsRequest.isSuccess ? (
-            <DataTable
-              columns={deploymentColumns}
-              data={deploymentsRequest.data ?? []}
-              getRowId={(deployment) => deployment.id}
-              empty={<p className="py-2 text-label text-muted-foreground">还没有版本记录。</p>}
-            />
-          ) : null}
-        </SheetBody>
-      </Sheet>
-
-      <Confirm
+      <ConfirmDialog
         open={deleteTarget !== null}
         onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}
         title={`删除前置机 ${deleteTarget?.name ?? ''}`}

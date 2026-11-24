@@ -17,7 +17,9 @@ import {
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { RuntimeStatusBanner } from './runtime-status-banner'
 
-import { Popover } from '../../components/kit/popover'
+import { Menu as MenuRoot, MenuGroup, MenuGroupLabel, MenuItem, MenuPopup, MenuSeparator, MenuShortcut, MenuTrigger } from '@/components/ui/menu'
+import { Button } from '@/components/ui/button'
+import { Popover, PopoverDescription, PopoverPopup, PopoverTitle, PopoverTrigger } from '@/components/ui/popover'
 import { cn } from '../../lib/utils'
 import { activeNavKey, governanceChildren, isGovernancePath, navGroups, routeForPath } from '../navigation'
 import { operationsSummaryQuery } from '../../features/overview/queries'
@@ -196,45 +198,63 @@ export function AppShell({ children }: { children: ReactNode }) {
           </nav>
 
           <div className="flex shrink-0 items-center gap-2.5">
-            <Popover
-              align="end"
-              trigger={<button type="button" aria-label="使用说明" title="使用说明" className="inline-flex size-8 items-center justify-center rounded-control text-muted-foreground hover:bg-wash"><CircleHelp size={16} /></button>}
-            >
-              <p className="px-1 pb-1 text-label leading-relaxed text-ink-soft">
-                顶栏页签保留本会话打开过的页面。⌘/Ctrl K 可搜索页面；各工作区的检索、筛选与对象深链保存在地址栏。
-              </p>
-              <p className="px-1 pt-1 text-meta leading-relaxed text-muted-foreground">
-                页面数据来自真实服务；演示数据只在显式演示构建中展示，不会补位真实失败。
-              </p>
+            <Popover>
+              <PopoverTrigger render={<Button variant="ghost" size="icon" aria-label="使用说明" />}>
+                <CircleHelp />
+              </PopoverTrigger>
+              <PopoverPopup align="end" className="w-80 flex-col gap-2">
+                <PopoverTitle className="text-sm">使用说明</PopoverTitle>
+                <PopoverDescription className="text-xs leading-relaxed">
+                  顶栏页签保留本会话打开过的页面。⌘/Ctrl K 可搜索页面；各工作区的检索、筛选与对象深链保存在地址栏。
+                </PopoverDescription>
+                <PopoverDescription className="text-xs leading-relaxed">
+                  页面数据来自真实服务；演示数据只在显式演示构建中展示，不会补位真实失败。
+                </PopoverDescription>
+              </PopoverPopup>
             </Popover>
-            <Popover
-              align="end"
-              trigger={<button type="button" aria-label="查看待办入口" title="待办入口" className="inline-flex size-8 items-center justify-center rounded-control text-muted-foreground hover:bg-wash"><Bell size={16} /></button>}
-            >
-              <strong className="block px-1 pb-1.5 text-label font-semibold text-ink">待办入口</strong>
-              <button type="button" onClick={() => go('/governance/quality')} className="flex w-full items-center gap-2 rounded-chip px-1 py-1.5 text-left text-label hover:bg-wash">质量问题待闭环<span className="ml-auto text-meta text-muted-foreground">质量工作台</span></button>
-              <button type="button" onClick={() => go('/mpi/review')} className="flex w-full items-center gap-2 rounded-chip px-1 py-1.5 text-left text-label hover:bg-wash">主索引人工复核<span className="ml-auto text-meta text-muted-foreground">复核队列</span></button>
-              <button type="button" onClick={() => go('/operations-center')} className="flex w-full items-center gap-2 rounded-chip px-1 py-1.5 text-left text-label hover:bg-wash">跨域待办<span className="ml-auto text-meta text-muted-foreground">运营中心</span></button>
-              <p className="px-1 pt-1.5 text-meta text-muted-foreground">此处只链接已有待办，不新增已读/未读中心。</p>
-            </Popover>
-            <Popover
-              align="end"
-              trigger={
-                <button type="button" aria-label="当前账号" className="inline-flex size-8 items-center justify-center rounded-full bg-blue-soft text-body-sm text-blue">
-                  {(snapshot.displayName ?? '医').slice(0, 1)}
-                </button>
-              }
-            >
-              <div className="px-1 pb-2">
-                <strong className="block text-body-sm font-medium text-ink">{snapshot.displayName ?? '当前会话'}</strong>
-                <span className="mt-0.5 block text-meta text-muted-foreground">{snapshot.status === 'disabled' ? '本地直连模式' : '统一身份认证'}</span>
-              </div>
-              {logout ? (
-                <button type="button" onClick={logout} className="flex w-full items-center gap-2 rounded-chip px-1 py-1.5 text-left text-label text-red hover:bg-red-soft">
-                  <LogOut size={14} />退出登录
-                </button>
-              ) : null}
-            </Popover>
+            <MenuRoot>
+              <MenuTrigger render={<Button variant="ghost" size="icon" aria-label="查看待办入口" />}>
+                <Bell />
+              </MenuTrigger>
+              <MenuPopup align="end" className="min-w-60">
+                <MenuGroup>
+                  <MenuGroupLabel>待办入口</MenuGroupLabel>
+                  <MenuItem onClick={() => go('/governance/quality')}>
+                    质量问题待闭环
+                    <MenuShortcut>质量工作台</MenuShortcut>
+                  </MenuItem>
+                  <MenuItem onClick={() => go('/mpi/review')}>
+                    主索引人工复核
+                    <MenuShortcut>复核队列</MenuShortcut>
+                  </MenuItem>
+                  <MenuItem onClick={() => go('/operations-center')}>
+                    跨域待办
+                    <MenuShortcut>运营中心</MenuShortcut>
+                  </MenuItem>
+                </MenuGroup>
+                <MenuSeparator />
+                <p className="px-2 py-1 text-xs text-muted-foreground">此处只链接已有待办，不新增已读/未读中心。</p>
+              </MenuPopup>
+            </MenuRoot>
+            <MenuRoot>
+              <MenuTrigger render={<Button variant="ghost" size="icon" className="rounded-full bg-blue-soft text-blue" aria-label="当前账号" />}>
+                {(snapshot.displayName ?? '医').slice(0, 1)}
+              </MenuTrigger>
+              <MenuPopup align="end" className="min-w-52">
+                <MenuGroup>
+                  <MenuGroupLabel className="flex-col items-start gap-0.5 py-2">
+                    <span className="text-sm text-foreground">{snapshot.displayName ?? '当前会话'}</span>
+                    <span className="text-xs text-muted-foreground">{snapshot.status === 'disabled' ? '本地直连模式' : '统一身份认证'}</span>
+                  </MenuGroupLabel>
+                  {logout ? (
+                    <MenuItem variant="destructive" onClick={logout}>
+                      <LogOut />
+                      退出登录
+                    </MenuItem>
+                  ) : null}
+                </MenuGroup>
+              </MenuPopup>
+            </MenuRoot>
           </div>
         </header>
 

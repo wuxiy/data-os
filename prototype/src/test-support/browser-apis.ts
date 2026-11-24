@@ -1,7 +1,8 @@
 /**
  * 组件测试共用的浏览器 API stub：jsdom 不实现 matchMedia /
- * ResizeObserver / IntersectionObserver / Element.animate，而 Surface 等
- * 基建组件在挂载即用到。幂等，可在 beforeEach 里反复调用。
+ * ResizeObserver / IntersectionObserver / Element.animate / Element.getAnimations，
+ * 而 Surface 等基建组件与 coss ScrollArea（Dialog / Drawer 的内容区）挂载即会用到。
+ * 幂等，可在 beforeEach 里反复调用。
  */
 import { installCookieStoreCompat } from '../lib/cookie-store-compat'
 
@@ -47,6 +48,9 @@ export function installBrowserApiStubs() {
       writable: true,
       value: () => ({ finished: Promise.resolve(), cancel: () => {}, commit: () => {} }),
     })
+  }
+  if (!Element.prototype.getAnimations) {
+    Object.defineProperty(Element.prototype, 'getAnimations', { writable: true, value: () => [] })
   }
   installCookieStoreCompat()
 }

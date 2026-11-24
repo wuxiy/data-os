@@ -1,6 +1,8 @@
 import { TableSkeleton } from '@/components/app/table-skeleton'
 import { LoadingBlock } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
+import { DiscardPrompt, useDiscardGuard } from '@/components/app/discard-guard'
+import { Dialog, DialogClose, DialogDescription, DialogFooter, DialogHeader, DialogPanel, DialogPopup, DialogTitle } from '@/components/ui/dialog'
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -13,7 +15,7 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { FormGrid } from '@/components/app/form-grid'
 import { SearchField } from '@/components/app/search-field'
-import { Confirm, Dialog, DialogFooter } from '../../components/kit/overlay'
+import { ConfirmDialog } from '@/components/app/confirm-dialog'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel, PanelHead } from '../../components/kit/panel'
 import { EmptyState } from '../../components/kit/states'
@@ -187,6 +189,8 @@ export function DeliveryCenterPage() {
     }),
   ])
 
+  const itemGuard = useDiscardGuard(Boolean(itemForm.refId.trim()) && !addItem.isPending, setItemOpen)
+  const createGuard = useDiscardGuard(Boolean(createForm.name.trim() || createForm.owner.trim()) && !createMutation.isPending, setCreateOpen)
   return (
     <div>
       <Breadcrumb items={[{ label: '工作概览' }, { label: '交付中心' }]} trailing={<span>证据包不含行级数据与凭据</span>} />
@@ -332,123 +336,125 @@ export function DeliveryCenterPage() {
         </div>
       ) : null}
 
-      <Dialog
-        open={createOpen}
-        onOpenChange={setCreateOpen}
-        title="新建交付项目"
-        description="项目创建后为草稿；引用交付对象后提交验收。"
-        width={540}
-        dirty={Boolean(createForm.name.trim() || createForm.owner.trim()) && !createMutation.isPending}
-        footer={
-          <DialogFooter note="证据包不含行级数据与凭据">
-            <Button variant="outline" onClick={() => setCreateOpen(false)} disabled={createMutation.isPending}>取消</Button>
+      <Dialog open={createOpen} onOpenChange={createGuard.requestOpenChange}>
+        <DialogPopup closeProps={{ 'aria-label': '关闭' }}>
+          <DialogHeader>
+            <DialogTitle>新建交付项目</DialogTitle>
+            <DialogDescription>项目创建后为草稿；引用交付对象后提交验收。</DialogDescription>
+          </DialogHeader>
+          <DialogPanel>
+            {createGuard.discardPrompt ? <DiscardPrompt onKeepEditing={createGuard.keepEditing} onDiscard={createGuard.confirmDiscard} /> : null}
+            <FormGrid>
+              <Field>
+                <FieldLabel>
+                  项目代码 <span className="text-destructive-foreground">*</span>
+                </FieldLabel>
+                <Input id="delivery-code" value={createForm.code} onChange={(event) => setCreateForm({ ...createForm, code: event.target.value })} placeholder="例如：DEL-2026-EP" />
+              </Field>
+              <Field>
+                <FieldLabel>
+                  项目名称 <span className="text-destructive-foreground">*</span>
+                </FieldLabel>
+                <Input id="delivery-name" value={createForm.name} onChange={(event) => setCreateForm({ ...createForm, name: event.target.value })} placeholder="例如：电子处方域交付" />
+              </Field>
+              <Field>
+                <FieldLabel>交付范围</FieldLabel>
+                <Input id="delivery-scope" value={createForm.scope} onChange={(event) => setCreateForm({ ...createForm, scope: event.target.value })} placeholder="域/系统/数据集范围" />
+              </Field>
+              <Field>
+                <FieldLabel>
+                  负责人 <span className="text-destructive-foreground">*</span>
+                </FieldLabel>
+                <Input id="delivery-owner" value={createForm.owner} onChange={(event) => setCreateForm({ ...createForm, owner: event.target.value })} placeholder="责任人" />
+              </Field>
+            </FormGrid>
+            <Field className="mb-4">
+              <FieldLabel>目标日期</FieldLabel>
+              <DatePicker
+                id="delivery-target"
+                value={createForm.targetDate}
+                onValueChange={(targetDate) => setCreateForm({ ...createForm, targetDate })}
+                className="w-[200px]"
+              />
+            </Field>
+            {createError ? (
+              <Alert variant="error" className="mt-2">
+                <CircleAlert />
+                <AlertDescription>{createError}</AlertDescription>
+              </Alert>
+            ) : null}
+          </DialogPanel>
+          <DialogFooter>
+            <span className="text-muted-foreground text-xs sm:mr-auto">证据包不含行级数据与凭据</span>
+            <DialogClose render={<Button variant="outline" disabled={createMutation.isPending} />}>取消</DialogClose>
             <Button disabled={createMutation.isPending || !createForm.code.trim() || !createForm.name.trim() || !createForm.owner.trim()} onClick={() => { setCreateError(null); createMutation.mutate() }}>
               {createMutation.isPending ? '创建中…' : '创建项目'}
             </Button>
           </DialogFooter>
-        }
-      >
-        <FormGrid>
-          <Field>
-            <FieldLabel>
-              项目代码 <span className="text-destructive-foreground">*</span>
-            </FieldLabel>
-            <Input id="delivery-code" value={createForm.code} onChange={(event) => setCreateForm({ ...createForm, code: event.target.value })} placeholder="例如：DEL-2026-EP" />
-          </Field>
-          <Field>
-            <FieldLabel>
-              项目名称 <span className="text-destructive-foreground">*</span>
-            </FieldLabel>
-            <Input id="delivery-name" value={createForm.name} onChange={(event) => setCreateForm({ ...createForm, name: event.target.value })} placeholder="例如：电子处方域交付" />
-          </Field>
-          <Field>
-            <FieldLabel>交付范围</FieldLabel>
-            <Input id="delivery-scope" value={createForm.scope} onChange={(event) => setCreateForm({ ...createForm, scope: event.target.value })} placeholder="域/系统/数据集范围" />
-          </Field>
-          <Field>
-            <FieldLabel>
-              负责人 <span className="text-destructive-foreground">*</span>
-            </FieldLabel>
-            <Input id="delivery-owner" value={createForm.owner} onChange={(event) => setCreateForm({ ...createForm, owner: event.target.value })} placeholder="责任人" />
-          </Field>
-        </FormGrid>
-        <Field className="mb-4">
-          <FieldLabel>目标日期</FieldLabel>
-          <DatePicker
-            id="delivery-target"
-            value={createForm.targetDate}
-            onValueChange={(targetDate) => setCreateForm({ ...createForm, targetDate })}
-            className="w-[200px]"
-          />
-        </Field>
-        {createError ? (
-          <Alert variant="error" className="mt-2">
-            <CircleAlert />
-            <AlertDescription>{createError}</AlertDescription>
-          </Alert>
-        ) : null}
+        </DialogPopup>
       </Dialog>
 
-      <Dialog
-        open={itemOpen}
-        onOpenChange={setItemOpen}
-        title="引用交付对象"
-        description="把已发布的资产、看板、数据服务或 AI 产品引用进当前项目。"
-        width={540}
-        dirty={Boolean(itemForm.refId.trim()) && !addItem.isPending}
-        footer={
-          <DialogFooter note="仅引用已存在的对象，不复制定义">
-            <Button variant="outline" onClick={() => setItemOpen(false)} disabled={addItem.isPending}>取消</Button>
+      <Dialog open={itemOpen} onOpenChange={itemGuard.requestOpenChange}>
+        <DialogPopup closeProps={{ 'aria-label': '关闭' }}>
+          <DialogHeader>
+            <DialogTitle>引用交付对象</DialogTitle>
+            <DialogDescription>把已发布的资产、看板、数据服务或 AI 产品引用进当前项目。</DialogDescription>
+          </DialogHeader>
+          <DialogPanel>
+            {itemGuard.discardPrompt ? <DiscardPrompt onKeepEditing={itemGuard.keepEditing} onDiscard={itemGuard.confirmDiscard} /> : null}
+            <Alert variant="info" role="note" className="mb-4">
+              <ShieldCheck />
+              <AlertDescription>被引用对象必须已发布或已认证；未满足可交付性的对象会在提交验收时被逐项阻断。</AlertDescription>
+            </Alert>
+            <FormGrid>
+              <Field>
+                <FieldLabel htmlFor="item-type">对象类型</FieldLabel>
+                <Select
+                  items={REF_TYPE_ITEMS}
+                  value={itemForm.refType}
+                  onValueChange={(next) => setItemForm({ ...itemForm, refType: (next ?? '') as DeliveryRefType })}
+                >
+                  <SelectTrigger id="item-type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectPopup>
+                    {REF_TYPE_ITEMS.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectPopup>
+                </Select>
+              </Field>
+              <Field>
+                <FieldLabel>
+                  对象标识 <span className="text-destructive-foreground">*</span>
+                </FieldLabel>
+                <Input id="item-ref" value={itemForm.refId} onChange={(event) => setItemForm({ ...itemForm, refId: event.target.value })} placeholder="资产 FQN / 看板 id / 服务代码 / 产品 id" />
+              </Field>
+            </FormGrid>
+            <Field className="mb-4">
+              <FieldLabel>备注</FieldLabel>
+              <Input id="item-note" value={itemForm.note} onChange={(event) => setItemForm({ ...itemForm, note: event.target.value })} placeholder="引用口径或验收说明" />
+            </Field>
+            {itemError ? (
+              <Alert variant="error" className="mt-2">
+                <CircleAlert />
+                <AlertDescription>{itemError}</AlertDescription>
+              </Alert>
+            ) : null}
+          </DialogPanel>
+          <DialogFooter>
+            <span className="text-muted-foreground text-xs sm:mr-auto">仅引用已存在的对象，不复制定义</span>
+            <DialogClose render={<Button variant="outline" disabled={addItem.isPending} />}>取消</DialogClose>
             <Button disabled={addItem.isPending || !itemForm.refId.trim()} onClick={() => { setItemError(null); addItem.mutate() }}>
               {addItem.isPending ? '引用中…' : '引用对象'}
             </Button>
           </DialogFooter>
-        }
-      >
-        <Alert variant="info" role="note" className="mb-4">
-          <ShieldCheck />
-          <AlertDescription>被引用对象必须已发布或已认证；未满足可交付性的对象会在提交验收时被逐项阻断。</AlertDescription>
-        </Alert>
-        <FormGrid>
-          <Field>
-            <FieldLabel htmlFor="item-type">对象类型</FieldLabel>
-            <Select
-              items={REF_TYPE_ITEMS}
-              value={itemForm.refType}
-              onValueChange={(next) => setItemForm({ ...itemForm, refType: (next ?? '') as DeliveryRefType })}
-            >
-              <SelectTrigger id="item-type">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectPopup>
-                {REF_TYPE_ITEMS.map((item) => (
-                  <SelectItem key={item.value} value={item.value}>
-                    {item.label}
-                  </SelectItem>
-                ))}
-              </SelectPopup>
-            </Select>
-          </Field>
-          <Field>
-            <FieldLabel>
-              对象标识 <span className="text-destructive-foreground">*</span>
-            </FieldLabel>
-            <Input id="item-ref" value={itemForm.refId} onChange={(event) => setItemForm({ ...itemForm, refId: event.target.value })} placeholder="资产 FQN / 看板 id / 服务代码 / 产品 id" />
-          </Field>
-        </FormGrid>
-        <Field className="mb-4">
-          <FieldLabel>备注</FieldLabel>
-          <Input id="item-note" value={itemForm.note} onChange={(event) => setItemForm({ ...itemForm, note: event.target.value })} placeholder="引用口径或验收说明" />
-        </Field>
-        {itemError ? (
-          <Alert variant="error" className="mt-2">
-            <CircleAlert />
-            <AlertDescription>{itemError}</AlertDescription>
-          </Alert>
-        ) : null}
+        </DialogPopup>
       </Dialog>
 
-      <Confirm
+      <ConfirmDialog
         open={archiveTarget !== null}
         onOpenChange={(open) => { if (!open) setArchiveTarget(null) }}
         title={`归档 ${archiveTarget?.name ?? ''}`}

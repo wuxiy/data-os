@@ -14,7 +14,7 @@ import { useEffect, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { FormGrid } from '@/components/app/form-grid'
-import { Confirm } from '../../components/kit/overlay'
+import { ConfirmDialog } from '@/components/app/confirm-dialog'
 import { Panel, PanelHead } from '../../components/kit/panel'
 import { EmptyState } from '../../components/kit/states'
 import { DataTable, listColumnHelper, TablePagination } from '../../components/table/data-table'
@@ -457,7 +457,7 @@ export function SchedulePanel({ jobId, jobName }: { jobId: string; jobName: stri
         ) : null}
       </Panel>
 
-      <Confirm
+      <ConfirmDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
         title="删除任务调度"

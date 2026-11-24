@@ -1,5 +1,6 @@
 import { LoadingBlock } from '@/components/app/loading'
 import { Badge } from '@/components/ui/badge'
+import { Tooltip, TooltipPopup, TooltipTrigger } from '@/components/ui/tooltip'
 import { useQuery } from '@tanstack/react-query'
 import { Gauge, Settings2 } from 'lucide-react'
 
@@ -33,8 +34,17 @@ export function QualityScorePanel({ compact = false }: { compact?: boolean }) {
       cell: ({ row }) => {
         const typeLabel = row.original.ruleType ? (QUALITY_RULE_TYPE_LABELS[row.original.ruleType] ?? row.original.ruleType) : null
         return typeLabel
-          ? <span title={row.original.ruleId}>{typeLabel}{row.original.targetColumn ? ` · ${row.original.targetColumn}` : ''}</span>
-          : <code className="font-mono text-label text-muted-foreground" title={row.original.ruleId}>{row.original.ruleId}</code>
+          ? (
+            <Tooltip>
+              <TooltipTrigger render={<span />}>{typeLabel}{row.original.targetColumn ? ` · ${row.original.targetColumn}` : ''}</TooltipTrigger>
+              <TooltipPopup className="font-mono text-xs">{row.original.ruleId}</TooltipPopup>
+            </Tooltip>
+          ) : (
+            <Tooltip>
+              <TooltipTrigger render={<code className="font-mono text-label text-muted-foreground" />}>{row.original.ruleId}</TooltipTrigger>
+              <TooltipPopup className="font-mono text-xs">{row.original.ruleId}</TooltipPopup>
+            </Tooltip>
+          )
       },
     }),
     helper.accessor('datasetId', { header: '数据集' }),

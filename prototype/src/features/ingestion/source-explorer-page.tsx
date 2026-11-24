@@ -1,5 +1,6 @@
 import { LoadingBlock, LoadingInline } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
+import { Tooltip, TooltipPopup, TooltipTrigger } from '@/components/ui/tooltip'
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CodeTextarea } from '@/components/app/code-textarea'
@@ -211,16 +212,11 @@ function ExplorerWorkspace({ source }: { source: SourceApiItem }) {
                     {(tablesRequest.data?.tables ?? []).map((table) => {
                       const active = selectedTable?.catalog === catalog && selectedTable.table === table.name
                       return (
-                        <button
-                          key={table.name}
-                          type="button"
-                          title={table.remark || table.type}
-                          onClick={() => setSelectedTable({ catalog, table: table.name })}
-                          className={`flex w-full items-center gap-1.5 rounded-chip px-1.5 py-1 text-left text-meta ${active ? 'bg-blue-soft text-blue' : 'text-ink-soft hover:bg-wash'}`}
-                        >
-                          <Table2 size={12} />
-                          <span className="truncate">{table.name}</span>
-                        </button>
+                        <Tooltip>
+                          <TooltipTrigger render={<button key={table.name} type="button" onClick={() => setSelectedTable({ catalog, table: table.name })} className={`flex w-full items-center gap-1.5 rounded-chip px-1.5 py-1 text-left text-meta ${active ? 'bg-blue-soft text-blue' : 'text-ink-soft hover:bg-wash'}`} />}><Table2 size={12} />
+                          <span className="truncate">{table.name}</span></TooltipTrigger>
+                          <TooltipPopup>{table.remark || table.type}</TooltipPopup>
+                        </Tooltip>
                       )
                     })}
                     {(tablesRequest.data?.tables.length ?? 0) === 0 && !tablesRequest.isPending ? <p className="px-1 py-1 text-meta text-muted-foreground">该库没有可浏览的表</p> : null}

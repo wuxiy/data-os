@@ -1,5 +1,6 @@
 import { LoadingBlock, LoadingInline } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
+import { Tooltip, TooltipPopup, TooltipTrigger } from '@/components/ui/tooltip'
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -412,7 +413,10 @@ export function MappingPage() {
                 {version.validations.length > 0 ? version.validations.map((validation) => (
                   <p key={validation.id} className="mt-1">
                     <Badge variant={validation.status === 'PASS' ? 'success' : validation.status === 'FAIL' ? 'error' : 'warning'}>{validation.status === 'PASS' ? '通过' : validation.status === 'FAIL' ? '未通过' : '需复核'}</Badge>
-                    <span className="ml-1.5" title={`内容校验值 ${validation.checksum}`}>{validation.checksum === version.checksum ? '对应当前内容' : '对应历史内容'}</span>
+                    <Tooltip>
+                      <TooltipTrigger render={<span className="ml-1.5" />}>{validation.checksum === version.checksum ? '对应当前内容' : '对应历史内容'}</TooltipTrigger>
+                      <TooltipPopup>{`内容校验值 ${validation.checksum}`}</TooltipPopup>
+                    </Tooltip>
                     <small className="ml-1.5 text-meta text-muted-foreground">{formatDateTime(validation.dataTime || validation.createdAt)}</small>
                   </p>
                 )) : <p className="mt-1">此版本尚无聚合验证证据，执行验证后可核对结果与数据时间。</p>}

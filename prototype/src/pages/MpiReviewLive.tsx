@@ -1,17 +1,19 @@
 import { TableSkeleton } from '@/components/app/table-skeleton'
 import { LoadingBlock } from '@/components/app/loading'
 import { Badge } from '@/components/ui/badge'
+import { Tooltip, TooltipPopup, TooltipTrigger } from '@/components/ui/tooltip'
+import { Drawer, DrawerClose, DrawerDescription, DrawerFooter, DrawerHeader, DrawerPanel, DrawerPopup, DrawerTitle } from '@/components/ui/drawer'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CheckCircle2, CircleAlert, GitMerge, GitPullRequestArrow, LoaderCircle, RefreshCw, ShieldCheck, XCircle } from 'lucide-react'
+import { CheckCircle2, CircleAlert, GitMerge, GitPullRequestArrow, LoaderCircle, RefreshCw, ShieldCheck, XCircle, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { QueryBoundary } from '../app/query-boundary'
 
 import { Button } from '@/components/ui/button'
 import { SearchField } from '@/components/app/search-field'
-import { Confirm, Sheet, SheetBody, SheetFooterActions } from '../components/kit/overlay'
+import { ConfirmDialog } from '@/components/app/confirm-dialog'
 import { Panel, PanelHead } from '../components/kit/panel'
 import { EmptyState } from '../components/kit/states'
 import { DataTable, TablePagination, listColumnHelper } from '../components/table/data-table'
@@ -326,7 +328,7 @@ function MpiWorkspace({ onNotice }: { onNotice: (message: string) => void }) {
         />
       ) : null}
 
-      <Confirm
+      <ConfirmDialog
         open={splitTarget !== null}
         onOpenChange={(open) => { if (!open) setSplitTarget(null) }}
         title="拆分黄金人身份"
@@ -380,56 +382,64 @@ function MpiPersonSheet({
   const canSplit = activeLinks.length > 1
 
   return (
-    <Sheet
-      open
-      onOpenChange={(open) => { if (!open) onClose() }}
-      title="黄金人详情"
-      subtitle={person?.goldenName ?? '黄金人 · 身份链接与审计'}
-      width={610}
-      footer={<SheetFooterActions hint="拆分是不可逆的人工决策；操作与决策源都会进入审计。"><Button variant="outline" onClick={onClose}>关闭</Button></SheetFooterActions>}
-    >
-      <SheetBody>
-        {personRequest.isPending ? <LoadingBlock className="min-h-[200px]">正在读取黄金人…</LoadingBlock> : null}
-        {personRequest.isError ? (
-          <Alert variant="error">
-            <CircleAlert />
-            <AlertDescription>黄金人详情不可用，请稍后重试</AlertDescription>
-          </Alert>
-        ) : null}
-        {person ? (
-          <>
-            <h3 className="mb-1 text-label font-medium text-ink-soft">身份链接（当前有效成员）</h3>
-            <ul className="m-0 mb-4 list-none p-0">
-              {activeLinks.map((link) => (
-                <li key={link.sourceIdentifier} className="flex flex-wrap items-center gap-2 border-b border-line-soft py-2 last:border-b-0">
-                  <span className="min-w-0 flex-1 truncate font-mono text-label text-muted-foreground">{link.sourceIdentifier}</span>
-                  <Badge variant={link.decisionSource === 'MANUAL' ? 'info' : 'outline'}>{link.decisionSource === 'MANUAL' ? '人工' : '规则'}</Badge>
-                  <Button
-                    size="sm"
-                    variant="destructive-outline"
-                    disabled={!canSplit}
-                    title={canSplit ? undefined : '至少保留一个有效身份'}
-                    onClick={() => onRequestSplit(link.sourceIdentifier)}
-                  >
-                    拆分
-                  </Button>
-                </li>
-              ))}
-              {activeLinks.length === 0 ? <li className="py-2 text-label text-muted-foreground">暂无有效身份链接。</li> : null}
-            </ul>
-            <h3 className="mb-1 text-label font-medium text-ink-soft">操作历史（最近 20 条）</h3>
-            <ol className="m-0 list-none p-0">
-              {(person.history ?? []).map((event, index) => (
-                <li key={`${event.action}-${event.createdAt}-${index}`} className="border-b border-line-soft py-1.5 text-label text-muted-foreground last:border-b-0">
-                  {event.action} · {event.actor} · {formatDateTime(event.createdAt)}
-                </li>
-              ))}
-              {(person.history ?? []).length === 0 ? <li className="py-2 text-label text-muted-foreground">暂无历史事件</li> : null}
-            </ol>
-            {!canSplit ? <p className="mt-3 text-meta text-muted-foreground">只剩一个有效身份时不能拆分。</p> : null}
-          </>
-        ) : null}
-      </SheetBody>
-    </Sheet>
+    <Drawer open onOpenChange={(open) => { if (!open) onClose() }} position="right">
+      <DrawerPopup className="max-w-[610px]" variant="straight" showCloseButton={false}>
+        <DrawerClose className="absolute end-2 top-2 z-1" render={<Button size="icon" variant="ghost" aria-label="关闭" />}>
+          <X />
+        </DrawerClose>
+        <DrawerHeader className="pr-14">
+          <DrawerTitle>黄金人详情</DrawerTitle>
+          <DrawerDescription>{person?.goldenName ?? '黄金人 · 身份链接与审计'}</DrawerDescription>
+        </DrawerHeader>
+        <DrawerPanel>
+          {personRequest.isPending ? <LoadingBlock className="min-h-[200px]">正在读取黄金人…</LoadingBlock> : null}
+          {personRequest.isError ? (
+            <Alert variant="error">
+              <CircleAlert />
+              <AlertDescription>黄金人详情不可用，请稍后重试</AlertDescription>
+            </Alert>
+          ) : null}
+          {person ? (
+            <>
+              <h3 className="mb-1 text-label font-medium text-ink-soft">身份链接（当前有效成员）</h3>
+              <ul className="m-0 mb-4 list-none p-0">
+                {activeLinks.map((link) => (
+                  <li key={link.sourceIdentifier} className="flex flex-wrap items-center gap-2 border-b border-line-soft py-2 last:border-b-0">
+                    <span className="min-w-0 flex-1 truncate font-mono text-label text-muted-foreground">{link.sourceIdentifier}</span>
+                    <Badge variant={link.decisionSource === 'MANUAL' ? 'info' : 'outline'}>{link.decisionSource === 'MANUAL' ? '人工' : '规则'}</Badge>
+                    {canSplit ? (
+                      <Button size="sm" variant="destructive-outline" onClick={() => onRequestSplit(link.sourceIdentifier)}>拆分</Button>
+                    ) : (
+                      // 禁用态收不到悬停与焦点：按 coss 的写法包一层可聚焦的 span 来承载原因。
+                      <Tooltip>
+                        <TooltipTrigger render={<span className="inline-flex" tabIndex={0} />}>
+                          <Button size="sm" variant="destructive-outline" disabled>拆分</Button>
+                        </TooltipTrigger>
+                        <TooltipPopup>至少保留一个有效身份</TooltipPopup>
+                      </Tooltip>
+                    )}
+                  </li>
+                ))}
+                {activeLinks.length === 0 ? <li className="py-2 text-label text-muted-foreground">暂无有效身份链接。</li> : null}
+              </ul>
+              <h3 className="mb-1 text-label font-medium text-ink-soft">操作历史（最近 20 条）</h3>
+              <ol className="m-0 list-none p-0">
+                {(person.history ?? []).map((event, index) => (
+                  <li key={`${event.action}-${event.createdAt}-${index}`} className="border-b border-line-soft py-1.5 text-label text-muted-foreground last:border-b-0">
+                    {event.action} · {event.actor} · {formatDateTime(event.createdAt)}
+                  </li>
+                ))}
+                {(person.history ?? []).length === 0 ? <li className="py-2 text-label text-muted-foreground">暂无历史事件</li> : null}
+              </ol>
+              {!canSplit ? <p className="mt-3 text-meta text-muted-foreground">只剩一个有效身份时不能拆分。</p> : null}
+            </>
+          ) : null}
+        </DrawerPanel>
+        <DrawerFooter>
+          <span className="text-muted-foreground text-xs sm:mr-auto">拆分是不可逆的人工决策；操作与决策源都会进入审计。</span>
+          <Button variant="outline" onClick={onClose}>关闭</Button>
+        </DrawerFooter>
+      </DrawerPopup>
+    </Drawer>
   )
 }

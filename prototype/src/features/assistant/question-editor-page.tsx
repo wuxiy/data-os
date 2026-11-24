@@ -1,5 +1,6 @@
 import { LoadingBlock } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
+import { Tooltip, TooltipPopup, TooltipTrigger } from '@/components/ui/tooltip'
 import { Checkbox } from '@/components/ui/checkbox'
 import { DatePicker } from '@/components/app/date-picker'
 import { Label } from '@/components/ui/label'
@@ -15,7 +16,7 @@ import { useEffect, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { FormGrid } from '@/components/app/form-grid'
-import { Confirm } from '../../components/kit/overlay'
+import { ConfirmDialog } from '@/components/app/confirm-dialog'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel, PanelHead } from '../../components/kit/panel'
 import { Tabs, TabPanel } from '../../components/kit/popover'
@@ -335,7 +336,13 @@ export function QuestionEditorPage({ questionCode }: { questionCode?: string }) 
                   <>
                     <Button disabled={saveMutation.isPending} onClick={() => setConfirmDelete(true)} variant="destructive-outline"><Trash2 size={13} />删除草稿</Button>
                     <Button variant="outline" disabled={saveMutation.isPending} onClick={() => saveMutation.mutate()}><Save size={13} />{saveMutation.isPending ? '保存中…' : '保存草稿'}</Button>
-                    <Button disabled={!question.verified || actionMutation.isPending} title={question.verified ? '发布到问数面' : '需最近一次成功试运行晚于最后编辑'} onClick={() => actionMutation.mutate('publish')}>发布</Button>
+                    {/* 禁用态的按钮收不到悬停与焦点：按 coss 的写法包一层可聚焦的 span 来承载提示。 */}
+                    <Tooltip>
+                      <TooltipTrigger render={<span className="inline-flex" tabIndex={question.verified ? undefined : 0} />}>
+                        <Button disabled={!question.verified || actionMutation.isPending} onClick={() => actionMutation.mutate('publish')}>发布</Button>
+                      </TooltipTrigger>
+                      <TooltipPopup>{question.verified ? '发布到问数面' : '需最近一次成功试运行晚于最后编辑'}</TooltipPopup>
+                    </Tooltip>
                   </>
                 ) : null}
                 {question?.status === 'PUBLISHED' ? (
@@ -439,7 +446,7 @@ export function QuestionEditorPage({ questionCode }: { questionCode?: string }) 
         </Tabs>
       </Panel>
 
-      <Confirm
+      <ConfirmDialog
         open={confirmDelete}
         onOpenChange={setConfirmDelete}
         title={`删除草稿 ${questionCode ?? ''}`}

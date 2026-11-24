@@ -1,10 +1,11 @@
 import { Badge } from '@/components/ui/badge'
+import { Tooltip, TooltipPopup, TooltipTrigger } from '@/components/ui/tooltip'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, FlaskConical, Pencil, Play, Plus, ShieldQuestion } from 'lucide-react'
 import { useState } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { Confirm } from '../../components/kit/overlay'
+import { ConfirmDialog } from '@/components/app/confirm-dialog'
 import { Panel, PanelHead } from '../../components/kit/panel'
 import { EmptyState } from '../../components/kit/states'
 import { DataTable, TablePagination, listColumnHelper } from '../../components/table/data-table'
@@ -105,14 +106,13 @@ export function AssistantGovernanceSection({ onNotice }: { onNotice: (message: s
               <>
                 <Button variant="outline" size="sm" onClick={() => navigate(workLinks.assistantQuestion(question.code, 'definition'))}><Pencil size={12} />编辑</Button>
                 <Button variant="outline" size="sm" onClick={() => navigate(workLinks.assistantQuestion(question.code, 'try'))}><FlaskConical size={12} />试运行</Button>
-                <Button
-                  size="sm"
-                  disabled={!question.verified || busy}
-                  title={question.verified ? '发布到问数面' : '需最近一次成功试运行晚于最后编辑'}
-                  onClick={() => actionMutation.mutate({ code: question.code, action: 'publish' })}
-                >
-                  发布
-                </Button>
+                {/* 禁用态的按钮收不到悬停与焦点：按 coss 的写法包一层可聚焦的 span 来承载提示。 */}
+                <Tooltip>
+                  <TooltipTrigger render={<span className="inline-flex" tabIndex={question.verified ? undefined : 0} />}>
+                    <Button size="sm" disabled={!question.verified || busy} onClick={() => actionMutation.mutate({ code: question.code, action: 'publish' })}>发布</Button>
+                  </TooltipTrigger>
+                  <TooltipPopup>{question.verified ? '发布到问数面' : '需最近一次成功试运行晚于最后编辑'}</TooltipPopup>
+                </Tooltip>
                 <Button size="sm" variant="destructive-outline" disabled={busy} onClick={() => setPendingAction({ action: 'delete', question })}>删除</Button>
               </>
             ) : null}
@@ -167,7 +167,7 @@ export function AssistantGovernanceSection({ onNotice }: { onNotice: (message: s
         footer={<TablePagination page={currentPage} pageSize={PAGE_SIZE} total={questions.length} onPageChange={setPage} label="治理问题分页" />}
       />
 
-      <Confirm
+      <ConfirmDialog
         open={pendingAction !== null}
         onOpenChange={(open) => { if (!open) setPendingAction(null) }}
         title={pendingAction?.action === 'delete' ? `删除草稿 ${pendingAction.question.code}` : `停用 ${pendingAction?.question.code ?? ''}`}

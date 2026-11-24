@@ -1,6 +1,7 @@
 import { TableSkeleton } from '@/components/app/table-skeleton'
 import { LoadingBlock } from '@/components/app/loading'
 import { Badge } from '@/components/ui/badge'
+import { Tooltip, TooltipPopup, TooltipTrigger } from '@/components/ui/tooltip'
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Field, FieldLabel } from '@/components/ui/field'
@@ -13,7 +14,7 @@ import { SearchField } from '@/components/app/search-field'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel, PanelHead } from '../../components/kit/panel'
 import { Tabs, TabPanel } from '../../components/kit/popover'
-import { Confirm } from '../../components/kit/overlay'
+import { ConfirmDialog } from '@/components/app/confirm-dialog'
 import { EmptyState } from '../../components/kit/states'
 import { DataTable, TablePagination, listColumnHelper } from '../../components/table/data-table'
 import { useNotice } from '../../components/kit/toast'
@@ -296,7 +297,7 @@ export function DataServicesPage() {
         </div>
       ) : null}
 
-      <Confirm
+      <ConfirmDialog
         open={deprecateTarget !== null}
         onOpenChange={(open) => { if (!open) setDeprecateTarget(null) }}
         title={`下线 ${deprecateTarget?.code ?? ''}`}
@@ -405,7 +406,7 @@ function KeyPanel({ service }: { service: DataService }) {
       </table>
       {keys.length === 0 && detailRequest.isSuccess ? <p className="py-3 text-label text-muted-foreground">还没有发放过 Key。</p> : null}
 
-      <Confirm
+      <ConfirmDialog
         open={revokeTarget !== null}
         onOpenChange={(open) => { if (!open) setRevokeTarget(null) }}
         title="吊销调用 Key"
@@ -425,8 +426,20 @@ function DefinitionFacts({ service }: { service: DataService }) {
     <dl className="grid grid-cols-4 gap-4 text-label max-[1100px]:grid-cols-2">
       <div><dt className="text-meta text-muted-foreground">行数上限</dt><dd className="m-0 text-ink-soft">{service.maxRows} 行</dd></div>
       <div><dt className="text-meta text-muted-foreground">超时</dt><dd className="m-0 text-ink-soft">{service.timeoutSeconds} 秒</dd></div>
-      <div><dt className="text-meta text-muted-foreground">参数契约</dt><dd className="m-0 truncate font-mono text-meta text-muted-foreground" title={service.parametersJson}>{service.parametersJson}</dd></div>
-      <div><dt className="text-meta text-muted-foreground">列契约</dt><dd className="m-0 truncate font-mono text-meta text-muted-foreground" title={service.columnsJson}>{service.columnsJson}</dd></div>
+      <div>
+        <dt className="text-meta text-muted-foreground">参数契约</dt>
+        <Tooltip>
+          <TooltipTrigger render={<dd className="m-0 truncate font-mono text-meta text-muted-foreground" />}>{service.parametersJson}</TooltipTrigger>
+          <TooltipPopup className="max-w-96 font-mono text-xs">{service.parametersJson}</TooltipPopup>
+        </Tooltip>
+      </div>
+      <div>
+        <dt className="text-meta text-muted-foreground">列契约</dt>
+        <Tooltip>
+          <TooltipTrigger render={<dd className="m-0 truncate font-mono text-meta text-muted-foreground" />}>{service.columnsJson}</TooltipTrigger>
+          <TooltipPopup className="max-w-96 font-mono text-xs">{service.columnsJson}</TooltipPopup>
+        </Tooltip>
+      </div>
       <div className="col-span-4 max-[1100px]:col-span-2"><dt className="text-meta text-muted-foreground">SQL 模板</dt><dd className="m-0 whitespace-pre-wrap font-mono text-meta text-ink-soft">{service.sqlTemplate}</dd></div>
     </dl>
   )

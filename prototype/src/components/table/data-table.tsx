@@ -14,9 +14,12 @@ import { Columns3, RefreshCw, Maximize2, Minimize2 } from 'lucide-react'
 import { useMemo, type ReactNode } from 'react'
 import { cn } from '../../lib/utils'
 import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipPopup, TooltipTrigger } from '@/components/ui/tooltip'
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Popover, PopoverOption, PopoverTitle } from '../kit/popover'
+import { Popover, PopoverPopup, PopoverTitle, PopoverTrigger } from '@/components/ui/popover'
+import { CheckboxGroup } from '@/components/ui/checkbox-group'
+import { Label } from '@/components/ui/label'
 import { SearchField } from '@/components/app/search-field'
 import { EmptyState } from '../kit/states'
 
@@ -248,40 +251,34 @@ export function TableToolbar({
       <div className="flex shrink-0 items-center gap-2">
         {actions}
         {onRefresh ? (
-          <Button variant="outline" size="icon" aria-label="刷新列表" title="刷新列表" onClick={onRefresh} disabled={refreshing}>
-            <RefreshCw size={14} className={refreshing ? 'animate-spin' : undefined} />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger render={<Button variant="outline" size="icon" aria-label="刷新列表" onClick={onRefresh} disabled={refreshing} />}><RefreshCw size={14} className={refreshing ? 'animate-spin' : undefined} /></TooltipTrigger>
+            <TooltipPopup>刷新列表</TooltipPopup>
+          </Tooltip>
         ) : null}
         {columnLabels && onColumnVisibilityChange ? (
-          <Popover
-            trigger={<Button variant="outline" size="icon" aria-label="显示列" title="显示列"><Columns3 size={14} /></Button>}
-          >
-            <PopoverTitle>显示列</PopoverTitle>
-            {Object.entries(columnLabels).map(([id, label]) => (
-              <PopoverOption
-                key={id}
-                checked={!hiddenColumns?.has(id)}
-                onCheckedChange={(checked) => {
-                  const next = new Set(hiddenColumns ?? [])
-                  if (checked) next.delete(id); else next.add(id)
-                  onColumnVisibilityChange(next)
-                }}
-              >
-                {label}
-              </PopoverOption>
-            ))}
+          <Popover>
+            <PopoverTrigger render={<Button variant="outline" size="icon" aria-label="显示列" />}>
+              <Columns3 />
+            </PopoverTrigger>
+            <PopoverPopup align="end" className="w-56 flex-col gap-2">
+              <PopoverTitle className="text-sm">显示列</PopoverTitle>
+              <CheckboxGroup aria-label="显示列" value={Object.entries(columnLabels).filter(([id]) => !hiddenColumns?.has(id)).map(([id]) => id)} onValueChange={(next) => onColumnVisibilityChange(new Set(Object.keys(columnLabels).filter((id) => !next.includes(id))))}>
+                {Object.entries(columnLabels).map(([id, label]) => (
+                  <Label key={id} className="text-sm font-normal">
+                    <Checkbox value={id} />
+                    {label}
+                  </Label>
+                ))}
+              </CheckboxGroup>
+            </PopoverPopup>
           </Popover>
         ) : null}
         {onToggleFullscreen ? (
-          <Button variant="outline"
-            size="icon"
-            aria-pressed={fullscreen}
-            aria-label={fullscreen ? '退出全屏表格' : '全屏表格'}
-            title={fullscreen ? '退出全屏，Esc' : '全屏表格'}
-            onClick={onToggleFullscreen}
-          >
-            {fullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
-          </Button>
+          <Tooltip>
+            <TooltipTrigger render={<Button variant="outline" size="icon" aria-pressed={fullscreen} aria-label={fullscreen ? '退出全屏表格' : '全屏表格'} onClick={onToggleFullscreen} />}>{fullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}</TooltipTrigger>
+            <TooltipPopup>{fullscreen ? '退出全屏，Esc' : '全屏表格'}</TooltipPopup>
+          </Tooltip>
         ) : null}
       </div>
     </div>

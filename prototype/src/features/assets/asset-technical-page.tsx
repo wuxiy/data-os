@@ -1,5 +1,6 @@
 import { LoadingBlock } from '@/components/app/loading'
 import { Badge } from '@/components/ui/badge'
+import { Tooltip, TooltipPopup, TooltipTrigger } from '@/components/ui/tooltip'
 import { useQuery } from '@tanstack/react-query'
 import { useSearch } from '@tanstack/react-router'
 import { ArrowLeft, Database, Rows3, TableProperties } from 'lucide-react'
@@ -206,7 +207,10 @@ function NodeRow({ label, name, fqn, mappings }: { label: string; name: string; 
   return (
     <li className="flex items-center gap-2 rounded-control border border-line px-2.5 py-1.5 text-label">
       <Badge variant="outline">{label}</Badge>
-      <span className="min-w-0 flex-1 truncate text-ink-soft" title={fqn}>{name}</span>
+      <Tooltip>
+        <TooltipTrigger render={<span className="min-w-0 flex-1 truncate text-ink-soft" />}>{name}</TooltipTrigger>
+        <TooltipPopup>{fqn}</TooltipPopup>
+      </Tooltip>
       {mappings > 0 ? <span className="shrink-0 text-meta text-muted-foreground">{mappings} 条列映射</span> : null}
       <span className="shrink-0 font-mono text-meta text-muted-foreground">{fqn.split('.')[0]}</span>
     </li>

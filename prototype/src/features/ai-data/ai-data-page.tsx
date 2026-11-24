@@ -1,6 +1,8 @@
 import { TableSkeleton } from '@/components/app/table-skeleton'
 import { LoadingBlock } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
+import { DiscardPrompt, useDiscardGuard } from '@/components/app/discard-guard'
+import { Dialog, DialogClose, DialogDescription, DialogFooter, DialogHeader, DialogPanel, DialogPopup, DialogTitle } from '@/components/ui/dialog'
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -14,7 +16,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { FormGrid } from '@/components/app/form-grid'
 import { SearchField } from '@/components/app/search-field'
-import { Dialog, DialogFooter, Confirm } from '../../components/kit/overlay'
+import { ConfirmDialog } from '@/components/app/confirm-dialog'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel, PanelHead } from '../../components/kit/panel'
 import { Tabs, TabPanel } from '../../components/kit/popover'
@@ -342,6 +344,8 @@ export function AIDataPage() {
     buildHelper.display({ id: 'error', header: '错误', cell: ({ row }) => <span className="text-label text-red">{row.original.error || '—'}</span> }),
   ])
 
+  const feedbackGuard = useDiscardGuard(Boolean(feedbackQuestion.trim()) && !feedbackSubmit.isPending, setFeedbackOpen)
+  const createGuard = useDiscardGuard(Boolean(form.name.trim() || form.owner.trim()) && submitState !== 'saving', setCreateOpen)
   return (
     <div>
       <Breadcrumb items={[{ label: '数据应用' }, { label: 'AI Data' }]} trailing={overviewRequest.data ? <span>{overviewRequest.data.products} 产品 · {overviewRequest.data.certified} 已认证 · 平均就绪度 {overviewRequest.data.averageOverall?.toFixed?.(2) ?? '—'}</span> : null} />
@@ -525,16 +529,65 @@ export function AIDataPage() {
         </div>
       ) : null}
 
-      <Dialog
-        open={createOpen}
-        onOpenChange={setCreateOpen}
-        title="新建 AI 数据产品"
-        description="产品创建后为草稿；构建、评测与认证按主链推进。"
-        width={540}
-        dirty={Boolean(form.name.trim() || form.owner.trim()) && submitState !== 'saving'}
-        footer={
-          <DialogFooter note="创建后为草稿，不对外提供服务">
-            <Button variant="outline" onClick={() => setCreateOpen(false)} disabled={createProduct.isPending}>取消</Button>
+      <Dialog open={createOpen} onOpenChange={createGuard.requestOpenChange}>
+        <DialogPopup closeProps={{ 'aria-label': '关闭' }}>
+          <DialogHeader>
+            <DialogTitle>新建 AI 数据产品</DialogTitle>
+            <DialogDescription>产品创建后为草稿；构建、评测与认证按主链推进。</DialogDescription>
+          </DialogHeader>
+          <DialogPanel>
+            {createGuard.discardPrompt ? <DiscardPrompt onKeepEditing={createGuard.keepEditing} onDiscard={createGuard.confirmDiscard} /> : null}
+            <FormGrid>
+              <Field>
+                <FieldLabel>
+                  产品名称 <span className="text-destructive-foreground">*</span>
+                </FieldLabel>
+                <Input id="ai-name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="例如：门诊病历 RAG 语料" />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="ai-type">产品类型</FieldLabel>
+                <Select
+                  items={PRODUCT_TYPE_ITEMS}
+                  value={form.type}
+                  onValueChange={(next) => setForm({ ...form, type: (next ?? '') as AIDataProductType })}
+                >
+                  <SelectTrigger id="ai-type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectPopup>
+                    {PRODUCT_TYPE_ITEMS.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectPopup>
+                </Select>
+              </Field>
+              <Field>
+                <FieldLabel>
+                  负责人 <span className="text-destructive-foreground">*</span>
+                </FieldLabel>
+                <Input id="ai-owner" value={form.owner} onChange={(event) => setForm({ ...form, owner: event.target.value })} placeholder="data-team" />
+              </Field>
+              <Field>
+                <FieldLabel>工作流</FieldLabel>
+                <Input id="ai-workflow" value={form.workflow} onChange={(event) => setForm({ ...form, workflow: event.target.value })} placeholder="ai-ready" />
+              </Field>
+            </FormGrid>
+            <Field className="mb-4">
+              <FieldLabel>数据来源说明</FieldLabel>
+              <Input id="ai-source" value={form.source} onChange={(event) => setForm({ ...form, source: event.target.value })} placeholder="例如：ods_ep 处方表 + 标准值域" />
+            </Field>
+            {createError ? (
+              <Alert variant="error" className="mt-2">
+                <CircleAlert />
+                <AlertDescription>{createError}</AlertDescription>
+              </Alert>
+            ) : null}
+          </DialogPanel>
+          <DialogFooter>
+            <span className="text-muted-foreground text-xs sm:mr-auto">创建后为草稿，不对外提供服务</span>
+            <DialogClose render={<Button variant="outline" disabled={createProduct.isPending} />}>取消</DialogClose>
             <Button
               disabled={createProduct.isPending || !form.name.trim() || !form.owner.trim()}
               onClick={() => { setCreateError(null); createProduct.mutate() }}
@@ -542,82 +595,35 @@ export function AIDataPage() {
               {createProduct.isPending ? '创建中…' : '创建产品'}
             </Button>
           </DialogFooter>
-        }
-      >
-        <FormGrid>
-          <Field>
-            <FieldLabel>
-              产品名称 <span className="text-destructive-foreground">*</span>
-            </FieldLabel>
-            <Input id="ai-name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="例如：门诊病历 RAG 语料" />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="ai-type">产品类型</FieldLabel>
-            <Select
-              items={PRODUCT_TYPE_ITEMS}
-              value={form.type}
-              onValueChange={(next) => setForm({ ...form, type: (next ?? '') as AIDataProductType })}
-            >
-              <SelectTrigger id="ai-type">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectPopup>
-                {PRODUCT_TYPE_ITEMS.map((item) => (
-                  <SelectItem key={item.value} value={item.value}>
-                    {item.label}
-                  </SelectItem>
-                ))}
-              </SelectPopup>
-            </Select>
-          </Field>
-          <Field>
-            <FieldLabel>
-              负责人 <span className="text-destructive-foreground">*</span>
-            </FieldLabel>
-            <Input id="ai-owner" value={form.owner} onChange={(event) => setForm({ ...form, owner: event.target.value })} placeholder="data-team" />
-          </Field>
-          <Field>
-            <FieldLabel>工作流</FieldLabel>
-            <Input id="ai-workflow" value={form.workflow} onChange={(event) => setForm({ ...form, workflow: event.target.value })} placeholder="ai-ready" />
-          </Field>
-        </FormGrid>
-        <Field className="mb-4">
-          <FieldLabel>数据来源说明</FieldLabel>
-          <Input id="ai-source" value={form.source} onChange={(event) => setForm({ ...form, source: event.target.value })} placeholder="例如：ods_ep 处方表 + 标准值域" />
-        </Field>
-        {createError ? (
-          <Alert variant="error" className="mt-2">
-            <CircleAlert />
-            <AlertDescription>{createError}</AlertDescription>
-          </Alert>
-        ) : null}
+        </DialogPopup>
       </Dialog>
 
-      <Dialog
-        open={feedbackOpen}
-        onOpenChange={setFeedbackOpen}
-        title="反馈失败样本"
-        description="失败样本进入 Learning Plane 队列；是否吸收由人工决定，不自动改版。"
-        width={540}
-        dirty={Boolean(feedbackQuestion.trim()) && !feedbackSubmit.isPending}
-        footer={
-          <DialogFooter note="提交后进入队列，不改变当前版本">
-            <Button variant="outline" onClick={() => setFeedbackOpen(false)} disabled={feedbackSubmit.isPending}>取消</Button>
+      <Dialog open={feedbackOpen} onOpenChange={feedbackGuard.requestOpenChange}>
+        <DialogPopup closeProps={{ 'aria-label': '关闭' }}>
+          <DialogHeader>
+            <DialogTitle>反馈失败样本</DialogTitle>
+            <DialogDescription>失败样本进入 Learning Plane 队列；是否吸收由人工决定，不自动改版。</DialogDescription>
+          </DialogHeader>
+          <DialogPanel>
+            {feedbackGuard.discardPrompt ? <DiscardPrompt onKeepEditing={feedbackGuard.keepEditing} onDiscard={feedbackGuard.confirmDiscard} /> : null}
+            <Field className="mb-4">
+              <FieldLabel>
+                问题描述 <span className="text-destructive-foreground">*</span>
+              </FieldLabel>
+              <CodeTextarea id="ai-feedback" className="min-h-[120px]" value={feedbackQuestion} onChange={(event) => setFeedbackQuestion(event.target.value)} placeholder="例如：检索命中错误分块，引用与答案不一致" />
+            </Field>
+          </DialogPanel>
+          <DialogFooter>
+            <span className="text-muted-foreground text-xs sm:mr-auto">提交后进入队列，不改变当前版本</span>
+            <DialogClose render={<Button variant="outline" disabled={feedbackSubmit.isPending} />}>取消</DialogClose>
             <Button disabled={feedbackSubmit.isPending || !feedbackQuestion.trim() || !product} onClick={() => product && feedbackSubmit.mutate({ product, question: feedbackQuestion.trim() })}>
               {feedbackSubmit.isPending ? '提交中…' : '提交反馈'}
             </Button>
           </DialogFooter>
-        }
-      >
-        <Field className="mb-4">
-          <FieldLabel>
-            问题描述 <span className="text-destructive-foreground">*</span>
-          </FieldLabel>
-          <CodeTextarea id="ai-feedback" className="min-h-[120px]" value={feedbackQuestion} onChange={(event) => setFeedbackQuestion(event.target.value)} placeholder="例如：检索命中错误分块，引用与答案不一致" />
-        </Field>
+        </DialogPopup>
       </Dialog>
 
-      <Confirm
+      <ConfirmDialog
         open={deprecateTarget !== null}
         onOpenChange={(open) => { if (!open) setDeprecateTarget(null) }}
         title={`弃用 ${deprecateTarget?.name ?? ''}`}
@@ -629,7 +635,7 @@ export function AIDataPage() {
         onConfirm={() => deprecateTarget && transition.mutate({ product: deprecateTarget, target: 'DEPRECATED' })}
       />
 
-      <Confirm
+      <ConfirmDialog
         open={demoteTarget !== null}
         onOpenChange={(open) => { if (!open) setDemoteTarget(null) }}
         title={`撤下 ${demoteTarget?.name ?? ''}`}

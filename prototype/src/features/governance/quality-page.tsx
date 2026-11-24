@@ -1,6 +1,7 @@
 import { TableSkeleton } from '@/components/app/table-skeleton'
 import { LoadingBlock, LoadingInline } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
+import { Tooltip, TooltipPopup, TooltipTrigger } from '@/components/ui/tooltip'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { SegmentedControl, SegmentedControlItem } from '@/components/ui/segmented-control'
 import { RadioGroupPrimitive, RadioPrimitive } from '@/components/ui/radio-group'
@@ -17,7 +18,7 @@ import { Button } from '@/components/ui/button'
 import { SearchField } from '@/components/app/search-field'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel, PanelHead, ScopeNote } from '../../components/kit/panel'
-import { Confirm } from '../../components/kit/overlay'
+import { ConfirmDialog } from '@/components/app/confirm-dialog'
 import { EmptyState } from '../../components/kit/states'
 import { DataTable, TablePagination, listColumnHelper } from '../../components/table/data-table'
 import { useNotice } from '../../components/kit/toast'
@@ -613,7 +614,10 @@ export function QualityPage() {
                       {detail.runs.slice(1).map((run) => (
                         <div key={run.id} className="mt-1 flex items-center gap-2 text-meta text-muted-foreground">
                           <Badge variant={toneBadge(runStatusTone(run.status))}>{runStatusLabel(run.status)}</Badge>
-                          <span title={run.executionBatchId}>{shortBatchId(run.executionBatchId)}</span>
+                          <Tooltip>
+                            <TooltipTrigger render={<span />}>{shortBatchId(run.executionBatchId)}</TooltipTrigger>
+                            <TooltipPopup>{run.executionBatchId}</TooltipPopup>
+                          </Tooltip>
                           <time>{formatDateTime(run.submittedAt)}</time>
                           <small>{run.sampleEvidence.length} 条证据</small>
                         </div>
@@ -674,7 +678,7 @@ export function QualityPage() {
         />
       </Panel>
 
-      <Confirm
+      <ConfirmDialog
         open={batchOpen}
         onOpenChange={setBatchOpen}
         title={`提醒 ${openIssues.length} 个待闭环问题的责任人`}
@@ -685,7 +689,7 @@ export function QualityPage() {
         onConfirm={() => batchRemindMutation.mutate(openIssues.map((issue) => issue.id))}
       />
 
-      <Confirm
+      <ConfirmDialog
         open={pendingDelete !== null}
         onOpenChange={(open) => { if (!open) setPendingDelete(null) }}
         title={`删除 ${pendingDelete?.ruleId ?? ''}`}
@@ -728,7 +732,11 @@ function RunEvidence({ run }: { run: GovernanceQualityRunApiItem }) {
       <p>
         <Badge variant={toneBadge(runStatusTone(run.status))}>{runStatusLabel(run.status)}</Badge>
         <br />执行器：{executorLabel(run.executor)}
-        <br />批次：<code className="font-mono text-meta" title={run.executionBatchId}>{shortBatchId(run.executionBatchId)}</code>
+        <br />批次：
+        <Tooltip>
+          <TooltipTrigger render={<code className="font-mono text-meta" />}>{shortBatchId(run.executionBatchId)}</TooltipTrigger>
+          <TooltipPopup className="font-mono text-xs">{run.executionBatchId}</TooltipPopup>
+        </Tooltip>
         <br />提交：{formatDateTime(run.submittedAt)}
         {run.finishedAt ? <><br />完成：{formatDateTime(run.finishedAt)}</> : null}
       </p>

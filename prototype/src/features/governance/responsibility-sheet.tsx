@@ -1,6 +1,7 @@
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Database, FileText, Inbox, Shield, User } from 'lucide-react'
-import { Sheet, SheetBody } from '../../components/kit/overlay'
+import { Drawer, DrawerClose, DrawerDescription, DrawerHeader, DrawerPanel, DrawerPopup, DrawerTitle } from '@/components/ui/drawer'
+import { Button } from '@/components/ui/button'
+import { Database, FileText, Inbox, Shield, User, X } from 'lucide-react'
 import { formatDateTime } from '../../data/domain'
 import type { GovernanceApiIssue } from '../../data/controlPlane'
 
@@ -28,29 +29,32 @@ export function ResponsibilitySheet({
   ] : []
 
   return (
-    <Sheet
-      open={open}
-      onOpenChange={onOpenChange}
-      title="治理责任链"
-      subtitle={issue ? `${issue.id} · 关联字段核对` : undefined}
-      width={470}
-    >
-      <SheetBody>
-        <Alert variant="info" role="note">
-          <Shield />
-          <AlertDescription>以下字段来自治理问题记录；数据集编号不等同于资产编号，未提供的标识不作推断。</AlertDescription>
-        </Alert>
-        <p className="mt-3 text-label text-muted-foreground">问题记录更新于 {updatedAt ? formatDateTime(updatedAt) : '未提供'}</p>
-        <ol className="mt-4 ml-2 list-none border-l border-line-strong p-0">
-          {nodes.map((node, index) => (
-            <li key={node.key + index} className="relative pb-5 pl-7 last:pb-0">
-              <span className="absolute top-0 -left-[13px] flex size-[26px] items-center justify-center rounded-chip border border-[#dee6f3] bg-[#f5f8fd] text-blue">{node.icon}</span>
-              <strong className="block text-body-sm font-medium text-ink-soft">{node.title}</strong>
-              <small className="mt-0.5 block break-all font-mono text-label text-muted-foreground">{node.key}: {node.value}</small>
-            </li>
-          ))}
-        </ol>
-      </SheetBody>
-    </Sheet>
+    <Drawer open={open} onOpenChange={onOpenChange} position="right">
+      <DrawerPopup className="max-w-[470px]" variant="straight" showCloseButton={false}>
+        <DrawerClose className="absolute end-2 top-2 z-1" render={<Button size="icon" variant="ghost" aria-label="关闭" />}>
+          <X />
+        </DrawerClose>
+        <DrawerHeader className="pr-14">
+          <DrawerTitle>治理责任链</DrawerTitle>
+          {issue ? <DrawerDescription>{`${issue.id} · 关联字段核对`}</DrawerDescription> : null}
+        </DrawerHeader>
+        <DrawerPanel>
+          <Alert variant="info" role="note">
+            <Shield />
+            <AlertDescription>以下字段来自治理问题记录；数据集编号不等同于资产编号，未提供的标识不作推断。</AlertDescription>
+          </Alert>
+          <p className="mt-3 text-label text-muted-foreground">问题记录更新于 {updatedAt ? formatDateTime(updatedAt) : '未提供'}</p>
+          <ol className="mt-4 ml-2 list-none border-l border-line-strong p-0">
+            {nodes.map((node, index) => (
+              <li key={node.key + index} className="relative pb-5 pl-7 last:pb-0">
+                <span className="absolute top-0 -left-[13px] flex size-[26px] items-center justify-center rounded-chip border border-[#dee6f3] bg-[#f5f8fd] text-blue">{node.icon}</span>
+                <strong className="block text-body-sm font-medium text-ink-soft">{node.title}</strong>
+                <small className="mt-0.5 block break-all font-mono text-label text-muted-foreground">{node.key}: {node.value}</small>
+              </li>
+            ))}
+          </ol>
+        </DrawerPanel>
+      </DrawerPopup>
+    </Drawer>
   )
 }

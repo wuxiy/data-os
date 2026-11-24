@@ -1,6 +1,7 @@
 import { TableSkeleton } from '@/components/app/table-skeleton'
 import { LoadingBlock } from '@/components/app/loading'
 import { Badge } from '@/components/ui/badge'
+import { Tooltip, TooltipPopup, TooltipTrigger } from '@/components/ui/tooltip'
 import { useQuery } from '@tanstack/react-query'
 import { ChartNoAxesCombined, Database, Download, RefreshCw, Search, Table2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
@@ -368,7 +369,10 @@ function LineageNode({ node, direction }: { node: LineageNodeView; direction: 'u
   return (
     <div className="min-w-[150px] flex-1 rounded-control border border-line bg-wash px-3 py-2 text-center">
       <span className="block text-meta text-muted-foreground">{lineageNodeKindLabel[node.type] ?? NODE_ICONS[node.type] ?? '对象'}{direction === 'up' ? ' · 上游' : ' · 下游'}</span>
-      <strong className="mt-1 block truncate text-label text-ink-soft" title={node.fullyQualifiedName}>{node.displayName || shortNodeName(node)}</strong>
+      <Tooltip>
+        <TooltipTrigger render={<strong className="mt-1 block truncate text-label text-ink-soft" />}>{node.displayName || shortNodeName(node)}</TooltipTrigger>
+        <TooltipPopup>{node.fullyQualifiedName}</TooltipPopup>
+      </Tooltip>
       <small className="block text-meta text-muted-foreground">{node.fullyQualifiedName.split('.')[0]}</small>
       {node.columnMappings.length > 0 ? (
         <small className="mt-1 block text-meta text-muted-foreground">{node.columnMappings.length} 条列级映射</small>

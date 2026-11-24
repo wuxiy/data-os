@@ -1,5 +1,6 @@
 import { LoadingBlock } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
+import { Dialog, DialogDescription, DialogFooter, DialogHeader, DialogPopup, DialogTitle } from '@/components/ui/dialog'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
@@ -10,7 +11,6 @@ import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { FormGrid } from '@/components/app/form-grid'
 
-import { Dialog, DialogFooter } from '../../components/kit/overlay'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel, PanelHead } from '../../components/kit/panel'
 
@@ -184,19 +184,18 @@ export function ScoringPage() {
         </Panel>
       </div>
 
-      <Dialog
-        open={discardOpen}
-        onOpenChange={setDiscardOpen}
-        title="放弃未保存的评分标准？"
-        description="离开后本页未保存的通过线、权重与等级会丢失；已生效的评分标准不受影响。"
-        width={460}
-        footer={
+      <Dialog open={discardOpen} onOpenChange={setDiscardOpen}>
+        <DialogPopup closeProps={{ 'aria-label': '关闭' }}>
+          <DialogHeader>
+            <DialogTitle>放弃未保存的评分标准？</DialogTitle>
+            <DialogDescription>离开后本页未保存的通过线、权重与等级会丢失；已生效的评分标准不受影响。</DialogDescription>
+          </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDiscardOpen(false)}>继续编辑</Button>
             <Button variant="destructive" onClick={() => { setDiscardOpen(false); navigate('/governance/quality') }}>放弃修改</Button>
           </DialogFooter>
-        }
-      />
+        </DialogPopup>
+      </Dialog>
     </div>
   )
 }
