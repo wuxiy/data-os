@@ -339,8 +339,8 @@ function AssistantWorkspace({
                     </div>
                   </div>
                   <div className="flex items-center gap-1">
-                    <button type="button" className="inline-flex size-7 items-center justify-center rounded-chip text-muted-foreground hover:bg-wash disabled:opacity-50" onClick={() => sendFeedback('helpful')} disabled={feedbackState !== 'idle'} aria-label={feedbackState === 'recorded' ? '反馈已记录' : '回答有帮助'}><ThumbsUp size={14} /></button>
-                    <button type="button" className="inline-flex size-7 items-center justify-center rounded-chip text-muted-foreground hover:bg-wash disabled:opacity-50" onClick={() => sendFeedback('not_helpful')} disabled={feedbackState !== 'idle'} aria-label="回答需要改进"><ThumbsDown size={14} /></button>
+                    <Button variant="ghost" size="icon-sm" className="text-muted-foreground" onClick={() => sendFeedback('helpful')} disabled={feedbackState !== 'idle'} aria-label={feedbackState === 'recorded' ? '反馈已记录' : '回答有帮助'}><ThumbsUp /></Button>
+                    <Button variant="ghost" size="icon-sm" className="text-muted-foreground" onClick={() => sendFeedback('not_helpful')} disabled={feedbackState !== 'idle'} aria-label="回答需要改进"><ThumbsDown /></Button>
                   </div>
                 </header>
                 <div className="px-4 py-3">

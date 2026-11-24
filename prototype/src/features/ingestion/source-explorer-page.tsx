@@ -3,6 +3,7 @@ import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { FrameDescription, FrameHeader, FramePanel } from '@/components/ui/frame'
 import { Tooltip, TooltipPopup, TooltipTrigger } from '@/components/ui/tooltip'
+import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CodeTextarea } from '@/components/app/code-textarea'
@@ -204,17 +205,17 @@ function ExplorerWorkspace({ source }: { source: SourceApiItem }) {
             const expanded = expandedCatalog === catalog
             return (
               <li key={catalog}>
-                <button
-                  type="button"
-                  aria-expanded={expanded}
-                  onClick={() => { setExpandedCatalog(expanded ? null : catalog); setSelectedTable(null) }}
-                  className="flex w-full items-center gap-1.5 rounded-control px-2 py-1.5 text-left text-label text-ink-soft hover:bg-wash"
+                <Collapsible
+                  open={expanded}
+                  onOpenChange={(open) => { setExpandedCatalog(open ? catalog : null); setSelectedTable(null) }}
                 >
-                  {expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+                <CollapsibleTrigger className="flex w-full items-center gap-1.5 rounded-control px-2 py-1.5 text-left text-label text-ink-soft hover:bg-wash">
+                  <ChevronRight size={13} className={expanded ? 'rotate-90' : undefined} />
                   <Database size={13} />
                   <span className="truncate">{catalog}</span>
-                </button>
+                </CollapsibleTrigger>
                 {expanded ? (
+                  <CollapsiblePanel>
                   <div className="mb-1 ml-5 border-l border-line pl-2">
                     {tablesRequest.isPending ? <p className="px-1 py-1 text-meta text-muted-foreground">正在读取表清单…</p> : null}
                     {tablesRequest.isError ? <p className="px-1 py-1 text-meta text-red">表清单读取失败</p> : null}
@@ -222,7 +223,7 @@ function ExplorerWorkspace({ source }: { source: SourceApiItem }) {
                       const active = selectedTable?.catalog === catalog && selectedTable.table === table.name
                       return (
                         <Tooltip>
-                          <TooltipTrigger render={<button key={table.name} type="button" onClick={() => setSelectedTable({ catalog, table: table.name })} className={`flex w-full items-center gap-1.5 rounded-chip px-1.5 py-1 text-left text-meta ${active ? 'bg-blue-soft text-blue' : 'text-ink-soft hover:bg-wash'}`} />}><Table2 size={12} />
+                          <TooltipTrigger render={<Button key={table.name} variant="ghost" size="sm" onClick={() => setSelectedTable({ catalog, table: table.name })} className={`w-full justify-start gap-1.5 px-1.5 text-meta ${active ? 'bg-accent text-primary' : 'text-ink-soft hover:bg-wash'}`} />}><Table2 size={12} />
                           <span className="truncate">{table.name}</span></TooltipTrigger>
                           <TooltipPopup>{table.remark || table.type}</TooltipPopup>
                         </Tooltip>
@@ -230,7 +231,9 @@ function ExplorerWorkspace({ source }: { source: SourceApiItem }) {
                     })}
                     {(tablesRequest.data?.tables.length ?? 0) === 0 && !tablesRequest.isPending ? <p className="px-1 py-1 text-meta text-muted-foreground">该库没有可浏览的表</p> : null}
                   </div>
+                  </CollapsiblePanel>
                 ) : null}
+                </Collapsible>
               </li>
             )
           })}

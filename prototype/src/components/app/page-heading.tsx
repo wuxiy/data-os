@@ -60,13 +60,3 @@ export function PageHeading({
     </div>
   )
 }
-
-/** 页脚：样例快照/合成数据边界等口径声明。 */
-export function PageFooter({ left, right }: { left?: ReactNode; right?: ReactNode }) {
-  return (
-    <footer className="mt-[17px] flex items-center justify-between text-meta text-muted-foreground">
-      <span>{left}</span>
-      <span>{right}</span>
-    </footer>
-  )
-}
