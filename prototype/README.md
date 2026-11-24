@@ -16,6 +16,17 @@ npm run build
 npm run preview
 ```
 
+## UI 组件层
+
+界面组件来自 [coss ui](https://github.com/cosscom/ui)（Base UI + Tailwind 4，shadcn 式源码分发），2026-11-24 起全面替换了此前的手写组件层：
+
+- `src/components/ui/`：coss 源码，**原样存放、不修改**。来源冻结在 `coss-registry-snapshot/`（manifest 含 sha256），`node scripts/freeze-coss-snapshot.mjs --verify` 可校验已安装源码与快照一致。升级用 `npx shadcn@latest add @coss/<name>`（`components.json` 已配好 `@coss` 命名空间与 `@/` 别名）。
+- `src/components/app/`：只保留没有 coss 对应物的少数几个（EmptyState、Breadcrumb、SearchField、DatePicker、ConfirmDialog 等薄组合，以及 FormGrid、ScopeNote、useNotice、useDiscardGuard、Metric）。
+- `src/styles/tokens.css`：仍是唯一主题来源。品牌色板与离线字体经文件末尾的令牌桥映射到 coss 语义令牌；项目不导入 Tailwind preflight，base 层补齐了 coss 实际依赖的子集。
+- 新增依赖：`@daypicker/react`（coss Calendar）、`@tanstack/react-store`（由传递依赖转为直接依赖）。
+
+约定、coss 的已知契约与升级步骤见 [`docs/agents/frontend.md`](../docs/agents/frontend.md)，组件基线见 [DESIGN.md §18](../DESIGN.md)，改造记录见 [`docs/validation/portal-coss-ui-20261123.md`](../docs/validation/portal-coss-ui-20261123.md)。
+
 ## 核心路由
 
 - `/`：医院数据运营总览

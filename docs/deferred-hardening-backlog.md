@@ -1,5 +1,20 @@
 # 下一阶段备忘（深度测试 / 安全 / 生产加固）
 
+## 2026-11-24 门户改造为 coss ui · 状态更新
+
+- **改造完成，分支 `feat/portal-coss-ui` 20 个提交，本地未推送**（推送等用户明示）：有 coss 对应物的组件全部直接改用 coss 组件，手写组件层与旧快照已删。30 文件 / 122 例、双 QA、58 项路由检查、fe2–fe6 业务流、深色偏好模拟全过。记录见 [docs/validation/portal-coss-ui-20261123.md](validation/portal-coss-ui-20261123.md)。
+- **待用户裁决（不自行排期）**：
+  - 主从列表的选中项按钮（10 处）保留为自定义按钮——改用 coss `SidebarMenuButton` 需要每个页面测试包一层 `SidebarProvider`，且它们是内容区选择列表而非侧栏导航。
+  - 窄屏侧栏断点由 lg（1024px）变为 md（768px），跟随 coss Sidebar 约定。
+- **新增延后候选**：
+  - ① 体积：JS gzip 合计 331 KB → 490 KB（首屏入口块约 296 KB），CSS gzip 15.3 KB → 30.2 KB。来源是 Base UI 浮层族与 coss 组件的状态类字符串；可做的事有：不生成 `dark:` 变体、按路由拆出 Sidebar / Command 等非首屏依赖、给未用到的 coss 部件做按需裁剪。
+  - ② 开发工具链 6 条审计告警（`vitest`、`@vitest/mocker`、`vite`、`nanoid`、`source-map-js`、`undici`，2 moderate、4 high）：`main` 上同样存在，本次新增依赖无告警；`npm audit fix` 可修但会改动工具链版本，需单独一轮带全量验证。
+  - ③ coss 源码里的两处英文辅助文本（Toast 视口 `aria-label="Notifications"`、分页省略号读屏文本「More pages」）：不改 coss 源码，待上游或等有中文化方案。
+  - ④ 采集任务行菜单里的「归档」直接执行、没有后果确认（改造前即如此，与其它归档/删除动作不一致）。
+  - ⑤ 5 个页面各自定义了同构的 `Fact`（label / value）组件，可合并到 `components/app`。
+  - ⑥ 源表芯片与版本切换芯片的 `title` 提示仍是原生属性（逐项包 Tooltip 的成本高于收益）。
+- **验证口径补充**：业务流必须在全新 mock 上跑（控制面有状态），脚本化时用 `set -o pipefail`；`npm audit` 需指定官方源（项目配置的 npmmirror 不实现 audit 端点）。
+
 ## 2026-11-18 门户全站极简重设计 · 状态更新
 
 - 本地完成门户视觉统一及导航、严重度和键盘交互修正；类型检查、113 项前端测试、两项 QA、生产构建、29 路由双桌面宽度检查及 FE2–FE6 合成流程通过。真实接口不可用态和显式演示模式已分开检查；院内真实业务链未验收。
@@ -211,3 +226,4 @@
 - 2026-10-15（antd 迁移后 UI 自查修复轮）：浏览器全页走查（桌面浏览器 1440×900，16 页 + 抽屉/空态/chips/对话区交互实测）零 P0；修复 P1×2+P2×3 并部署 dev——① 运营中心/管理驾驶舱页头与表格裸 ISO 时间戳（含纳秒）统一 formatDateTime（根修一：`formatDateTime` 纳秒截断到毫秒再解析；根修二：`timestampPlaceholder` 只对 ISO 形态再格式化，防「09-21 12:52」被 Date 误解析为 2001 年——已浏览器实证回归）；② 运营中心跨域待办表与管理驾驶舱优先处理表列宽断字（严重度/类型/来源/更新时间给 width + nowrap）；③ 数据标准详情数据元表「必填/敏感级别」表头断字、标准映射「源字段」表头断字（补 width）；④ 前置机水位卡近 7 天全零时改显「近 7 天无入仓记录」（原为空白/地板高度假柱）；⑤ globals.css v1 令牌值整体重映射 v2 色板（令牌名不动、值换青蓝/中性系），全局 shell（侧栏/页头/横幅/责任链/趋势图）与 antd 内容区视觉统一。验证：tsc + vitest 36/36 + 双 qa + build 全绿；dev 产物四轮热更（index-CWUR_AW9.js 终态）。未提交 git，待用户验证。
 - 2026-10-15（redesign 技能审计收口轮）：用户触发 redesign-existing-projects 技能——六维设计审计（排版/色彩/布局/交互/代码质量/图标，explore 子代理全仓扫描）结论为基线健康，问题集中在 v1 色相残留。16 项定向修复全做并部署 dev：**A 入口**（移除无人使用的 Noto Serif SC 加载约 200KB、theme-color 过期色值更正、补 SVG favicon、--font-number 补 Windows 回退 Segoe UI/Roboto Condensed）；**B 色相统一**（v1 苔绿 rgba(46,118,105,*) 20 处→青蓝 rgba(14,116,144,*)、v1 深绿灰 rgba 族 12 处→zinc rgba(31,41,55,*)、平台运维告警条 v1 红/琥珀 rgba→v2、sqlPanel 深色块 #1f2b28→#1b2430 入 zinc 族、GovernanceTabs active 指示器归 --selection-mark、AppShell #1c2422 四处→var(--ink)）；**C 排版**（plannedLabel 10px 与登录脚注 11px 归 12px 地板、两处 font-weight:650 非标准值→600、侧栏图标 strokeWidth 1.5/1.65/1.7 三档统一 1.7）；**D 交互**（MetricStrip 可点卡片补 :active 按压、CommandPalette 选中项补 transition 消键盘瞬变、Toast 补退出动画（自动关闭 timer 从 App.tsx 移入组件以播完再卸载）、5 张接 apiState 的 antd Table 启用内建 loading）；**E 质量**（6 处抽屉标题内联样式抽 Pages.module.css 的 .drawerTitleText、死令牌 --shadow/--jade-deep/--ink-muted 清理）。明确不做：不换字体族（Noto Sans SC 中文正确解）、不抬 12px 正文地板、不动 pageFlow/apiStatus 顶距（有结构注释）、不换图标库/侧栏结构。验证：tsc + vitest 36/36 + 双 qa + build 全绿；dev 浏览器复核质量/数据服务页视觉统一。审计存留观察（不追）：antd Table 部分页面行高随内容两行撑高（内容驱动，非 token 失效）；数据服务页详情区 Table 无独立 loading 态变量可接（匿名 useApiResource）。
 - 2026-11-17（原型 v0.2 对齐审核修复轮）：全量视觉对齐审核后修复 8 项缺口——路由级脏退出守卫（useBlocker 拦侧栏/页签/浏览器返回，三编辑器接入，问数编辑器此前无守卫）、侧栏患者主索引待复核徽标、采集任务勾选列+批量启用/暂停（逐个单任务合同+Confirm）、资产导出目录 CSV（当前过滤口径）、数据源 Dialog 标题统一、placeholder 色值对齐、采集摘要第 4 卡改「最近 24h 失败」（docs/validation/design-alignment-fixes-20261117.md）。**明确不做并记录裁定**：侧栏「工作区选择器」——后端仅 institution_id 作用域键、无机构名称注册表、OIDC token 无组织 claim，实现即造样例（违反「不补样例」红线）；多工作区落地须先建机构注册表 + OIDC 组织 claim（后端事务，届时前端再接）。测试坑：qa/mock-control-plane 为内存有状态，browser-smoke --flows 复跑前须重启 mock（fe5 发布流会撞已发布态）。
+- 2026-11-24（门户改造为 coss ui）：有 coss 对应物的组件全部直接改用 coss 组件，手写组件层与旧快照退役；顺带修复结构化采集表单不随表单状态重渲染的存量缺陷（`useStore` 订阅 + 2 例回归）。30 文件 / 122 例、双 QA、58 项路由检查与 fe2–fe6 全过；分支 `feat/portal-coss-ui` 未推送（docs/validation/portal-coss-ui-20261123.md）。新增延后候选六项（体积、工具链审计告警、coss 英文辅助文本、归档无确认、Fact 重复、芯片 title）。
