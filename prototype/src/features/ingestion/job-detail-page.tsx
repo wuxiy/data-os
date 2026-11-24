@@ -1,6 +1,7 @@
 import { LoadingBlock } from '@/components/app/loading'
 import { StatusBadge } from '@/components/app/status-badge'
 import { Badge } from '@/components/ui/badge'
+import { FramePanel } from '@/components/ui/frame'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Activity, Archive, Copy, Pause, Play, RefreshCw, RotateCcw, Settings2, TriangleAlert } from 'lucide-react'
 import { useMemo, useState } from 'react'
@@ -8,7 +9,6 @@ import { useSearch } from '@tanstack/react-router'
 
 import { Button } from '@/components/ui/button'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
-import { Panel } from '../../components/kit/panel'
 import { Tabs, TabsList, TabsPanel, TabsTab } from '@/components/ui/tabs'
 import { EmptyState } from '@/components/app/empty-state'
 import { useNotice } from '@/components/app/notice'
@@ -101,14 +101,14 @@ export function JobDetailPage({ jobId }: { jobId: string }) {
 
   if (!job) {
     return (
-      <Panel>
+      <FramePanel className="p-0 overflow-clip">
         <EmptyState
           icon={<TriangleAlert />}
           title="采集任务不存在"
           description="该任务可能已被删除，或当前账号没有访问权限。"
           action={<Button variant="outline" onClick={() => navigate('/ingestion')}>返回数据接入</Button>}
         />
-      </Panel>
+      </FramePanel>
     )
   }
 
@@ -150,7 +150,7 @@ export function JobDetailPage({ jobId }: { jobId: string }) {
         }
       />
 
-      <Panel>
+      <FramePanel className="p-0 overflow-clip">
         <Tabs
           value={tab}
           onValueChange={(value) => goTab(value as DetailTab)}
@@ -226,7 +226,7 @@ export function JobDetailPage({ jobId }: { jobId: string }) {
             />
           </TabsPanel>
         </Tabs>
-      </Panel>
+      </FramePanel>
 
       <CopyJobDialog
         job={copyOpen ? job : null}

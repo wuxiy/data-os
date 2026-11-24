@@ -1,6 +1,7 @@
 import { TableSkeleton } from '@/components/app/table-skeleton'
 import { LoadingBlock } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
+import { FrameDescription, FrameHeader, FramePanel } from '@/components/ui/frame'
 import { DiscardPrompt, useDiscardGuard } from '@/components/app/discard-guard'
 import { Dialog, DialogClose, DialogDescription, DialogFooter, DialogHeader, DialogPanel, DialogPopup, DialogTitle } from '@/components/ui/dialog'
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -17,7 +18,6 @@ import { FormGrid } from '@/components/app/form-grid'
 import { SearchField } from '@/components/app/search-field'
 import { ConfirmDialog } from '@/components/app/confirm-dialog'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
-import { Panel, PanelHead } from '../../components/kit/panel'
 import { EmptyState } from '@/components/app/empty-state'
 import { DataTable, listColumnHelper } from '../../components/table/data-table'
 import { useNotice } from '@/components/app/notice'
@@ -207,15 +207,22 @@ export function DeliveryCenterPage() {
 
       {listRequest.isPending ? <LoadingBlock>正在读取交付项目…</LoadingBlock> : null}
       {listRequest.isError ? (
-        <Panel>
+        <FramePanel className="p-0 overflow-clip">
           <EmptyState minHeight={220} icon={<ShieldCheck />} title="交付服务暂不可用" description="控制面交付模块不可达；本页不显示静态回退。" action={<Button variant="outline" onClick={() => void listRequest.refetch()}>重试</Button>} />
-        </Panel>
+        </FramePanel>
       ) : null}
 
       {listRequest.isSuccess ? (
         <div className="grid grid-cols-[300px_minmax(0,1fr)] gap-3.5 max-[1100px]:grid-cols-1">
-          <Panel className="flex flex-col">
-            <PanelHead title="项目目录" count={projects.length} />
+          <FramePanel className="flex flex-col p-0 overflow-clip">
+            <FrameHeader className="px-[18px] pt-[18px] pb-3 gap-1">
+              <div className="min-w-0">
+                <h2 className="text-title font-semibold tracking-[-0.2px]">
+                  项目目录
+                  {projects.length !== undefined ? <Badge variant="outline">{projects.length}</Badge> : null}
+                </h2>
+              </div>
+            </FrameHeader>
             <div className="flex items-center gap-2 px-[18px] pb-2">
               <SearchField value={searchInput} onValueChange={setSearchInput} placeholder="搜索项目代码/名称/负责人" className="w-full" />
             </div>
@@ -245,16 +252,16 @@ export function DeliveryCenterPage() {
               })}
               {projects.length === 0 ? <li className="px-3 py-6 text-center text-label text-muted-foreground">{query ? '没有匹配的交付项目。' : '还没有交付项目。'}</li> : null}
             </ul>
-          </Panel>
+          </FramePanel>
 
           <div className="space-y-3.5">
             {!current ? (
-              <Panel>
+              <FramePanel className="p-0 overflow-clip">
                 <EmptyState minHeight={280} icon={<ShieldCheck />} title="还没有交付项目" description="创建项目后引用资产、看板、数据服务或 AI 产品，再提交验收。" action={<Button variant="outline" onClick={() => setCreateOpen(true)}>新建交付项目</Button>} />
-              </Panel>
+              </FramePanel>
             ) : (
               <>
-                <Panel>
+                <FramePanel className="p-0 overflow-clip">
                   <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line px-5 py-4">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
@@ -306,12 +313,20 @@ export function DeliveryCenterPage() {
                       </>
                     ) : null}
                   </div>
-                </Panel>
+                </FramePanel>
 
                 {detail ? (
                   <div className="grid grid-cols-2 gap-3.5 max-[1100px]:grid-cols-1">
-                    <Panel>
-                      <PanelHead title="证据快照" count={detail.snapshots.length} description="幂等：同一内容重复生成不产生新快照" />
+                    <FramePanel className="p-0 overflow-clip">
+                      <FrameHeader className="px-[18px] pt-[18px] pb-3 gap-1">
+                        <div className="min-w-0">
+                          <h2 className="text-title font-semibold tracking-[-0.2px]">
+                            证据快照
+                            {detail.snapshots.length !== undefined ? <Badge variant="outline">{detail.snapshots.length}</Badge> : null}
+                          </h2>
+                          <FrameDescription>幂等：同一内容重复生成不产生新快照</FrameDescription>
+                        </div>
+                      </FrameHeader>
                       <ol className="m-0 list-none px-4 pb-4">
                         {detail.snapshots.map((snap) => (
                           <li key={snap.id} className="border-b border-line-soft py-1.5 text-label last:border-b-0">
@@ -321,13 +336,21 @@ export function DeliveryCenterPage() {
                         ))}
                         {detail.snapshots.length === 0 ? <li className="py-2 text-label text-muted-foreground">还没有证据快照。</li> : null}
                       </ol>
-                    </Panel>
-                    <Panel>
-                      <PanelHead title="交付事件" count={detail.events.length} description="创建、引用、快照、提交与验收留痕" />
+                    </FramePanel>
+                    <FramePanel className="p-0 overflow-clip">
+                      <FrameHeader className="px-[18px] pt-[18px] pb-3 gap-1">
+                        <div className="min-w-0">
+                          <h2 className="text-title font-semibold tracking-[-0.2px]">
+                            交付事件
+                            {detail.events.length !== undefined ? <Badge variant="outline">{detail.events.length}</Badge> : null}
+                          </h2>
+                          <FrameDescription>创建、引用、快照、提交与验收留痕</FrameDescription>
+                        </div>
+                      </FrameHeader>
                       <div className="px-4 pb-4">
                         <DataTable columns={eventColumns} data={detail.events} getRowId={(event, index) => `${event.eventType}-${event.createdAt}-${index}`} empty={<p className="py-2 text-label text-muted-foreground">还没有事件。</p>} />
                       </div>
-                    </Panel>
+                    </FramePanel>
                   </div>
                 ) : null}
               </>

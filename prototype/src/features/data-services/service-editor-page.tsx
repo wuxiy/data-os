@@ -1,4 +1,5 @@
 import { Input } from '@/components/ui/input'
+import { FramePanel } from '@/components/ui/frame'
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CodeTextarea } from '@/components/app/code-textarea'
@@ -10,7 +11,6 @@ import { Button } from '@/components/ui/button'
 import { FormGrid } from '@/components/app/form-grid'
 
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
-import { Panel } from '../../components/kit/panel'
 import { useNotice } from '@/components/app/notice'
 import { createDataService } from '../../data/dataServicesApi'
 import { usePortalNavigate } from '../../app/navigate'
@@ -92,7 +92,7 @@ export function ServiceEditorPage() {
       />
 
       <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3.5 max-[1100px]:grid-cols-1">
-        <Panel>
+        <FramePanel className="p-0 overflow-clip">
           <div className="px-5 py-4">
             <Alert variant="info" role="note" className="mb-4">
               <ShieldCheck />
@@ -143,9 +143,9 @@ export function ServiceEditorPage() {
               <Input id="service-owner" value={form.owner} onChange={(event) => setForm({ ...form, owner: event.target.value })} placeholder="data-team" />
             </Field>
           </div>
-        </Panel>
+        </FramePanel>
 
-        <Panel>
+        <FramePanel className="p-0 overflow-clip">
           <div className="px-5 py-4">
             <Field className="mb-4">
               <FieldLabel>参数契约（JSON 数组）</FieldLabel>
@@ -173,7 +173,7 @@ export function ServiceEditorPage() {
               </div>
             </div>
           </div>
-        </Panel>
+        </FramePanel>
       </div>
     </div>
   )

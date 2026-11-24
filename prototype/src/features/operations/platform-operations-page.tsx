@@ -1,5 +1,6 @@
 import { LoadingBlock } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
+import { FrameDescription, FrameHeader, FramePanel } from '@/components/ui/frame'
 import { DiscardPrompt, useDiscardGuard } from '@/components/app/discard-guard'
 import { Drawer, DrawerClose, DrawerDescription, DrawerFooter, DrawerHeader, DrawerPanel, DrawerPopup, DrawerTitle } from '@/components/ui/drawer'
 import { Dialog, DialogClose, DialogDescription, DialogFooter, DialogHeader, DialogPanel, DialogPopup, DialogTitle } from '@/components/ui/dialog'
@@ -14,7 +15,6 @@ import { Button } from '@/components/ui/button'
 import { FormGrid } from '@/components/app/form-grid'
 import { ConfirmDialog } from '@/components/app/confirm-dialog'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
-import { Panel, PanelHead } from '../../components/kit/panel'
 import { EmptyState } from '@/components/app/empty-state'
 import { DataTable, listColumnHelper } from '../../components/table/data-table'
 import { useNotice } from '@/components/app/notice'
@@ -184,7 +184,7 @@ export function PlatformOperationsPage() {
       <div>
         <Breadcrumb items={[{ label: '平台管理' }, { label: '平台运维' }]} />
         <PageHeading title="平台运维" description="面向技术角色的组件状态与前置机登记。" />
-        <Panel>
+        <FramePanel className="p-0 overflow-clip">
           <EmptyState
             minHeight={240}
             icon={<LockKeyhole />}
@@ -192,7 +192,7 @@ export function PlatformOperationsPage() {
             description="当前身份未被授予技术域访问权限；如需排查，请联系平台管理员。"
             action={<Button variant="outline" onClick={() => navigate('/')}>返回总览</Button>}
           />
-        </Panel>
+        </FramePanel>
       </div>
     )
   }
@@ -210,12 +210,16 @@ export function PlatformOperationsPage() {
       {platformRequest.isPending ? <LoadingBlock>正在读取平台组件状态…</LoadingBlock> : null}
 
       {platform ? (
-        <Panel className="mb-3.5">
-          <PanelHead
-            title="核心链路"
-            description={`覆盖 ${platform.operational.ready}/${platform.operational.total} 组件 · 降级 ${platform.operational.degraded} · 未知 ${platform.operational.unknown}`}
-            actions={<Badge variant={platform.operational.state === 'READY' ? 'success' : platform.operational.state === 'DEGRADED' ? 'warning' : 'outline'}>{operationalLabel}</Badge>}
-          />
+        <FramePanel className="mb-3.5 p-0 overflow-clip">
+          <FrameHeader className="px-[18px] pt-[18px] pb-3 flex-row items-center justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="text-title font-semibold tracking-[-0.2px]">
+                核心链路
+              </h2>
+              <FrameDescription>{`覆盖 ${platform.operational.ready}/${platform.operational.total} 组件 · 降级 ${platform.operational.degraded} · 未知 ${platform.operational.unknown}`}</FrameDescription>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">{<Badge variant={platform.operational.state === 'READY' ? 'success' : platform.operational.state === 'DEGRADED' ? 'warning' : 'outline'}>{operationalLabel}</Badge>}</div>
+          </FrameHeader>
           <ul className="m-0 grid list-none grid-cols-3 gap-3 px-5 pb-4 max-[1100px]:grid-cols-1">
             {platform.services.map((service) => (
               <li key={service.key} className="rounded-control border border-line px-3 py-2.5">
@@ -229,16 +233,20 @@ export function PlatformOperationsPage() {
               </li>
             ))}
           </ul>
-        </Panel>
+        </FramePanel>
       ) : null}
 
-      <Panel className="mb-3.5">
-        <PanelHead
-          title="前置机节点"
-          count={nodes.length}
-          description="登记、探活与版本历史；凭据只以引用形式保存"
-          actions={<Button size="sm" onClick={openCreate}><Server size={13} />登记前置机</Button>}
-        />
+      <FramePanel className="mb-3.5 p-0 overflow-clip">
+        <FrameHeader className="px-[18px] pt-[18px] pb-3 flex-row items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="text-title font-semibold tracking-[-0.2px]">
+              前置机节点
+              {nodes.length !== undefined ? <Badge variant="outline">{nodes.length}</Badge> : null}
+            </h2>
+            <FrameDescription>登记、探活与版本历史；凭据只以引用形式保存</FrameDescription>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">{<Button size="sm" onClick={openCreate}><Server size={13} />登记前置机</Button>}</div>
+        </FrameHeader>
         <Alert variant="info" role="note" className="mb-4">
           <ShieldCheck />
           <AlertDescription>
@@ -263,10 +271,19 @@ export function PlatformOperationsPage() {
             />
           ) : null}
         </div>
-      </Panel>
+      </FramePanel>
 
-      <Panel>
-        <PanelHead title="采集水位" count={watermarksRequest.data?.tables.length} description="只读聚合：总行数、最近写入与近 7 日计数" actions={watermarksRequest.data ? <span className="text-meta text-muted-foreground">统计于 {formatDateTime(watermarksRequest.data.asOf)}</span> : null} />
+      <FramePanel className="p-0 overflow-clip">
+        <FrameHeader className="px-[18px] pt-[18px] pb-3 flex-row items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="text-title font-semibold tracking-[-0.2px]">
+              采集水位
+              {watermarksRequest.data?.tables.length !== undefined ? <Badge variant="outline">{watermarksRequest.data?.tables.length}</Badge> : null}
+            </h2>
+            <FrameDescription>只读聚合：总行数、最近写入与近 7 日计数</FrameDescription>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">{watermarksRequest.data ? <span className="text-meta text-muted-foreground">统计于 {formatDateTime(watermarksRequest.data.asOf)}</span> : null}</div>
+        </FrameHeader>
         <div className="px-4 pb-4">
           {watermarksRequest.isPending ? <LoadingBlock className="min-h-[140px]">正在读取水位…</LoadingBlock> : null}
           {watermarksRequest.isError ? (
@@ -284,7 +301,7 @@ export function PlatformOperationsPage() {
             />
           ) : null}
         </div>
-      </Panel>
+      </FramePanel>
 
       <Dialog open={formOpen} onOpenChange={guard.requestOpenChange}>
         <DialogPopup closeProps={{ 'aria-label': '关闭' }}>

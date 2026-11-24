@@ -1,6 +1,7 @@
 import { TableSkeleton } from '@/components/app/table-skeleton'
 import { LoadingBlock } from '@/components/app/loading'
 import { Badge } from '@/components/ui/badge'
+import { FrameDescription, FrameHeader, FramePanel } from '@/components/ui/frame'
 import { Tooltip, TooltipPopup, TooltipTrigger } from '@/components/ui/tooltip'
 import { Drawer, DrawerClose, DrawerDescription, DrawerFooter, DrawerHeader, DrawerPanel, DrawerPopup, DrawerTitle } from '@/components/ui/drawer'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -14,7 +15,6 @@ import { QueryBoundary } from '../app/query-boundary'
 import { Button } from '@/components/ui/button'
 import { SearchField } from '@/components/app/search-field'
 import { ConfirmDialog } from '@/components/app/confirm-dialog'
-import { Panel, PanelHead } from '../components/kit/panel'
 import { EmptyState } from '@/components/app/empty-state'
 import { DataTable, TablePagination, listColumnHelper } from '../components/table/data-table'
 import { formatDateTime } from '../data/domain'
@@ -174,7 +174,7 @@ function MpiWorkspace({ onNotice }: { onNotice: (message: string) => void }) {
       ) : null}
 
       {unavailable ? (
-        <Panel className="mb-3.5">
+        <FramePanel className="mb-3.5 p-0 overflow-clip">
           <EmptyState
             minHeight={200}
             icon={<CircleAlert />}
@@ -182,15 +182,23 @@ function MpiWorkspace({ onNotice }: { onNotice: (message: string) => void }) {
             description="当前页面不展示演示候选；请恢复 mpi-service 后重新加载。"
             action={<Button variant="outline" onClick={refreshQueue}>重新连接</Button>}
           />
-        </Panel>
+        </FramePanel>
       ) : null}
 
       {loading && !unavailable ? <LoadingBlock>正在读取复核队列与身份信息…</LoadingBlock> : null}
 
       {!loading && !unavailable ? (
         <div className="grid grid-cols-[300px_minmax(0,1fr)] gap-3.5 max-[1100px]:grid-cols-1">
-          <Panel className="flex flex-col">
-            <PanelHead title="候选队列" count={metricsRequest.data?.reviewPending ?? candidates.length} description="按规则评分降序" />
+          <FramePanel className="flex flex-col p-0 overflow-clip">
+            <FrameHeader className="px-[18px] pt-[18px] pb-3 gap-1">
+              <div className="min-w-0">
+                <h2 className="text-title font-semibold tracking-[-0.2px]">
+                  候选队列
+                  {metricsRequest.data?.reviewPending ?? candidates.length !== undefined ? <Badge variant="outline">{metricsRequest.data?.reviewPending ?? candidates.length}</Badge> : null}
+                </h2>
+                <FrameDescription>按规则评分降序</FrameDescription>
+              </div>
+            </FrameHeader>
             <div className="px-[18px] pb-2">
               <SearchField value={query} onValueChange={(value) => { setQuery(value); setPage(0) }} placeholder="姓名 / 卡号 / 规则（全队列检索）" label="搜索复核候选" className="w-full" />
             </div>
@@ -239,9 +247,9 @@ function MpiWorkspace({ onNotice }: { onNotice: (message: string) => void }) {
                 <RefreshCw size={13} className={rebuild.isPending ? 'animate-spin' : undefined} />{rebuild.isPending ? '重算中…' : '重算主索引'}
               </Button>
             </div>
-          </Panel>
+          </FramePanel>
 
-          <Panel>
+          <FramePanel className="p-0 overflow-clip">
             {selected ? (
               <>
                 <div className="border-b border-line px-5 py-4">
@@ -315,7 +323,7 @@ function MpiWorkspace({ onNotice }: { onNotice: (message: string) => void }) {
             ) : (
               <EmptyState minHeight={360} icon={<ShieldCheck />} title="当前没有待复核候选" description="点击左侧「重算主索引」装载最新数据，或用搜索定位历史候选。" />
             )}
-          </Panel>
+          </FramePanel>
         </div>
       ) : null}
 

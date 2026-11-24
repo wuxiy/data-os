@@ -1,6 +1,7 @@
 import { TableSkeleton } from '@/components/app/table-skeleton'
 import { LoadingBlock } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
+import { FrameDescription, FrameHeader, FramePanel } from '@/components/ui/frame'
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { Badge } from '@/components/ui/badge'
@@ -13,7 +14,6 @@ import { useMemo, useState, type FormEvent } from 'react'
 import { QueryBoundary } from '../app/query-boundary'
 
 import { Button } from '@/components/ui/button'
-import { Panel, PanelHead } from '../components/kit/panel'
 import { EmptyState } from '@/components/app/empty-state'
 import { DataTable, listColumnHelper } from '../components/table/data-table'
 import {
@@ -144,7 +144,7 @@ function AssistantWorkspace({
 
   if (questionsRequest.isError) {
     return (
-      <Panel>
+      <FramePanel className="p-0 overflow-clip">
         <EmptyState
           minHeight={240}
           icon={<MessageSquareText />}
@@ -152,7 +152,7 @@ function AssistantWorkspace({
           description="暂时无法读取已验证问题。可重新读取；持续失败时请联系平台运维核对服务连接。"
           action={<Button variant="outline" onClick={() => void questionsRequest.refetch()}>重新读取问题</Button>}
         />
-      </Panel>
+      </FramePanel>
     )
   }
 
@@ -161,8 +161,16 @@ function AssistantWorkspace({
   return (
     <div className="space-y-3.5">
       <div className="grid grid-cols-[280px_minmax(0,1fr)_300px] gap-3.5 max-[1320px]:grid-cols-[260px_minmax(0,1fr)] max-[1100px]:grid-cols-1">
-        <Panel className="flex flex-col">
-          <PanelHead title="已验证问题" count={questions.length} description={professional ? '专业模式 · 受控只读' : '问数面只列已发布问题'} />
+        <FramePanel className="flex flex-col p-0 overflow-clip">
+          <FrameHeader className="px-[18px] pt-[18px] pb-3 gap-1">
+            <div className="min-w-0">
+              <h2 className="text-title font-semibold tracking-[-0.2px]">
+                已验证问题
+                {questions.length !== undefined ? <Badge variant="outline">{questions.length}</Badge> : null}
+              </h2>
+              <FrameDescription>{professional ? '专业模式 · 受控只读' : '问数面只列已发布问题'}</FrameDescription>
+            </div>
+          </FrameHeader>
           {questionsRequest.isPending ? <div className="px-4 pb-3"><TableSkeleton rows={3} /></div> : null}
           <ul className="m-0 min-h-0 flex-1 list-none px-2 pb-2">
             {questions.map((question) => (
@@ -184,9 +192,9 @@ function AssistantWorkspace({
           <div className="border-t border-line px-3 py-2 text-meta leading-relaxed text-muted-foreground">
             同义表达命中同一问题代码；未知问题明确拒答，不生成任意 SQL。
           </div>
-        </Panel>
+        </FramePanel>
 
-        <Panel className="flex flex-col">
+        <FramePanel className="flex flex-col p-0 overflow-clip">
           <div className="flex items-center justify-between border-b border-line px-4 py-2.5">
             <div className="flex items-center gap-2">
               <span className="flex size-7 items-center justify-center rounded-chip bg-blue-soft text-blue"><MessageSquareText size={15} /></span>
@@ -365,13 +373,17 @@ function AssistantWorkspace({
             </div>
             <p className="mt-1.5 text-meta text-muted-foreground">回答来自已发布数据服务的受限执行；重要结论请结合口径与数据时间复核。</p>
           </form>
-        </Panel>
+        </FramePanel>
 
-        <Panel className="max-[1320px]:col-span-2 max-[1100px]:col-span-1">
-          <PanelHead
-            title="回答证据"
-            actions={<Badge variant={answer?.answered ? 'success' : answer ? 'warning' : 'outline'}>{answer?.answered ? '可复核' : answer ? '拒答留痕' : asking ? '执行中' : ask.isError ? '查询未完成' : '待提问'}</Badge>}
-          />
+        <FramePanel className="max-[1320px]:col-span-2 max-[1100px]:col-span-1 p-0 overflow-clip">
+          <FrameHeader className="px-[18px] pt-[18px] pb-3 flex-row items-center justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="text-title font-semibold tracking-[-0.2px]">
+                回答证据
+              </h2>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">{<Badge variant={answer?.answered ? 'success' : answer ? 'warning' : 'outline'}>{answer?.answered ? '可复核' : answer ? '拒答留痕' : asking ? '执行中' : ask.isError ? '查询未完成' : '待提问'}</Badge>}</div>
+          </FrameHeader>
           <div className="px-4 pb-4">
             <div className="mb-3 flex items-center gap-2 rounded-control border border-line bg-wash px-3 py-2">
               <span className="flex size-7 items-center justify-center rounded-chip bg-paper text-blue"><MessageSquareText size={15} /></span>
@@ -393,7 +405,7 @@ function AssistantWorkspace({
               查询由受控服务执行；助手不能修改标准、质量规则、主数据或源系统。
             </div>
           </div>
-        </Panel>
+        </FramePanel>
       </div>
 
       {professional && governance ? <AssistantGovernanceSection onNotice={onNotice} /> : null}

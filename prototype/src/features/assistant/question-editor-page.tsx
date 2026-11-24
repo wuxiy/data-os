@@ -1,5 +1,6 @@
 import { LoadingBlock } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
+import { FramePanel } from '@/components/ui/frame'
 import { Tooltip, TooltipPopup, TooltipTrigger } from '@/components/ui/tooltip'
 import { Checkbox } from '@/components/ui/checkbox'
 import { DatePicker } from '@/components/app/date-picker'
@@ -18,7 +19,6 @@ import { Button } from '@/components/ui/button'
 import { FormGrid } from '@/components/app/form-grid'
 import { ConfirmDialog } from '@/components/app/confirm-dialog'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
-import { Panel, PanelHead } from '../../components/kit/panel'
 import { Tabs, TabsList, TabsPanel, TabsTab } from '@/components/ui/tabs'
 import { EmptyState } from '@/components/app/empty-state'
 import { DataTable, listColumnHelper } from '../../components/table/data-table'
@@ -197,14 +197,14 @@ export function QuestionEditorPage({ questionCode }: { questionCode?: string }) 
   if (questionCode && questionsRequest.isPending) return <LoadingBlock>正在读取问题…</LoadingBlock>
   if (questionCode && questionsRequest.isSuccess && !question) {
     return (
-      <Panel>
+      <FramePanel className="p-0 overflow-clip">
         <EmptyState
           icon={<ShieldQuestion />}
           title="问题不存在"
           description="该问题可能已被删除，或当前账号没有治理权限。"
           action={<Button variant="outline" onClick={() => navigate('/assistant/workspace')}>返回问数工作区</Button>}
         />
-      </Panel>
+      </FramePanel>
     )
   }
 
@@ -229,7 +229,7 @@ export function QuestionEditorPage({ questionCode }: { questionCode?: string }) 
         }
       />
 
-      <Panel>
+      <FramePanel className="p-0 overflow-clip">
         <Tabs
           value={tab}
           onValueChange={(value) => goTab(value as TabValue)}
@@ -446,7 +446,7 @@ export function QuestionEditorPage({ questionCode }: { questionCode?: string }) 
             )}
           </TabsPanel>
         </Tabs>
-      </Panel>
+      </FramePanel>
 
       <ConfirmDialog
         open={confirmDelete}

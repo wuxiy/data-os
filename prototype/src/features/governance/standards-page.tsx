@@ -1,5 +1,6 @@
 import { LoadingBlock, LoadingInline } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
+import { FrameDescription, FrameHeader, FramePanel } from '@/components/ui/frame'
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -15,7 +16,6 @@ import { Button } from '@/components/ui/button'
 import { FormGrid } from '@/components/app/form-grid'
 import { SearchField } from '@/components/app/search-field'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
-import { Panel, PanelHead } from '../../components/kit/panel'
 import { EmptyState } from '@/components/app/empty-state'
 import { DataTable, TablePagination, listColumnHelper } from '../../components/table/data-table'
 import { useNotice } from '@/components/app/notice'
@@ -249,8 +249,16 @@ export function StandardsPage() {
         actions={<Button variant="outline" onClick={() => navigate('/governance/quality')}>返回治理</Button>}
       />
 
-      <Panel className="mb-3.5">
-        <PanelHead title="标准清单" count={items.length} description="草稿 → 评审 → 发布；选择标准后查看版本与数据元" />
+      <FramePanel className="mb-3.5 p-0 overflow-clip">
+        <FrameHeader className="px-[18px] pt-[18px] pb-3 gap-1">
+          <div className="min-w-0">
+            <h2 className="text-title font-semibold tracking-[-0.2px]">
+              标准清单
+              {items.length !== undefined ? <Badge variant="outline">{items.length}</Badge> : null}
+            </h2>
+            <FrameDescription>草稿 → 评审 → 发布；选择标准后查看版本与数据元</FrameDescription>
+          </div>
+        </FrameHeader>
         <div className="flex items-center gap-2 px-[18px] pb-3">
           <SearchField value={keyword} onValueChange={(value) => { setKeyword(value); setPage(0) }} placeholder="搜索标准代码或名称" />
           <Select
@@ -281,29 +289,33 @@ export function StandardsPage() {
           empty={<EmptyState minHeight={200} title={keyword || statusFilter ? '没有匹配的标准' : '还没有数据标准'} description={keyword || statusFilter ? '请调整关键词或清除筛选。' : '在下方导入内容，预检通过后创建草稿。'} />}
           footer={<TablePagination page={currentPage} pageSize={8} total={items.length} onPageChange={setPage} label="标准清单分页" />}
         />
-      </Panel>
+      </FramePanel>
 
       {listRequest.isError ? (
-        <Panel className="mb-3.5">
+        <FramePanel className="mb-3.5 p-0 overflow-clip">
           <EmptyState minHeight={200} title="控制面暂不可用" description="暂时无法读取标准清单。恢复连接后，可继续查看版本、评审记录与影响范围。" action={<Button variant="outline" size="sm" onClick={() => void listRequest.refetch()}>重试</Button>} />
-        </Panel>
+        </FramePanel>
       ) : null}
 
       {selectedId && detailRequest.isPending ? <LoadingBlock>正在读取标准详情…</LoadingBlock> : null}
       {detailRequest.isError ? (
-        <Panel className="mb-3.5">
+        <FramePanel className="mb-3.5 p-0 overflow-clip">
           <EmptyState minHeight={180} title="标准详情读取失败" description="标准清单仍可使用。请重试读取所选标准的版本与数据元。" action={<Button variant="outline" size="sm" onClick={() => void detailRequest.refetch()}>重试详情</Button>} />
-        </Panel>
+        </FramePanel>
       ) : null}
 
       {detail && version ? (
         <div className="mb-3.5 grid grid-cols-[minmax(0,1fr)_300px] gap-3.5 max-[1100px]:grid-cols-1">
-          <Panel>
-            <PanelHead
-              title={detail.standard.name}
-              description={`${detail.standard.code} · ${detail.standard.owner || '未指定负责人'}`}
-              actions={<Button variant="outline" size="sm" disabled={busy} onClick={() => createDraft.mutate()}><GitCompareArrows size={14} />基于当前版本新建草稿</Button>}
-            />
+          <FramePanel className="p-0 overflow-clip">
+            <FrameHeader className="px-[18px] pt-[18px] pb-3 flex-row items-center justify-between gap-3">
+              <div className="min-w-0">
+                <h2 className="text-title font-semibold tracking-[-0.2px]">
+                  {detail.standard.name}
+                </h2>
+                <FrameDescription>{`${detail.standard.code} · ${detail.standard.owner || '未指定负责人'}`}</FrameDescription>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">{<Button variant="outline" size="sm" disabled={busy} onClick={() => createDraft.mutate()}><GitCompareArrows size={14} />基于当前版本新建草稿</Button>}</div>
+            </FrameHeader>
             <div className="px-[18px] pb-3">
               <div className="flex flex-wrap items-center gap-2 text-label text-muted-foreground">
                 <strong className="text-body-sm text-ink-soft">当前查看 v{version.versionNo}</strong>
@@ -441,10 +453,17 @@ export function StandardsPage() {
                 </Alert>
               ) : null}
             </div>
-          </Panel>
+          </FramePanel>
 
-          <Panel>
-            <PanelHead title="审计事件" description="当前标准 · 最近 20 条" />
+          <FramePanel className="p-0 overflow-clip">
+            <FrameHeader className="px-[18px] pt-[18px] pb-3 gap-1">
+              <div className="min-w-0">
+                <h2 className="text-title font-semibold tracking-[-0.2px]">
+                  审计事件
+                </h2>
+                <FrameDescription>当前标准 · 最近 20 条</FrameDescription>
+              </div>
+            </FrameHeader>
             <ol className="m-0 list-none px-4 pb-4">
               {detail.events.map((event) => (
                 <li key={event.id} className="border-b border-line-soft py-2 last:border-b-0">
@@ -458,12 +477,19 @@ export function StandardsPage() {
               ))}
               {detail.events.length === 0 ? <li className="py-4 text-center text-label text-muted-foreground">暂无事件。</li> : null}
             </ol>
-          </Panel>
+          </FramePanel>
         </div>
       ) : null}
 
-      <Panel>
-        <PanelHead title="导入标准" description="粘贴 CSV 或 JSON → 预检内容 → 确认创建草稿" />
+      <FramePanel className="p-0 overflow-clip">
+        <FrameHeader className="px-[18px] pt-[18px] pb-3 gap-1">
+          <div className="min-w-0">
+            <h2 className="text-title font-semibold tracking-[-0.2px]">
+              导入标准
+            </h2>
+            <FrameDescription>粘贴 CSV 或 JSON → 预检内容 → 确认创建草稿</FrameDescription>
+          </div>
+        </FrameHeader>
         <div className="px-5 pb-5">
           <Field className="mb-4">
             <FieldLabel>导入内容</FieldLabel>
@@ -499,7 +525,7 @@ export function StandardsPage() {
             </div>
           ) : null}
         </div>
-      </Panel>
+      </FramePanel>
     </div>
   )
 }

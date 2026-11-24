@@ -1,11 +1,11 @@
 import { LoadingBlock } from '@/components/app/loading'
 import { Badge } from '@/components/ui/badge'
+import { FrameDescription, FrameHeader, FramePanel } from '@/components/ui/frame'
 import { Tooltip, TooltipPopup, TooltipTrigger } from '@/components/ui/tooltip'
 import { useQuery } from '@tanstack/react-query'
 import { Gauge, Settings2 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
-import { Panel, PanelHead } from '../../components/kit/panel'
 import { DataTable, listColumnHelper } from '../../components/table/data-table'
 
 import { QUALITY_RULE_TYPE_LABELS, type QualityScoreSummary } from '../../data/controlPlane'
@@ -66,17 +66,19 @@ export function QualityScorePanel({ compact = false }: { compact?: boolean }) {
   const noScoredRules = Boolean(summary && summary.rules.every((rule) => rule.score == null))
 
   return (
-    <Panel>
-      <PanelHead
-        title="质量评分"
-        description="按最近一次有效运行评分；未完成运行的规则不计入总分"
-        actions={
-          <>
+    <FramePanel className="p-0 overflow-clip">
+      <FrameHeader className="px-[18px] pt-[18px] pb-3 flex-row items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-title font-semibold tracking-[-0.2px]">
+            质量评分
+          </h2>
+          <FrameDescription>按最近一次有效运行评分；未完成运行的规则不计入总分</FrameDescription>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">{          <>
             {summary ? <span className="text-meta text-muted-foreground">标准更新：{formatDateTime(summary.standard.updatedAt)}</span> : null}
             <Button variant="outline" size="sm" onClick={() => navigate('/governance/quality/scoring')}><Settings2 size={13} />评分标准</Button>
-          </>
-        }
-      />
+          </>}</div>
+      </FrameHeader>
 
       {query.isPending ? <LoadingBlock className="min-h-[160px]">正在读取质量评分…</LoadingBlock> : null}
       {query.isError ? (
@@ -132,6 +134,6 @@ export function QualityScorePanel({ compact = false }: { compact?: boolean }) {
           />
         </>
       ) : null}
-    </Panel>
+    </FramePanel>
   )
 }

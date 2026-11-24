@@ -1,13 +1,13 @@
 import { TableSkeleton } from '@/components/app/table-skeleton'
 import { LoadingBlock } from '@/components/app/loading'
 import { Badge } from '@/components/ui/badge'
+import { FrameDescription, FrameHeader, FramePanel } from '@/components/ui/frame'
 import { useQuery } from '@tanstack/react-query'
 import { Activity, ChevronRight, CloudCog, Inbox, RefreshCw } from 'lucide-react'
 import { useMemo } from 'react'
 
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { MetricCard, MetricStrip } from '../../components/app/metric'
-import { Panel, PanelHead } from '../../components/kit/panel'
 
 import { Button } from '@/components/ui/button'
 import { DataTable, listColumnHelper } from '../../components/table/data-table'
@@ -201,13 +201,17 @@ export function OverviewPage() {
       </section>
 
       <div className="grid grid-cols-[minmax(0,1.8fr)_minmax(280px,1fr)] gap-[18px] max-[1100px]:grid-cols-1">
-        <Panel>
-          <PanelHead
-            title="优先处理"
-            count={workItemsQuery.data?.length}
-            description="按严重度排序 · 完整清单在运营中心"
-            actions={<Button variant="link" onClick={() => navigate('/operations-center')}>查看全部<ChevronRight size={13} /></Button>}
-          />
+        <FramePanel className="p-0 overflow-clip">
+          <FrameHeader className="px-[18px] pt-[18px] pb-3 flex-row items-center justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="text-title font-semibold tracking-[-0.2px]">
+                优先处理
+                {workItemsQuery.data?.length !== undefined ? <Badge variant="outline">{workItemsQuery.data?.length}</Badge> : null}
+              </h2>
+              <FrameDescription>按严重度排序 · 完整清单在运营中心</FrameDescription>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">{<Button variant="link" onClick={() => navigate('/operations-center')}>查看全部<ChevronRight size={13} /></Button>}</div>
+          </FrameHeader>
           <DataTable
             columns={workItemColumns}
             data={topItems}
@@ -219,10 +223,18 @@ export function OverviewPage() {
               ? <EmptyState minHeight={220} icon={<CloudCog />} title="运营待办投影暂不可用" description="可以重新加载；本页不显示静态回退。" action={<Button variant="outline" onClick={() => void workItemsQuery.refetch()}>重新加载</Button>} />
               : <EmptyState minHeight={220} icon={<Inbox />} title="当前没有待处理的跨域事项" description="待办来自各业务域的真实记录。" />}
           />
-        </Panel>
+        </FramePanel>
 
-        <Panel>
-          <PanelHead title="最近事件" description="跨域操作留痕" actions={<span className="text-label text-muted-foreground">近 48 小时</span>} />
+        <FramePanel className="p-0 overflow-clip">
+          <FrameHeader className="px-[18px] pt-[18px] pb-3 flex-row items-center justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="text-title font-semibold tracking-[-0.2px]">
+                最近事件
+              </h2>
+              <FrameDescription>跨域操作留痕</FrameDescription>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">{<span className="text-label text-muted-foreground">近 48 小时</span>}</div>
+          </FrameHeader>
           <div className="px-5 pb-5" aria-busy={eventsQuery.isPending}>
             {eventsQuery.isPending ? <LoadingBlock className="min-h-[160px]">正在读取事件…</LoadingBlock> : null}
             {eventsQuery.isError ? (
@@ -246,7 +258,7 @@ export function OverviewPage() {
             </ol>
             <p className="mt-3 flex items-center gap-1.5 border-t border-line pt-3 text-meta text-muted-foreground"><CloudCog size={13} />事件与待办同源于运营投影，两处口径一致。</p>
           </div>
-        </Panel>
+        </FramePanel>
       </div>
     </div>
   )

@@ -1,5 +1,6 @@
 import { LoadingBlock } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
+import { FramePanel } from '@/components/ui/frame'
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -13,7 +14,6 @@ import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { FormGrid } from '@/components/app/form-grid'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
-import { Panel } from '../../components/kit/panel'
 import { EmptyState } from '@/components/app/empty-state'
 import { useNotice } from '@/components/app/notice'
 import {
@@ -106,14 +106,14 @@ export function RuleEditorPage({ ruleId }: { ruleId?: string }) {
   if (ruleId && rulesRequest.isPending) return <LoadingBlock>正在读取规则…</LoadingBlock>
   if (ruleId && rulesRequest.isSuccess && !existing) {
     return (
-      <Panel>
+      <FramePanel className="p-0 overflow-clip">
         <EmptyState
           icon={<Shield />}
           title="质量规则不存在"
           description="该规则可能已被删除，或当前账号没有访问权限。"
           action={<Button variant="outline" onClick={() => navigate('/governance/quality')}>返回质量工作台</Button>}
         />
-      </Panel>
+      </FramePanel>
     )
   }
 
@@ -136,7 +136,7 @@ export function RuleEditorPage({ ruleId }: { ruleId?: string }) {
         actions={<Button variant="outline" onClick={() => navigate('/governance/quality')}>返回</Button>}
       />
 
-      <Panel className="max-w-[880px]">
+      <FramePanel className="max-w-[880px] p-0 overflow-clip">
         <div className="px-6 py-5">
           <Alert variant="info" role="note" className="mb-4">
             <Shield />
@@ -485,7 +485,7 @@ export function RuleEditorPage({ ruleId }: { ruleId?: string }) {
             </div>
           </div>
         </div>
-      </Panel>
+      </FramePanel>
 
       {guard}
     </div>

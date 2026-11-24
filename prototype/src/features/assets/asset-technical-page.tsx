@@ -1,5 +1,6 @@
 import { LoadingBlock } from '@/components/app/loading'
 import { Badge } from '@/components/ui/badge'
+import { FrameDescription, FrameHeader, FramePanel } from '@/components/ui/frame'
 import { Tooltip, TooltipPopup, TooltipTrigger } from '@/components/ui/tooltip'
 import { useQuery } from '@tanstack/react-query'
 import { useSearch } from '@tanstack/react-router'
@@ -9,7 +10,6 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { SearchField } from '@/components/app/search-field'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
-import { Panel, PanelHead } from '../../components/kit/panel'
 import { EmptyState } from '@/components/app/empty-state'
 import { DataTable, TablePagination, listColumnHelper } from '../../components/table/data-table'
 import { formatDateTime } from '../../data/domain'
@@ -69,8 +69,15 @@ export function AssetTechnicalPage() {
           description="面向数据开发与运维人员的结构、血缘和同步证据；业务定义仍以资产详情为准。"
           actions={<Button variant="outline" onClick={() => navigate('/assets')}>返回资产目录</Button>}
         />
-        <Panel>
-          <PanelHead title="选择资产" description={catalogRequest.data ? `${lineageSchemaLabel(catalogRequest.data.schema)} · ${pickerAssets.length} 项` : '按库浏览已摄取资产'} />
+        <FramePanel className="p-0 overflow-clip">
+          <FrameHeader className="px-[18px] pt-[18px] pb-3 gap-1">
+            <div className="min-w-0">
+              <h2 className="text-title font-semibold tracking-[-0.2px]">
+                选择资产
+              </h2>
+              <FrameDescription>{catalogRequest.data ? `${lineageSchemaLabel(catalogRequest.data.schema)} · ${pickerAssets.length} 项` : '按库浏览已摄取资产'}</FrameDescription>
+            </div>
+          </FrameHeader>
           <div className="px-[18px] pb-3">
             <SearchField value={keyword} onValueChange={(value) => { setKeyword(value); setPage(0) }} placeholder="搜索表名或全限定名" />
           </div>
@@ -99,7 +106,7 @@ export function AssetTechnicalPage() {
               <TablePagination page={currentPage} pageSize={10} total={pickerAssets.length} onPageChange={setPage} label="资产选择分页" />
             </>
           ) : null}
-        </Panel>
+        </FramePanel>
       </div>
     )
   }
@@ -119,7 +126,7 @@ export function AssetTechnicalPage() {
 
       {detailRequest.isPending ? <LoadingBlock>正在读取技术元数据…</LoadingBlock> : null}
       {detailRequest.isError ? (
-        <Panel>
+        <FramePanel className="p-0 overflow-clip">
           <EmptyState
             minHeight={220}
             icon={<TableProperties />}
@@ -127,12 +134,12 @@ export function AssetTechnicalPage() {
             description="当前资产的结构或血缘读取失败。可重新读取，或返回资产目录确认当前资产。"
             action={<div className="flex gap-2"><Button variant="outline" onClick={() => void detailRequest.refetch()}>重新读取</Button><Button variant="outline" onClick={() => navigate('/assets')}>返回资产目录</Button></div>}
           />
-        </Panel>
+        </FramePanel>
       ) : null}
 
       {detail ? (
         <div className="space-y-3.5">
-          <Panel>
+          <FramePanel className="p-0 overflow-clip">
             <div className="flex flex-wrap items-start justify-between gap-4 px-5 py-4">
               <div className="flex items-start gap-3">
                 <span className="flex size-9 items-center justify-center rounded-panel border border-line bg-wash text-muted-foreground"><TableProperties size={18} /></span>
@@ -150,18 +157,33 @@ export function AssetTechnicalPage() {
               <Fact label="字段数量" value={String(detail.columns.length)} hint="无数据采样" />
               <Fact label="最近更新" value={detail.updatedAt ? formatDateTime(detail.updatedAt) : '—'} hint="元数据中心摄取时间" />
             </dl>
-          </Panel>
+          </FramePanel>
 
           <div className="grid grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] gap-3.5 max-[1100px]:grid-cols-1">
-            <Panel>
-              <PanelHead title="字段结构" description="物理字段、类型与业务说明" actions={<Rows3 size={16} className="text-muted-foreground" />} />
+            <FramePanel className="p-0 overflow-clip">
+              <FrameHeader className="px-[18px] pt-[18px] pb-3 flex-row items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <h2 className="text-title font-semibold tracking-[-0.2px]">
+                    字段结构
+                  </h2>
+                  <FrameDescription>物理字段、类型与业务说明</FrameDescription>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">{<Rows3 size={16} className="text-muted-foreground" />}</div>
+              </FrameHeader>
               <div className="px-5 pb-5">
                 <DataTable columns={columns} data={detail.columns} getRowId={(column) => column.name} empty={<p className="py-3 text-label text-muted-foreground">当前资产尚无字段结构。</p>} />
               </div>
-            </Panel>
+            </FramePanel>
 
-            <Panel>
-              <PanelHead title="血缘与列级映射" description="上下游对象与声明式列映射" />
+            <FramePanel className="p-0 overflow-clip">
+              <FrameHeader className="px-[18px] pt-[18px] pb-3 gap-1">
+                <div className="min-w-0">
+                  <h2 className="text-title font-semibold tracking-[-0.2px]">
+                    血缘与列级映射
+                  </h2>
+                  <FrameDescription>上下游对象与声明式列映射</FrameDescription>
+                </div>
+              </FrameHeader>
               <div className="px-5 pb-5">
                 {lineageRequest.isPending ? <LoadingBlock className="min-h-[160px]">正在读取血缘…</LoadingBlock> : null}
                 {lineageRequest.isError ? (
@@ -185,7 +207,7 @@ export function AssetTechnicalPage() {
                   </>
                 ) : null}
               </div>
-            </Panel>
+            </FramePanel>
           </div>
         </div>
       ) : null}

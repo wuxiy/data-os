@@ -1,6 +1,7 @@
 import { TableSkeleton } from '@/components/app/table-skeleton'
 import { LoadingBlock } from '@/components/app/loading'
 import { Badge } from '@/components/ui/badge'
+import { FrameDescription, FrameHeader, FramePanel } from '@/components/ui/frame'
 import { useQuery } from '@tanstack/react-query'
 import { ChartNoAxesCombined, RefreshCw, ShieldCheck } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -9,7 +10,6 @@ import { embedDashboard } from '@superset-ui/embedded-sdk'
 import { Button } from '@/components/ui/button'
 import { SearchField } from '@/components/app/search-field'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
-import { Panel, PanelHead } from '../../components/kit/panel'
 import { EmptyState } from '@/components/app/empty-state'
 import { TablePagination } from '../../components/table/data-table'
 import { useNotice } from '@/components/app/notice'
@@ -98,21 +98,28 @@ export function AnalyticsPage() {
 
       {catalogRequest.isPending ? <LoadingBlock>正在读取已授权看板…</LoadingBlock> : null}
       {catalogRequest.isError ? (
-        <Panel>
+        <FramePanel className="p-0 overflow-clip">
           <EmptyState minHeight={240} icon={<ChartNoAxesCombined />} title="分析看板暂不可用" description="暂时无法读取看板目录。可重新读取；持续不可用时请联系平台运维核对服务连接。" action={<Button variant="outline" onClick={() => void catalogRequest.refetch()}>重新读取</Button>} />
-        </Panel>
+        </FramePanel>
       ) : null}
 
       {catalogRequest.isSuccess && dashboards.length === 0 ? (
-        <Panel>
+        <FramePanel className="p-0 overflow-clip">
           <EmptyState minHeight={240} icon={<ChartNoAxesCombined />} title="暂无已授权看板" description="当前账号没有可查看的已发布看板。请联系分析负责人核对发布与授权范围。" />
-        </Panel>
+        </FramePanel>
       ) : null}
 
       {dashboards.length > 0 ? (
         <div className="grid grid-cols-[280px_minmax(0,1fr)_280px] gap-3.5 max-[1320px]:grid-cols-[260px_minmax(0,1fr)] max-[1100px]:grid-cols-1">
-          <Panel className="flex flex-col">
-            <PanelHead title="已授权看板" count={visible.length} />
+          <FramePanel className="flex flex-col p-0 overflow-clip">
+            <FrameHeader className="px-[18px] pt-[18px] pb-3 gap-1">
+              <div className="min-w-0">
+                <h2 className="text-title font-semibold tracking-[-0.2px]">
+                  已授权看板
+                  {visible.length !== undefined ? <Badge variant="outline">{visible.length}</Badge> : null}
+                </h2>
+              </div>
+            </FrameHeader>
             <div className="px-[18px] pb-2"><SearchField value={keyword} onValueChange={(value) => { setKeyword(value); setPage(0) }} placeholder="搜索看板名称" className="w-full" /></div>
             <ul className="m-0 min-h-0 flex-1 list-none px-2 pb-2">
               {visible.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE).map((dashboard) => {
@@ -141,9 +148,9 @@ export function AnalyticsPage() {
             <div className="border-t border-line px-2">
               <TablePagination compact page={currentPage} pageSize={PAGE_SIZE} total={visible.length} onPageChange={setPage} label="分析看板目录分页" className="border-t-0 px-1" />
             </div>
-          </Panel>
+          </FramePanel>
 
-          <Panel>
+          <FramePanel className="p-0 overflow-clip">
             <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line px-5 py-4">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
@@ -166,10 +173,17 @@ export function AnalyticsPage() {
             ) : null}
             {embedState === 'mounting' ? <div className="px-5 py-3"><TableSkeleton rows={4} /></div> : null}
             <div ref={mountRef} className="min-h-[520px] px-2 pb-3" aria-label="嵌入式分析仪表盘" data-embed-state={embedState} />
-          </Panel>
+          </FramePanel>
 
-          <Panel className="max-[1320px]:col-span-2 max-[1100px]:col-span-1">
-            <PanelHead title="访问证据" actions={<Badge variant="outline">受控只读</Badge>} />
+          <FramePanel className="max-[1320px]:col-span-2 max-[1100px]:col-span-1 p-0 overflow-clip">
+            <FrameHeader className="px-[18px] pt-[18px] pb-3 flex-row items-center justify-between gap-3">
+              <div className="min-w-0">
+                <h2 className="text-title font-semibold tracking-[-0.2px]">
+                  访问证据
+                </h2>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">{<Badge variant="outline">受控只读</Badge>}</div>
+            </FrameHeader>
             <div className="px-4 pb-4">
               <div className="mb-3 flex items-center gap-2 rounded-control border border-line bg-wash px-3 py-2">
                 <span className="flex size-7 items-center justify-center rounded-chip bg-paper text-blue"><ShieldCheck size={15} /></span>
@@ -189,7 +203,7 @@ export function AnalyticsPage() {
                 <Button variant="outline" size="sm" onClick={() => navigate('/assets')}>查看数据资产与血缘</Button>
               </div>
             </div>
-          </Panel>
+          </FramePanel>
         </div>
       ) : null}
     </div>

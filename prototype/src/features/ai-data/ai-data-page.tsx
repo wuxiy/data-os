@@ -1,6 +1,7 @@
 import { TableSkeleton } from '@/components/app/table-skeleton'
 import { LoadingBlock } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
+import { FramePanel } from '@/components/ui/frame'
 import { DiscardPrompt, useDiscardGuard } from '@/components/app/discard-guard'
 import { Dialog, DialogClose, DialogDescription, DialogFooter, DialogHeader, DialogPanel, DialogPopup, DialogTitle } from '@/components/ui/dialog'
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -18,7 +19,6 @@ import { FormGrid } from '@/components/app/form-grid'
 import { SearchField } from '@/components/app/search-field'
 import { ConfirmDialog } from '@/components/app/confirm-dialog'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
-import { Panel, PanelHead } from '../../components/kit/panel'
 import { Tabs, TabsList, TabsPanel, TabsTab } from '@/components/ui/tabs'
 import { EmptyState } from '@/components/app/empty-state'
 import { DataTable, TablePagination, listColumnHelper } from '../../components/table/data-table'
@@ -362,14 +362,14 @@ export function AIDataPage() {
 
       {productsRequest.isPending ? <LoadingBlock>正在读取 AI 数据产品…</LoadingBlock> : null}
       {productsRequest.isError ? (
-        <Panel>
+        <FramePanel className="p-0 overflow-clip">
           <EmptyState minHeight={220} icon={<Boxes />} title="AI Data 服务暂不可用" description="暂时无法读取产品清单与就绪度。请恢复 ai-ready-service 后重试。" action={<Button variant="outline" onClick={() => void productsRequest.refetch()}>重新读取</Button>} />
-        </Panel>
+        </FramePanel>
       ) : null}
 
       {productsRequest.isSuccess ? (
         <div className="grid grid-cols-[300px_minmax(0,1fr)] gap-3.5 max-[1100px]:grid-cols-1">
-          <Panel className="flex flex-col">
+          <FramePanel className="flex flex-col p-0 overflow-clip">
             <div className="flex items-center justify-between px-[18px] pt-3 pb-2">
               <h2 className="text-title font-semibold">产品目录<Badge variant="outline">{visible.length}</Badge></h2>
             </div>
@@ -417,9 +417,9 @@ export function AIDataPage() {
             <div className="border-t border-line px-2">
               <TablePagination compact page={currentPage} pageSize={PAGE_SIZE} total={visible.length} onPageChange={setPage} label="AI 产品分页" className="border-t-0 px-1" />
             </div>
-          </Panel>
+          </FramePanel>
 
-          <Panel>
+          <FramePanel className="p-0 overflow-clip">
             {!product ? (
               <EmptyState minHeight={320} icon={<Boxes />} title="还没有 AI 数据产品" description="创建产品后开始登记版本、构建与评测。" action={<Button variant="outline" onClick={() => setCreateOpen(true)}>新建 AI 数据产品</Button>} />
             ) : (
@@ -531,7 +531,7 @@ export function AIDataPage() {
                 </Tabs>
               </>
             )}
-          </Panel>
+          </FramePanel>
         </div>
       ) : null}
 

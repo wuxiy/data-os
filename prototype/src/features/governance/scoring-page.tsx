@@ -1,5 +1,6 @@
 import { LoadingBlock } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
+import { FrameDescription, FrameHeader, FramePanel } from '@/components/ui/frame'
 import { Dialog, DialogDescription, DialogFooter, DialogHeader, DialogPopup, DialogTitle } from '@/components/ui/dialog'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -12,7 +13,6 @@ import { Button } from '@/components/ui/button'
 import { FormGrid } from '@/components/app/form-grid'
 
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
-import { Panel, PanelHead } from '../../components/kit/panel'
 
 import { useNotice } from '@/components/app/notice'
 import { updateQualityScoreStandard, type QualityGradeView } from '../../data/controlPlane'
@@ -100,8 +100,15 @@ export function ScoringPage() {
       />
 
       <div className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] gap-3.5 max-[1100px]:grid-cols-1">
-        <Panel>
-          <PanelHead title="通过线与维度权重" description="标准单一生效，保存后立即重算总分与等级" />
+        <FramePanel className="p-0 overflow-clip">
+          <FrameHeader className="px-[18px] pt-[18px] pb-3 gap-1">
+            <div className="min-w-0">
+              <h2 className="text-title font-semibold tracking-[-0.2px]">
+                通过线与维度权重
+              </h2>
+              <FrameDescription>标准单一生效，保存后立即重算总分与等级</FrameDescription>
+            </div>
+          </FrameHeader>
           <div className="px-5 pb-5">
             <Alert variant="info" role="note" className="mb-4">
               <Gauge />
@@ -132,15 +139,19 @@ export function ScoringPage() {
               ))}
             </FormGrid>
           </div>
-        </Panel>
+        </FramePanel>
 
-        <Panel>
-          <PanelHead
-            title="等级表"
-            count={grades.length}
-            description="按最低分从高到低判定"
-            actions={<Button variant="outline" size="sm" onClick={() => setGrades((current) => [...current, { grade: '', lowScore: 0 }])}><Plus size={13} />添加等级</Button>}
-          />
+        <FramePanel className="p-0 overflow-clip">
+          <FrameHeader className="px-[18px] pt-[18px] pb-3 flex-row items-center justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="text-title font-semibold tracking-[-0.2px]">
+                等级表
+                {grades.length !== undefined ? <Badge variant="outline">{grades.length}</Badge> : null}
+              </h2>
+              <FrameDescription>按最低分从高到低判定</FrameDescription>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">{<Button variant="outline" size="sm" onClick={() => setGrades((current) => [...current, { grade: '', lowScore: 0 }])}><Plus size={13} />添加等级</Button>}</div>
+          </FrameHeader>
           <div className="px-5 pb-5">
             {grades.map((grade, index) => (
               <div key={index} className="mb-2 grid grid-cols-[minmax(0,1fr)_120px_auto] items-center gap-2">
@@ -181,7 +192,7 @@ export function ScoringPage() {
               </Button>
             </div>
           </div>
-        </Panel>
+        </FramePanel>
       </div>
 
       <Dialog open={discardOpen} onOpenChange={setDiscardOpen}>

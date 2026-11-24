@@ -1,5 +1,6 @@
 import { LoadingBlock } from '@/components/app/loading'
 import { Badge } from '@/components/ui/badge'
+import { FrameDescription, FrameHeader, FramePanel } from '@/components/ui/frame'
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useQuery } from '@tanstack/react-query'
 import { Inbox, RefreshCw } from 'lucide-react'
@@ -7,7 +8,6 @@ import { useMemo, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
-import { Panel, PanelHead } from '../../components/kit/panel'
 import { EmptyState } from '@/components/app/empty-state'
 import { DataTable, TablePagination, listColumnHelper } from '../../components/table/data-table'
 import { formatDateTime } from '../../data/domain'
@@ -96,20 +96,23 @@ export function OperationsCenterPage() {
 
       {workItemsRequest.isPending ? <LoadingBlock>正在读取运营待办…</LoadingBlock> : null}
       {workItemsRequest.isError ? (
-        <Panel>
+        <FramePanel className="p-0 overflow-clip">
           <EmptyState minHeight={240} icon={<Inbox />} title="运营待办投影暂不可用" description="控制面运营投影不可达；本页不显示静态回退。" action={<Button variant="outline" onClick={() => void workItemsRequest.refetch()}>重试</Button>} />
-        </Panel>
+        </FramePanel>
       ) : null}
 
       {workItemsRequest.isSuccess ? (
         <div className="grid grid-cols-[minmax(0,1.6fr)_minmax(280px,1fr)] gap-3.5 max-[1100px]:grid-cols-1">
-          <Panel>
-            <PanelHead
-              title="跨域待办"
-              count={sorted.length}
-              description="按严重度排序；筛选按待办类型"
-              actions={
-                <Select
+          <FramePanel className="p-0 overflow-clip">
+            <FrameHeader className="px-[18px] pt-[18px] pb-3 flex-row items-center justify-between gap-3">
+              <div className="min-w-0">
+                <h2 className="text-title font-semibold tracking-[-0.2px]">
+                  跨域待办
+                  {sorted.length !== undefined ? <Badge variant="outline">{sorted.length}</Badge> : null}
+                </h2>
+                <FrameDescription>按严重度排序；筛选按待办类型</FrameDescription>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">{                <Select
                   items={TYPE_ITEMS}
                   value={type}
                   onValueChange={(next) => { setType(next ?? ''); setPage(0) }}
@@ -124,9 +127,8 @@ export function OperationsCenterPage() {
                       </SelectItem>
                     ))}
                   </SelectPopup>
-                </Select>
-              }
-            />
+                </Select>}</div>
+            </FrameHeader>
             <DataTable
               columns={columns}
               data={sorted.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE)}
@@ -140,10 +142,17 @@ export function OperationsCenterPage() {
               empty={<EmptyState minHeight={220} icon={<Inbox />} title="当前没有待处理的跨域事项" description="待办来自各业务域的真实记录。" />}
               footer={<TablePagination page={currentPage} pageSize={PAGE_SIZE} total={sorted.length} onPageChange={setPage} label="运营待办分页" />}
             />
-          </Panel>
+          </FramePanel>
 
-          <Panel>
-            <PanelHead title="最近事件" description="跨域操作留痕（近 48 小时）" />
+          <FramePanel className="p-0 overflow-clip">
+            <FrameHeader className="px-[18px] pt-[18px] pb-3 gap-1">
+              <div className="min-w-0">
+                <h2 className="text-title font-semibold tracking-[-0.2px]">
+                  最近事件
+                </h2>
+                <FrameDescription>跨域操作留痕（近 48 小时）</FrameDescription>
+              </div>
+            </FrameHeader>
             <div className="px-5 pb-5">
               {eventsRequest.isPending ? <LoadingBlock className="min-h-[160px]">正在读取事件…</LoadingBlock> : null}
               {eventsRequest.isError ? <p className="py-4 text-center text-label text-amber">事件暂不可用，可重新加载。</p> : null}
@@ -160,7 +169,7 @@ export function OperationsCenterPage() {
                 {eventsRequest.isSuccess && (eventsRequest.data?.length ?? 0) === 0 ? <li className="py-6 text-center text-label text-muted-foreground">近 48 小时无跨域事件。</li> : null}
               </ol>
             </div>
-          </Panel>
+          </FramePanel>
         </div>
       ) : null}
     </div>

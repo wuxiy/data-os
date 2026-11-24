@@ -1,5 +1,6 @@
 import { LoadingBlock } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
+import { FramePanel } from '@/components/ui/frame'
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { SegmentedControl, SegmentedControlItem } from '@/components/ui/segmented-control'
@@ -16,7 +17,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { FormGrid } from '@/components/app/form-grid'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
-import { Panel, ScopeNote } from '../../components/kit/panel'
+import { ScopeNote } from '@/components/app/scope-note'
 import { EmptyState } from '@/components/app/empty-state'
 import { useNotice } from '@/components/app/notice'
 import {
@@ -259,14 +260,14 @@ export function JobConfigurationEditor({ jobId }: { jobId?: string }) {
 
   if (jobId && jobsRequest.isSuccess && !job) {
     return (
-      <Panel>
+      <FramePanel className="p-0 overflow-clip">
         <EmptyState
           icon={<AlertTriangle />}
           title="采集任务不存在"
           description="该任务可能已被删除，或当前账号没有访问权限。"
           action={<Button variant="outline" onClick={() => navigate('/ingestion')}>返回数据接入</Button>}
         />
-      </Panel>
+      </FramePanel>
     )
   }
 

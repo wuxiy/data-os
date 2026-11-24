@@ -1,5 +1,6 @@
 import { LoadingBlock, LoadingInline } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
+import { FrameDescription, FrameHeader, FramePanel } from '@/components/ui/frame'
 import { Tooltip, TooltipPopup, TooltipTrigger } from '@/components/ui/tooltip'
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -12,7 +13,7 @@ import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
-import { Panel, PanelHead, ScopeNote } from '../../components/kit/panel'
+import { ScopeNote } from '@/components/app/scope-note'
 import { EmptyState } from '@/components/app/empty-state'
 import { DataTable, listColumnHelper } from '../../components/table/data-table'
 import { useNotice } from '@/components/app/notice'
@@ -41,14 +42,14 @@ export function SourceExplorerPage({ sourceId }: { sourceId: string }) {
   if (sourcesRequest.isPending) return <LoadingBlock>正在读取数据源…</LoadingBlock>
   if (!source) {
     return (
-      <Panel>
+      <FramePanel className="p-0 overflow-clip">
         <EmptyState
           icon={<TriangleAlert />}
           title="数据源不存在"
           description="该来源可能已被删除，或当前账号没有访问权限。"
           action={<Button variant="outline" onClick={() => navigate('/ingestion')}>返回数据接入</Button>}
         />
-      </Panel>
+      </FramePanel>
     )
   }
 
@@ -95,8 +96,15 @@ function ConnectionForm({ source }: { source: SourceApiItem }) {
   })
 
   return (
-    <Panel className="max-w-[640px]">
-      <PanelHead title="登记连接配置" description="浏览前先登记连接参数；密码、Secret 经凭据服务托管。" />
+    <FramePanel className="max-w-[640px] p-0 overflow-clip">
+      <FrameHeader className="px-[18px] pt-[18px] pb-3 gap-1">
+        <div className="min-w-0">
+          <h2 className="text-title font-semibold tracking-[-0.2px]">
+            登记连接配置
+          </h2>
+          <FrameDescription>浏览前先登记连接参数；密码、Secret 经凭据服务托管。</FrameDescription>
+        </div>
+      </FrameHeader>
       <div className="px-5 pb-5">
         <Alert variant="info" role="note" className="mb-4">
           <KeyRound />
@@ -126,7 +134,7 @@ function ConnectionForm({ source }: { source: SourceApiItem }) {
           <Button variant="outline" onClick={() => navigate('/ingestion')}>返回列表</Button>
         </div>
       </div>
-    </Panel>
+    </FramePanel>
   )
 }
 

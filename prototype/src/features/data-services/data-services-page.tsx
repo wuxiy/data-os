@@ -1,6 +1,7 @@
 import { TableSkeleton } from '@/components/app/table-skeleton'
 import { LoadingBlock } from '@/components/app/loading'
 import { Badge } from '@/components/ui/badge'
+import { FramePanel } from '@/components/ui/frame'
 import { Tooltip, TooltipPopup, TooltipTrigger } from '@/components/ui/tooltip'
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
@@ -12,7 +13,6 @@ import { useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { SearchField } from '@/components/app/search-field'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
-import { Panel, PanelHead } from '../../components/kit/panel'
 import { Tabs, TabsList, TabsPanel, TabsTab } from '@/components/ui/tabs'
 import { ConfirmDialog } from '@/components/app/confirm-dialog'
 import { EmptyState } from '@/components/app/empty-state'
@@ -180,14 +180,14 @@ export function DataServicesPage() {
 
       {listRequest.isPending ? <LoadingBlock>正在读取数据服务…</LoadingBlock> : null}
       {listRequest.isError ? (
-        <Panel>
+        <FramePanel className="p-0 overflow-clip">
           <EmptyState minHeight={220} icon={<ShieldCheck />} title="数据服务目录暂不可用" description="暂时无法读取服务目录。请重新读取，持续失败时联系平台运维核对服务连接。" action={<Button variant="outline" onClick={() => void listRequest.refetch()}>重新读取</Button>} />
-        </Panel>
+        </FramePanel>
       ) : null}
 
       {listRequest.isSuccess ? (
         <div className="grid grid-cols-[300px_minmax(0,1fr)] gap-3.5 max-[1100px]:grid-cols-1">
-          <Panel className="flex flex-col">
+          <FramePanel className="flex flex-col p-0 overflow-clip">
             <div className="flex items-center justify-between px-[18px] pt-3 pb-2">
               <h2 className="text-title font-semibold">服务目录<Badge variant="outline">{visible.length}</Badge></h2>
             </div>
@@ -237,9 +237,9 @@ export function DataServicesPage() {
             <div className="border-t border-line px-2">
               <TablePagination compact page={currentPage} pageSize={PAGE_SIZE} total={visible.length} onPageChange={setPage} label="数据服务分页" className="border-t-0 px-1" />
             </div>
-          </Panel>
+          </FramePanel>
 
-          <Panel>
+          <FramePanel className="p-0 overflow-clip">
             {!selected ? (
               <EmptyState minHeight={320} icon={<ShieldCheck />} title="还没有数据服务" description="创建服务定义并发布后，才能给调用方发放 Key。" action={<Button variant="outline" onClick={() => navigate(workLinks.dataServiceNew())}>新建数据服务</Button>} />
             ) : (
@@ -297,7 +297,7 @@ export function DataServicesPage() {
                 </div>
               </>
             )}
-          </Panel>
+          </FramePanel>
         </div>
       ) : null}
 

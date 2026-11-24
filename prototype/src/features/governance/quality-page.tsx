@@ -1,6 +1,7 @@
 import { TableSkeleton } from '@/components/app/table-skeleton'
 import { LoadingBlock, LoadingInline } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
+import { FrameDescription, FrameHeader, FramePanel } from '@/components/ui/frame'
 import { Tooltip, TooltipPopup, TooltipTrigger } from '@/components/ui/tooltip'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { SegmentedControl, SegmentedControlItem } from '@/components/ui/segmented-control'
@@ -17,7 +18,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { SearchField } from '@/components/app/search-field'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
-import { Panel, PanelHead, ScopeNote } from '../../components/kit/panel'
+import { ScopeNote } from '@/components/app/scope-note'
 import { ConfirmDialog } from '@/components/app/confirm-dialog'
 import { EmptyState } from '@/components/app/empty-state'
 import { DataTable, TablePagination, listColumnHelper } from '../../components/table/data-table'
@@ -393,7 +394,7 @@ export function QualityPage() {
       {issuesRequest.isPending ? <LoadingBlock>正在读取治理问题…</LoadingBlock> : null}
 
       {issuesRequest.isError ? (
-        <Panel>
+        <FramePanel className="p-0 overflow-clip">
           <EmptyState
             minHeight={240}
             icon={<CircleAlert />}
@@ -401,12 +402,12 @@ export function QualityPage() {
             description="控制面暂不可用 · 未加载治理问题。当前页面没有展示演示问题；请恢复控制面后重新加载。"
             action={<Button variant="outline" onClick={() => void issuesRequest.refetch()}>重新连接</Button>}
           />
-        </Panel>
+        </FramePanel>
       ) : null}
 
       {issuesRequest.isSuccess ? (
         <div className="grid grid-cols-[300px_minmax(0,1fr)_320px] gap-3.5 max-[1320px]:grid-cols-[250px_minmax(0,1fr)_270px] max-[1100px]:grid-cols-1">
-          <Panel className="flex flex-col">
+          <FramePanel className="flex flex-col p-0 overflow-clip">
             <div className="flex items-center justify-between px-[18px] pt-4 pb-2">
               <h2 className="text-title font-semibold">问题队列<Badge variant="outline">{openIssues.length}</Badge></h2>
               <span className="text-meta text-muted-foreground">按 SLA 排序</span>
@@ -464,9 +465,9 @@ export function QualityPage() {
             <div className="border-t border-line px-3">
               <TablePagination page={currentPage} pageSize={QUEUE_PAGE_SIZE} total={visibleIssues.length} onPageChange={setPage} label="问题队列分页" compact className="border-t-0 px-0" />
             </div>
-          </Panel>
+          </FramePanel>
 
-          <Panel>
+          <FramePanel className="p-0 overflow-clip">
             {detailRequest.isPending && selected ? <TableSkeleton rows={5} /> : null}
             {detailRequest.isError ? (
               <div className="px-5 py-8 text-center">
@@ -595,9 +596,9 @@ export function QualityPage() {
             ) : (!detailRequest.isPending && !detailRequest.isError) ? (
               <EmptyState minHeight={320} icon={<Search />} title="请选择一个治理问题" description="从左侧队列选择问题，查看证据、处理记录与责任链。" />
             ) : null}
-          </Panel>
+          </FramePanel>
 
-          <Panel>
+          <FramePanel className="p-0 overflow-clip">
             {selected && detail ? (
               <div className="px-4 py-4">
                 <div className="mb-2 flex items-center justify-between">
@@ -654,17 +655,21 @@ export function QualityPage() {
                 <EvidenceBox title="责任归属">{selected.ownerDepartment} · {selected.ownerName}<br />来源：治理问题记录</EvidenceBox>
               </div>
             ) : null}
-          </Panel>
+          </FramePanel>
         </div>
       ) : null}
 
-      <Panel className="mt-3.5">
-        <PanelHead
-          title="质量规则"
-          count={rulesRequest.data?.total}
-          description="动态规则台账：保存即推送质量执行器编译，失败原因如实回显"
-          actions={<Button size="sm" onClick={() => navigate(workLinks.qualityRuleNew())}><Plus size={13} />新建规则</Button>}
-        />
+      <FramePanel className="mt-3.5 p-0 overflow-clip">
+        <FrameHeader className="px-[18px] pt-[18px] pb-3 flex-row items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="text-title font-semibold tracking-[-0.2px]">
+              质量规则
+              {rulesRequest.data?.total !== undefined ? <Badge variant="outline">{rulesRequest.data?.total}</Badge> : null}
+            </h2>
+            <FrameDescription>动态规则台账：保存即推送质量执行器编译，失败原因如实回显</FrameDescription>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">{<Button size="sm" onClick={() => navigate(workLinks.qualityRuleNew())}><Plus size={13} />新建规则</Button>}</div>
+        </FrameHeader>
         <ScopeNote>删除会从执行器同步摘除规则；如需暂停执行请使用「停用」。已产生的治理问题与运行记录保留。</ScopeNote>
         <DataTable
           columns={ruleColumns}
@@ -676,7 +681,7 @@ export function QualityPage() {
             ? <EmptyState minHeight={200} icon={<CircleAlert />} title="质量规则暂不可用" description="无法读取规则台账，不能据此判断当前是否存在规则。" action={<Button variant="outline" onClick={() => void rulesRequest.refetch()}>重新读取规则</Button>} />
             : <EmptyState minHeight={200} icon={<Shield />} title="还没有动态质量规则" description="新建规则后保存即推送执行器；执行器对目标表列做实校验。" />}
         />
-      </Panel>
+      </FramePanel>
 
       <ConfirmDialog
         open={batchOpen}

@@ -1,4 +1,5 @@
 import { Badge } from '@/components/ui/badge'
+import { FrameDescription, FrameHeader, FramePanel } from '@/components/ui/frame'
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useQuery } from '@tanstack/react-query'
 import { Download } from 'lucide-react'
@@ -6,7 +7,6 @@ import { useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
-import { Panel, PanelHead } from '../../components/kit/panel'
 import { EmptyState } from '@/components/app/empty-state'
 import { DataTable, TablePagination, listColumnHelper } from '../../components/table/data-table'
 import { useNotice } from '@/components/app/notice'
@@ -92,13 +92,16 @@ export function AssistantAuditPage() {
         actions={<Button variant="outline" onClick={() => navigate('/assistant/workspace')}>返回工作区</Button>}
       />
 
-      <Panel>
-        <PanelHead
-          title="审计记录"
-          count={total}
-          description="按结局过滤；导出与当前过滤口径一致"
-          actions={
-            <div className="flex items-center gap-2">
+      <FramePanel className="p-0 overflow-clip">
+        <FrameHeader className="px-[18px] pt-[18px] pb-3 flex-row items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="text-title font-semibold tracking-[-0.2px]">
+              审计记录
+              {total !== undefined ? <Badge variant="outline">{total}</Badge> : null}
+            </h2>
+            <FrameDescription>按结局过滤；导出与当前过滤口径一致</FrameDescription>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">{            <div className="flex items-center gap-2">
               <Select
                 items={OUTCOME_ITEMS}
                 value={outcome}
@@ -118,9 +121,8 @@ export function AssistantAuditPage() {
               <Button variant="outline" size="sm" disabled={exporting} onClick={() => void exportCsv()}>
                 <Download size={13} />{exporting ? '导出中…' : '导出 CSV'}
               </Button>
-            </div>
-          }
-        />
+            </div>}</div>
+        </FrameHeader>
         {auditsRequest.isError ? (
           <EmptyState minHeight={200} title="审计暂不可读" description="请确认当前角色有治理权限后重试。" action={<Button variant="outline" onClick={() => void auditsRequest.refetch()}>重新读取</Button>} />
         ) : (
@@ -133,7 +135,7 @@ export function AssistantAuditPage() {
             footer={<TablePagination page={page} pageSize={PAGE_SIZE} total={total} onPageChange={setPage} label="审计分页" />}
           />
         )}
-      </Panel>
+      </FramePanel>
     </div>
   )
 }

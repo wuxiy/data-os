@@ -1,6 +1,7 @@
 import { LoadingInline } from '@/components/app/loading'
 import { StatusBadge } from '@/components/app/status-badge'
 import { Badge } from '@/components/ui/badge'
+import { FramePanel } from '@/components/ui/frame'
 import { Tooltip, TooltipPopup, TooltipTrigger } from '@/components/ui/tooltip'
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -25,7 +26,7 @@ import { useMemo, useState, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { SearchField } from '@/components/app/search-field'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
-import { Panel, PanelHead, ScopeNote } from '../../components/kit/panel'
+import { ScopeNote } from '@/components/app/scope-note'
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from '@/components/ui/menu'
 import { Tabs, TabsList, TabsPanel, TabsTab } from '@/components/ui/tabs'
 import { ConfirmDialog } from '@/components/app/confirm-dialog'
@@ -553,7 +554,7 @@ export function IngestionPage() {
         <SummaryCell label="最近 24h 失败" value={String(failedIn24h)} note="次" icon={<Activity size={17} />} />
       </section>
 
-      <Panel>
+      <FramePanel className="p-0 overflow-clip">
         <Tabs
           value={tab}
           onValueChange={(value) => { setTab(value as typeof tab); setKeyword(''); setStatusFilter(''); setModeFilter('') }}
@@ -684,7 +685,7 @@ export function IngestionPage() {
         {templatesRequest.isError ? <p className="px-[18px] pb-3 text-meta text-amber">模板目录读取失败：新建任务仍可使用自定义 JSON。</p> : null}
           </TabsPanel>
         </Tabs>
-      </Panel>
+      </FramePanel>
 
       <SourceRegisterDialog
         open={sourceDialogOpen}

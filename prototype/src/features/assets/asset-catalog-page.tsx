@@ -1,6 +1,7 @@
 import { TableSkeleton } from '@/components/app/table-skeleton'
 import { LoadingBlock } from '@/components/app/loading'
 import { Badge } from '@/components/ui/badge'
+import { FramePanel } from '@/components/ui/frame'
 import { SegmentedControl, SegmentedControlItem } from '@/components/ui/segmented-control'
 import { RadioGroupPrimitive, RadioPrimitive } from '@/components/ui/radio-group'
 import { Tooltip, TooltipPopup, TooltipTrigger } from '@/components/ui/tooltip'
@@ -12,7 +13,6 @@ import { useSearch } from '@tanstack/react-router'
 import { Button } from '@/components/ui/button'
 import { SearchField } from '@/components/app/search-field'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
-import { Panel, PanelHead } from '../../components/kit/panel'
 import { Tabs, TabsList, TabsPanel, TabsTab } from '@/components/ui/tabs'
 import { EmptyState } from '@/components/app/empty-state'
 import { DataTable, TablePagination, listColumnHelper } from '../../components/table/data-table'
@@ -158,7 +158,7 @@ export function AssetCatalogPage() {
 
       {catalogRequest.isPending ? <LoadingBlock>正在读取资产目录…</LoadingBlock> : null}
       {catalogRequest.isError ? (
-        <Panel>
+        <FramePanel className="p-0 overflow-clip">
           <EmptyState
             minHeight={240}
             icon={<Database />}
@@ -166,12 +166,12 @@ export function AssetCatalogPage() {
             description="暂时无法读取当前库的资产。可重新读取；持续不可用时请联系平台运维核对元数据接入。"
             action={<Button variant="outline" onClick={() => void catalogRequest.refetch()}>重新读取</Button>}
           />
-        </Panel>
+        </FramePanel>
       ) : null}
 
       {catalogRequest.isSuccess ? (
         <div className="grid grid-cols-[300px_minmax(0,1fr)] gap-3.5 max-[1100px]:grid-cols-1">
-          <Panel className="flex flex-col">
+          <FramePanel className="flex flex-col p-0 overflow-clip">
             {schemas.length > 1 ? (
               <SegmentedControl
                 size="sm"
@@ -223,9 +223,9 @@ export function AssetCatalogPage() {
               <TablePagination page={currentPage} pageSize={8} total={visible.length} onPageChange={setPage} label="资产目录分页" compact className="border-t-0 px-1" />
             </div>
             {summary ? <div className="border-t border-line px-3 py-2 text-meta text-muted-foreground">{summary.tableCount} 表 · {summary.columnCount} 列 · {summary.dashboards.length} 个仪表盘消费</div> : null}
-          </Panel>
+          </FramePanel>
 
-          <Panel>
+          <FramePanel className="p-0 overflow-clip">
             {!selected ? (
               <EmptyState
                 minHeight={320}
@@ -361,7 +361,7 @@ export function AssetCatalogPage() {
                 {detailRequest.isSuccess && detail ? <p className="border-t border-line px-5 py-2 text-meta text-muted-foreground">结构元数据只读；业务定义、质量结论与血缘证据各自独立来源，不互相替代。</p> : null}
               </>
             )}
-          </Panel>
+          </FramePanel>
         </div>
       ) : null}
     </div>

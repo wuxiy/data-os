@@ -1,5 +1,6 @@
 import { LoadingInline } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
+import { FrameDescription, FrameHeader, FramePanel } from '@/components/ui/frame'
 import { Checkbox } from '@/components/ui/checkbox'
 import { DatePicker } from '@/components/app/date-picker'
 import { Label } from '@/components/ui/label'
@@ -15,7 +16,6 @@ import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { FormGrid } from '@/components/app/form-grid'
 import { ConfirmDialog } from '@/components/app/confirm-dialog'
-import { Panel, PanelHead } from '../../components/kit/panel'
 import { EmptyState } from '@/components/app/empty-state'
 import { DataTable, listColumnHelper, TablePagination } from '../../components/table/data-table'
 import { useNotice } from '@/components/app/notice'
@@ -236,8 +236,16 @@ export function SchedulePanel({ jobId, jobName }: { jobId: string; jobName: stri
   ]
   return (
     <div className="space-y-3.5">
-      <Panel>
-        <PanelHead title="调度配置" description={`周期调度 · ${jobName}`} actions={<Badge variant={strategy.tone}>{strategy.label}</Badge>} />
+      <FramePanel className="p-0 overflow-clip">
+        <FrameHeader className="px-[18px] pt-[18px] pb-3 flex-row items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="text-title font-semibold tracking-[-0.2px]">
+              调度配置
+            </h2>
+            <FrameDescription>{`周期调度 · ${jobName}`}</FrameDescription>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">{<Badge variant={strategy.tone}>{strategy.label}</Badge>}</div>
+        </FrameHeader>
         <div className="px-5 pb-5">
           <Alert variant="info" role="note" className="mb-4">
             <CalendarClock />
@@ -390,10 +398,19 @@ export function SchedulePanel({ jobId, jobName }: { jobId: string; jobName: stri
             </>
           ) : null}
         </div>
-      </Panel>
+      </FramePanel>
 
-      <Panel>
-        <PanelHead title="调度实例" count={instancesRequest.data?.total ?? 0} description="平台调度触发/补数产生的实例" actions={<Button variant="outline" size="sm" onClick={() => void instancesRequest.refetch()}>刷新</Button>} />
+      <FramePanel className="p-0 overflow-clip">
+        <FrameHeader className="px-[18px] pt-[18px] pb-3 flex-row items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="text-title font-semibold tracking-[-0.2px]">
+              调度实例
+              {instancesRequest.data?.total ?? 0 !== undefined ? <Badge variant="outline">{instancesRequest.data?.total ?? 0}</Badge> : null}
+            </h2>
+            <FrameDescription>平台调度触发/补数产生的实例</FrameDescription>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">{<Button variant="outline" size="sm" onClick={() => void instancesRequest.refetch()}>刷新</Button>}</div>
+        </FrameHeader>
         <div className="px-5 pb-2">
           <div className="mb-3 flex flex-wrap items-end gap-2 rounded-control border border-line bg-wash px-3 py-2.5">
             <Field className="w-[150px]">
@@ -455,7 +472,7 @@ export function SchedulePanel({ jobId, jobName }: { jobId: string; jobName: stri
             ) : null}
           </div>
         ) : null}
-      </Panel>
+      </FramePanel>
 
       <ConfirmDialog
         open={deleteOpen}

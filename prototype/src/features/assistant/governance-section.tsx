@@ -1,4 +1,5 @@
 import { Badge } from '@/components/ui/badge'
+import { FrameDescription, FrameHeader, FramePanel } from '@/components/ui/frame'
 import { Tooltip, TooltipPopup, TooltipTrigger } from '@/components/ui/tooltip'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, FlaskConical, Pencil, Play, Plus, ShieldQuestion } from 'lucide-react'
@@ -6,7 +7,6 @@ import { useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/app/confirm-dialog'
-import { Panel, PanelHead } from '../../components/kit/panel'
 import { EmptyState } from '@/components/app/empty-state'
 import { DataTable, TablePagination, listColumnHelper } from '../../components/table/data-table'
 import { useNotice } from '@/components/app/notice'
@@ -133,19 +133,21 @@ export function AssistantGovernanceSection({ onNotice }: { onNotice: (message: s
   ])
 
   return (
-    <Panel>
-      <PanelHead
-        title="问题治理"
-        count={questions.length}
-        description="发布须最近一次成功试运行晚于最后一次编辑；停用后从问数面消失并可重新起草"
-        actions={
-          <>
+    <FramePanel className="p-0 overflow-clip">
+      <FrameHeader className="px-[18px] pt-[18px] pb-3 flex-row items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-title font-semibold tracking-[-0.2px]">
+            问题治理
+            {questions.length !== undefined ? <Badge variant="outline">{questions.length}</Badge> : null}
+          </h2>
+          <FrameDescription>发布须最近一次成功试运行晚于最后一次编辑；停用后从问数面消失并可重新起草</FrameDescription>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">{          <>
             <Button variant="outline" size="sm" onClick={() => void questionsRequest.refetch()}>刷新</Button>
             <Button variant="outline" size="sm" onClick={() => navigate(workLinks.assistantAudit())}><Download size={13} />问数审计</Button>
             <Button size="sm" onClick={() => navigate(workLinks.assistantQuestionNew())}><Plus size={13} />新建问题（草稿）</Button>
-          </>
-        }
-      />
+          </>}</div>
+      </FrameHeader>
       {questions.length > 0 ? (
         <dl className="mx-[18px] mb-2 grid grid-cols-3 gap-3 rounded-control border border-line bg-wash px-3 py-2" aria-label="问题发布概览">
           <Summary label="已发布" value={questions.filter((question) => question.status === 'PUBLISHED').length} />
@@ -183,7 +185,7 @@ export function AssistantGovernanceSection({ onNotice }: { onNotice: (message: s
           actionMutation.mutate({ code: pendingAction.question.code, action: pendingAction.action })
         }}
       />
-    </Panel>
+    </FramePanel>
   )
 }
 
