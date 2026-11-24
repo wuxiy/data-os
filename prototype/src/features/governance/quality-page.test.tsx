@@ -9,7 +9,7 @@ vi.mock('../../data/controlPlane', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../data/controlPlane')>()
   return { ...actual, fetchGovernanceIssues: vi.fn(), fetchGovernanceIssue: vi.fn(), fetchQualityRules: vi.fn(), updateGovernanceIssueWorkflow: vi.fn(), remindGovernanceIssueOwner: vi.fn(), syncGovernanceIssueRun: vi.fn() }
 })
-vi.mock('../../components/kit/toast', () => ({ useNotice: () => notify }))
+vi.mock('@/components/app/notice', () => ({ useNotice: () => notify }))
 
 import { fetchGovernanceIssue, fetchGovernanceIssues, fetchQualityRules, remindGovernanceIssueOwner, syncGovernanceIssueRun, updateGovernanceIssueWorkflow, type GovernanceIssueDetailApiResponse } from '../../data/controlPlane'
 import { QualityPage } from './quality-page'

@@ -20,7 +20,7 @@ import {
   type OperationsWorkItem,
 } from '../../data/operationsApi'
 import { usePortalNavigate } from '../../app/navigate'
-import { useNotice } from '../../components/kit/toast'
+import { useNotice } from '@/components/app/notice'
 import { operationsEventsQuery, operationsSummaryQuery, operationsWorkItemsQuery } from './queries'
 
 /**

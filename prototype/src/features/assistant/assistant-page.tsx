@@ -1,6 +1,6 @@
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Button } from '@/components/ui/button'
-import { useNotice } from '../../components/kit/toast'
+import { useNotice } from '@/components/app/notice'
 import { AssistantLive } from '../../pages/AssistantLive'
 import { useAuth } from '../../app/providers'
 import { usePortalNavigate } from '../../app/navigate'

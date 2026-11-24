@@ -12,7 +12,7 @@ import { Cable, CheckCircle2, CircleAlert, Copy } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { useNotice } from '../../components/kit/toast'
+import { useNotice } from '@/components/app/notice'
 import {
   checkSource,
   copyIngestionJob,

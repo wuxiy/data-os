@@ -22,7 +22,7 @@ import { Panel, PanelHead } from '../../components/kit/panel'
 import { Tabs, TabsList, TabsPanel, TabsTab } from '@/components/ui/tabs'
 import { EmptyState } from '@/components/app/empty-state'
 import { DataTable, listColumnHelper } from '../../components/table/data-table'
-import { useNotice } from '../../components/kit/toast'
+import { useNotice } from '@/components/app/notice'
 import {
   assistantParamLabel,
   assistantQuestionAction,

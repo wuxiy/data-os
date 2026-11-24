@@ -9,7 +9,7 @@ import { ConfirmDialog } from '@/components/app/confirm-dialog'
 import { Panel, PanelHead } from '../../components/kit/panel'
 import { EmptyState } from '@/components/app/empty-state'
 import { DataTable, TablePagination, listColumnHelper } from '../../components/table/data-table'
-import { useNotice } from '../../components/kit/toast'
+import { useNotice } from '@/components/app/notice'
 import {
   assistantQuestionAction,
   deleteAssistantQuestion,

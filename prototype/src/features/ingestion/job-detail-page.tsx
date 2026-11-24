@@ -11,7 +11,7 @@ import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel } from '../../components/kit/panel'
 import { Tabs, TabsList, TabsPanel, TabsTab } from '@/components/ui/tabs'
 import { EmptyState } from '@/components/app/empty-state'
-import { useNotice } from '../../components/kit/toast'
+import { useNotice } from '@/components/app/notice'
 import {
   confirmIngestionRunAbsent,
   retryIngestionRun,

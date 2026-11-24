@@ -165,7 +165,8 @@ try {
     await page.goto(`${base}/ingestion`, { waitUntil: 'domcontentloaded' })
     await page.waitForTimeout(400)
     await page.getByRole('button', { name: '登记数据源' }).click()
-    const dialog = page.getByRole('dialog')
+    // coss Toast 本身也是 dialog 角色：表单弹窗按标题定位，避免把回执提示也算进来。
+    const dialog = page.getByRole('dialog', { name: '登记数据源' })
     await dialog.waitFor({ timeout: 5000 })
     await dialog.getByLabel('来源名称').fill('QA 登记来源')
     await dialog.getByRole('button', { name: '登记来源' }).click()
@@ -288,7 +289,7 @@ try {
     await page.goto(`${base}/operations`, { waitUntil: 'domcontentloaded' })
     await page.waitForTimeout(700)
     await page.getByRole('button', { name: '登记前置机' }).click()
-    const edgeDialog = page.getByRole('dialog')
+    const edgeDialog = page.getByRole('dialog', { name: '登记前置机' })
     await edgeDialog.waitFor({ timeout: 5000 })
     await edgeDialog.getByLabel('名称').fill('QA 前置机')
     await edgeDialog.getByLabel('主机').fill('10.0.0.99')

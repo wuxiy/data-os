@@ -14,7 +14,7 @@ import { FormGrid } from '@/components/app/form-grid'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel, PanelHead } from '../../components/kit/panel'
 
-import { useNotice } from '../../components/kit/toast'
+import { useNotice } from '@/components/app/notice'
 import { updateQualityScoreStandard, type QualityGradeView } from '../../data/controlPlane'
 import { formatDateTime } from '../../data/domain'
 import { usePortalNavigate } from '../../app/navigate'

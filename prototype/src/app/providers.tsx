@@ -9,7 +9,7 @@ import {
   oidcIsConfigured,
   type AuthSnapshot,
 } from '../data/oidc'
-import { NoticeProvider } from '../components/kit/toast'
+import { ToastProvider } from '@/components/ui/toast'
 
 interface AuthContextValue {
   snapshot: AuthSnapshot
@@ -97,7 +97,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   return (
     <AuthContext.Provider value={value}>
       <QueryClientProvider client={client}>
-        <NoticeProvider>{children}</NoticeProvider>
+        <ToastProvider position="bottom-center">{children}</ToastProvider>
       </QueryClientProvider>
     </AuthContext.Provider>
   )

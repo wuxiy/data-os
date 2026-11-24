@@ -18,7 +18,7 @@ import { FormGrid } from '@/components/app/form-grid'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel, ScopeNote } from '../../components/kit/panel'
 import { EmptyState } from '@/components/app/empty-state'
-import { useNotice } from '../../components/kit/toast'
+import { useNotice } from '@/components/app/notice'
 import {
   createIngestionJob,
   saveJobConfig,

@@ -1,6 +1,6 @@
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Button } from '@/components/ui/button'
-import { useNotice } from '../../components/kit/toast'
+import { useNotice } from '@/components/app/notice'
 import { MpiReviewLive } from '../../pages/MpiReviewLive'
 import { usePortalNavigate } from '../../app/navigate'
 

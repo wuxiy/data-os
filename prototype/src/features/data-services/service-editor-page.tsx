@@ -11,7 +11,7 @@ import { FormGrid } from '@/components/app/form-grid'
 
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel } from '../../components/kit/panel'
-import { useNotice } from '../../components/kit/toast'
+import { useNotice } from '@/components/app/notice'
 import { createDataService } from '../../data/dataServicesApi'
 import { usePortalNavigate } from '../../app/navigate'
 import { dataServiceKeys } from './queries'
