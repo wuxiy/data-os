@@ -1,5 +1,6 @@
 import { LoadingBlock } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
+import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CodeTextarea } from '@/components/app/code-textarea'
@@ -10,7 +11,6 @@ import { useEffect, useMemo, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { FormGrid } from '@/components/app/form-grid'
-import { NativeSelect } from '../../components/kit/input'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel, ScopeNote } from '../../components/kit/panel'
 import { EmptyState } from '../../components/kit/states'
@@ -40,6 +40,16 @@ import {
   sourceDisplayName,
 } from './labels'
 import { StructuredTaskFields } from './structured-fields'
+
+const JOB_MODE_ITEMS = [
+  { value: 'BATCH', label: '批量同步' },
+  { value: 'CDC', label: '增量变更' },
+]
+
+const EXECUTOR_ITEMS = [
+  { value: 'SEATUNNEL', label: '中心采集执行器' },
+  { value: 'DOLPHINSCHEDULER', label: '平台调度' },
+]
 
 /**
  * 采集任务工作区（独立页，替代旧 540px 抽屉）：
@@ -260,6 +270,15 @@ export function JobConfigurationEditor({ jobId }: { jobId?: string }) {
   const dolphin = executor === 'DOLPHINSCHEDULER' || Boolean(job && isDolphinExecutor(job.executor))
   const editingStructured = Boolean(job && configRequest.data?.structured)
 
+  const templateItems = [
+    ...(offersDemoTemplate() ? [{ value: DEFAULT_TEMPLATE_KEY, label: 'FakeSource → Console（演示）' }] : []),
+    ...templates.map((template) => ({ value: template.key, label: <>{template.displayName} · {template.systemType}</> })),
+    { value: LIVE_TEMPLATE_KEY, label: '自定义 JSON' },
+  ]
+  const jobSourceItems = [
+    { value: '', label: '选择数据源' },
+    ...sources.map((source) => ({ value: source.id, label: <>{sourceDisplayName(source)} · {source.systemType}{source.connection ? '' : ' · 未登记连接'}</> })),
+  ]
   return (
     <div>
 
@@ -284,14 +303,22 @@ export function JobConfigurationEditor({ jobId }: { jobId?: string }) {
                 <FieldLabel htmlFor="job-source">
                   数据源 <span className="text-destructive-foreground">*</span>
                 </FieldLabel>
-                <NativeSelect id="job-source" className="min-h-[35px]" value={sourceId} onChange={(event) => setSourceId(event.target.value)}>
-                  <option value="">选择数据源</option>
-                  {sources.map((source) => (
-                    <option key={source.id} value={source.id}>
-                      {sourceDisplayName(source)} · {source.systemType}{source.connection ? '' : ' · 未登记连接'}
-                    </option>
-                  ))}
-                </NativeSelect>
+                <Select
+                  items={jobSourceItems}
+                  value={sourceId}
+                  onValueChange={(next) => setSourceId(next ?? '')}
+                >
+                  <SelectTrigger id="job-source">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectPopup>
+                    {jobSourceItems.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectPopup>
+                </Select>
               </Field>
               <Field>
                 <FieldLabel>
@@ -301,21 +328,46 @@ export function JobConfigurationEditor({ jobId }: { jobId?: string }) {
               </Field>
               <Field>
                 <FieldLabel htmlFor="job-mode">运行模式</FieldLabel>
-                <NativeSelect id="job-mode" className="min-h-[35px]" value={mode} onChange={(event) => {
-                  const nextMode = event.target.value
+                <Select
+                  items={JOB_MODE_ITEMS}
+                  value={mode}
+                  onValueChange={(next) => {
+                  const nextMode = next ?? ''
                   setMode(nextMode)
                   if (!jobId && configMode === 'json') setConfigText(JSON.stringify(configForTemplate(templateKey, nextMode, templates), null, 2))
-                }}>
-                  <option value="BATCH">批量同步</option>
-                  <option value="CDC">增量变更</option>
-                </NativeSelect>
+                }}
+                >
+                  <SelectTrigger id="job-mode">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectPopup>
+                    {JOB_MODE_ITEMS.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectPopup>
+                </Select>
               </Field>
               <Field>
                 <FieldLabel htmlFor="job-executor">执行通道</FieldLabel>
-                <NativeSelect id="job-executor" className="min-h-[35px]" value={executor} onChange={(event) => setExecutor(event.target.value as 'SEATUNNEL' | 'DOLPHINSCHEDULER')} disabled={Boolean(job)}>
-                  <option value="SEATUNNEL">中心采集执行器</option>
-                  <option value="DOLPHINSCHEDULER">平台调度</option>
-                </NativeSelect>
+                <Select
+                  items={EXECUTOR_ITEMS}
+                  value={executor}
+                  onValueChange={(next) => setExecutor((next ?? '') as 'SEATUNNEL' | 'DOLPHINSCHEDULER')}
+                  disabled={Boolean(job)}
+                >
+                  <SelectTrigger id="job-executor">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectPopup>
+                    {EXECUTOR_ITEMS.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectPopup>
+                </Select>
               </Field>
             </FormGrid>
           )}
@@ -368,11 +420,22 @@ export function JobConfigurationEditor({ jobId }: { jobId?: string }) {
                 <>
                   <Field className="mb-4">
                     <FieldLabel htmlFor="job-template">配置模板</FieldLabel>
-                    <NativeSelect id="job-template" className="min-h-[35px]" value={templateKey} onChange={(event) => selectTemplate(event.target.value)}>
-                      {offersDemoTemplate() ? <option value={DEFAULT_TEMPLATE_KEY}>FakeSource → Console（演示）</option> : null}
-                      {templates.map((template) => <option key={template.key} value={template.key}>{template.displayName} · {template.systemType}</option>)}
-                      <option value={LIVE_TEMPLATE_KEY}>自定义 JSON</option>
-                    </NativeSelect>
+                    <Select
+                      items={templateItems}
+                      value={templateKey}
+                      onValueChange={(next) => selectTemplate(next ?? '')}
+                    >
+                      <SelectTrigger id="job-template">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectPopup>
+                        {templateItems.map((item) => (
+                          <SelectItem key={item.value} value={item.value}>
+                            {item.label}
+                          </SelectItem>
+                        ))}
+                      </SelectPopup>
+                    </Select>
                   </Field>
                   <Field className="mb-4">
                     <FieldLabel>模板版本</FieldLabel>

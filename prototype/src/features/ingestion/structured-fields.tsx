@@ -1,5 +1,6 @@
 import { LoadingInline } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
+import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CodeTextarea } from '@/components/app/code-textarea'
@@ -11,7 +12,6 @@ import { useEffect, useMemo, useRef } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { FormGrid } from '@/components/app/form-grid'
-import { NativeSelect } from '../../components/kit/input'
 
 import { cn } from '../../lib/utils'
 import {
@@ -50,6 +50,11 @@ const emptyValues: StructuredValues = {
   sinkFenodes: '',
   sinkCredentialRef: '',
 }
+
+const STRUCTURED_MODE_ITEMS = [
+  { value: 'FULL', label: '全量（幂等唯一键目标模型可重跑）' },
+  { value: 'INCREMENTAL', label: '增量（时间序列键水位回放）' },
+]
 
 function valuesFromSpec(spec: StructuredTaskSpec | null): StructuredValues {
   if (!spec) return emptyValues
@@ -175,6 +180,14 @@ export function StructuredTaskFields({
 
   const canSubmit = !saving && form.state.values.form !== undefined
 
+  const orderKeyItems = [
+    { value: '', label: '选择序列键' },
+    ...timeColumns.map((column) => ({ value: column, label: column })),
+  ]
+  const catalogItems = [
+    { value: '', label: catalogsQuery.isPending ? '读取中…' : '选择库' },
+    ...(catalogsQuery.data?.catalogs ?? []).map((catalog) => ({ value: catalog, label: catalog })),
+  ]
   return (
     <form
       id="structured-task-form"
@@ -228,33 +241,47 @@ export function StructuredTaskFields({
           <FormGrid>
             <Field>
               <FieldLabel htmlFor="structured-catalog">源库</FieldLabel>
-              <NativeSelect
-                id="structured-catalog"
-                className="min-h-[35px]"
+              <Select
+                items={catalogItems}
                 value={values.catalog}
-                onChange={(event) => {
-                  form.setFieldValue('catalog', event.target.value)
+                onValueChange={(next) => {
+                  form.setFieldValue('catalog', next ?? '')
                   form.setFieldValue('tables', [])
                   form.setFieldValue('columns', [])
                   form.setFieldValue('orderKey', '')
                 }}
               >
-                <option value="">{catalogsQuery.isPending ? '读取中…' : '选择库'}</option>
-                {(catalogsQuery.data?.catalogs ?? []).map((catalog) => <option key={catalog} value={catalog}>{catalog}</option>)}
-              </NativeSelect>
+                <SelectTrigger id="structured-catalog">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectPopup>
+                  {catalogItems.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectPopup>
+              </Select>
               {catalogsQuery.isError ? <p className="mt-1 text-meta text-red">库清单读取失败，请确认连接配置</p> : null}
             </Field>
             <Field>
               <FieldLabel htmlFor="structured-mode">采集方式</FieldLabel>
-              <NativeSelect
-                id="structured-mode"
-                className="min-h-[35px]"
+              <Select
+                items={STRUCTURED_MODE_ITEMS}
                 value={values.mode}
-                onChange={(event) => form.setFieldValue('mode', event.target.value as 'FULL' | 'INCREMENTAL')}
+                onValueChange={(next) => form.setFieldValue('mode', (next ?? '') as 'FULL' | 'INCREMENTAL')}
               >
-                <option value="FULL">全量（幂等唯一键目标模型可重跑）</option>
-                <option value="INCREMENTAL">增量（时间序列键水位回放）</option>
-              </NativeSelect>
+                <SelectTrigger id="structured-mode">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectPopup>
+                  {STRUCTURED_MODE_ITEMS.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectPopup>
+              </Select>
             </Field>
           </FormGrid>
 
@@ -310,15 +337,22 @@ export function StructuredTaskFields({
           {values.mode === 'INCREMENTAL' && activeColumns !== undefined ? (
             <Field className="mb-4">
               <FieldLabel htmlFor="structured-order-key">增量序列键（时间类型）</FieldLabel>
-              <NativeSelect
-                id="structured-order-key"
-                className="min-h-[35px]"
+              <Select
+                items={orderKeyItems}
                 value={values.orderKey}
-                onChange={(event) => form.setFieldValue('orderKey', event.target.value)}
+                onValueChange={(next) => form.setFieldValue('orderKey', next ?? '')}
               >
-                <option value="">选择序列键</option>
-                {timeColumns.map((column) => <option key={column} value={column}>{column}</option>)}
-              </NativeSelect>
+                <SelectTrigger id="structured-order-key">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectPopup>
+                  {orderKeyItems.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectPopup>
+              </Select>
               {timeColumns.length === 0 ? <p className="mt-1 text-meta text-amber">该表没有时间类型字段；整数序列键不支持增量回放，请改用全量。</p> : null}
             </Field>
           ) : null}

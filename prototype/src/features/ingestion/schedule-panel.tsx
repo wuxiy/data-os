@@ -1,5 +1,6 @@
 import { LoadingInline } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
+import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { StatusBadge } from '@/components/app/status-badge'
@@ -10,7 +11,6 @@ import { useEffect, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { FormGrid } from '@/components/app/form-grid'
-import { NativeSelect } from '../../components/kit/input'
 import { Confirm } from '../../components/kit/overlay'
 import { Panel, PanelHead } from '../../components/kit/panel'
 import { EmptyState } from '../../components/kit/states'
@@ -223,6 +223,14 @@ export function SchedulePanel({ jobId, jobName }: { jobId: string; jobName: stri
     }),
   ])
 
+  const presetItems = [
+    { value: 'daily', label: '周期 · 每天（HH:mm）' },
+    { value: 'hourly', label: '周期 · 时段内每小时' },
+    { value: 'everyNHours', label: '周期 · 时段内每 N 小时' },
+    { value: 'everyNMinutes', label: '周期 · 时段内每 N 分钟' },
+    { value: 'once', label: '延迟一次 · 指定时刻触发' },
+    ...(advanced ? [{ value: 'advanced', label: '高级模式 · 直编 CRON' }] : []),
+  ]
   return (
     <div className="space-y-3.5">
       <Panel>
@@ -268,20 +276,23 @@ export function SchedulePanel({ jobId, jobName }: { jobId: string; jobName: stri
               <Field className="mb-4">
                 <FieldLabel htmlFor="schedule-preset">{`调度策略${advanced ? '（高级模式 · 直接编辑 CRON）' : ''}`}</FieldLabel>
                 <div className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-4">
-                  <NativeSelect
-                    id="schedule-preset"
-                    className="min-h-[35px]"
+                  <Select
+                    items={presetItems}
                     value={advanced ? 'advanced' : preset}
+                    onValueChange={(next) => setPreset((next ?? '') as typeof preset)}
                     disabled={advanced}
-                    onChange={(event) => setPreset(event.target.value as typeof preset)}
                   >
-                    <option value="daily">周期 · 每天（HH:mm）</option>
-                    <option value="hourly">周期 · 时段内每小时</option>
-                    <option value="everyNHours">周期 · 时段内每 N 小时</option>
-                    <option value="everyNMinutes">周期 · 时段内每 N 分钟</option>
-                    <option value="once">延迟一次 · 指定时刻触发</option>
-                    {advanced ? <option value="advanced">高级模式 · 直编 CRON</option> : null}
-                  </NativeSelect>
+                    <SelectTrigger id="schedule-preset">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectPopup>
+                      {presetItems.map((item) => (
+                        <SelectItem key={item.value} value={item.value}>
+                          {item.label}
+                        </SelectItem>
+                      ))}
+                    </SelectPopup>
+                  </Select>
                   <label className="flex items-center gap-2 text-label text-ink-soft">
                     <input type="checkbox" className="size-[13px] accent-blue" checked={advanced} onChange={(event) => setAdvanced(event.target.checked)} />
                     高级模式（直接编辑 CRON）

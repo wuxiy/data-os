@@ -202,7 +202,8 @@ try {
     await page.goto(`${base}/governance/quality/rules/quality.ep.order.paystatus-range/edit`, { waitUntil: 'domcontentloaded' })
     await page.waitForTimeout(700)
     record((await page.locator('#rule-id').inputValue()) === 'quality.ep.order.paystatus-range', '规则编辑必须回填规则编号')
-    record((await page.locator('#rule-type').inputValue()) === 'VAL_SET', '规则编辑必须回填规则类型')
+    // 规则类型是 coss Select：触发器回显所选选项的文案（含类型代码），不再是原生 select 的 value。
+    record((await page.locator('#rule-type').innerText()).includes('VAL_SET'), '规则编辑必须回填规则类型')
 
     await page.goto(`${base}/governance/standards`, { waitUntil: 'domcontentloaded' })
     await page.waitForTimeout(700)
@@ -262,9 +263,12 @@ try {
 
     await page.goto(`${base}/assistant/workspace/audit`, { waitUntil: 'domcontentloaded' })
     await page.waitForTimeout(700)
-    await page.getByLabel('按结局过滤').selectOption('REFUSED_NO_MATCH')
+    // 结局过滤是 coss Select（列表框弹出层）：点开触发器再点选项。断言落在表格正文上——
+    // 原生 select 时代取整个 main 的文本，选项文案本身就在 main 里，那条断言恒为真。
+    await page.getByRole('combobox', { name: '按结局过滤' }).click()
+    await page.getByRole('option', { name: '拒答·无匹配' }).click()
     await page.waitForTimeout(600)
-    const auditText = await page.locator('main').textContent()
+    const auditText = await page.locator('main table tbody').textContent()
     record(auditText?.includes('拒答·无匹配') ?? false, '审计结局过滤必须生效')
     record(auditText?.includes('查询每天的用药记录量') === false, '过滤后不应出现已回答记录')
   }

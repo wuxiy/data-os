@@ -1,5 +1,6 @@
 import { LoadingBlock } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
+import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CodeTextarea } from '@/components/app/code-textarea'
@@ -10,7 +11,6 @@ import { useEffect, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { FormGrid } from '@/components/app/form-grid'
-import { NativeSelect } from '../../components/kit/input'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel } from '../../components/kit/panel'
 import { EmptyState } from '../../components/kit/states'
@@ -38,6 +38,13 @@ import {
   type RuleForm,
 } from './rule-form'
 import { governanceKeys, qualityRuleTypesQuery, qualityRulesQuery } from './queries'
+
+/** 证据列脱敏分类的选项表：值与展示名同源。 */
+const EVIDENCE_CLASSIFICATION_ITEMS = CLASSIFICATIONS.map((classification) => ({ value: classification, label: CLASSIFICATION_LABELS[classification] }))
+
+const TIME_UNIT_ITEMS = TIME_UNITS.map((unit) => ({ value: unit, label: unit }))
+
+const STAT_OP_ITEMS = STAT_OPS.map((op) => ({ value: op, label: op }))
 
 /**
  * 质量规则编辑（独立工作页）：规则语义由执行器编译校验，门户只收集参数。
@@ -116,6 +123,9 @@ export function RuleEditorPage({ ruleId }: { ruleId?: string }) {
 
   const update = (patch: Partial<RuleForm>) => setForm((current) => ({ ...current, ...patch }))
 
+  const ruleTypeItems = [
+    ...typeOptions.map((item) => ({ value: item.type, label: <>{item.label}（{item.type}）</> })),
+  ]
   return (
     <div>
       <Breadcrumb items={[{ label: '数据治理' }, { label: '数据质量' }, { label: ruleId ? '编辑质量规则' : '新建质量规则' }]} trailing={ruleId ? <span className="font-mono">{ruleId}</span> : null} />
@@ -144,9 +154,22 @@ export function RuleEditorPage({ ruleId }: { ruleId?: string }) {
             </Field>
             <Field>
               <FieldLabel htmlFor="rule-type">规则类型</FieldLabel>
-              <NativeSelect id="rule-type" className="min-h-[35px]" value={form.ruleType} onChange={(event) => update({ ruleType: event.target.value as QualityRuleType })}>
-                {typeOptions.map((item) => <option key={item.type} value={item.type}>{item.label}（{item.type}）</option>)}
-              </NativeSelect>
+              <Select
+                items={ruleTypeItems}
+                value={form.ruleType}
+                onValueChange={(next) => update({ ruleType: (next ?? '') as QualityRuleType })}
+              >
+                <SelectTrigger id="rule-type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectPopup>
+                  {ruleTypeItems.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectPopup>
+              </Select>
             </Field>
           </FormGrid>
 
@@ -262,9 +285,22 @@ export function RuleEditorPage({ ruleId }: { ruleId?: string }) {
               {form.ruleType === 'DETAIL_STAT' ? (
                 <Field className="mb-4">
                   <FieldLabel htmlFor="rule-detail-op">明细表统计函数</FieldLabel>
-                  <NativeSelect id="rule-detail-op" className="min-h-[35px]" value={form.refStatOp} onChange={(event) => update({ refStatOp: event.target.value })}>
-                    {STAT_OPS.map((op) => <option key={op} value={op}>{op}</option>)}
-                  </NativeSelect>
+                  <Select
+                    items={STAT_OP_ITEMS}
+                    value={form.refStatOp}
+                    onValueChange={(next) => update({ refStatOp: next ?? '' })}
+                  >
+                    <SelectTrigger id="rule-detail-op">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectPopup>
+                      {STAT_OP_ITEMS.map((item) => (
+                        <SelectItem key={item.value} value={item.value}>
+                          {item.label}
+                        </SelectItem>
+                      ))}
+                    </SelectPopup>
+                  </Select>
                 </Field>
               ) : null}
             </>
@@ -275,15 +311,41 @@ export function RuleEditorPage({ ruleId }: { ruleId?: string }) {
               <FormGrid>
                 <Field>
                   <FieldLabel htmlFor="rule-stat-op">检查表统计函数</FieldLabel>
-                  <NativeSelect id="rule-stat-op" className="min-h-[35px]" value={form.statOp} onChange={(event) => update({ statOp: event.target.value })}>
-                    {STAT_OPS.map((op) => <option key={op} value={op}>{op}</option>)}
-                  </NativeSelect>
+                  <Select
+                    items={STAT_OP_ITEMS}
+                    value={form.statOp}
+                    onValueChange={(next) => update({ statOp: next ?? '' })}
+                  >
+                    <SelectTrigger id="rule-stat-op">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectPopup>
+                      {STAT_OP_ITEMS.map((item) => (
+                        <SelectItem key={item.value} value={item.value}>
+                          {item.label}
+                        </SelectItem>
+                      ))}
+                    </SelectPopup>
+                  </Select>
                 </Field>
                 <Field>
                   <FieldLabel htmlFor="rule-ref-stat-op">参照表统计函数</FieldLabel>
-                  <NativeSelect id="rule-ref-stat-op" className="min-h-[35px]" value={form.refStatOp} onChange={(event) => update({ refStatOp: event.target.value })}>
-                    {STAT_OPS.map((op) => <option key={op} value={op}>{op}</option>)}
-                  </NativeSelect>
+                  <Select
+                    items={STAT_OP_ITEMS}
+                    value={form.refStatOp}
+                    onValueChange={(next) => update({ refStatOp: next ?? '' })}
+                  >
+                    <SelectTrigger id="rule-ref-stat-op">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectPopup>
+                      {STAT_OP_ITEMS.map((item) => (
+                        <SelectItem key={item.value} value={item.value}>
+                          {item.label}
+                        </SelectItem>
+                      ))}
+                    </SelectPopup>
+                  </Select>
                 </Field>
               </FormGrid>
               <FormGrid>
@@ -334,9 +396,22 @@ export function RuleEditorPage({ ruleId }: { ruleId?: string }) {
               </FormGrid>
               <Field className="mb-4">
                 <FieldLabel htmlFor="rule-time-unit">阈值单位</FieldLabel>
-                <NativeSelect id="rule-time-unit" className="min-h-[35px]" value={form.timeUnit} onChange={(event) => update({ timeUnit: event.target.value })}>
-                  {TIME_UNITS.map((unit) => <option key={unit} value={unit}>{unit}</option>)}
-                </NativeSelect>
+                <Select
+                  items={TIME_UNIT_ITEMS}
+                  value={form.timeUnit}
+                  onValueChange={(next) => update({ timeUnit: next ?? '' })}
+                >
+                  <SelectTrigger id="rule-time-unit">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectPopup>
+                    {TIME_UNIT_ITEMS.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectPopup>
+                </Select>
               </Field>
             </>
           ) : null}
@@ -368,14 +443,22 @@ export function RuleEditorPage({ ruleId }: { ruleId?: string }) {
                     onChange={(event) => update({ evidenceColumns: form.evidenceColumns.map((item, i) => i === index ? { ...item, name: event.target.value } : item) })}
                     placeholder="列名，例如 ID"
                   />
-                  <NativeSelect
-                    aria-label={`证据列 ${index + 1} 脱敏分类`}
-                    className="min-h-[35px]"
+                  <Select
+                    items={EVIDENCE_CLASSIFICATION_ITEMS}
                     value={column.classification}
-                    onChange={(event) => update({ evidenceColumns: form.evidenceColumns.map((item, i) => i === index ? { ...item, classification: event.target.value as QualityEvidenceColumn['classification'] } : item) })}
+                    onValueChange={(next) => update({ evidenceColumns: form.evidenceColumns.map((item, i) => i === index ? { ...item, classification: (next ?? '') as QualityEvidenceColumn['classification'] } : item) })}
                   >
-                    {CLASSIFICATIONS.map((classification) => <option key={classification} value={classification}>{CLASSIFICATION_LABELS[classification]}</option>)}
-                  </NativeSelect>
+                    <SelectTrigger aria-label={`证据列 ${index + 1} 脱敏分类`}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectPopup>
+                      {EVIDENCE_CLASSIFICATION_ITEMS.map((item) => (
+                        <SelectItem key={item.value} value={item.value}>
+                          {item.label}
+                        </SelectItem>
+                      ))}
+                    </SelectPopup>
+                  </Select>
                   <Button size="sm" variant="link" disabled={form.evidenceColumns.length <= 1} onClick={() => update({ evidenceColumns: form.evidenceColumns.filter((_, i) => i !== index) })}>移除</Button>
                 </div>
               ))}

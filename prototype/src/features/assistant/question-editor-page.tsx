@@ -1,5 +1,6 @@
 import { LoadingBlock } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
+import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CodeTextarea } from '@/components/app/code-textarea'
@@ -11,7 +12,6 @@ import { useEffect, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { FormGrid } from '@/components/app/form-grid'
-import { NativeSelect } from '../../components/kit/input'
 import { Confirm } from '../../components/kit/overlay'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel, PanelHead } from '../../components/kit/panel'
@@ -57,6 +57,13 @@ interface DraftForm {
 }
 
 const EMPTY_FORM: DraftForm = { code: '', question: '', aliasesText: '', serviceCode: '', answerTemplate: '', paramRows: [] }
+/** 参数行可选的类型：与数据服务契约的类型枚举一致。 */
+const PARAM_TYPE_ITEMS = [
+  { value: 'date', label: 'date' },
+  { value: 'string', label: 'string' },
+  { value: 'number', label: 'number' },
+  { value: 'boolean', label: 'boolean' },
+]
 
 function formOf(question: AssistantAdminQuestionView): DraftForm {
   return {
@@ -277,9 +284,23 @@ export function QuestionEditorPage({ questionCode }: { questionCode?: string }) 
                     onChange={(event) => setForm({ ...form, paramRows: form.paramRows.map((item, itemIndex) => itemIndex === index ? { ...item, name: event.target.value } : item) })}
                     placeholder="start_date"
                   />
-                  <NativeSelect aria-label={`参数 ${index + 1} 类型`} className="min-h-[35px]" value={row.type} disabled={readOnly} onChange={(event) => setForm({ ...form, paramRows: form.paramRows.map((item, itemIndex) => itemIndex === index ? { ...item, type: event.target.value } : item) })}>
-                    <option value="date">date</option><option value="string">string</option><option value="number">number</option><option value="boolean">boolean</option>
-                  </NativeSelect>
+                  <Select
+                    items={PARAM_TYPE_ITEMS}
+                    value={row.type}
+                    onValueChange={(next) => setForm({ ...form, paramRows: form.paramRows.map((item, itemIndex) => itemIndex === index ? { ...item, type: next ?? '' } : item) })}
+                    disabled={readOnly}
+                  >
+                    <SelectTrigger aria-label={`参数 ${index + 1} 类型`}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectPopup>
+                      {PARAM_TYPE_ITEMS.map((item) => (
+                        <SelectItem key={item.value} value={item.value}>
+                          {item.label}
+                        </SelectItem>
+                      ))}
+                    </SelectPopup>
+                  </Select>
                   <label className="flex items-center gap-1.5 text-label text-ink-soft">
                     <input type="checkbox" className="size-[13px] accent-blue" checked={row.required} disabled={readOnly} onChange={(event) => setForm({ ...form, paramRows: form.paramRows.map((item, itemIndex) => itemIndex === index ? { ...item, required: event.target.checked } : item) })} />
                     必填

@@ -1,5 +1,6 @@
 import { LoadingBlock, LoadingInline } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
+import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CodeTextarea } from '@/components/app/code-textarea'
@@ -10,7 +11,7 @@ import { useEffect, useMemo, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { FormGrid } from '@/components/app/form-grid'
-import { NativeSelect, SearchField } from '../../components/kit/input'
+import { SearchField } from '../../components/kit/input'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel, PanelHead } from '../../components/kit/panel'
 import { EmptyState } from '../../components/kit/states'
@@ -37,6 +38,11 @@ import { governanceKeys, standardDetailQuery, standardImpactQuery, standardsQuer
 import { usePortalNavigate } from '../../app/navigate'
 
 const STATUS_LABEL: Record<string, string> = { DRAFT: '草稿', IN_REVIEW: '评审中', PUBLISHED: '已发布', DEPRECATED: '已停用' }
+
+const STATUS_ITEMS = [
+  { value: '', label: '全部状态' },
+  ...Object.entries(STATUS_LABEL).map(([value, label]) => ({ value, label })),
+]
 
 function statusTone(status: string): 'success' | 'warning' | 'outline' {
   if (status === 'PUBLISHED') return 'success'
@@ -228,6 +234,10 @@ export function StandardsPage() {
   const otherVersions = useMemo(() => detail?.versions.filter((item) => item.id !== version?.id) ?? [], [detail, version?.id])
   const busy = versionAction.isPending || createDraft.isPending || saveDraft.isPending
 
+  const compareVersionItems = [
+    { value: '', label: otherVersions.length === 0 ? '没有可比版本' : '选择另一版本…' },
+    ...otherVersions.map((item) => ({ value: item.id, label: <>v{item.versionNo}（{STATUS_LABEL[item.status]}）</> })),
+  ]
   return (
     <div>
       <Breadcrumb items={[{ label: '数据治理' }, { label: '数据标准' }]} trailing={detail ? <span>更新 {formatDateTime(detail.standard.updatedAt)}</span> : null} />
@@ -241,10 +251,22 @@ export function StandardsPage() {
         <PanelHead title="标准清单" count={items.length} description="草稿 → 评审 → 发布；选择标准后查看版本与数据元" />
         <div className="flex items-center gap-2 px-[18px] pb-3">
           <SearchField value={keyword} onValueChange={(value) => { setKeyword(value); setPage(0) }} placeholder="搜索标准代码或名称" />
-          <NativeSelect aria-label="按最新版本状态筛选" className="w-auto" value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setPage(0) }}>
-            <option value="">全部状态</option>
-            {Object.entries(STATUS_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-          </NativeSelect>
+          <Select
+            items={STATUS_ITEMS}
+            value={statusFilter}
+            onValueChange={(next) => { setStatusFilter(next ?? ''); setPage(0) }}
+          >
+            <SelectTrigger aria-label="按最新版本状态筛选" className="w-auto min-w-none" size="sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectPopup>
+              {STATUS_ITEMS.map((item) => (
+                <SelectItem key={item.value} value={item.value}>
+                  {item.label}
+                </SelectItem>
+              ))}
+            </SelectPopup>
+          </Select>
           {keyword || statusFilter ? <Button variant="link" size="sm" onClick={() => { setKeyword(''); setStatusFilter(''); setPage(0) }}>清除筛选</Button> : null}
         </div>
         <DataTable
@@ -373,16 +395,23 @@ export function StandardsPage() {
 
               <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-line pt-3">
                 <span className="text-label text-muted-foreground">版本对比：与</span>
-                <NativeSelect
-                  aria-label="选择对比版本"
-                  className="w-[200px]"
+                <Select
+                  items={compareVersionItems}
                   value={compareWith}
+                  onValueChange={(next) => setCompareWith(next ?? '')}
                   disabled={otherVersions.length === 0}
-                  onChange={(event) => setCompareWith(event.target.value)}
                 >
-                  <option value="">{otherVersions.length === 0 ? '没有可比版本' : '选择另一版本…'}</option>
-                  {otherVersions.map((item) => <option key={item.id} value={item.id}>v{item.versionNo}（{STATUS_LABEL[item.status]}）</option>)}
-                </NativeSelect>
+                  <SelectTrigger aria-label="选择对比版本" className="w-[200px]" size="sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectPopup>
+                    {compareVersionItems.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectPopup>
+                </Select>
                 <Button variant="outline"
                   size="sm"
                   disabled={!compareWith}

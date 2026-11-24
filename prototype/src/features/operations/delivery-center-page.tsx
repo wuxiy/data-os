@@ -1,6 +1,7 @@
 import { TableSkeleton } from '@/components/app/table-skeleton'
 import { LoadingBlock } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
+import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
@@ -10,7 +11,7 @@ import { useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { FormGrid } from '@/components/app/form-grid'
-import { NativeSelect, SearchField } from '../../components/kit/input'
+import { SearchField } from '../../components/kit/input'
 import { Confirm, Dialog, DialogFooter } from '../../components/kit/overlay'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel, PanelHead } from '../../components/kit/panel'
@@ -43,6 +44,8 @@ import { operationsKeys, deliveriesQuery, deliveryDetailQuery } from './queries'
 const projectHelper = listColumnHelper<DeliveryProjectView>()
 const itemHelper = listColumnHelper<DeliveryItemView>()
 const eventHelper = listColumnHelper<DeliveryEventView>()
+
+const REF_TYPE_ITEMS = DELIVERY_REF_TYPES.map((type) => ({ value: type, label: REF_TYPE_LABEL[type] }))
 
 function toneOf(status: string): 'success' | 'warning' | 'outline' {
   const tone = statusTone(status)
@@ -403,9 +406,22 @@ export function DeliveryCenterPage() {
         <FormGrid>
           <Field>
             <FieldLabel htmlFor="item-type">对象类型</FieldLabel>
-            <NativeSelect id="item-type" className="min-h-[35px]" value={itemForm.refType} onChange={(event) => setItemForm({ ...itemForm, refType: event.target.value as DeliveryRefType })}>
-              {DELIVERY_REF_TYPES.map((type) => <option key={type} value={type}>{REF_TYPE_LABEL[type]}</option>)}
-            </NativeSelect>
+            <Select
+              items={REF_TYPE_ITEMS}
+              value={itemForm.refType}
+              onValueChange={(next) => setItemForm({ ...itemForm, refType: (next ?? '') as DeliveryRefType })}
+            >
+              <SelectTrigger id="item-type">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectPopup>
+                {REF_TYPE_ITEMS.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
+                  </SelectItem>
+                ))}
+              </SelectPopup>
+            </Select>
           </Field>
           <Field>
             <FieldLabel>

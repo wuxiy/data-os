@@ -11,7 +11,7 @@ import { AlertTriangle, CircleAlert, Plus, RefreshCw, Search, Send, Shield, Tras
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { SearchField, NativeSelect } from '../../components/kit/input'
+import { SearchField } from '../../components/kit/input'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel, PanelHead, ScopeNote } from '../../components/kit/panel'
 import { Confirm } from '../../components/kit/overlay'

@@ -1,6 +1,7 @@
 import { LoadingInline } from '@/components/app/loading'
 import { StatusBadge } from '@/components/app/status-badge'
 import { Badge } from '@/components/ui/badge'
+import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Activity,
@@ -21,7 +22,7 @@ import {
 import { useMemo, useState, type ReactNode } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { NativeSelect, SearchField } from '../../components/kit/input'
+import { SearchField } from '../../components/kit/input'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel, PanelHead, ScopeNote } from '../../components/kit/panel'
 import { Popover } from '../../components/kit/popover'
@@ -64,6 +65,12 @@ import { CopyJobDialog, SourceCheckDialog, SourceRegisterDialog } from './source
  * 列表只保留能一眼判断的对象信息与主操作。
  */
 type TabValue = 'sources' | 'jobs' | 'runs'
+
+const MODE_FILTER_ITEMS = [
+  { value: '', label: '全部模式' },
+  { value: 'BATCH', label: '批量同步' },
+  { value: 'CDC', label: '增量变更' },
+]
 
 export function IngestionPage() {
   const navigate = usePortalNavigate()
@@ -489,6 +496,9 @@ export function IngestionPage() {
       ? [['', '全部状态'], ['SUCCEEDED', '已完成'], ['FAILED', '失败'], ['RUNNING', '运行中'], ['UNKNOWN', '状态待确认']]
       : [['', '全部状态'], ['enabled', '已启用'], ['paused', '未启用']]
 
+  const statusItems = [
+    ...statusOptions.map(([value, label]) => ({ value, label })),
+  ]
   return (
     <div>
       <Breadcrumb items={[{ label: '数据管理' }, { label: '数据接入' }]} trailing={<><span>本地合成数据不进入生产路径</span></>} />
@@ -548,15 +558,39 @@ export function IngestionPage() {
               onValueChange={(value) => { setKeyword(value); setSourcesPage(0); setJobsPage(0); setRunsPage(0) }}
               placeholder={tab === 'sources' ? '搜索数据源名称或编号' : tab === 'runs' ? '搜索任务、批次或消息' : '搜索任务名称、数据源或编号'}
             />
-            <NativeSelect aria-label="状态筛选" className="w-auto" value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setSourcesPage(0); setJobsPage(0); setRunsPage(0) }}>
-              {statusOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-            </NativeSelect>
+            <Select
+              items={statusItems}
+              value={statusFilter}
+              onValueChange={(next) => { setStatusFilter(next ?? ''); setSourcesPage(0); setJobsPage(0); setRunsPage(0) }}
+            >
+              <SelectTrigger aria-label="状态筛选" className="w-auto min-w-none" size="sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectPopup>
+                {statusItems.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
+                  </SelectItem>
+                ))}
+              </SelectPopup>
+            </Select>
             {tab === 'jobs' ? (
-              <NativeSelect aria-label="模式筛选" className="w-auto" value={modeFilter} onChange={(event) => { setModeFilter(event.target.value); setJobsPage(0) }}>
-                <option value="">全部模式</option>
-                <option value="BATCH">批量同步</option>
-                <option value="CDC">增量变更</option>
-              </NativeSelect>
+              <Select
+                items={MODE_FILTER_ITEMS}
+                value={modeFilter}
+                onValueChange={(next) => { setModeFilter(next ?? ''); setJobsPage(0) }}
+              >
+                <SelectTrigger aria-label="模式筛选" className="w-auto min-w-none" size="sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectPopup>
+                  {MODE_FILTER_ITEMS.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectPopup>
+              </Select>
             ) : null}
           </div>
           <Button variant="outline" size="icon" aria-label="刷新列表" title="刷新列表" onClick={refresh} disabled={refreshing}>

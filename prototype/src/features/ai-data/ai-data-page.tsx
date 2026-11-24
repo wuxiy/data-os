@@ -1,6 +1,7 @@
 import { TableSkeleton } from '@/components/app/table-skeleton'
 import { LoadingBlock } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
+import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CodeTextarea } from '@/components/app/code-textarea'
@@ -12,7 +13,7 @@ import { useEffect, useRef, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { FormGrid } from '@/components/app/form-grid'
-import { NativeSelect, SearchField } from '../../components/kit/input'
+import { SearchField } from '../../components/kit/input'
 import { Dialog, DialogFooter, Confirm } from '../../components/kit/overlay'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel, PanelHead } from '../../components/kit/panel'
@@ -62,6 +63,13 @@ const PRODUCT_TYPES: AIDataProductType[] = ['RAG_CORPUS', 'TRAINING_DATASET', 'I
 const PAGE_SIZE = 8
 const BUILD_POLL_MS = 2000
 const BUILD_POLL_MAX = 150
+
+const PRODUCT_TYPE_ITEMS = PRODUCT_TYPES.map((type) => ({ value: type, label: productTypeLabel[type] }))
+
+const LIFECYCLE_ITEMS = [
+  { value: '', label: '全部生命周期' },
+  ...Object.entries(lifecycleLabel).map(([value, label]) => ({ value, label })),
+]
 
 export function nextLifecycleTarget(lifecycle: AIDataProductLifecycle): AIDataProductLifecycle | null {
   const index = lifecycleMainChain.indexOf(lifecycle)
@@ -363,10 +371,22 @@ export function AIDataPage() {
             </div>
             <div className="px-[18px] pb-2"><SearchField value={keyword} onValueChange={(value) => { setKeyword(value); setPage(0) }} placeholder="搜索产品名称/负责人" className="w-full" /></div>
             <div className="px-[18px] pb-2">
-              <NativeSelect aria-label="生命周期筛选" className="w-auto" value={lifecycleFilter} onChange={(event) => { setLifecycleFilter(event.target.value); setPage(0) }}>
-                <option value="">全部生命周期</option>
-                {Object.entries(lifecycleLabel).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-              </NativeSelect>
+              <Select
+                items={LIFECYCLE_ITEMS}
+                value={lifecycleFilter}
+                onValueChange={(next) => { setLifecycleFilter(next ?? ''); setPage(0) }}
+              >
+                <SelectTrigger aria-label="生命周期筛选" className="w-auto min-w-none" size="sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectPopup>
+                  {LIFECYCLE_ITEMS.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectPopup>
+              </Select>
             </div>
             <ul className="m-0 min-h-0 flex-1 list-none px-2 pb-2">
               {visible.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE).map((item) => {
@@ -533,9 +553,22 @@ export function AIDataPage() {
           </Field>
           <Field>
             <FieldLabel htmlFor="ai-type">产品类型</FieldLabel>
-            <NativeSelect id="ai-type" className="min-h-[35px]" value={form.type} onChange={(event) => setForm({ ...form, type: event.target.value as AIDataProductType })}>
-              {PRODUCT_TYPES.map((type) => <option key={type} value={type}>{productTypeLabel[type]}</option>)}
-            </NativeSelect>
+            <Select
+              items={PRODUCT_TYPE_ITEMS}
+              value={form.type}
+              onValueChange={(next) => setForm({ ...form, type: (next ?? '') as AIDataProductType })}
+            >
+              <SelectTrigger id="ai-type">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectPopup>
+                {PRODUCT_TYPE_ITEMS.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
+                  </SelectItem>
+                ))}
+              </SelectPopup>
+            </Select>
           </Field>
           <Field>
             <FieldLabel>

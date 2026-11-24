@@ -14,8 +14,9 @@ import { Columns3, RefreshCw, Maximize2, Minimize2 } from 'lucide-react'
 import { useMemo, type ReactNode } from 'react'
 import { cn } from '../../lib/utils'
 import { Button } from '@/components/ui/button'
+import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Popover, PopoverOption, PopoverTitle } from '../kit/popover'
-import { SearchField, NativeSelect } from '../kit/input'
+import { SearchField } from '../kit/input'
 import { EmptyState } from '../kit/states'
 
 /**
@@ -330,6 +331,7 @@ export function TablePagination({
   const current = Math.min(page, pageCount - 1)
   const start = total === 0 ? 0 : current * pageSize + 1
   const end = Math.min((current + 1) * pageSize, total)
+  const pageSizeItems = (pageSizeOptions ?? []).map((size) => ({ value: String(size), label: <>每页 {size} 条</> }))
   return (
     <nav aria-label={label} className={cn('flex items-center justify-between gap-3 border-t border-line px-[18px] py-3.5 text-label text-faint', compact && 'flex-wrap gap-y-1 px-2 py-2', className)}>
       <span className="min-w-0 truncate">
@@ -339,14 +341,22 @@ export function TablePagination({
       </span>
       <div className="flex items-center gap-1.5">
         {!compact && onPageSizeChange && pageSizeOptions?.length ? (
-          <NativeSelect
-            aria-label="每页条数"
-            className="mr-2 w-auto"
+          <Select
+            items={pageSizeItems}
             value={String(pageSize)}
-            onChange={(event) => onPageSizeChange(Number(event.target.value))}
+            onValueChange={(next) => onPageSizeChange(Number(next ?? ''))}
           >
-            {pageSizeOptions.map((size) => <option key={size} value={size}>每页 {size} 条</option>)}
-          </NativeSelect>
+            <SelectTrigger aria-label="每页条数" className="mr-2 w-auto min-w-none" size="sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectPopup>
+              {pageSizeItems.map((item) => (
+                <SelectItem key={item.value} value={item.value}>
+                  {item.label}
+                </SelectItem>
+              ))}
+            </SelectPopup>
+          </Select>
         ) : compact ? null : (
           <span className="mr-2">每页 {pageSize} 条</span>
         )}

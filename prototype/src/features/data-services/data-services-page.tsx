@@ -1,6 +1,7 @@
 import { TableSkeleton } from '@/components/app/table-skeleton'
 import { LoadingBlock } from '@/components/app/loading'
 import { Badge } from '@/components/ui/badge'
+import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -8,7 +9,7 @@ import { Plus, RefreshCw, ShieldCheck } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { NativeSelect, SearchField } from '../../components/kit/input'
+import { SearchField } from '../../components/kit/input'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel, PanelHead } from '../../components/kit/panel'
 import { Tabs, TabPanel } from '../../components/kit/popover'
@@ -43,6 +44,11 @@ import {
 } from './queries'
 
 const PAGE_SIZE = 8
+
+const STATUS_ITEMS = [
+  { value: '', label: '全部状态' },
+  ...Object.entries(dataServiceStatusLabel).map(([value, label]) => ({ value, label })),
+]
 
 function statusTone(status: string): 'success' | 'warning' | 'outline' {
   if (status === 'PUBLISHED') return 'success'
@@ -188,10 +194,22 @@ export function DataServicesPage() {
               <SearchField value={keyword} onValueChange={(value) => { setKeyword(value); setPage(0) }} placeholder="搜索名称/代码/负责人" className="w-full" />
             </div>
             <div className="px-[18px] pb-2">
-              <NativeSelect aria-label="状态筛选" className="w-auto" value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setPage(0) }}>
-                <option value="">全部状态</option>
-                {Object.entries(dataServiceStatusLabel).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-              </NativeSelect>
+              <Select
+                items={STATUS_ITEMS}
+                value={statusFilter}
+                onValueChange={(next) => { setStatusFilter(next ?? ''); setPage(0) }}
+              >
+                <SelectTrigger aria-label="状态筛选" className="w-auto min-w-none" size="sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectPopup>
+                  {STATUS_ITEMS.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectPopup>
+              </Select>
             </div>
             <ul className="m-0 min-h-0 flex-1 list-none px-2 pb-2">
               {visible.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE).map((service) => {

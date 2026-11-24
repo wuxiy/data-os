@@ -1,10 +1,10 @@
 import { Badge } from '@/components/ui/badge'
+import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useQuery } from '@tanstack/react-query'
 import { Download } from 'lucide-react'
 import { useState } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { NativeSelect } from '../../components/kit/input'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel, PanelHead } from '../../components/kit/panel'
 import { EmptyState } from '../../components/kit/states'
@@ -21,6 +21,8 @@ import { assistantAuditsQuery } from './queries'
 
 const PAGE_SIZE = 10
 const helper = listColumnHelper<AssistantAuditView>()
+
+const OUTCOME_ITEMS = AUDIT_OUTCOME_OPTIONS.map((option) => ({ value: option.value, label: option.label }))
 
 /**
  * 问数审计（独立审计页）：跨问题检索、结局过滤、服务端分页与同口径 CSV 导出。
@@ -97,9 +99,22 @@ export function AssistantAuditPage() {
           description="按结局过滤；导出与当前过滤口径一致"
           actions={
             <div className="flex items-center gap-2">
-              <NativeSelect aria-label="按结局过滤" className="w-auto" value={outcome} onChange={(event) => { setOutcome(event.target.value); setPage(0) }}>
-                {AUDIT_OUTCOME_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-              </NativeSelect>
+              <Select
+                items={OUTCOME_ITEMS}
+                value={outcome}
+                onValueChange={(next) => { setOutcome(next ?? ''); setPage(0) }}
+              >
+                <SelectTrigger aria-label="按结局过滤" className="w-auto min-w-none" size="sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectPopup>
+                  {OUTCOME_ITEMS.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectPopup>
+              </Select>
               <Button variant="outline" size="sm" disabled={exporting} onClick={() => void exportCsv()}>
                 <Download size={13} />{exporting ? '导出中…' : '导出 CSV'}
               </Button>

@@ -1,11 +1,11 @@
 import { LoadingBlock } from '@/components/app/loading'
 import { Badge } from '@/components/ui/badge'
+import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useQuery } from '@tanstack/react-query'
 import { Inbox, RefreshCw } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { NativeSelect } from '../../components/kit/input'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel, PanelHead } from '../../components/kit/panel'
 import { EmptyState } from '../../components/kit/states'
@@ -34,6 +34,11 @@ const DEEP_LINK_ROUTES: Record<string, string> = {
 }
 
 const helper = listColumnHelper<OperationsWorkItem>()
+
+const TYPE_ITEMS = [
+  { value: '', label: '全部类型' },
+  ...WORK_ITEM_TYPES.map((item) => ({ value: item, label: item })),
+]
 
 /**
  * 运营中心：面向治理负责人的跨域待办与事件流，与总览共用运营投影事实源。
@@ -104,10 +109,22 @@ export function OperationsCenterPage() {
               count={sorted.length}
               description="按严重度排序；筛选按待办类型"
               actions={
-                <NativeSelect aria-label="按类型筛选" className="w-auto" value={type} onChange={(event) => { setType(event.target.value); setPage(0) }}>
-                  <option value="">全部类型</option>
-                  {WORK_ITEM_TYPES.map((item) => <option key={item} value={item}>{item}</option>)}
-                </NativeSelect>
+                <Select
+                  items={TYPE_ITEMS}
+                  value={type}
+                  onValueChange={(next) => { setType(next ?? ''); setPage(0) }}
+                >
+                  <SelectTrigger aria-label="按类型筛选" className="w-auto min-w-none" size="sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectPopup>
+                    {TYPE_ITEMS.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectPopup>
+                </Select>
               }
             />
             <DataTable

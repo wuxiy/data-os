@@ -1,5 +1,6 @@
 import { LoadingBlock, LoadingInline } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
+import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CodeTextarea } from '@/components/app/code-textarea'
@@ -10,7 +11,7 @@ import { useEffect, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { FormGrid } from '@/components/app/form-grid'
-import { NativeSelect, SearchField } from '../../components/kit/input'
+import { SearchField } from '../../components/kit/input'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { Panel, PanelHead } from '../../components/kit/panel'
 import { EmptyState } from '../../components/kit/states'
@@ -213,6 +214,14 @@ export function MappingPage() {
   const retiredVersions = detail?.versions.filter((item) => item.status === 'RETIRED') ?? []
   const coverage = coverageRequest.data
 
+  const rollbackTargetItems = [
+    { value: '', label: '选择曾生效的停用版本…' },
+    ...retiredVersions.map((item) => ({ value: item.id, label: <>v{item.versionNo}</> })),
+  ]
+  const standardItems = [
+    { value: '', label: publishedStandards.isPending ? '读取中…' : '选择已发布标准…' },
+    ...(publishedStandards.data ?? []).map((standard) => ({ value: standard.id, label: <>{standard.code} · {standard.name}</> })),
+  ]
   return (
     <div>
       <Breadcrumb items={[{ label: '数据治理' }, { label: '标准映射' }]} trailing={detail ? <span>更新 {formatDateTime(detail.set.updatedAt)}</span> : null} />
@@ -294,16 +303,23 @@ export function MappingPage() {
               <FieldLabel htmlFor="mapping-standard">
                 目标标准 <span className="text-destructive-foreground">*</span>
               </FieldLabel>
-              <NativeSelect
-                id="mapping-standard"
-                className="min-h-[35px]"
+              <Select
+                items={standardItems}
                 value={createForm.standardId}
+                onValueChange={(next) => setCreateForm({ ...createForm, standardId: next ?? '' })}
                 disabled={publishedStandards.isPending || (publishedStandards.data?.length ?? 0) === 0}
-                onChange={(event) => setCreateForm({ ...createForm, standardId: event.target.value })}
               >
-                <option value="">{publishedStandards.isPending ? '读取中…' : '选择已发布标准…'}</option>
-                {(publishedStandards.data ?? []).map((standard) => <option key={standard.id} value={standard.id}>{standard.code} · {standard.name}</option>)}
-              </NativeSelect>
+                <SelectTrigger id="mapping-standard">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectPopup>
+                  {standardItems.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectPopup>
+              </Select>
               <FieldDescription>{publishedStandards.isError ? '已发布标准读取失败，请重试连接后创建映射集。' : publishedStandards.isSuccess && (publishedStandards.data?.length ?? 0) === 0 ? '尚无已发布标准。' : undefined}</FieldDescription>
             </Field>
             <div className="flex justify-end gap-2">
@@ -406,10 +422,22 @@ export function MappingPage() {
               {activeVersion && retiredVersions.length > 0 ? (
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <span className="text-label text-muted-foreground">回退到</span>
-                  <NativeSelect aria-label="选择回退目标版本" className="w-[220px]" value={rollbackTo} onChange={(event) => setRollbackTo(event.target.value)}>
-                    <option value="">选择曾生效的停用版本…</option>
-                    {retiredVersions.map((item) => <option key={item.id} value={item.id}>v{item.versionNo}</option>)}
-                  </NativeSelect>
+                  <Select
+                    items={rollbackTargetItems}
+                    value={rollbackTo}
+                    onValueChange={(next) => setRollbackTo(next ?? '')}
+                  >
+                    <SelectTrigger aria-label="选择回退目标版本" className="w-[220px]" size="sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectPopup>
+                      {rollbackTargetItems.map((item) => (
+                        <SelectItem key={item.value} value={item.value}>
+                          {item.label}
+                        </SelectItem>
+                      ))}
+                    </SelectPopup>
+                  </Select>
                   <Button variant="outline" size="sm" disabled={!rollbackTo || busy} onClick={() => rollback.mutate()}><History size={13} />回退（管理员）</Button>
                 </div>
               ) : null}

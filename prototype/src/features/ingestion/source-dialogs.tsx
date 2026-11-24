@@ -1,4 +1,5 @@
 import { Input } from '@/components/ui/input'
+import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { FormGrid } from '@/components/app/form-grid'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -9,7 +10,6 @@ import { Cable, CheckCircle2, CircleAlert, Copy } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { NativeSelect } from '../../components/kit/input'
 import { Dialog, DialogFooter } from '../../components/kit/overlay'
 import { useNotice } from '../../components/kit/toast'
 import {
@@ -25,6 +25,10 @@ import { errorMessage, parseConfig, sourceCheckDefaults, sourceDisplayName, sour
 
 const SYSTEM_TYPES = ['LIS', 'EMR', 'HIS', 'PACS']
 const PROTOCOLS = ['JDBC', 'HTTP', 'FHIR', 'SFTP']
+
+const PROTOCOL_ITEMS = PROTOCOLS.map((protocol) => ({ value: protocol, label: protocol }))
+
+const SYSTEM_TYPE_ITEMS = SYSTEM_TYPES.map((type) => ({ value: type, label: type }))
 
 /** 数据源登记（3 字段短表单）：提交后为「待检查」，不读取院内数据。 */
 export function SourceRegisterDialog({
@@ -94,15 +98,41 @@ export function SourceRegisterDialog({
       <FormGrid>
         <Field>
           <FieldLabel htmlFor="source-system">系统类型</FieldLabel>
-          <NativeSelect id="source-system" value={form.systemType} onChange={(event) => setForm((current) => ({ ...current, systemType: event.target.value }))}>
-            {SYSTEM_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
-          </NativeSelect>
+          <Select
+            items={SYSTEM_TYPE_ITEMS}
+            value={form.systemType}
+            onValueChange={(next) => setForm((current) => ({ ...current, systemType: next ?? '' }))}
+          >
+            <SelectTrigger id="source-system">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectPopup>
+              {SYSTEM_TYPE_ITEMS.map((item) => (
+                <SelectItem key={item.value} value={item.value}>
+                  {item.label}
+                </SelectItem>
+              ))}
+            </SelectPopup>
+          </Select>
         </Field>
         <Field>
           <FieldLabel htmlFor="source-protocol">接入协议</FieldLabel>
-          <NativeSelect id="source-protocol" value={form.protocol} onChange={(event) => setForm((current) => ({ ...current, protocol: event.target.value }))}>
-            {PROTOCOLS.map((protocol) => <option key={protocol} value={protocol}>{protocol}</option>)}
-          </NativeSelect>
+          <Select
+            items={PROTOCOL_ITEMS}
+            value={form.protocol}
+            onValueChange={(next) => setForm((current) => ({ ...current, protocol: next ?? '' }))}
+          >
+            <SelectTrigger id="source-protocol">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectPopup>
+              {PROTOCOL_ITEMS.map((item) => (
+                <SelectItem key={item.value} value={item.value}>
+                  {item.label}
+                </SelectItem>
+              ))}
+            </SelectPopup>
+          </Select>
         </Field>
       </FormGrid>
       {error ? (
@@ -244,6 +274,9 @@ export function CopyJobDialog({
 
   const dirty = Boolean(job && form.name !== `${job.name}-副本`)
 
+  const sourceItems = [
+    ...sources.map((source) => ({ value: source.id, label: <>{sourceDisplayName(source)} · {source.systemType}{source.connection ? '' : ' · 未登记连接'}</> })),
+  ]
   return (
     <Dialog
       open={job !== null}
@@ -264,18 +297,22 @@ export function CopyJobDialog({
       <FormGrid>
         <Field>
           <FieldLabel htmlFor="copy-source">目标数据源</FieldLabel>
-          <NativeSelect
-            id="copy-source"
-            className="min-h-[35px]"
+          <Select
+            items={sourceItems}
             value={form.sourceId}
-            onChange={(event) => setForm((current) => ({ ...current, sourceId: event.target.value }))}
+            onValueChange={(next) => setForm((current) => ({ ...current, sourceId: next ?? '' }))}
           >
-            {sources.map((source) => (
-              <option key={source.id} value={source.id}>
-                {sourceDisplayName(source)} · {source.systemType}{source.connection ? '' : ' · 未登记连接'}
-              </option>
-            ))}
-          </NativeSelect>
+            <SelectTrigger id="copy-source">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectPopup>
+              {sourceItems.map((item) => (
+                <SelectItem key={item.value} value={item.value}>
+                  {item.label}
+                </SelectItem>
+              ))}
+            </SelectPopup>
+          </Select>
         </Field>
         <Field>
           <FieldLabel>副本名称</FieldLabel>

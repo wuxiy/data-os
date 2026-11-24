@@ -1,6 +1,7 @@
 import { TableSkeleton } from '@/components/app/table-skeleton'
 import { LoadingBlock } from '@/components/app/loading'
 import { Input } from '@/components/ui/input'
+import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
@@ -11,7 +12,6 @@ import { useMemo, useState, type FormEvent } from 'react'
 import { QueryBoundary } from '../app/query-boundary'
 
 import { Button } from '@/components/ui/button'
-import { NativeSelect } from '../components/kit/input'
 import { Panel, PanelHead } from '../components/kit/panel'
 import { EmptyState } from '../components/kit/states'
 import { DataTable, listColumnHelper } from '../components/table/data-table'
@@ -27,6 +27,12 @@ import { AssistantGovernanceSection } from '../features/assistant/governance-sec
 import { assistantQuestionsQuery } from '../features/assistant/queries'
 
 const DATE_LIKE = /^\d{4}-\d{2}-\d{2}/
+
+const BOOLEAN_PARAM_ITEMS = [
+  { value: '', label: '未指定' },
+  { value: 'true', label: 'true' },
+  { value: 'false', label: 'false' },
+]
 
 function dataTimeRangeOf(answer: AssistantAnswer): string {
   const columns = answer.columns ?? []
@@ -204,6 +210,10 @@ function AssistantWorkspace({
             >
               {selected.paramSchema.map((contract) => {
                 const label = assistantParamLabel(contract.name, contract.description)
+                const paramValueItems = [
+                  { value: '', label: '请选择' },
+                  ...(contract.values ?? []).map((value) => ({ value, label: value })),
+                ]
                 return (
                   <Field key={contract.name} className="w-[170px]">
                     <FieldLabel>
@@ -217,26 +227,39 @@ function AssistantWorkspace({
                         onChange={(event) => setParams({ ...params, [contract.name]: event.target.value })}
                       />
                     ) : contract.type === 'boolean' ? (
-                      <NativeSelect
-                        aria-label={label}
-                        className="min-h-[35px]"
+                      <Select
+                        items={BOOLEAN_PARAM_ITEMS}
                         value={params[contract.name] ?? ''}
-                        onChange={(event) => setParams({ ...params, [contract.name]: event.target.value })}
+                        onValueChange={(next) => setParams({ ...params, [contract.name]: next ?? '' })}
                       >
-                        <option value="">未指定</option>
-                        <option value="true">true</option>
-                        <option value="false">false</option>
-                      </NativeSelect>
+                        <SelectTrigger aria-label={label}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectPopup>
+                          {BOOLEAN_PARAM_ITEMS.map((item) => (
+                            <SelectItem key={item.value} value={item.value}>
+                              {item.label}
+                            </SelectItem>
+                          ))}
+                        </SelectPopup>
+                      </Select>
                     ) : (contract.values ?? []).length > 0 ? (
-                      <NativeSelect
-                        aria-label={label}
-                        className="min-h-[35px]"
+                      <Select
+                        items={paramValueItems}
                         value={params[contract.name] ?? ''}
-                        onChange={(event) => setParams({ ...params, [contract.name]: event.target.value })}
+                        onValueChange={(next) => setParams({ ...params, [contract.name]: next ?? '' })}
                       >
-                        <option value="">请选择</option>
-                        {(contract.values ?? []).map((value) => <option key={value} value={value}>{value}</option>)}
-                      </NativeSelect>
+                        <SelectTrigger aria-label={label}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectPopup>
+                          {paramValueItems.map((item) => (
+                            <SelectItem key={item.value} value={item.value}>
+                              {item.label}
+                            </SelectItem>
+                          ))}
+                        </SelectPopup>
+                      </Select>
                     ) : (
                       <Input
                         type={contract.type === 'number' ? 'number' : 'text'}
