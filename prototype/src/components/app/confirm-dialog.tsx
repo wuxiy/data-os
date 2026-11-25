@@ -1,5 +1,7 @@
 import { TriangleAlert } from 'lucide-react'
-import { useRef, type ReactNode } from 'react'
+import { type ReactNode, useRef } from 'react'
+
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
   AlertDialog,
   AlertDialogClose,
@@ -9,7 +11,6 @@ import {
   AlertDialogPopup,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 
 export type ConfirmTone = 'default' | 'destructive'

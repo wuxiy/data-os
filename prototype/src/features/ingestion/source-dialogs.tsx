@@ -1,18 +1,28 @@
-import { Input } from '@/components/ui/input'
-import { DiscardPrompt, useDiscardGuard } from '@/components/app/discard-guard'
-import { Dialog, DialogClose, DialogDescription, DialogFooter, DialogHeader, DialogPanel, DialogPopup, DialogTitle } from '@/components/ui/dialog'
-import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Field, FieldLabel } from '@/components/ui/field'
-import { FormGrid } from '@/components/app/form-grid'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { CodeTextarea } from '@/components/app/code-textarea'
-import { Badge } from '@/components/ui/badge'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Cable, CheckCircle2, CircleAlert, Copy } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
-import { Button } from '@/components/ui/button'
+import { CodeTextarea } from '@/components/app/code-textarea'
+import { DiscardPrompt, useDiscardGuard } from '@/components/app/discard-guard'
+import { FormGrid } from '@/components/app/form-grid'
 import { useNotice } from '@/components/app/notice'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogClose,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogPanel,
+  DialogPopup,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Field, FieldLabel } from '@/components/ui/field'
+import { Input } from '@/components/ui/input'
+import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
+
 import {
   checkSource,
   copyIngestionJob,
@@ -21,8 +31,8 @@ import {
   type SourceApiItem,
 } from '../../data/controlPlane'
 import { formatDateTime } from '../../data/domain'
-import { ingestionKeys } from './queries'
 import { errorMessage, parseConfig, sourceCheckDefaults, sourceDisplayName, sourceStatusView } from './labels'
+import { ingestionKeys } from './queries'
 
 const SYSTEM_TYPES = ['LIS', 'EMR', 'HIS', 'PACS']
 const PROTOCOLS = ['JDBC', 'HTTP', 'FHIR', 'SFTP']

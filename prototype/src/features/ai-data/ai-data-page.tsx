@@ -1,32 +1,59 @@
-import { TableSkeleton } from '@/components/app/table-skeleton'
-import { LoadingBlock } from '@/components/app/loading'
-import { Input } from '@/components/ui/input'
-import { FramePanel } from '@/components/ui/frame'
-import { DiscardPrompt, useDiscardGuard } from '@/components/app/discard-guard'
-import { Dialog, DialogClose, DialogDescription, DialogFooter, DialogHeader, DialogPanel, DialogPopup, DialogTitle } from '@/components/ui/dialog'
-import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Field, FieldLabel } from '@/components/ui/field'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { CodeTextarea } from '@/components/app/code-textarea'
-import { Badge } from '@/components/ui/badge'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearch } from '@tanstack/react-router'
-import { AlertTriangle, Boxes, CircleAlert, FlaskConical, MessageSquareText, Plus, RefreshCw, ShieldCheck } from 'lucide-react'
+import {
+  AlertTriangle,
+  Boxes,
+  CircleAlert,
+  FlaskConical,
+  MessageSquareText,
+  Plus,
+  RefreshCw,
+  ShieldCheck,
+} from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
-import { Button } from '@/components/ui/button'
-import { FormGrid } from '@/components/app/form-grid'
-import { SearchField } from '@/components/app/search-field'
+import { CodeTextarea } from '@/components/app/code-textarea'
 import { ConfirmDialog } from '@/components/app/confirm-dialog'
-import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
-import { Tabs, TabsList, TabsPanel, TabsTab } from '@/components/ui/tabs'
+import { DiscardPrompt, useDiscardGuard } from '@/components/app/discard-guard'
 import { EmptyState } from '@/components/app/empty-state'
-import { DataTable, TablePagination, listColumnHelper } from '../../components/table/data-table'
+import { FormGrid } from '@/components/app/form-grid'
+import { LoadingBlock } from '@/components/app/loading'
 import { useNotice } from '@/components/app/notice'
+import { SearchField } from '@/components/app/search-field'
+import { TableSkeleton } from '@/components/app/table-skeleton'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import {
+  Dialog,
+  DialogClose,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogPanel,
+  DialogPopup,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Field, FieldLabel } from '@/components/ui/field'
+import { FramePanel } from '@/components/ui/frame'
+import { Input } from '@/components/ui/input'
+import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Tabs, TabsList, TabsPanel, TabsTab } from '@/components/ui/tabs'
+
+import { usePortalNavigate } from '../../app/navigate'
+import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
+import { DataTable, listColumnHelper, TablePagination } from '../../components/table/data-table'
+import {
+  type AIBuildJob,
   aiBuildJobStatusLabel,
   aiBuildStatusLabel,
   aiCertificationLabel,
+  type AICertificationRequest,
+  type AIDataProduct,
+  type AIDataProductDetail,
+  type AIDataProductLifecycle,
+  type AIDataProductType,
+  type AIEvaluationFeedbackItem,
   aiFeedbackTypeLabel,
   aiMetricLabel,
   createAIDataProduct,
@@ -41,16 +68,8 @@ import {
   submitCertification,
   submitFeedback,
   transitionAIDataProduct,
-  type AIDataProduct,
-  type AIDataProductDetail,
-  type AIDataProductLifecycle,
-  type AIDataProductType,
-  type AICertificationRequest,
-  type AIEvaluationFeedbackItem,
-  type AIBuildJob,
 } from '../../data/aiDataApi'
 import { formatDateTime } from '../../data/domain'
-import { usePortalNavigate } from '../../app/navigate'
 import {
   aiBuildsQuery,
   aiCertificationsQuery,

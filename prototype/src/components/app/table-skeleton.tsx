@@ -1,5 +1,5 @@
-import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
+import { cn } from '@/lib/utils'
 
 /** 表格首屏骨架：保留表头与行列的形状，数据到位后原位替换，不改变布局高度语义。 */
 export function TableSkeleton({ rows = 5, className }: { rows?: number; className?: string }) {

@@ -1,10 +1,11 @@
-import { LoadingBlock } from '@/components/app/loading'
 import { CircleAlert, LogIn, ShieldCheck } from 'lucide-react'
 import { useState } from 'react'
-import type { AuthSnapshot } from '../../data/oidc'
-import { startOidcLogin } from '../../data/oidc'
-import { Button } from '@/components/ui/button'
+
+import { LoadingBlock } from '@/components/app/loading'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
+
+import { type AuthSnapshot, startOidcLogin } from '../../data/oidc'
 
 
 /** 登录门（新主题）：未认证会话在进入任何工作区前阻断。 */

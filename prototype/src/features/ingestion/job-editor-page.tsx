@@ -1,49 +1,59 @@
-import { LoadingBlock } from '@/components/app/loading'
-import { Input } from '@/components/ui/input'
-import { FramePanel } from '@/components/ui/frame'
-import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Field, FieldLabel } from '@/components/ui/field'
-import { SegmentedControl, SegmentedControlItem } from '@/components/ui/segmented-control'
-import { RadioGroupPrimitive, RadioPrimitive } from '@/components/ui/radio-group'
-import { Fieldset, FieldsetLegend } from '@/components/ui/fieldset'
-import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from '@/components/ui/collapsible'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { CodeTextarea } from '@/components/app/code-textarea'
-import { Badge } from '@/components/ui/badge'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, CalendarClock, CircleAlert, FileCog, KeyRound, LoaderCircle, Save, ChevronDown } from 'lucide-react'
+import {
+  AlertTriangle,
+  CalendarClock,
+  ChevronDown,
+  CircleAlert,
+  FileCog,
+  KeyRound,
+  LoaderCircle,
+  Save,
+} from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 
-import { Button } from '@/components/ui/button'
-import { FormGrid } from '@/components/app/form-grid'
-import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
-import { ScopeNote } from '@/components/app/scope-note'
+import { CodeTextarea } from '@/components/app/code-textarea'
 import { EmptyState } from '@/components/app/empty-state'
+import { FormGrid } from '@/components/app/form-grid'
+import { LoadingBlock } from '@/components/app/loading'
 import { useNotice } from '@/components/app/notice'
+import { ScopeNote } from '@/components/app/scope-note'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from '@/components/ui/collapsible'
+import { Field, FieldLabel } from '@/components/ui/field'
+import { Fieldset, FieldsetLegend } from '@/components/ui/fieldset'
+import { FramePanel } from '@/components/ui/frame'
+import { Input } from '@/components/ui/input'
+import { RadioGroupPrimitive, RadioPrimitive } from '@/components/ui/radio-group'
+import { SegmentedControl, SegmentedControlItem } from '@/components/ui/segmented-control'
+import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
+
+import { useDirtyLeaveGuard } from '../../app/dirty-leave-guard'
+import { usePortalNavigate } from '../../app/navigate'
+import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import {
   createIngestionJob,
+  type IngestionJobApiItem,
   saveJobConfig,
   saveStructuredJobConfig,
-  type IngestionJobApiItem,
   type StructuredTaskSpec,
 } from '../../data/controlPlane'
-import { allowsTemplate, offersDemoTemplate } from '../../data/runtimeMode'
 import { workLinks } from '../../data/routes'
-import { usePortalNavigate } from '../../app/navigate'
-import { useDirtyLeaveGuard } from '../../app/dirty-leave-guard'
-import { ingestionKeys, jobConfigQuery, jobsQuery, sourcesQuery, workflowTemplatesQuery } from './queries'
+import { allowsTemplate, offersDemoTemplate } from '../../data/runtimeMode'
 import {
+  configForTemplate,
   DEFAULT_TEMPLATE_KEY,
   DEFAULT_TEMPLATE_VERSION,
-  LIVE_TEMPLATE_KEY,
-  configForTemplate,
   defaultJobTemplateKey,
   errorMessage,
   isDolphinExecutor,
+  LIVE_TEMPLATE_KEY,
   parseConfig,
   preferredSourceId,
   sourceDisplayName,
 } from './labels'
+import { ingestionKeys, jobConfigQuery, jobsQuery, sourcesQuery, workflowTemplatesQuery } from './queries'
 import { StructuredTaskFields } from './structured-fields'
 
 const JOB_MODE_ITEMS = [

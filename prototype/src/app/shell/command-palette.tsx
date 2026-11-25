@@ -1,4 +1,7 @@
-import { DialogTitle } from '@/components/ui/dialog'
+import { useLocation } from '@tanstack/react-router'
+import { House, type LucideIcon } from 'lucide-react'
+import { useEffect, useMemo } from 'react'
+
 import {
   Command,
   CommandDialog,
@@ -10,12 +13,11 @@ import {
   CommandList,
   CommandShortcut,
 } from '@/components/ui/command'
+import { DialogTitle } from '@/components/ui/dialog'
 import { Kbd, KbdGroup } from '@/components/ui/kbd'
-import { useLocation } from '@tanstack/react-router'
-import { House, type LucideIcon } from 'lucide-react'
-import { useEffect, useMemo } from 'react'
-import { portalRoutes, routeForPath } from '../navigation'
+
 import { usePortalNavigate } from '../navigate'
+import { portalRoutes, routeForPath } from '../navigation'
 import { useAuth } from '../providers'
 
 type PageCommand = { key: string; label: string; path: string; icon: LucideIcon; group: string }

@@ -1,26 +1,27 @@
-import { LoadingBlock } from '@/components/app/loading'
-import { Badge } from '@/components/ui/badge'
-import { FrameDescription, FrameHeader, FramePanel } from '@/components/ui/frame'
-import { Tooltip, TooltipPopup, TooltipTrigger } from '@/components/ui/tooltip'
 import { useQuery } from '@tanstack/react-query'
 import { useSearch } from '@tanstack/react-router'
 import { ArrowLeft, Database, Rows3, TableProperties } from 'lucide-react'
 import { useState } from 'react'
 
-import { Button } from '@/components/ui/button'
-import { SearchField } from '@/components/app/search-field'
-import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { EmptyState } from '@/components/app/empty-state'
-import { DataTable, TablePagination, listColumnHelper } from '../../components/table/data-table'
+import { LoadingBlock } from '@/components/app/loading'
+import { SearchField } from '@/components/app/search-field'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { FrameDescription, FrameHeader, FramePanel } from '@/components/ui/frame'
+import { Tooltip, TooltipPopup, TooltipTrigger } from '@/components/ui/tooltip'
+
+import { usePortalNavigate } from '../../app/navigate'
+import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
+import { DataTable, listColumnHelper, TablePagination } from '../../components/table/data-table'
 import { formatDateTime } from '../../data/domain'
 import {
+  type LineageAssetColumn,
   lineageNodeKindLabel,
   lineageSchemaLabel,
   shortNodeName,
-  type LineageAssetColumn,
 } from '../../data/lineageApi'
 import { deepLinks } from '../../data/routes'
-import { usePortalNavigate } from '../../app/navigate'
 import { assetCatalogQuery, assetDetailQuery, assetLineageQuery, lineageSummaryQuery } from './queries'
 
 const columnHelper = listColumnHelper<LineageAssetColumn>()

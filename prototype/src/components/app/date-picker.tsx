@@ -1,7 +1,7 @@
 import { zhCN } from '@daypicker/react/locale'
 import { CalendarIcon } from 'lucide-react'
-import type { ChangeEvent, ComponentProps } from 'react'
-import { useState } from 'react'
+import { type ChangeEvent, type ComponentProps, useState } from 'react'
+
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group'

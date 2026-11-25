@@ -1,25 +1,31 @@
-import { LoadingBlock } from '@/components/app/loading'
-import { Input } from '@/components/ui/input'
-import { FrameDescription, FrameHeader, FramePanel } from '@/components/ui/frame'
-import { Dialog, DialogDescription, DialogFooter, DialogHeader, DialogPopup, DialogTitle } from '@/components/ui/dialog'
-import { Field, FieldLabel } from '@/components/ui/field'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Badge } from '@/components/ui/badge'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CircleAlert, Gauge, Plus, Save } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
-import { Button } from '@/components/ui/button'
 import { FormGrid } from '@/components/app/form-grid'
-
-import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
-
+import { LoadingBlock } from '@/components/app/loading'
 import { useNotice } from '@/components/app/notice'
-import { updateQualityScoreStandard, type QualityGradeView } from '../../data/controlPlane'
-import { formatDateTime } from '../../data/domain'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogPopup,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Field, FieldLabel } from '@/components/ui/field'
+import { FrameDescription, FrameHeader, FramePanel } from '@/components/ui/frame'
+import { Input } from '@/components/ui/input'
+
 import { usePortalNavigate } from '../../app/navigate'
-import { governanceKeys, qualityScoreQuery } from './queries'
+import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
+import { type QualityGradeView, updateQualityScoreStandard } from '../../data/controlPlane'
+import { formatDateTime } from '../../data/domain'
 import { QUALITY_DIMENSIONS } from './quality-score-panel'
+import { governanceKeys, qualityScoreQuery } from './queries'
 
 /**
  * 质量评分设置（独立配置页，替代旧抽屉）：

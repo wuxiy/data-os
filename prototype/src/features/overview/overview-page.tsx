@@ -1,26 +1,26 @@
-import { TableSkeleton } from '@/components/app/table-skeleton'
-import { LoadingBlock } from '@/components/app/loading'
-import { Badge } from '@/components/ui/badge'
-import { FrameDescription, FrameHeader, FramePanel } from '@/components/ui/frame'
 import { useQuery } from '@tanstack/react-query'
 import { Activity, ChevronRight, CloudCog, Inbox, RefreshCw } from 'lucide-react'
 import { useMemo } from 'react'
 
-import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
-import { MetricCard, MetricStrip } from '../../components/app/metric'
-
-import { Button } from '@/components/ui/button'
-import { DataTable, listColumnHelper } from '../../components/table/data-table'
 import { EmptyState } from '@/components/app/empty-state'
+import { LoadingBlock } from '@/components/app/loading'
+import { useNotice } from '@/components/app/notice'
+import { TableSkeleton } from '@/components/app/table-skeleton'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { FrameDescription, FrameHeader, FramePanel } from '@/components/ui/frame'
+
+import { usePortalNavigate } from '../../app/navigate'
+import { MetricCard, MetricStrip } from '../../components/app/metric'
+import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
+import { DataTable, listColumnHelper } from '../../components/table/data-table'
 import { formatDateTime } from '../../data/domain'
 import {
   EVENT_DOMAIN_LABEL,
   EVENT_TYPE_LABEL,
-  WORK_ITEM_SOURCE_LABEL,
   type OperationsWorkItem,
+  WORK_ITEM_SOURCE_LABEL,
 } from '../../data/operationsApi'
-import { usePortalNavigate } from '../../app/navigate'
-import { useNotice } from '@/components/app/notice'
 import { operationsEventsQuery, operationsSummaryQuery, operationsWorkItemsQuery } from './queries'
 
 /**

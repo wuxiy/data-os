@@ -1,8 +1,10 @@
-import { Link, Outlet, createRootRoute, createRoute, createRouter, useRouter } from '@tanstack/react-router'
+import { createRootRoute, createRoute, createRouter, Link, Outlet, useRouter } from '@tanstack/react-router'
 import { TriangleAlert } from 'lucide-react'
-import { Suspense, lazy } from 'react'
+import { lazy, Suspense } from 'react'
+
 import { EmptyState } from '@/components/app/empty-state'
 import { Button } from '@/components/ui/button'
+
 import { AppShell } from './shell/app-shell'
 
 /**

@@ -1,20 +1,20 @@
-import { TableSkeleton } from '@/components/app/table-skeleton'
 import {
+  type ColumnDef,
   columnSizingFeature,
   columnVisibilityFeature,
   createColumnHelper,
+  type RowData,
   rowPaginationFeature,
   rowSelectionFeature,
   tableFeatures,
   useTable,
-  type ColumnDef,
-  type RowData,
 } from '@tanstack/react-table'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { useMemo, type ReactNode } from 'react'
-import { cn } from '../../lib/utils'
+import { type ReactNode, useMemo } from 'react'
+
+import { EmptyState } from '@/components/app/empty-state'
+import { TableSkeleton } from '@/components/app/table-skeleton'
 import { Button } from '@/components/ui/button'
-import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
   Pagination,
@@ -23,8 +23,10 @@ import {
   PaginationItem,
   PaginationLink,
 } from '@/components/ui/pagination'
+import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { EmptyState } from '@/components/app/empty-state'
+
+import { cn } from '../../lib/utils'
 
 /**
  * 列表面板：批准原型的连续表格工作面（39px 表头、56px 行、细分隔线、数字右对齐）。

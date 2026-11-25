@@ -1,20 +1,21 @@
-import { TableSkeleton } from '@/components/app/table-skeleton'
-import { LoadingBlock } from '@/components/app/loading'
-import { Badge } from '@/components/ui/badge'
-import { FrameDescription, FrameHeader, FramePanel } from '@/components/ui/frame'
+import { embedDashboard } from '@superset-ui/embedded-sdk'
 import { useQuery } from '@tanstack/react-query'
 import { ChartNoAxesCombined, RefreshCw, ShieldCheck } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { embedDashboard } from '@superset-ui/embedded-sdk'
 
-import { Button } from '@/components/ui/button'
-import { SearchField } from '@/components/app/search-field'
-import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { EmptyState } from '@/components/app/empty-state'
-import { TablePagination } from '../../components/table/data-table'
+import { LoadingBlock } from '@/components/app/loading'
 import { useNotice } from '@/components/app/notice'
-import { fetchEmbeddableDashboards, fetchGuestToken, supersetEmbedOrigin } from '../../data/analyticsApi'
+import { SearchField } from '@/components/app/search-field'
+import { TableSkeleton } from '@/components/app/table-skeleton'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { FrameDescription, FrameHeader, FramePanel } from '@/components/ui/frame'
+
 import { usePortalNavigate } from '../../app/navigate'
+import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
+import { TablePagination } from '../../components/table/data-table'
+import { fetchEmbeddableDashboards, fetchGuestToken, supersetEmbedOrigin } from '../../data/analyticsApi'
 
 const PAGE_SIZE = 8
 

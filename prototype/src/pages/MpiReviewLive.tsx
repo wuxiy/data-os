@@ -1,34 +1,54 @@
-import { TableSkeleton } from '@/components/app/table-skeleton'
-import { LoadingBlock } from '@/components/app/loading'
-import { Badge } from '@/components/ui/badge'
-import { FrameDescription, FrameHeader, FramePanel } from '@/components/ui/frame'
-import { Tooltip, TooltipPopup, TooltipTrigger } from '@/components/ui/tooltip'
-import { Drawer, DrawerClose, DrawerDescription, DrawerFooter, DrawerHeader, DrawerPanel, DrawerPopup, DrawerTitle } from '@/components/ui/drawer'
-import { Checkbox } from '@/components/ui/checkbox'
-import { Label } from '@/components/ui/label'
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CheckCircle2, CircleAlert, GitMerge, GitPullRequestArrow, LoaderCircle, RefreshCw, ShieldCheck, XCircle, X } from 'lucide-react'
+import {
+  CheckCircle2,
+  CircleAlert,
+  GitMerge,
+  GitPullRequestArrow,
+  LoaderCircle,
+  RefreshCw,
+  ShieldCheck,
+  X,
+  XCircle,
+} from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { QueryBoundary } from '../app/query-boundary'
 
-import { Button } from '@/components/ui/button'
-import { SearchField } from '@/components/app/search-field'
 import { ConfirmDialog } from '@/components/app/confirm-dialog'
 import { EmptyState } from '@/components/app/empty-state'
-import { DataTable, TablePagination, listColumnHelper } from '../components/table/data-table'
+import { LoadingBlock } from '@/components/app/loading'
+import { SearchField } from '@/components/app/search-field'
+import { TableSkeleton } from '@/components/app/table-skeleton'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
+import {
+  Drawer,
+  DrawerClose,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerPanel,
+  DrawerPopup,
+  DrawerTitle,
+} from '@/components/ui/drawer'
+import { FrameDescription, FrameHeader, FramePanel } from '@/components/ui/frame'
+import { Label } from '@/components/ui/label'
+import { Tooltip, TooltipPopup, TooltipTrigger } from '@/components/ui/tooltip'
+
+import { QueryBoundary } from '../app/query-boundary'
+import { DataTable, listColumnHelper, TablePagination } from '../components/table/data-table'
 import { formatDateTime } from '../data/domain'
 import {
   decideMpiTask,
   fetchMpiCandidates,
   fetchMpiMetrics,
   fetchMpiPerson,
+  type MpiCandidateItem,
   mpiEvidenceLine,
+  type MpiPersonDetail,
   mpiRuleLabel,
   rebuildMpi,
   splitMpiPerson,
-  type MpiCandidateItem,
-  type MpiPersonDetail,
 } from '../data/mpiApi'
 
 /**

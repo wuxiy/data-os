@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
-import { cn } from '@/lib/utils'
+
 import { Spinner } from '@/components/ui/spinner'
+import { cn } from '@/lib/utils'
 
 /** 行内加载提示：区块内刷新时保留已有工作面。 */
 export function LoadingInline({ children = '正在读取…' }: { children?: ReactNode }) {

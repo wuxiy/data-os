@@ -1,9 +1,10 @@
+import { useQuery } from '@tanstack/react-query'
+import { ChevronDown, CircleAlert, CircleCheck, CloudCog, RefreshCw } from 'lucide-react'
+
 import { Alert, AlertAction, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from '@/components/ui/collapsible'
-import { useQuery } from '@tanstack/react-query'
-import { ChevronDown, CircleAlert, CircleCheck, CloudCog, RefreshCw } from 'lucide-react'
 
 import { fetchRuntimeStatus, type RuntimeStatusApiResponse } from '../../data/controlPlane'
 import { frontendDemoMode, isDemoRuntime } from '../../data/runtimeMode'

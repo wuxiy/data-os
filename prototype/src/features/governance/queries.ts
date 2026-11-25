@@ -1,23 +1,20 @@
 import { queryOptions } from '@tanstack/react-query'
+
 import {
   fetchGovernanceIssue,
   fetchGovernanceIssues,
   fetchGovernanceSummary,
-  fetchQualityRuleTypes,
   fetchQualityRules,
+  fetchQualityRuleTypes,
   fetchQualityScore,
 } from '../../data/controlPlane'
 import {
   fetchMappingCoverage,
   fetchMappingDetail,
-  fetchMappingSets,
   fetchMappingImpact,
+  fetchMappingSets,
 } from '../../data/mappingApi'
-import {
-  fetchStandardDetail,
-  fetchStandards,
-  fetchVersionImpact,
-} from '../../data/standardsApi'
+import { fetchStandardDetail, fetchStandards, fetchVersionImpact } from '../../data/standardsApi'
 
 /** 治理域 Query 键：问题、规则、评分、标准与映射各自独立失效。 */
 export const governanceKeys = {

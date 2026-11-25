@@ -1,24 +1,34 @@
-import { LoadingBlock, LoadingInline } from '@/components/app/loading'
-import { Input } from '@/components/ui/input'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { FrameDescription, FrameHeader, FramePanel } from '@/components/ui/frame'
-import { Tooltip, TooltipPopup, TooltipTrigger } from '@/components/ui/tooltip'
-import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from '@/components/ui/collapsible'
-import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { CodeTextarea } from '@/components/app/code-textarea'
-import { Badge } from '@/components/ui/badge'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ChevronDown, ChevronRight, CircleAlert, Database, KeyRound, Play, Table2, TriangleAlert } from 'lucide-react'
+import {
+  ChevronDown,
+  ChevronRight,
+  CircleAlert,
+  Database,
+  KeyRound,
+  Play,
+  Table2,
+  TriangleAlert,
+} from 'lucide-react'
 import { useEffect, useState } from 'react'
 
-import { Button } from '@/components/ui/button'
-
-import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
-import { ScopeNote } from '@/components/app/scope-note'
+import { CodeTextarea } from '@/components/app/code-textarea'
 import { EmptyState } from '@/components/app/empty-state'
-import { DataTable, listColumnHelper } from '../../components/table/data-table'
+import { LoadingBlock, LoadingInline } from '@/components/app/loading'
 import { useNotice } from '@/components/app/notice'
+import { ScopeNote } from '@/components/app/scope-note'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from '@/components/ui/collapsible'
+import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
+import { FrameDescription, FrameHeader, FramePanel } from '@/components/ui/frame'
+import { Input } from '@/components/ui/input'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Tooltip, TooltipPopup, TooltipTrigger } from '@/components/ui/tooltip'
+
+import { usePortalNavigate } from '../../app/navigate'
+import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
+import { DataTable, listColumnHelper } from '../../components/table/data-table'
 import {
   runSourceQuery,
   saveSourceConnection,
@@ -26,9 +36,14 @@ import {
   type SourceColumnApiItem,
 } from '../../data/controlPlane'
 import { workLinks } from '../../data/routes'
-import { usePortalNavigate } from '../../app/navigate'
-import { ingestionKeys, sourceCatalogsQuery, sourceColumnsQuery, sourceTablesQuery, sourcesQuery } from './queries'
 import { errorMessage, sourceDisplayName, sourceStatusView } from './labels'
+import {
+  ingestionKeys,
+  sourceCatalogsQuery,
+  sourceColumnsQuery,
+  sourcesQuery,
+  sourceTablesQuery,
+} from './queries'
 
 const columnHelper = listColumnHelper<SourceColumnApiItem>()
 

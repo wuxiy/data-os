@@ -1,6 +1,12 @@
 import { queryOptions } from '@tanstack/react-query'
-import { fetchEdgeDeployments, fetchEdgeNodes, fetchEdgeWatermarks, fetchPlatformOperations } from '../../data/controlPlane'
-import { fetchDeliveryDetail, fetchDeliveries } from '../../data/deliveryApi'
+
+import {
+  fetchEdgeDeployments,
+  fetchEdgeNodes,
+  fetchEdgeWatermarks,
+  fetchPlatformOperations,
+} from '../../data/controlPlane'
+import { fetchDeliveries, fetchDeliveryDetail } from '../../data/deliveryApi'
 import { fetchOperationsEvents, fetchOperationsSummary, fetchWorkItems } from '../../data/operationsApi'
 
 /** 运营/交付/运维域 Query 键。 */

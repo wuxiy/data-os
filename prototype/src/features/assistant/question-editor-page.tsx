@@ -1,46 +1,47 @@
-import { LoadingBlock } from '@/components/app/loading'
-import { Input } from '@/components/ui/input'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { FramePanel } from '@/components/ui/frame'
-import { Tooltip, TooltipPopup, TooltipTrigger } from '@/components/ui/tooltip'
-import { Checkbox } from '@/components/ui/checkbox'
-import { DatePicker } from '@/components/app/date-picker'
-import { Label } from '@/components/ui/label'
-import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { CodeTextarea } from '@/components/app/code-textarea'
-import { Badge } from '@/components/ui/badge'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearch } from '@tanstack/react-router'
 import { CircleAlert, Download, FlaskConical, Plus, Save, ShieldQuestion, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
-import { Button } from '@/components/ui/button'
-import { FormGrid } from '@/components/app/form-grid'
+import { CodeTextarea } from '@/components/app/code-textarea'
 import { ConfirmDialog } from '@/components/app/confirm-dialog'
-import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
-import { Tabs, TabsList, TabsPanel, TabsTab } from '@/components/ui/tabs'
+import { DatePicker } from '@/components/app/date-picker'
 import { EmptyState } from '@/components/app/empty-state'
-import { DataTable, listColumnHelper } from '../../components/table/data-table'
+import { FormGrid } from '@/components/app/form-grid'
+import { LoadingBlock } from '@/components/app/loading'
 import { useNotice } from '@/components/app/notice'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
+import { FramePanel } from '@/components/ui/frame'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Tabs, TabsList, TabsPanel, TabsTab } from '@/components/ui/tabs'
+import { Tooltip, TooltipPopup, TooltipTrigger } from '@/components/ui/tooltip'
+
+import { useDirtyLeaveGuard } from '../../app/dirty-leave-guard'
+import { usePortalNavigate } from '../../app/navigate'
+import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
+import { DataTable, listColumnHelper } from '../../components/table/data-table'
 import {
+  type AssistantAdminQuestionView,
+  type AssistantAnswer,
   assistantParamLabel,
   assistantQuestionAction,
+  type AssistantQuestionDraft,
+  type AssistantQuestionEventView,
   deleteAssistantQuestion,
   QUESTION_STATUS_LABEL,
   saveAssistantQuestion,
   testAssistantQuestion,
-  type AssistantAdminQuestionView,
-  type AssistantAnswer,
-  type AssistantQuestionDraft,
-  type AssistantQuestionEventView,
 } from '../../data/assistantApi'
 import { formatDateTime } from '../../data/domain'
 import { workLinks } from '../../data/routes'
-import { usePortalNavigate } from '../../app/navigate'
-import { useDirtyLeaveGuard } from '../../app/dirty-leave-guard'
-import { assistantKeys, assistantAdminQuestionsQuery, assistantQuestionEventsQuery } from './queries'
+import { assistantAdminQuestionsQuery, assistantKeys, assistantQuestionEventsQuery } from './queries'
 
 type TabValue = 'definition' | 'try' | 'events'
 

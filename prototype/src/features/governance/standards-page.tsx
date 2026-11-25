@@ -1,43 +1,61 @@
-import { LoadingBlock, LoadingInline } from '@/components/app/loading'
-import { Input } from '@/components/ui/input'
-import { FrameDescription, FrameHeader, FramePanel } from '@/components/ui/frame'
-import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { CodeTextarea } from '@/components/app/code-textarea'
-import { Badge } from '@/components/ui/badge'
-import { SegmentedControl, SegmentedControlItem } from '@/components/ui/segmented-control'
-import { RadioGroupPrimitive, RadioPrimitive } from '@/components/ui/radio-group'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Archive, ArrowRightLeft, CircleAlert, Download, FileSearch, GitCompareArrows, RefreshCw, Send, ShieldCheck, UploadCloud } from 'lucide-react'
+import {
+  Archive,
+  ArrowRightLeft,
+  CircleAlert,
+  Download,
+  FileSearch,
+  GitCompareArrows,
+  RefreshCw,
+  Send,
+  ShieldCheck,
+  UploadCloud,
+} from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 
-import { Button } from '@/components/ui/button'
-import { FormGrid } from '@/components/app/form-grid'
-import { SearchField } from '@/components/app/search-field'
-import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
+import { CodeTextarea } from '@/components/app/code-textarea'
 import { EmptyState } from '@/components/app/empty-state'
-import { DataTable, TablePagination, listColumnHelper } from '../../components/table/data-table'
+import { FormGrid } from '@/components/app/form-grid'
+import { LoadingBlock, LoadingInline } from '@/components/app/loading'
 import { useNotice } from '@/components/app/notice'
+import { SearchField } from '@/components/app/search-field'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
+import { FrameDescription, FrameHeader, FramePanel } from '@/components/ui/frame'
+import { Input } from '@/components/ui/input'
+import { RadioGroupPrimitive, RadioPrimitive } from '@/components/ui/radio-group'
+import { SegmentedControl, SegmentedControlItem } from '@/components/ui/segmented-control'
+import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
+
+import { usePortalNavigate } from '../../app/navigate'
+import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
+import { DataTable, listColumnHelper, TablePagination } from '../../components/table/data-table'
+import {
+  actorLabel,
+  formatDateTime,
+  sensitivityLabel,
+  severityTone,
+  standardEventLabel,
+} from '../../data/domain'
 import {
   compareStandardVersions,
   createStandardVersion,
   deprecateStandardVersion,
   fetchFhirBundle,
+  type ImportReport,
   importStandards,
   publishStandardVersion,
   retryStandardSync,
-  submitStandardVersion,
-  updateStandardVersion,
-  type ImportReport,
   type StandardDetailView,
   type StandardElementView,
   type StandardListItem,
+  submitStandardVersion,
+  updateStandardVersion,
   type VersionCompare,
 } from '../../data/standardsApi'
-import { actorLabel, formatDateTime, sensitivityLabel, severityTone, standardEventLabel } from '../../data/domain'
 import { governanceKeys, standardDetailQuery, standardImpactQuery, standardsQuery } from './queries'
-import { usePortalNavigate } from '../../app/navigate'
 
 const STATUS_LABEL: Record<string, string> = { DRAFT: '草稿', IN_REVIEW: '评审中', PUBLISHED: '已发布', DEPRECATED: '已停用' }
 

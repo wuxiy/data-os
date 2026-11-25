@@ -1,44 +1,45 @@
-import { LoadingBlock } from '@/components/app/loading'
-import { Input } from '@/components/ui/input'
-import { FramePanel } from '@/components/ui/frame'
-import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { CodeTextarea } from '@/components/app/code-textarea'
-import { Badge } from '@/components/ui/badge'
-import { Checkbox } from '@/components/ui/checkbox'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CircleAlert, Plus, Save, Shield } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
-import { Button } from '@/components/ui/button'
-import { FormGrid } from '@/components/app/form-grid'
-import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
+import { CodeTextarea } from '@/components/app/code-textarea'
 import { EmptyState } from '@/components/app/empty-state'
+import { FormGrid } from '@/components/app/form-grid'
+import { LoadingBlock } from '@/components/app/loading'
 import { useNotice } from '@/components/app/notice'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
+import { FramePanel } from '@/components/ui/frame'
+import { Input } from '@/components/ui/input'
+import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
+
+import { useDirtyLeaveGuard } from '../../app/dirty-leave-guard'
+import { usePortalNavigate } from '../../app/navigate'
+import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import {
-  saveQualityRule,
   QUALITY_RULE_TYPE_LABELS,
   type QualityEvidenceColumn,
   type QualityRuleDefinitionApiItem,
   type QualityRuleType,
+  saveQualityRule,
 } from '../../data/controlPlane'
-import { usePortalNavigate } from '../../app/navigate'
-import { useDirtyLeaveGuard } from '../../app/dirty-leave-guard'
+import { governanceKeys, qualityRulesQuery, qualityRuleTypesQuery } from './queries'
 import {
-  CLASSIFICATIONS,
   CLASSIFICATION_LABELS,
+  CLASSIFICATIONS,
   COMPUTED_EVIDENCE_TYPES,
-  NEEDS_COLUMN,
-  STAT_OPS,
-  TIME_UNITS,
   emptyForm,
   formFromRule,
+  NEEDS_COLUMN,
   paramsFromForm,
-  validateRuleForm,
   type RuleForm,
+  STAT_OPS,
+  TIME_UNITS,
+  validateRuleForm,
 } from './rule-form'
-import { governanceKeys, qualityRuleTypesQuery, qualityRulesQuery } from './queries'
 
 /** 证据列脱敏分类的选项表：值与展示名同源。 */
 const EVIDENCE_CLASSIFICATION_ITEMS = CLASSIFICATIONS.map((classification) => ({ value: classification, label: CLASSIFICATION_LABELS[classification] }))

@@ -1,28 +1,29 @@
-import { TableSkeleton } from '@/components/app/table-skeleton'
-import { LoadingBlock } from '@/components/app/loading'
-import { Input } from '@/components/ui/input'
-import { FrameDescription, FrameHeader, FramePanel } from '@/components/ui/frame'
-import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Field, FieldLabel } from '@/components/ui/field'
-import { Badge } from '@/components/ui/badge'
-import { DatePicker } from '@/components/app/date-picker'
-import { Textarea } from '@/components/ui/textarea'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Ban, CircleAlert, MessageSquareText, Send, ShieldCheck, ThumbsDown, ThumbsUp } from 'lucide-react'
-import { useMemo, useState, type FormEvent } from 'react'
-import { QueryBoundary } from '../app/query-boundary'
+import { type FormEvent, useMemo, useState } from 'react'
 
-import { Button } from '@/components/ui/button'
+import { DatePicker } from '@/components/app/date-picker'
 import { EmptyState } from '@/components/app/empty-state'
+import { LoadingBlock } from '@/components/app/loading'
+import { TableSkeleton } from '@/components/app/table-skeleton'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Field, FieldLabel } from '@/components/ui/field'
+import { FrameDescription, FrameHeader, FramePanel } from '@/components/ui/frame'
+import { Input } from '@/components/ui/input'
+import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Textarea } from '@/components/ui/textarea'
+
+import { QueryBoundary } from '../app/query-boundary'
 import { DataTable, listColumnHelper } from '../components/table/data-table'
 import {
-  assistantParamLabel,
   askAssistantQuery,
+  type AssistantAnswer,
+  assistantParamLabel,
+  type AssistantQuestionView,
   REFUSAL_LABEL,
   submitAssistantFeedback,
-  type AssistantAnswer,
-  type AssistantQuestionView,
 } from '../data/assistantApi'
 import { AssistantGovernanceSection } from '../features/assistant/governance-section'
 import { assistantQuestionsQuery } from '../features/assistant/queries'

@@ -1,39 +1,40 @@
-import { TableSkeleton } from '@/components/app/table-skeleton'
-import { LoadingBlock } from '@/components/app/loading'
-import { Badge } from '@/components/ui/badge'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { FramePanel } from '@/components/ui/frame'
-import { Tooltip, TooltipPopup, TooltipTrigger } from '@/components/ui/tooltip'
-import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Input } from '@/components/ui/input'
-import { Field, FieldLabel } from '@/components/ui/field'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, RefreshCw, ShieldCheck } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
-import { Button } from '@/components/ui/button'
-import { SearchField } from '@/components/app/search-field'
-import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
-import { Tabs, TabsList, TabsPanel, TabsTab } from '@/components/ui/tabs'
 import { ConfirmDialog } from '@/components/app/confirm-dialog'
 import { EmptyState } from '@/components/app/empty-state'
-import { DataTable, TablePagination, listColumnHelper } from '../../components/table/data-table'
+import { LoadingBlock } from '@/components/app/loading'
 import { useNotice } from '@/components/app/notice'
+import { SearchField } from '@/components/app/search-field'
+import { TableSkeleton } from '@/components/app/table-skeleton'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Field, FieldLabel } from '@/components/ui/field'
+import { FramePanel } from '@/components/ui/frame'
+import { Input } from '@/components/ui/input'
+import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Tabs, TabsList, TabsPanel, TabsTab } from '@/components/ui/tabs'
+import { Tooltip, TooltipPopup, TooltipTrigger } from '@/components/ui/tooltip'
+
+import { usePortalNavigate } from '../../app/navigate'
+import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
+import { DataTable, listColumnHelper, TablePagination } from '../../components/table/data-table'
 import {
-  dataServiceStatusLabel,
-  deprecateDataService,
-  issueDataServiceKey,
-  publishDataService,
-  revokeDataServiceKey,
   type DataService,
   type DataServiceCallItem,
   type DataServiceContractEventItem,
   type DataServiceExportItem,
+  dataServiceStatusLabel,
   type DataServiceSubscriptionItem,
+  deprecateDataService,
+  issueDataServiceKey,
+  publishDataService,
+  revokeDataServiceKey,
 } from '../../data/dataServicesApi'
 import { formatDateTime } from '../../data/domain'
 import { workLinks } from '../../data/routes'
-import { usePortalNavigate } from '../../app/navigate'
 import {
   dataServiceCallsQuery,
   dataServiceContractEventsQuery,
@@ -41,8 +42,8 @@ import {
   dataServiceExportsQuery,
   dataServiceKeys,
   dataServiceOverviewQuery,
-  dataServiceSubscriptionsQuery,
   dataServicesQuery,
+  dataServiceSubscriptionsQuery,
 } from './queries'
 
 const PAGE_SIZE = 8

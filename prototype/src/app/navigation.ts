@@ -7,12 +7,13 @@ import {
   Fingerprint,
   House,
   Landmark,
+  type LucideIcon,
   MessageSquareText,
   PackageCheck,
   ServerCog,
   Workflow,
-  type LucideIcon,
 } from 'lucide-react'
+
 import { workPaths } from '../data/routes'
 
 /**

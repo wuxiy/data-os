@@ -1,6 +1,7 @@
-import { defaultTemplateKey, offersDemoTemplate } from '../../data/runtimeMode'
-import type { JobConfig, SourceApiItem } from '../../data/controlPlane'
 import type { BadgeProps } from '@/components/ui/badge'
+
+import type { JobConfig, SourceApiItem } from '../../data/controlPlane'
+import { defaultTemplateKey, offersDemoTemplate } from '../../data/runtimeMode'
 
 /** 状态标签外观：直接取 coss Badge 的 variant 值（success / warning / error / outline）。 */
 type BadgeTone = NonNullable<BadgeProps['variant']>

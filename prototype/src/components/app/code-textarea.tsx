@@ -1,6 +1,7 @@
 import type { ComponentProps } from 'react'
-import { cn } from '@/lib/utils'
+
 import { Textarea } from '@/components/ui/textarea'
+import { cn } from '@/lib/utils'
 
 /**
  * 代码 / JSON / SQL 编辑域：等宽字体、固定起始高度、可拖拽调高。

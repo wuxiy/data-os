@@ -1,30 +1,41 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useSearch } from '@tanstack/react-router'
+import {
+  Activity,
+  Archive,
+  Copy,
+  Pause,
+  Play,
+  RefreshCw,
+  RotateCcw,
+  Settings2,
+  TriangleAlert,
+} from 'lucide-react'
+import { useMemo, useState } from 'react'
+
+import { EmptyState } from '@/components/app/empty-state'
 import { LoadingBlock } from '@/components/app/loading'
+import { useNotice } from '@/components/app/notice'
 import { StatusBadge } from '@/components/app/status-badge'
 import { Badge } from '@/components/ui/badge'
-import { FramePanel } from '@/components/ui/frame'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Activity, Archive, Copy, Pause, Play, RefreshCw, RotateCcw, Settings2, TriangleAlert } from 'lucide-react'
-import { useMemo, useState } from 'react'
-import { useSearch } from '@tanstack/react-router'
-
 import { Button } from '@/components/ui/button'
-import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
+import { FramePanel } from '@/components/ui/frame'
 import { Tabs, TabsList, TabsPanel, TabsTab } from '@/components/ui/tabs'
-import { EmptyState } from '@/components/app/empty-state'
-import { useNotice } from '@/components/app/notice'
+
+import { usePortalNavigate } from '../../app/navigate'
+import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import {
   confirmIngestionRunAbsent,
+  type IngestionJobApiItem,
+  type IngestionRunApiItem,
   retryIngestionRun,
   startIngestionRun,
   syncIngestionRun,
   updateIngestionJobStatus,
-  type IngestionJobApiItem,
-  type IngestionRunApiItem,
 } from '../../data/controlPlane'
 import { ACTIVE_RUN_STATUSES, formatDateTime, retryableRunStatus, runStatusView } from '../../data/domain'
 import { workLinks } from '../../data/routes'
-import { usePortalNavigate } from '../../app/navigate'
-import { ingestionKeys, jobRunsQuery, jobsQuery, sourcesQuery } from './queries'
+import { JobConfigurationEditor } from './job-editor-page'
 import {
   businessMessage,
   createRequestKey,
@@ -34,9 +45,9 @@ import {
   jobLifecycleView,
   sourceDisplayName,
 } from './labels'
-import { CopyJobDialog } from './source-dialogs'
-import { JobConfigurationEditor } from './job-editor-page'
+import { ingestionKeys, jobRunsQuery, jobsQuery, sourcesQuery } from './queries'
 import { SchedulePanel } from './schedule-panel'
+import { CopyJobDialog } from './source-dialogs'
 
 type DetailTab = 'overview' | 'configuration' | 'scheduling' | 'runs'
 

@@ -1,34 +1,41 @@
-import { TableSkeleton } from '@/components/app/table-skeleton'
-import { LoadingBlock } from '@/components/app/loading'
-import { Badge } from '@/components/ui/badge'
-import { FramePanel } from '@/components/ui/frame'
-import { SegmentedControl, SegmentedControlItem } from '@/components/ui/segmented-control'
-import { RadioGroupPrimitive, RadioPrimitive } from '@/components/ui/radio-group'
-import { Tooltip, TooltipPopup, TooltipTrigger } from '@/components/ui/tooltip'
 import { useQuery } from '@tanstack/react-query'
+import { useSearch } from '@tanstack/react-router'
 import { ChartNoAxesCombined, Database, Download, RefreshCw, Search, Table2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { useSearch } from '@tanstack/react-router'
 
-import { Button } from '@/components/ui/button'
-import { SearchField } from '@/components/app/search-field'
-import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
-import { Tabs, TabsList, TabsPanel, TabsTab } from '@/components/ui/tabs'
 import { EmptyState } from '@/components/app/empty-state'
-import { DataTable, TablePagination, listColumnHelper } from '../../components/table/data-table'
+import { LoadingBlock } from '@/components/app/loading'
+import { SearchField } from '@/components/app/search-field'
+import { TableSkeleton } from '@/components/app/table-skeleton'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { FramePanel } from '@/components/ui/frame'
+import { RadioGroupPrimitive, RadioPrimitive } from '@/components/ui/radio-group'
+import { SegmentedControl, SegmentedControlItem } from '@/components/ui/segmented-control'
+import { Tabs, TabsList, TabsPanel, TabsTab } from '@/components/ui/tabs'
+import { Tooltip, TooltipPopup, TooltipTrigger } from '@/components/ui/tooltip'
+
+import { usePortalNavigate } from '../../app/navigate'
+import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
+import { DataTable, listColumnHelper, TablePagination } from '../../components/table/data-table'
 import { formatDateTime } from '../../data/domain'
 import {
+  type AssetQualityTest,
   instanceServiceLabel,
+  type LineageAssetColumn,
   lineageNodeKindLabel,
+  type LineageNodeView,
   lineageSchemaLabel,
   shortNodeName,
-  type AssetQualityTest,
-  type LineageAssetColumn,
-  type LineageNodeView,
 } from '../../data/lineageApi'
 import { deepLinks } from '../../data/routes'
-import { usePortalNavigate } from '../../app/navigate'
-import { assetCatalogQuery, assetDetailQuery, assetLineageQuery, assetQualityTestsQuery, lineageSummaryQuery } from './queries'
+import {
+  assetCatalogQuery,
+  assetDetailQuery,
+  assetLineageQuery,
+  assetQualityTestsQuery,
+  lineageSummaryQuery,
+} from './queries'
 
 const columnHelper = listColumnHelper<LineageAssetColumn>()
 const qualityHelper = listColumnHelper<AssetQualityTest>()

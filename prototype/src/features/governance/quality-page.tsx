@@ -1,55 +1,67 @@
-import { TableSkeleton } from '@/components/app/table-skeleton'
-import { LoadingBlock, LoadingInline } from '@/components/app/loading'
-import { Input } from '@/components/ui/input'
-import { FrameDescription, FrameHeader, FramePanel } from '@/components/ui/frame'
-import { Tooltip, TooltipPopup, TooltipTrigger } from '@/components/ui/tooltip'
-import { Field, FieldLabel } from '@/components/ui/field'
-import { SegmentedControl, SegmentedControlItem } from '@/components/ui/segmented-control'
-import { RadioGroupPrimitive, RadioPrimitive } from '@/components/ui/radio-group'
-import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from '@/components/ui/collapsible'
-import { Badge } from '@/components/ui/badge'
-import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Textarea } from '@/components/ui/textarea'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearch } from '@tanstack/react-router'
-import { AlertTriangle, CircleAlert, Plus, RefreshCw, Search, Send, Shield, Trash2, ChevronDown } from 'lucide-react'
+import {
+  AlertTriangle,
+  ChevronDown,
+  CircleAlert,
+  Plus,
+  RefreshCw,
+  Search,
+  Send,
+  Shield,
+  Trash2,
+} from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
-import { Button } from '@/components/ui/button'
-import { SearchField } from '@/components/app/search-field'
-import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
-import { ScopeNote } from '@/components/app/scope-note'
 import { ConfirmDialog } from '@/components/app/confirm-dialog'
 import { EmptyState } from '@/components/app/empty-state'
-import { DataTable, TablePagination, listColumnHelper } from '../../components/table/data-table'
+import { LoadingBlock, LoadingInline } from '@/components/app/loading'
 import { useNotice } from '@/components/app/notice'
+import { ScopeNote } from '@/components/app/scope-note'
+import { SearchField } from '@/components/app/search-field'
+import { TableSkeleton } from '@/components/app/table-skeleton'
+import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from '@/components/ui/collapsible'
+import { Field, FieldLabel } from '@/components/ui/field'
+import { FrameDescription, FrameHeader, FramePanel } from '@/components/ui/frame'
+import { Input } from '@/components/ui/input'
+import { RadioGroupPrimitive, RadioPrimitive } from '@/components/ui/radio-group'
+import { SegmentedControl, SegmentedControlItem } from '@/components/ui/segmented-control'
+import { Textarea } from '@/components/ui/textarea'
+import { Tooltip, TooltipPopup, TooltipTrigger } from '@/components/ui/tooltip'
+
+import { usePortalNavigate } from '../../app/navigate'
+import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
+import { DataTable, listColumnHelper, TablePagination } from '../../components/table/data-table'
 import {
   confirmGovernanceIssueRunAbsent,
   deleteQualityRule,
+  type GovernanceIssueDetailApiResponse,
+  type GovernanceIssueEventApiItem,
+  type GovernanceQualityRunApiItem,
+  QUALITY_RULE_TYPE_LABELS,
+  type QualityRuleDefinitionApiItem,
   reconcileGovernanceIssueRun,
   remindGovernanceIssueOwner,
   requestGovernanceIssueRecheck,
   setQualityRuleEnabled,
   syncGovernanceIssueRun,
   updateGovernanceIssueWorkflow,
-  QUALITY_RULE_TYPE_LABELS,
-  type GovernanceIssueEventApiItem,
-  type GovernanceIssueDetailApiResponse,
-  type GovernanceQualityRunApiItem,
-  type QualityRuleDefinitionApiItem,
 } from '../../data/controlPlane'
 import {
   actorLabel,
-  executorLabel,
-  executorOutputView,
   eventTitle,
   eventTone,
+  executorLabel,
+  executorOutputView,
   formatDateTime,
   formatInlineDateTimes,
   isRecheckRetryEvent,
-  isTerminalRun,
   issueStatusLabel,
   issueStatusTone,
+  isTerminalRun,
   looksLikeExecutorOutput,
   notificationStatusLabel,
   runStatusLabel,
@@ -59,7 +71,6 @@ import {
   shortBatchId,
 } from '../../data/domain'
 import { workLinks } from '../../data/routes'
-import { usePortalNavigate } from '../../app/navigate'
 import { governanceIssueQuery, governanceIssuesQuery, qualityRulesQuery } from './queries'
 import { ResponsibilitySheet } from './responsibility-sheet'
 

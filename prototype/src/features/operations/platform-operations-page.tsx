@@ -1,34 +1,63 @@
-import { LoadingBlock } from '@/components/app/loading'
-import { Input } from '@/components/ui/input'
-import { FrameDescription, FrameHeader, FramePanel } from '@/components/ui/frame'
-import { DiscardPrompt, useDiscardGuard } from '@/components/app/discard-guard'
-import { Drawer, DrawerClose, DrawerDescription, DrawerFooter, DrawerHeader, DrawerPanel, DrawerPopup, DrawerTitle } from '@/components/ui/drawer'
-import { Dialog, DialogClose, DialogDescription, DialogFooter, DialogHeader, DialogPanel, DialogPopup, DialogTitle } from '@/components/ui/dialog'
-import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Badge } from '@/components/ui/badge'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CircleAlert, CloudCog, History, LockKeyhole, RefreshCw, Server, ShieldCheck, TriangleAlert, X } from 'lucide-react'
+import {
+  CircleAlert,
+  CloudCog,
+  History,
+  LockKeyhole,
+  RefreshCw,
+  Server,
+  ShieldCheck,
+  TriangleAlert,
+  X,
+} from 'lucide-react'
 import { useState } from 'react'
 
-import { Button } from '@/components/ui/button'
-import { FormGrid } from '@/components/app/form-grid'
 import { ConfirmDialog } from '@/components/app/confirm-dialog'
-import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
+import { DiscardPrompt, useDiscardGuard } from '@/components/app/discard-guard'
 import { EmptyState } from '@/components/app/empty-state'
-import { DataTable, listColumnHelper } from '../../components/table/data-table'
+import { FormGrid } from '@/components/app/form-grid'
+import { LoadingBlock } from '@/components/app/loading'
 import { useNotice } from '@/components/app/notice'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogClose,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogPanel,
+  DialogPopup,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
+  Drawer,
+  DrawerClose,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerPanel,
+  DrawerPopup,
+  DrawerTitle,
+} from '@/components/ui/drawer'
+import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
+import { FrameDescription, FrameHeader, FramePanel } from '@/components/ui/frame'
+import { Input } from '@/components/ui/input'
+
+import { usePortalNavigate } from '../../app/navigate'
+import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
+import { DataTable, listColumnHelper } from '../../components/table/data-table'
 import {
   deleteEdgeNode,
-  probeEdgeNode,
-  recordEdgeDeployment,
-  saveEdgeNode,
   type EdgeDeploymentApiItem,
   type EdgeNodeApiItem,
   type EdgeWatermarkTable,
+  probeEdgeNode,
+  recordEdgeDeployment,
+  saveEdgeNode,
 } from '../../data/controlPlane'
 import { formatDateTime } from '../../data/domain'
-import { usePortalNavigate } from '../../app/navigate'
 import { edgeDeploymentsQuery, edgeNodesQuery, edgeWatermarksQuery, platformOperationsQuery } from './queries'
 
 const nodeHelper = listColumnHelper<EdgeNodeApiItem>()

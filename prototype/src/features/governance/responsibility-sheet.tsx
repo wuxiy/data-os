@@ -1,9 +1,19 @@
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Drawer, DrawerClose, DrawerDescription, DrawerHeader, DrawerPanel, DrawerPopup, DrawerTitle } from '@/components/ui/drawer'
-import { Button } from '@/components/ui/button'
 import { Database, FileText, Inbox, Shield, User, X } from 'lucide-react'
-import { formatDateTime } from '../../data/domain'
+
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
+import {
+  Drawer,
+  DrawerClose,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerPanel,
+  DrawerPopup,
+  DrawerTitle,
+} from '@/components/ui/drawer'
+
 import type { GovernanceApiIssue } from '../../data/controlPlane'
+import { formatDateTime } from '../../data/domain'
 
 /**
  * 治理责任链：只呈现问题记录实际提供的关联字段。

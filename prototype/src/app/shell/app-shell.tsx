@@ -1,3 +1,38 @@
+import { useQuery } from '@tanstack/react-query'
+import { useLocation, useNavigate } from '@tanstack/react-router'
+import {
+  Bell,
+  ChevronDown,
+  CircleHelp,
+  LogOut,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Search,
+  Waypoints,
+  X,
+} from 'lucide-react'
+import { type CSSProperties, type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
+
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Kbd } from '@/components/ui/kbd'
+import {
+  MenuGroup,
+  MenuGroupLabel,
+  MenuItem,
+  MenuPopup,
+  Menu as MenuRoot,
+  MenuSeparator,
+  MenuShortcut,
+  MenuTrigger,
+} from '@/components/ui/menu'
+import {
+  Popover,
+  PopoverDescription,
+  PopoverPopup,
+  PopoverTitle,
+  PopoverTrigger,
+} from '@/components/ui/popover'
 import {
   Sidebar,
   SidebarContent,
@@ -20,23 +55,14 @@ import {
   SidebarTrigger,
   useSidebar,
 } from '@/components/ui/sidebar'
-import { Kbd } from '@/components/ui/kbd'
-import { Badge } from '@/components/ui/badge'
-import { useLocation, useNavigate } from '@tanstack/react-router'
-import { useQuery } from '@tanstack/react-query'
-import { Bell, ChevronDown, CircleHelp, LogOut, PanelLeftClose, PanelLeftOpen, Search, Waypoints, X } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
-import { RuntimeStatusBanner } from './runtime-status-banner'
 
-import { Menu as MenuRoot, MenuGroup, MenuGroupLabel, MenuItem, MenuPopup, MenuSeparator, MenuShortcut, MenuTrigger } from '@/components/ui/menu'
-import { Button } from '@/components/ui/button'
-import { Popover, PopoverDescription, PopoverPopup, PopoverTitle, PopoverTrigger } from '@/components/ui/popover'
-import { cn } from '../../lib/utils'
-import { activeNavKey, governanceChildren, isGovernancePath, navGroups, routeForPath } from '../navigation'
 import { operationsSummaryQuery } from '../../features/overview/queries'
+import { cn } from '../../lib/utils'
 import { usePortalNavigate } from '../navigate'
+import { activeNavKey, governanceChildren, isGovernancePath, navGroups, routeForPath } from '../navigation'
 import { useAuth } from '../providers'
 import { CommandPalette, useCommandHotkey } from './command-palette'
+import { RuntimeStatusBanner } from './runtime-status-banner'
 import { useVisitedTabs } from './visited-tabs'
 
 declare module '@tanstack/history' {

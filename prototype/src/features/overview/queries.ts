@@ -1,4 +1,5 @@
 import { queryOptions } from '@tanstack/react-query'
+
 import { fetchOperationsEvents, fetchOperationsSummary, fetchWorkItems } from '../../data/operationsApi'
 
 /**

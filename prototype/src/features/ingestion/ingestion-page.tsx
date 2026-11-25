@@ -1,9 +1,3 @@
-import { LoadingInline } from '@/components/app/loading'
-import { StatusBadge } from '@/components/app/status-badge'
-import { Badge } from '@/components/ui/badge'
-import { FramePanel } from '@/components/ui/frame'
-import { Tooltip, TooltipPopup, TooltipTrigger } from '@/components/ui/tooltip'
-import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Activity,
@@ -21,45 +15,52 @@ import {
   RotateCcw,
   Settings2,
 } from 'lucide-react'
-import { useMemo, useState, type ReactNode } from 'react'
+import { type ReactNode, useMemo, useState } from 'react'
 
-import { Button } from '@/components/ui/button'
-import { SearchField } from '@/components/app/search-field'
-import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
-import { ScopeNote } from '@/components/app/scope-note'
-import { Menu, MenuItem, MenuPopup, MenuTrigger } from '@/components/ui/menu'
-import { Tabs, TabsList, TabsPanel, TabsTab } from '@/components/ui/tabs'
 import { ConfirmDialog } from '@/components/app/confirm-dialog'
 import { EmptyState } from '@/components/app/empty-state'
-import { DataTable, SelectionBar, TablePagination, listColumnHelper } from '../../components/table/data-table'
+import { LoadingInline } from '@/components/app/loading'
 import { useNotice } from '@/components/app/notice'
+import { ScopeNote } from '@/components/app/scope-note'
+import { SearchField } from '@/components/app/search-field'
+import { StatusBadge } from '@/components/app/status-badge'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { FramePanel } from '@/components/ui/frame'
+import { Menu, MenuItem, MenuPopup, MenuTrigger } from '@/components/ui/menu'
+import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Tabs, TabsList, TabsPanel, TabsTab } from '@/components/ui/tabs'
+import { Tooltip, TooltipPopup, TooltipTrigger } from '@/components/ui/tooltip'
+
+import { usePortalNavigate } from '../../app/navigate'
+import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
+import { DataTable, listColumnHelper, SelectionBar, TablePagination } from '../../components/table/data-table'
 import {
   confirmIngestionRunAbsent,
   fetchIngestionRuns,
+  type IngestionJobApiItem,
+  type IngestionRunApiItem,
   retryIngestionRun,
+  type SourceApiItem,
   startIngestionRun,
   syncIngestionRun,
   updateIngestionJobStatus,
-  type IngestionJobApiItem,
-  type IngestionRunApiItem,
-  type SourceApiItem,
 } from '../../data/controlPlane'
 import { ACTIVE_RUN_STATUSES, formatDateTime, retryableRunStatus, runStatusView } from '../../data/domain'
 import { workLinks } from '../../data/routes'
-import { usePortalNavigate } from '../../app/navigate'
-import { ingestionKeys, jobRunsQuery, jobsQuery, sourcesQuery, workflowTemplatesQuery } from './queries'
 import {
-  JOBS_PAGE_SIZE,
-  RUNS_PAGE_SIZE,
-  SOURCES_PAGE_SIZE,
   businessMessage,
   createRequestKey,
   errorMessage,
   executorLabel,
   jobLifecycleView,
+  JOBS_PAGE_SIZE,
+  RUNS_PAGE_SIZE,
   sourceDisplayName,
+  SOURCES_PAGE_SIZE,
   sourceStatusView,
 } from './labels'
+import { ingestionKeys, jobRunsQuery, jobsQuery, sourcesQuery, workflowTemplatesQuery } from './queries'
 import { CopyJobDialog, SourceCheckDialog, SourceRegisterDialog } from './source-dialogs'
 
 /**

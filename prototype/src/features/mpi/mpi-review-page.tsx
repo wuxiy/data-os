@@ -1,8 +1,9 @@
-import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
-import { Button } from '@/components/ui/button'
 import { useNotice } from '@/components/app/notice'
-import { MpiReviewLive } from '../../pages/MpiReviewLive'
+import { Button } from '@/components/ui/button'
+
 import { usePortalNavigate } from '../../app/navigate'
+import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
+import { MpiReviewLive } from '../../pages/MpiReviewLive'
 
 /**
  * 患者主索引入口：复核工作台保持常驻宽对照（不被压进弹窗），

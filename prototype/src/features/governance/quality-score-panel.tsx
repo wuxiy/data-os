@@ -1,16 +1,16 @@
-import { LoadingBlock } from '@/components/app/loading'
-import { Badge } from '@/components/ui/badge'
-import { FrameDescription, FrameHeader, FramePanel } from '@/components/ui/frame'
-import { Tooltip, TooltipPopup, TooltipTrigger } from '@/components/ui/tooltip'
 import { useQuery } from '@tanstack/react-query'
 import { Gauge, Settings2 } from 'lucide-react'
 
+import { LoadingBlock } from '@/components/app/loading'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { DataTable, listColumnHelper } from '../../components/table/data-table'
+import { FrameDescription, FrameHeader, FramePanel } from '@/components/ui/frame'
+import { Tooltip, TooltipPopup, TooltipTrigger } from '@/components/ui/tooltip'
 
+import { usePortalNavigate } from '../../app/navigate'
+import { DataTable, listColumnHelper } from '../../components/table/data-table'
 import { QUALITY_RULE_TYPE_LABELS, type QualityScoreSummary } from '../../data/controlPlane'
 import { formatDateTime } from '../../data/domain'
-import { usePortalNavigate } from '../../app/navigate'
 import { qualityScoreQuery } from './queries'
 
 export const QUALITY_DIMENSIONS = ['完整性', '一致性', '规范性', '准确性', '时效性', '稳定性']
