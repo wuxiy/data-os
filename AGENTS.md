@@ -45,8 +45,10 @@ cd services/ai-ready-service && ../quality-runner/.venv/bin/python -m pytest tes
 cd services/data-api && .venv/bin/python -m pytest tests -q
 
 # 前端：所有命令在 prototype/ 下运行；qa 脚本必须从 prototype/ 目录运行（内部按 .. 解析）
+# bundle-budget 读上一步 dist/ 卡首屏闭包与合计体积上限，与 CI 的硬门同款，本地链不可省
 cd prototype && npx tsc -b && npx vitest run \
-  && node qa/mock-audit.mjs && node qa/portal-interactions-smoke.mjs && npm run build
+  && node qa/mock-audit.mjs && node qa/portal-interactions-smoke.mjs && npm run build \
+  && node qa/bundle-budget.mjs
 ```
 
 ## 语言约定
@@ -61,5 +63,5 @@ cd prototype && npx tsc -b && npx vitest run \
 按需阅读：
 
 - [架构边界](docs/agents/architecture.md) — 唯一状态机、单一来源清单、仓储拆分；动 `run/` 或做跨栈抽象前必读
-- [后端服务](docs/agents/services.md) — 控制面与质量执行器的测试、跨服务契约与红线
+- [后端服务](docs/agents/services.md) — 控制面、质量执行器与患者主索引的测试、跨服务契约与红线
 - [门户前端](docs/agents/frontend.md) — coss ui 组件层（`components/ui` 原样、`components/app` 自有件）、令牌桥与无 preflight 补丁、演示数据边界、qa 锁规则
