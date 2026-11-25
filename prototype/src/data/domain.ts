@@ -125,9 +125,13 @@ export function actorLabel(value: string | null | undefined): string {
   return value === 'system' ? '系统' : value
 }
 
-/** 质量执行器通道。 */
+/**
+ * 质量执行器通道。后端把执行器名规范化为大写，`DBT` 与 `HTTP` 是同一在线通道的两个取值。
+ * 未登记的取值不直出原始代码（可能是引擎名，见 DESIGN.md 红线），落到通用业务称谓。
+ */
 export function executorLabel(value: string | null | undefined): string {
-  return ({ HTTP: '质量执行器（在线）', DEMO: '演示执行器' } as Record<string, string>)[value ?? ''] ?? (value || '—')
+  const code = value?.trim().toUpperCase() ?? ''
+  return ({ HTTP: '质量执行器（在线）', DBT: '质量执行器（在线）', DEMO: '演示执行器' } as Record<string, string>)[code] ?? (code ? '质量执行器' : '—')
 }
 
 // ---- 执行器输出治理（2026-10-05 critique P0-2）----

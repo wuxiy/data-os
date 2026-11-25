@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { eventTone, executorOutputView, formatDateTime, formatInlineDateTimes, isRecheckRetryEvent, looksLikeExecutorOutput, severityLabel, severityTone, shortBatchId, standardEventLabel } from './domain'
+import { eventTone, executorLabel, executorOutputView, formatDateTime, formatInlineDateTimes, isRecheckRetryEvent, looksLikeExecutorOutput, severityLabel, severityTone, shortBatchId, standardEventLabel } from './domain'
 
 describe('质量问题严重度', () => {
   it('阻断级问题使用中文和危险状态，未知值保留原文', () => {
@@ -7,6 +7,21 @@ describe('质量问题严重度', () => {
     expect(severityTone('CRITICAL')).toBe('danger')
     expect(severityLabel('OTHER')).toBe('OTHER')
     expect(severityTone('OTHER')).toBe('neutral')
+  })
+})
+
+describe('质量执行器称谓（引擎名不直出业务视图）', () => {
+  it('在线执行器的两个取值同一称谓，不分大小写；演示执行器单独标注', () => {
+    expect(executorLabel('HTTP')).toBe('质量执行器（在线）')
+    expect(executorLabel('DBT')).toBe('质量执行器（在线）')
+    expect(executorLabel('dbt')).toBe('质量执行器（在线）')
+    expect(executorLabel('DEMO')).toBe('演示执行器')
+  })
+
+  it('未登记的执行器不直出原始代码，空值显示占位', () => {
+    expect(executorLabel('SOME_ENGINE')).toBe('质量执行器')
+    expect(executorLabel('')).toBe('—')
+    expect(executorLabel(null)).toBe('—')
   })
 })
 
