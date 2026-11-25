@@ -10,6 +10,7 @@ import { FormGrid } from '@/components/app/form-grid'
 import { LoadingBlock } from '@/components/app/loading'
 import { useNotice } from '@/components/app/notice'
 import { SearchField } from '@/components/app/search-field'
+import { SelectionListItem } from '@/components/app/selection-list-item'
 import { TableSkeleton } from '@/components/app/table-skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
@@ -28,6 +29,7 @@ import { Field, FieldLabel } from '@/components/ui/field'
 import { FrameDescription, FrameHeader, FramePanel } from '@/components/ui/frame'
 import { Input } from '@/components/ui/input'
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { SidebarMenu, SidebarMenuItem } from '@/components/ui/sidebar'
 
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { DataTable, listColumnHelper } from '../../components/table/data-table'
@@ -240,28 +242,26 @@ export function DeliveryCenterPage() {
               <Button variant="outline" size="sm" onClick={() => setQuery(searchInput.trim())}>查询</Button>
               {query ? <Button size="sm" variant="ghost" onClick={() => { setQuery(''); setSearchInput('') }}>清除</Button> : null}
             </div>
-            <ul className="m-0 min-h-0 flex-1 list-none px-2 pb-2">
+            <SidebarMenu className="m-0 min-h-0 flex-1 px-2 pb-2">
               {projects.map((project) => {
                 const active = project.id === current?.id
                 return (
-                  <li key={project.id}>
-                    <button
-                      type="button"
-                      aria-pressed={active}
+                  <SidebarMenuItem key={project.id}>
+                    <SelectionListItem
+                      isActive={active}
                       onClick={() => setSelectedId(project.id)}
-                      className={`mb-1 w-full rounded-control px-2.5 py-2 text-left ${active ? 'bg-blue-soft' : 'hover:bg-wash'}`}
                     >
                       <span className="flex items-center justify-between gap-2">
                         <span className="truncate text-body-sm text-ink-soft">{project.name}</span>
                         <Badge variant={toneOf(project.status)}>{STATUS_LABEL[project.status as keyof typeof STATUS_LABEL] ?? project.status}</Badge>
                       </span>
                       <span className="mt-0.5 block font-mono text-meta text-muted-foreground">{project.code}</span>
-                    </button>
-                  </li>
+                    </SelectionListItem>
+                  </SidebarMenuItem>
                 )
               })}
               {projects.length === 0 ? <li className="px-3 py-6 text-center text-label text-muted-foreground">{query ? '没有匹配的交付项目。' : '还没有交付项目。'}</li> : null}
-            </ul>
+            </SidebarMenu>
           </FramePanel>
 
           <div className="space-y-3.5">

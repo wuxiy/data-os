@@ -1,6 +1,7 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { installBrowserApiStubs } from '../test-support/browser-apis'
+import { renderWithSidebar } from '../test-support/render-with-sidebar'
 
 // 2026-11-09 走查 P1 回归锁：队列搜索必须走服务端。旧实现只过滤已装载的
 // 前 100 条，窗口外候选一律「未找到匹配候选」假阴性。本测试模拟窗口外
@@ -47,7 +48,7 @@ afterEach(cleanup)
 
 describe('MpiReviewLive 队列搜索', () => {
   it('搜索走服务端（请求带 q），窗口外候选可命中', async () => {
-    render(<MpiReviewLive onNotice={vi.fn()} />)
+    renderWithSidebar(<MpiReviewLive onNotice={vi.fn()} />)
 
     // 基础装载：只有窗口内候选。
     expect(await screen.findByText('陈测一短信一23 ↔ 陈测一104')).toBeTruthy()

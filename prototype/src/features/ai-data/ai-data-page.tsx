@@ -20,6 +20,7 @@ import { FormGrid } from '@/components/app/form-grid'
 import { LoadingBlock } from '@/components/app/loading'
 import { useNotice } from '@/components/app/notice'
 import { SearchField } from '@/components/app/search-field'
+import { SelectionListItem } from '@/components/app/selection-list-item'
 import { TableSkeleton } from '@/components/app/table-skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
@@ -38,6 +39,7 @@ import { Field, FieldLabel } from '@/components/ui/field'
 import { FramePanel } from '@/components/ui/frame'
 import { Input } from '@/components/ui/input'
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { SidebarMenu, SidebarMenuItem } from '@/components/ui/sidebar'
 import { Tabs, TabsList, TabsPanel, TabsTab } from '@/components/ui/tabs'
 
 import { usePortalNavigate } from '../../app/navigate'
@@ -411,28 +413,26 @@ export function AIDataPage() {
                 </SelectPopup>
               </Select>
             </div>
-            <ul className="m-0 min-h-0 flex-1 list-none px-2 pb-2">
+            <SidebarMenu className="m-0 min-h-0 flex-1 px-2 pb-2">
               {visible.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE).map((item) => {
                 const active = item.id === product?.id
                 return (
-                  <li key={item.id}>
-                    <button
-                      type="button"
-                      aria-pressed={active}
+                  <SidebarMenuItem key={item.id}>
+                    <SelectionListItem
+                      isActive={active}
                       onClick={() => { setSelectedId(item.id); setTab('overview') }}
-                      className={`mb-1 w-full rounded-control px-2.5 py-2 text-left ${active ? 'bg-blue-soft' : 'hover:bg-wash'}`}
                     >
                       <span className="flex items-center justify-between gap-2">
                         <span className="truncate text-body-sm text-ink-soft">{item.name}</span>
                         <Badge variant={lifecycleTone(item.lifecycle)}>{lifecycleLabel[item.lifecycle]}</Badge>
                       </span>
                       <span className="mt-0.5 block text-meta text-muted-foreground">{productTypeLabel[item.productType]} · {item.currentVersion}</span>
-                    </button>
-                  </li>
+                    </SelectionListItem>
+                  </SidebarMenuItem>
                 )
               })}
               {visible.length === 0 ? <li className="px-3 py-6 text-center text-label text-muted-foreground">当前过滤下没有产品。</li> : null}
-            </ul>
+            </SidebarMenu>
             <div className="border-t border-line px-2">
               <TablePagination compact page={currentPage} pageSize={PAGE_SIZE} total={visible.length} onPageChange={setPage} label="AI 产品分页" className="border-t-0 px-1" />
             </div>

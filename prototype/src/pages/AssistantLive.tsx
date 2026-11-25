@@ -5,6 +5,7 @@ import { type FormEvent, useMemo, useState } from 'react'
 import { DatePicker } from '@/components/app/date-picker'
 import { EmptyState } from '@/components/app/empty-state'
 import { LoadingBlock } from '@/components/app/loading'
+import { SelectionListItem } from '@/components/app/selection-list-item'
 import { TableSkeleton } from '@/components/app/table-skeleton'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
@@ -13,6 +14,7 @@ import { Field, FieldLabel } from '@/components/ui/field'
 import { FrameDescription, FrameHeader, FramePanel } from '@/components/ui/frame'
 import { Input } from '@/components/ui/input'
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { SidebarMenu, SidebarMenuItem } from '@/components/ui/sidebar'
 import { Textarea } from '@/components/ui/textarea'
 
 import { QueryBoundary } from '../app/query-boundary'
@@ -173,23 +175,21 @@ function AssistantWorkspace({
             </div>
           </FrameHeader>
           {questionsRequest.isPending ? <div className="px-4 pb-3"><TableSkeleton rows={3} /></div> : null}
-          <ul className="m-0 min-h-0 flex-1 list-none px-2 pb-2">
+          <SidebarMenu className="m-0 min-h-0 flex-1 px-2 pb-2">
             {questions.map((question) => (
-              <li key={question.code}>
-                <button
-                  type="button"
-                  aria-pressed={question.code === selectedCode}
+              <SidebarMenuItem key={question.code}>
+                <SelectionListItem
+                  isActive={question.code === selectedCode}
                   disabled={asking}
                   onClick={() => selectQuestion(question)}
-                  className={`mb-1 w-full rounded-control px-2.5 py-2 text-left ${question.code === selectedCode ? 'bg-blue-soft' : 'hover:bg-wash'}`}
                 >
                   <span className="block text-body-sm text-ink-soft">{question.question}</span>
                   <span className="mt-0.5 block font-mono text-meta text-muted-foreground">{question.serviceCode}</span>
-                </button>
-              </li>
+                </SelectionListItem>
+              </SidebarMenuItem>
             ))}
             {questions.length === 0 && questionsRequest.isSuccess ? <li className="px-3 py-6 text-center text-label text-muted-foreground">当前租户暂无已发布的已验证问题。</li> : null}
-          </ul>
+          </SidebarMenu>
           <div className="border-t border-line px-3 py-2 text-meta leading-relaxed text-muted-foreground">
             同义表达命中同一问题代码；未知问题明确拒答，不生成任意 SQL。
           </div>

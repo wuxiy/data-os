@@ -7,10 +7,12 @@ import { EmptyState } from '@/components/app/empty-state'
 import { LoadingBlock } from '@/components/app/loading'
 import { useNotice } from '@/components/app/notice'
 import { SearchField } from '@/components/app/search-field'
+import { SelectionListItem } from '@/components/app/selection-list-item'
 import { TableSkeleton } from '@/components/app/table-skeleton'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { FrameDescription, FrameHeader, FramePanel } from '@/components/ui/frame'
+import { SidebarMenu, SidebarMenuItem } from '@/components/ui/sidebar'
 
 import { usePortalNavigate } from '../../app/navigate'
 import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
@@ -122,21 +124,19 @@ export function AnalyticsPage() {
               </div>
             </FrameHeader>
             <div className="px-[18px] pb-2"><SearchField value={keyword} onValueChange={(value) => { setKeyword(value); setPage(0) }} placeholder="搜索看板名称" className="w-full" /></div>
-            <ul className="m-0 min-h-0 flex-1 list-none px-2 pb-2">
+            <SidebarMenu className="m-0 min-h-0 flex-1 px-2 pb-2">
               {visible.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE).map((dashboard) => {
                 const active = dashboard.id === selected?.id
                 return (
-                  <li key={dashboard.id}>
-                    <button
-                      type="button"
-                      aria-pressed={active}
+                  <SidebarMenuItem key={dashboard.id}>
+                    <SelectionListItem
+                      isActive={active}
                       onClick={() => { setSelectedId(dashboard.id); setEmbedState('idle') }}
-                      className={`mb-1 w-full rounded-control px-2.5 py-2 text-left ${active ? 'bg-blue-soft' : 'hover:bg-wash'}`}
                     >
                       <span className="block text-body-sm text-ink-soft">{dashboard.title}</span>
                       <span className="mt-0.5 block text-meta text-muted-foreground">只读视图 · 看板 {dashboard.id}</span>
-                    </button>
-                  </li>
+                    </SelectionListItem>
+                  </SidebarMenuItem>
                 )
               })}
               {visible.length === 0 ? (
@@ -145,7 +145,7 @@ export function AnalyticsPage() {
                   {keyword ? <Button variant="link" size="sm" className="ml-1" onClick={() => { setKeyword(''); setPage(0) }}>清空搜索</Button> : null}
                 </li>
               ) : null}
-            </ul>
+            </SidebarMenu>
             <div className="border-t border-line px-2">
               <TablePagination compact page={currentPage} pageSize={PAGE_SIZE} total={visible.length} onPageChange={setPage} label="分析看板目录分页" className="border-t-0 px-1" />
             </div>

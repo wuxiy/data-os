@@ -16,6 +16,7 @@ import { ConfirmDialog } from '@/components/app/confirm-dialog'
 import { EmptyState } from '@/components/app/empty-state'
 import { LoadingBlock } from '@/components/app/loading'
 import { SearchField } from '@/components/app/search-field'
+import { SelectionListItem } from '@/components/app/selection-list-item'
 import { TableSkeleton } from '@/components/app/table-skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
@@ -33,6 +34,7 @@ import {
 } from '@/components/ui/drawer'
 import { FrameDescription, FrameHeader, FramePanel } from '@/components/ui/frame'
 import { Label } from '@/components/ui/label'
+import { SidebarMenu, SidebarMenuItem } from '@/components/ui/sidebar'
 import { Tooltip, TooltipPopup, TooltipTrigger } from '@/components/ui/tooltip'
 
 import { QueryBoundary } from '../app/query-boundary'
@@ -229,22 +231,20 @@ function MpiWorkspace({ onNotice }: { onNotice: (message: string) => void }) {
               </Alert>
             ) : null}
             {searchRequest.isFetching ? <p className="px-[18px] pb-2 text-meta text-muted-foreground">正在全队列检索…</p> : null}
-            <ul className="m-0 min-h-0 flex-1 list-none px-2 pb-2">
+            <SidebarMenu className="m-0 min-h-0 flex-1 px-2 pb-2">
               {paged.map((candidate) => {
                 const active = selected?.taskId === candidate.taskId
                 return (
-                  <li key={candidate.taskId}>
-                    <button
-                      type="button"
-                      aria-pressed={active}
+                  <SidebarMenuItem key={candidate.taskId}>
+                    <SelectionListItem
+                      isActive={active}
                       onClick={() => { setSelectedTaskId(candidate.taskId); setConfirmed(false) }}
-                      className={`mb-1 w-full rounded-control px-2.5 py-2 text-left ${active ? 'bg-blue-soft' : 'hover:bg-wash'}`}
                     >
                       <span className="block text-meta text-muted-foreground">{mpiRuleLabel[candidate.ruleId] ?? candidate.ruleId}</span>
                       <span className="mt-0.5 block text-body-sm text-ink-soft">{candidate.identityA.name} ↔ {candidate.identityB.name}</span>
                       <span className="mt-0.5 block text-meta text-muted-foreground">{candidate.identityA.institution} · {candidate.identityA.cardNo || '无卡号'}</span>
-                    </button>
-                  </li>
+                    </SelectionListItem>
+                  </SidebarMenuItem>
                 )
               })}
               {candidates.length === 0 ? (
@@ -252,7 +252,7 @@ function MpiWorkspace({ onNotice }: { onNotice: (message: string) => void }) {
                   {debounced ? '全队列未找到匹配候选，请调整姓名 / 卡号 / 规则关键词' : '当前没有待复核候选'}
                 </li>
               ) : null}
-            </ul>
+            </SidebarMenu>
             {!debounced && queueTotal != null && queueTotal > candidates.length ? (
               <p className="px-[18px] pb-2 text-meta text-muted-foreground">已加载前 {candidates.length} 条（共 {queueTotal} 条待复核；可用上方搜索定位）</p>
             ) : null}

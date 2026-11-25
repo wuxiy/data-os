@@ -19,6 +19,7 @@ import { LoadingBlock, LoadingInline } from '@/components/app/loading'
 import { useNotice } from '@/components/app/notice'
 import { ScopeNote } from '@/components/app/scope-note'
 import { SearchField } from '@/components/app/search-field'
+import { SelectionListItem } from '@/components/app/selection-list-item'
 import { TableSkeleton } from '@/components/app/table-skeleton'
 import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
@@ -29,6 +30,7 @@ import { FrameDescription, FrameHeader, FramePanel } from '@/components/ui/frame
 import { Input } from '@/components/ui/input'
 import { RadioGroupPrimitive, RadioPrimitive } from '@/components/ui/radio-group'
 import { SegmentedControl, SegmentedControlItem } from '@/components/ui/segmented-control'
+import { SidebarMenu, SidebarMenuItem } from '@/components/ui/sidebar'
 import { Textarea } from '@/components/ui/textarea'
 import { Tooltip, TooltipPopup, TooltipTrigger } from '@/components/ui/tooltip'
 
@@ -445,16 +447,14 @@ export function QualityPage() {
               {openIssues.length > 0 ? <Button variant="outline" size="sm" onClick={() => setBatchOpen(true)}>批量提醒</Button> : null}
             </div>
             <p className="px-[18px] pb-2 text-meta text-muted-foreground">当前筛选 {visibleIssues.length} 项</p>
-            <ul className="m-0 min-h-0 flex-1 list-none overflow-y-auto px-2 pb-2">
+            <SidebarMenu className="m-0 min-h-0 flex-1 overflow-y-auto px-2 pb-2">
               {pagedIssues.map((issue) => {
                 const active = selected?.id === issue.id
                 return (
-                  <li key={issue.id}>
-                    <button
-                      type="button"
-                      aria-pressed={active}
+                  <SidebarMenuItem key={issue.id}>
+                    <SelectionListItem
+                      isActive={active}
                       onClick={() => select(issue.id)}
-                      className={`mb-1 w-full rounded-control px-2.5 py-2 text-left ${active ? 'bg-blue-soft' : 'hover:bg-wash'}`}
                     >
                       <span className="flex items-center justify-between gap-2">
                         <span className="font-mono text-meta text-muted-foreground">{issue.id}</span>
@@ -462,8 +462,8 @@ export function QualityPage() {
                       </span>
                       <span className="mt-1 block text-body-sm text-ink-soft">{issue.title}</span>
                       <span className="mt-0.5 block text-meta text-muted-foreground">{issue.ownerDepartment} · {issue.ownerName} · {issueStatusLabel(issue.status)}</span>
-                    </button>
-                  </li>
+                    </SelectionListItem>
+                  </SidebarMenuItem>
                 )
               })}
               {visibleIssues.length === 0 ? (
@@ -472,7 +472,7 @@ export function QualityPage() {
                   {keyword || statusFilter !== 'all' ? <Button variant="link" size="sm" className="ml-1" onClick={() => { setKeyword(''); setStatusFilter('all'); setPage(0) }}>查看全部问题</Button> : null}
                 </li>
               ) : null}
-            </ul>
+            </SidebarMenu>
             <div className="border-t border-line px-3">
               <TablePagination page={currentPage} pageSize={QUEUE_PAGE_SIZE} total={visibleIssues.length} onPageChange={setPage} label="问题队列分页" compact className="border-t-0 px-0" />
             </div>

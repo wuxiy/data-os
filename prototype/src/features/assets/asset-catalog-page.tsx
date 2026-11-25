@@ -6,12 +6,14 @@ import { useEffect, useMemo, useState } from 'react'
 import { EmptyState } from '@/components/app/empty-state'
 import { LoadingBlock } from '@/components/app/loading'
 import { SearchField } from '@/components/app/search-field'
+import { SelectionListItem } from '@/components/app/selection-list-item'
 import { TableSkeleton } from '@/components/app/table-skeleton'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { FramePanel } from '@/components/ui/frame'
 import { RadioGroupPrimitive, RadioPrimitive } from '@/components/ui/radio-group'
 import { SegmentedControl, SegmentedControlItem } from '@/components/ui/segmented-control'
+import { SidebarMenu, SidebarMenuItem } from '@/components/ui/sidebar'
 import { Tabs, TabsList, TabsPanel, TabsTab } from '@/components/ui/tabs'
 import { Tooltip, TooltipPopup, TooltipTrigger } from '@/components/ui/tooltip'
 
@@ -198,16 +200,14 @@ export function AssetCatalogPage() {
             <div className="px-[18px] pb-2">
               <SearchField value={keyword} onValueChange={(value) => { setKeyword(value); setPage(0) }} placeholder="搜索表名或全限定名" className="w-full" />
             </div>
-            <ul className="m-0 min-h-0 flex-1 list-none px-2 pb-2">
+            <SidebarMenu className="m-0 min-h-0 flex-1 px-2 pb-2">
               {visible.slice(currentPage * 8, (currentPage + 1) * 8).map((asset) => {
                 const active = asset.fullyQualifiedName === effectiveFqn
                 return (
-                  <li key={asset.fullyQualifiedName}>
-                    <button
-                      type="button"
-                      aria-pressed={active}
+                  <SidebarMenuItem key={asset.fullyQualifiedName}>
+                    <SelectionListItem
+                      isActive={active}
                       onClick={() => { setFqn(asset.fullyQualifiedName); setTab('fields') }}
-                      className={`mb-1 w-full rounded-control px-2.5 py-2 text-left ${active ? 'bg-blue-soft' : 'hover:bg-wash'}`}
                     >
                       <span className="block truncate text-body-sm text-ink-soft">{asset.displayName || asset.name}</span>
                       <span className="block truncate font-mono text-meta text-muted-foreground">{asset.name}</span>
@@ -215,8 +215,8 @@ export function AssetCatalogPage() {
                         <em className="not-italic">{asset.columnCount} 列</em>
                         <i className="not-italic text-green">已摄取</i>
                       </span>
-                    </button>
-                  </li>
+                    </SelectionListItem>
+                  </SidebarMenuItem>
                 )
               })}
               {visible.length === 0 ? (
@@ -225,7 +225,7 @@ export function AssetCatalogPage() {
                   {keyword ? <Button variant="link" size="sm" className="ml-1" onClick={() => { setKeyword(''); setPage(0) }}>清空搜索</Button> : null}
                 </li>
               ) : null}
-            </ul>
+            </SidebarMenu>
             <div className="border-t border-line px-2">
               <TablePagination page={currentPage} pageSize={8} total={visible.length} onPageChange={setPage} label="资产目录分页" compact className="border-t-0 px-1" />
             </div>
