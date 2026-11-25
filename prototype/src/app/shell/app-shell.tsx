@@ -11,7 +11,16 @@ import {
   Waypoints,
   X,
 } from 'lucide-react'
-import { type CSSProperties, type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
+import {
+  type CSSProperties,
+  lazy,
+  type ReactNode,
+  Suspense,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -61,8 +70,8 @@ import { cn } from '../../lib/utils'
 import { usePortalNavigate } from '../navigate'
 import { activeNavKey, governanceChildren, isGovernancePath, navGroups, routeForPath } from '../navigation'
 import { useAuth } from '../providers'
-import { CommandPalette, useCommandHotkey } from './command-palette'
 import { RuntimeStatusBanner } from './runtime-status-banner'
+import { useCommandHotkey } from './use-command-hotkey'
 import { useVisitedTabs } from './visited-tabs'
 
 declare module '@tanstack/history' {
@@ -80,6 +89,9 @@ const SIDEBAR_WIDTHS = {
 /** 折叠态下只留图标：文字部分加上这个类，coss Sidebar 会在图标折叠时自动隐藏。 */
 const HIDE_WHEN_COLLAPSED = 'group-data-[collapsible=icon]:hidden'
 
+/** 命令面板不进首屏：壳常驻的只有它的快捷键，面板本体在第一次打开时才挂载。 */
+const CommandPalette = lazy(() => import('./command-palette').then((module) => ({ default: module.CommandPalette })))
+
 /**
  * 新壳（批准原型 v0.2）：分组侧栏 + 顶栏内页签 + 连续工作面，容器为 coss Sidebar。
  * 壳只消费 styles/tokens.css 的主题与 coss 组件；业务页面按路由懒加载挂载在 Outlet。
@@ -92,6 +104,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { snapshot, logout, technicalAccess } = useAuth()
   const [collapsed, setCollapsed] = useState(false)
   const [paletteOpen, setPaletteOpen] = useState(false)
+  const [paletteMounted, setPaletteMounted] = useState(false)
   const [governanceOpen, setGovernanceOpen] = useState(() => isGovernancePath(pathname))
   const { tabs, closeTab } = useVisitedTabs(pathname)
   const pendingClose = useRef<{ path: string; token: string } | null>(null)
@@ -104,7 +117,22 @@ export function AppShell({ children }: { children: ReactNode }) {
     pendingClose.current = null
   }, [pathname, location.state, closeTab])
 
-  useCommandHotkey(useCallback(() => setPaletteOpen(true), []))
+  const openPalette = useCallback(() => {
+    setPaletteMounted(true)
+    setPaletteOpen(true)
+  }, [])
+  useCommandHotkey(openPalette)
+
+  // 首屏出来后趁空闲把命令面板取回来：它不挡首屏，第一次按快捷键时也不必等网络。
+  useEffect(() => {
+    const prefetch = () => { void import('./command-palette') }
+    if (typeof window.requestIdleCallback !== 'function') {
+      const timer = window.setTimeout(prefetch, 300)
+      return () => window.clearTimeout(timer)
+    }
+    const handle = window.requestIdleCallback(prefetch)
+    return () => window.cancelIdleCallback(handle)
+  }, [])
 
   const route = routeForPath(pathname)
   useEffect(() => {
@@ -165,7 +193,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           tabs={tabs}
           onNavigate={go}
           onCloseTab={closeVisitedTab}
-          onOpenPalette={() => setPaletteOpen(true)}
+          onOpenPalette={openPalette}
         />
         <div className="min-w-0 px-7 pt-5 pb-6 max-[1320px]:px-5">
           <div className="mx-auto max-w-[1600px]">
@@ -175,7 +203,11 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </SidebarInset>
 
-      <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
+      {paletteMounted ? (
+        <Suspense fallback={null}>
+          <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
+        </Suspense>
+      ) : null}
     </SidebarProvider>
   )
 }

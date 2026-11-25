@@ -1,6 +1,6 @@
 import { useLocation } from '@tanstack/react-router'
 import { House, type LucideIcon } from 'lucide-react'
-import { useEffect, useMemo } from 'react'
+import { useMemo } from 'react'
 
 import {
   Command,
@@ -94,19 +94,4 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
       </CommandDialogPopup>
     </CommandDialog>
   )
-}
-
-/** 打开命令面板的快捷键（⌘/Ctrl K）；输入框内不抢占。 */
-export function useCommandHotkey(onOpen: () => void) {
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== 'k') return
-      const target = event.target as HTMLElement | null
-      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return
-      event.preventDefault()
-      onOpen()
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [onOpen])
 }

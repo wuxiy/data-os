@@ -9,7 +9,7 @@ import { useDirtyLeaveGuard } from '../dirty-leave-guard'
 vi.mock('../providers', () => ({ useAuth: () => ({ snapshot: { status: 'disabled' }, technicalAccess: true }) }))
 vi.mock('../../features/overview/queries', () => ({ operationsSummaryQuery: () => ({ queryKey: ['test-summary'], queryFn: async () => null }) }))
 vi.mock('./runtime-status-banner', () => ({ RuntimeStatusBanner: () => null }))
-vi.mock('./command-palette', () => ({ CommandPalette: () => null, useCommandHotkey: () => {} }))
+vi.mock('./command-palette', () => ({ CommandPalette: () => null }))
 
 import { AppShell } from './app-shell'
 
