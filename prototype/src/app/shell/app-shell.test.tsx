@@ -64,3 +64,15 @@ it('收起导航后仍可通过数据治理图标进入治理驾驶舱', async (
   fireEvent.click(screen.getByRole('button', { name: '数据治理' }))
   expect(await screen.findByRole('heading', { name: '治理驾驶舱' })).toBeTruthy()
 })
+
+it('侧栏热区与折叠按钮的辅助文本是中文（coss 源码自带英文，须在调用点覆盖）', async () => {
+  renderApp()
+  await screen.findByRole('heading', { name: '编辑页' })
+  const chinese = /\p{Script=Han}/u
+  const rail = document.querySelector('[data-slot="sidebar-rail"]') as HTMLButtonElement
+  expect(rail.getAttribute('aria-label')).toMatch(chinese)
+  // title 是鼠标悬停热区时唯一可见的说明，不能留英文。
+  expect(rail.title).toMatch(chinese)
+  // 顶栏折叠按钮内部有英文的读屏文本，靠 aria-label 盖住。
+  expect(screen.getByRole('button', { name: '收起 / 展开导航' })).toBeTruthy()
+})

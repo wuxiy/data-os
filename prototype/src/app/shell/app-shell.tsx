@@ -498,7 +498,8 @@ function AppNavigation({
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
-      <SidebarRail />
+      {/* coss 给热区写死了英文的 title / aria-label，title 悬停可见；源码不改，在调用点覆盖成中文。 */}
+      <SidebarRail aria-label="收起 / 展开主导航" title="收起 / 展开主导航" />
     </Sidebar>
   )
 }
