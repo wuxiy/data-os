@@ -42,9 +42,13 @@ const ROUTES = resolveRoutes(routeArg)
 
 const failures = []
 const checked = []
+// 当前段落与各段落实际执行的断言数：通过时也要看得出壳交互、各业务流到底跑没跑、跑了多少条。
+let section = '路由矩阵'
+const sectionAssertions = new Map()
 
 function record(ok, message) {
-  if (!ok) failures.push(message)
+  sectionAssertions.set(section, (sectionAssertions.get(section) ?? 0) + 1)
+  if (!ok) failures.push(section === '路由矩阵' ? message : `${section}：${message}`)
 }
 
 async function waitForServer(url, timeoutMs = 30_000) {
@@ -123,6 +127,7 @@ try {
     }
   }
 
+  section = '壳交互'
   /* 壳交互（FE1）：页签保留、关闭回退与未知路径的显式空态。 */
   await page.setViewportSize(widths[0])
   // 页签是会话状态：清空后只留下本流程打开的两个页签，回退目标才是确定的。
@@ -145,6 +150,7 @@ try {
   record((await page.title()).includes('医数中枢'), '未知路径仍保留站点标题')
 
   /* FE2 业务流（需要 mock 控制面）：短表单登记、调度预览、库表浏览。 */
+  section = '业务流 fe2'
   if (wantsFlow('fe2')) {
     await page.goto(`${base}/ingestion`, { waitUntil: 'domcontentloaded' })
     await page.waitForTimeout(400)
@@ -177,6 +183,7 @@ try {
   }
 
   /* FE3 业务流（需要 mock 控制面）：问题深链、规则编辑回填、标准版本切换。 */
+  section = '业务流 fe3'
   if (wantsFlow('fe3')) {
     await page.goto(`${base}/governance/quality?issue=DQ-20261116-001`, { waitUntil: 'domcontentloaded' })
     await page.waitForTimeout(700)
@@ -200,6 +207,7 @@ try {
   }
 
   /* FE4 业务流（需要 mock 控制面）：资产页签、技术深链、MPI 队列检索。 */
+  section = '业务流 fe4'
   if (wantsFlow('fe4')) {
     await page.goto(`${base}/assets`, { waitUntil: 'domcontentloaded' })
     await page.waitForTimeout(700)
@@ -223,6 +231,7 @@ try {
   }
 
   /* FE5 业务流（需要 mock 控制面）：问数参数执行、服务发布、AI 评测、审计过滤。 */
+  section = '业务流 fe5'
   if (wantsFlow('fe5')) {
     await page.goto(`${base}/assistant`, { waitUntil: 'domcontentloaded' })
     await page.waitForTimeout(700)
@@ -261,6 +270,7 @@ try {
   }
 
   /* FE6 业务流（需要 mock 控制面）：交付提交阻断、前置机登记、运营待办下钻。 */
+  section = '业务流 fe6'
   if (wantsFlow('fe6')) {
     await page.goto(`${base}/delivery-center`, { waitUntil: 'domcontentloaded' })
     await page.waitForTimeout(700)
@@ -295,4 +305,8 @@ if (failures.length) {
   for (const failure of failures) console.error(` - ${failure}`)
   process.exit(1)
 }
-console.log(`browser smoke passed: ${checked.length} 次路由检查（${ROUTES.length} 路由 × ${widths.length} 宽度）`)
+// 业务流只在显式传了 --flows 时执行：把实际跑过的段落写进通过行，免得参数写错时一条没跑也显示通过。
+const ranSummary = [...sectionAssertions]
+  .filter(([name]) => name !== '路由矩阵')
+  .map(([name, count]) => `${name} ${count} 项断言`)
+console.log(`browser smoke passed: ${checked.length} 次路由检查（${ROUTES.length} 路由 × ${widths.length} 宽度）${ranSummary.length ? `；${ranSummary.join('、')}` : ''}`)
