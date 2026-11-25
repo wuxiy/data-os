@@ -6,7 +6,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb'
-import type { ReactNode } from 'react'
+import { Fragment, type ReactNode } from 'react'
 import { cn } from '../../lib/utils'
 
 export interface Crumb {
@@ -23,10 +23,13 @@ export function Breadcrumb({ items, trailing }: { items: Crumb[]; trailing?: Rea
         {items.map((item, index) => {
           const last = index === items.length - 1
           return (
-            <BreadcrumbItem key={index}>
+            // 分隔符本身是 <li>，按 coss 的写法与条目平级，不能嵌进条目里。
+            <Fragment key={index}>
               {index > 0 ? <BreadcrumbSeparator /> : null}
-              {item.href && !last ? <BreadcrumbLink href={item.href}>{item.label}</BreadcrumbLink> : <BreadcrumbPage>{item.label}</BreadcrumbPage>}
-            </BreadcrumbItem>
+              <BreadcrumbItem>
+                {item.href && !last ? <BreadcrumbLink href={item.href}>{item.label}</BreadcrumbLink> : <BreadcrumbPage>{item.label}</BreadcrumbPage>}
+              </BreadcrumbItem>
+            </Fragment>
           )
         })}
       </BreadcrumbList>

@@ -179,6 +179,7 @@ export function PlatformOperationsPage() {
     watermarkHelper.display({ id: 'daily', header: '近 7 日', size: 220, cell: ({ row }) => <span className="text-meta text-muted-foreground">{row.original.dailyCounts.map((item) => `${item.date.slice(5)}:${item.count}`).join(' · ') || '—'}</span> }),
   ])
 
+  const guard = useDiscardGuard(Boolean(form.name.trim() || form.host.trim()) && !save.isPending, setFormOpen)
   if (forbidden || (platformRequest.isError && !platform)) {
     return (
       <div>
@@ -197,7 +198,6 @@ export function PlatformOperationsPage() {
     )
   }
 
-  const guard = useDiscardGuard(Boolean(form.name.trim() || form.host.trim()) && !save.isPending, setFormOpen)
   return (
     <div>
       <Breadcrumb items={[{ label: '平台管理' }, { label: '平台运维' }]} trailing={platform ? <span>检查于 {formatDateTime(platform.checkedAt)}</span> : null} />
