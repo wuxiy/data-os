@@ -1,15 +1,28 @@
 # 下一阶段备忘（深度测试 / 安全 / 生产加固）
 
+## 2026-11-25 门户改造为 coss ui · 收口补记 · 状态更新
+
+- **分支 `feat/portal-coss-ui` 共 26 个提交（截至代码提交 `7dd9fb6` 为 25 个，另加文档更新），本地未推送**（推送等用户明示）。在 11-24 的 20 个之上补了四笔代码提交：
+  - `00a0246` 修复两处改造引入的缺陷：平台运维页在控制面不可达时整页崩溃（迁移脚本把 `useDiscardGuard` 提到了提前返回之后，React #300）、面包屑 `<li>` 套 `<li>`。新增 `qa/api-down-smoke.mjs` 锁定「接口不可达」路径（29 路由，自行构建、不需要 mock），路由清单抽到 `qa/routes.mjs` 与 `browser-smoke` 共用。
+  - `7e57707` 导入块整理（合并同模块重复导入、分组排序），无行为变化。
+  - `c87e633` 侧栏边缘热区的英文悬停提示改为中文（coss `SidebarRail` 自带 `title="Toggle Sidebar"`，在调用点覆盖）并加 1 例测试。
+  - `7dd9fb6` `browser-smoke` 的通过行列出壳交互与各业务流实际执行的断言数（此前业务流通过时不输出任何内容，`--flows` 写错也显示通过）；只改输出。
+- **最终状态**：30 文件 / 123 例、双 QA、接口不可达 29 路由、58 项路由检查、壳交互 5 项与业务流 25 项断言、深色偏好模拟、快照校验全部在 `7dd9fb6` 上通过；`npm audit` 6 条与 `main` 相同；新增生产依赖 2 个均为 MIT。
+- **新增延后候选**（接 11-24 的 ①–⑥）：
+  - ⑦ 控制面不可达时，采集任务详情与数据源浏览两页的不可用状态没有 h1（3 条路由；`main` 上同样是提前返回 `EmptyState`、先于页头）。`api-down-smoke` 目前只断言主工作区非空；要拦这项得先定口径——不可用状态是否一律保留页头。
+  - ⑧ **质量执行器名直出的潜在缺口（涉及「不暴露引擎名」红线，存量）**：后端把 `DBT` 当作合法的 `DATAOS_QUALITY_EXECUTOR` 取值（`HttpQualityRuleExecutor`、`RuntimeConfigurationValidator` 均接受），门户 `src/data/domain.ts` 的 `executorLabel` 却只映射 `HTTP` / `DEMO`，其余原样显示。dev 与生产模板默认 `HTTP`（显示「质量执行器（在线）」）；运维若配成 `DBT`，业务用户会在「数据质量」页看到引擎名。mock 给的正是 `DBT`。建议补 `DBT` 映射并加测试（一行级改动），属业务称谓改动，未放进改造分支。
+- **验证口径补充**：接口正常（mock）与接口不可达是两条路径，重构后都要跑；用脚本搬动过 hook 位置之后，`api-down-smoke` 是必跑项。
+
 ## 2026-11-24 门户改造为 coss ui · 状态更新
 
-- **改造完成，分支 `feat/portal-coss-ui` 20 个提交，本地未推送**（推送等用户明示）：有 coss 对应物的组件全部直接改用 coss 组件，手写组件层与旧快照已删。30 文件 / 122 例、双 QA、58 项路由检查、fe2–fe6 业务流、深色偏好模拟全过。记录见 [docs/validation/portal-coss-ui-20261123.md](validation/portal-coss-ui-20261123.md)。
+- **改造完成，分支 `feat/portal-coss-ui` 当时 20 个提交（后续提交见上节），本地未推送**（推送等用户明示）：有 coss 对应物的组件全部直接改用 coss 组件，手写组件层与旧快照已删。30 文件 / 122 例、双 QA、58 项路由检查、fe2–fe6 业务流、深色偏好模拟全过。记录见 [docs/validation/portal-coss-ui-20261123.md](validation/portal-coss-ui-20261123.md)。
 - **待用户裁决（不自行排期）**：
   - 主从列表的选中项按钮（10 处）保留为自定义按钮——改用 coss `SidebarMenuButton` 需要每个页面测试包一层 `SidebarProvider`，且它们是内容区选择列表而非侧栏导航。
   - 窄屏侧栏断点由 lg（1024px）变为 md（768px），跟随 coss Sidebar 约定。
 - **新增延后候选**：
   - ① 体积：JS gzip 合计 331 KB → 490 KB（首屏入口块约 296 KB），CSS gzip 15.3 KB → 30.2 KB。来源是 Base UI 浮层族与 coss 组件的状态类字符串；可做的事有：不生成 `dark:` 变体、按路由拆出 Sidebar / Command 等非首屏依赖、给未用到的 coss 部件做按需裁剪。
   - ② 开发工具链 6 条审计告警（`vitest`、`@vitest/mocker`、`vite`、`nanoid`、`source-map-js`、`undici`，2 moderate、4 high）：`main` 上同样存在，本次新增依赖无告警；`npm audit fix` 可修但会改动工具链版本，需单独一轮带全量验证。
-  - ③ coss 源码里的两处英文辅助文本（Toast 视口 `aria-label="Notifications"`、分页省略号读屏文本「More pages」）：不改 coss 源码，待上游或等有中文化方案。
+  - ③ coss 源码里的英文辅助文本：不改 coss 源码，待上游或等有中文化方案。**11-25 更正（实测）**：仍会到达读屏的只有 Toast 视口 `aria-label="Notifications"` 与窄屏侧栏抽屉的读屏标题/说明；原先记的分页「More pages」在 `aria-hidden` 子树内、并不外露；肉眼可见的侧栏热区英文悬停提示已修（`c87e633`）。
   - ④ 采集任务行菜单里的「归档」直接执行、没有后果确认（改造前即如此，与其它归档/删除动作不一致）。
   - ⑤ 5 个页面各自定义了同构的 `Fact`（label / value）组件，可合并到 `components/app`。
   - ⑥ 源表芯片与版本切换芯片的 `title` 提示仍是原生属性（逐项包 Tooltip 的成本高于收益）。
@@ -227,3 +240,4 @@
 - 2026-10-15（redesign 技能审计收口轮）：用户触发 redesign-existing-projects 技能——六维设计审计（排版/色彩/布局/交互/代码质量/图标，explore 子代理全仓扫描）结论为基线健康，问题集中在 v1 色相残留。16 项定向修复全做并部署 dev：**A 入口**（移除无人使用的 Noto Serif SC 加载约 200KB、theme-color 过期色值更正、补 SVG favicon、--font-number 补 Windows 回退 Segoe UI/Roboto Condensed）；**B 色相统一**（v1 苔绿 rgba(46,118,105,*) 20 处→青蓝 rgba(14,116,144,*)、v1 深绿灰 rgba 族 12 处→zinc rgba(31,41,55,*)、平台运维告警条 v1 红/琥珀 rgba→v2、sqlPanel 深色块 #1f2b28→#1b2430 入 zinc 族、GovernanceTabs active 指示器归 --selection-mark、AppShell #1c2422 四处→var(--ink)）；**C 排版**（plannedLabel 10px 与登录脚注 11px 归 12px 地板、两处 font-weight:650 非标准值→600、侧栏图标 strokeWidth 1.5/1.65/1.7 三档统一 1.7）；**D 交互**（MetricStrip 可点卡片补 :active 按压、CommandPalette 选中项补 transition 消键盘瞬变、Toast 补退出动画（自动关闭 timer 从 App.tsx 移入组件以播完再卸载）、5 张接 apiState 的 antd Table 启用内建 loading）；**E 质量**（6 处抽屉标题内联样式抽 Pages.module.css 的 .drawerTitleText、死令牌 --shadow/--jade-deep/--ink-muted 清理）。明确不做：不换字体族（Noto Sans SC 中文正确解）、不抬 12px 正文地板、不动 pageFlow/apiStatus 顶距（有结构注释）、不换图标库/侧栏结构。验证：tsc + vitest 36/36 + 双 qa + build 全绿；dev 浏览器复核质量/数据服务页视觉统一。审计存留观察（不追）：antd Table 部分页面行高随内容两行撑高（内容驱动，非 token 失效）；数据服务页详情区 Table 无独立 loading 态变量可接（匿名 useApiResource）。
 - 2026-11-17（原型 v0.2 对齐审核修复轮）：全量视觉对齐审核后修复 8 项缺口——路由级脏退出守卫（useBlocker 拦侧栏/页签/浏览器返回，三编辑器接入，问数编辑器此前无守卫）、侧栏患者主索引待复核徽标、采集任务勾选列+批量启用/暂停（逐个单任务合同+Confirm）、资产导出目录 CSV（当前过滤口径）、数据源 Dialog 标题统一、placeholder 色值对齐、采集摘要第 4 卡改「最近 24h 失败」（docs/validation/design-alignment-fixes-20261117.md）。**明确不做并记录裁定**：侧栏「工作区选择器」——后端仅 institution_id 作用域键、无机构名称注册表、OIDC token 无组织 claim，实现即造样例（违反「不补样例」红线）；多工作区落地须先建机构注册表 + OIDC 组织 claim（后端事务，届时前端再接）。测试坑：qa/mock-control-plane 为内存有状态，browser-smoke --flows 复跑前须重启 mock（fe5 发布流会撞已发布态）。
 - 2026-11-24（门户改造为 coss ui）：有 coss 对应物的组件全部直接改用 coss 组件，手写组件层与旧快照退役；顺带修复结构化采集表单不随表单状态重渲染的存量缺陷（`useStore` 订阅 + 2 例回归）。30 文件 / 122 例、双 QA、58 项路由检查与 fe2–fe6 全过；分支 `feat/portal-coss-ui` 未推送（docs/validation/portal-coss-ui-20261123.md）。新增延后候选六项（体积、工具链审计告警、coss 英文辅助文本、归档无确认、Fact 重复、芯片 title）。
+- 2026-11-25（门户改造为 coss ui · 收口补记）：代码提交增至 23 个，仍未推送。`00a0246` 修复控制面不可达时平台运维页整页崩溃（迁移脚本把 hook 提到了提前返回之后）与面包屑 `<li>` 嵌套，新增 `qa/api-down-smoke.mjs` 锁定接口不可达路径；`7e57707` 整理导入块。新增延后候选两项：⑦ 不可用状态缺 h1 的两页（3 路由）；⑧ `executorLabel` 不认识后端合法值 `DBT`，配成该值时引擎名直出。同日收口补充：`c87e633` 修掉侧栏热区的英文悬停提示（coss 自带 `title`），`7dd9fb6` 让 `browser-smoke` 通过时列出各段断言数；更正 11-24 的候选 ③（见上）。

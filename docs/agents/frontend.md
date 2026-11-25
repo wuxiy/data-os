@@ -18,6 +18,7 @@ React 19 + TypeScript + Vite SPA；Tailwind 4（拆分导入、无 preflight，`
 - **TanStack Form**：`useForm` 不随表单状态重渲染，组件里读 `form.state` 不会更新。要用 `useStore(form.store, selector)`、`form.Subscribe` 或 `form.Field`。
 - **辅助语义**：静态说明用 `<Alert role="note">`，反馈类保留 coss 默认的 `role="alert"`；coss Toast 的根节点是 `dialog` 角色（高优先级为 `alertdialog`），按 `getByRole('dialog')` 泛查会把提示也算进去，表单弹窗要按标题定位。
 - **`<a>` 有默认下划线**（无 preflight）：以 `render={<a />}` 渲染的导航按钮要加 `no-underline`。
+- **coss 部件自带英文辅助文本**（`aria-label`、`title`、读屏文本），与「UI 用中文」冲突。coss 把 `props` 展开在最后，多数能在调用点用 `aria-label` / `title` 覆盖（壳的 `SidebarRail`、`SidebarTrigger` 即如此）；写死在部件内部、覆盖不了的两处（Toast 视口 `Notifications`、窄屏侧栏抽屉标题）登记在 gate 记录 `portal-coss-ui-20261123.md` §7。新接入 coss 部件后，在浏览器里查一遍它渲染出的 `[aria-label]` / `[title]` / `.sr-only` 英文值——其中 `title` 是肉眼可见的。
 
 ## 约定与红线
 
@@ -27,8 +28,9 @@ React 19 + TypeScript + Vite SPA；Tailwind 4（拆分导入、无 preflight，`
 - 容器分工按 DESIGN.md §15：对象速览用右侧 Drawer、单步短输入用 Dialog、明确后果用 ConfirmDialog（AlertDialog，初始焦点在取消）、长任务用独立工作页、持续比较用常驻主从；脏数据退出先原位询问（`useDiscardGuard` + `DiscardPrompt`，取消按钮用 `DialogClose` / `DrawerClose` 让关闭请求经过守卫）。
 - Query 纪律：默认不自动重试/不聚焦重发；mutation `retry:false` 且一次意图一次调用（幂等键一次性）；页面级轮询只用 `refetchInterval`/受控 effect（接入运行 5s、AI 构建 2s×150、平台组件 30s）；切键即换缓存，旧响应不得覆盖新对象。
 - 浏览器标签标题随路由动态化（壳的路由 effect）；`index.html` 只提供首帧标题。
-- `qa/*.mjs` 是不变量锁：断言业务不变量而非语法，重构后把锁迁到新家（改断言指向），不要删断言。脚本必须从 `prototype/` 目录运行（内部按 `..` 解析路径）。`qa/mock-control-plane.mjs` 是合成契约替身（仅验收环境）；`qa/browser-smoke.mjs --serve [--flows fe2,…,fe6]` 跑 29 路由 × 2 宽度矩阵与业务流；`qa/artifact-manifest.mjs` 产出 dist 哈希与依赖/许可证清单。
+- `qa/*.mjs` 是不变量锁：断言业务不变量而非语法，重构后把锁迁到新家（改断言指向），不要删断言。脚本必须从 `prototype/` 目录运行（内部按 `..` 解析路径）。`qa/mock-control-plane.mjs` 是合成契约替身（仅验收环境）；`qa/browser-smoke.mjs --serve [--flows fe2,…,fe6]` 跑 29 路由 × 2 宽度矩阵与业务流；`qa/api-down-smoke.mjs` 自行构建，跑同一份路由清单（`qa/routes.mjs`）的控制面不可达路径，不需要 mock；`qa/artifact-manifest.mjs` 带 `dist` 或 `--licenses` 产出 dist 哈希或依赖许可证清单。`browser-smoke` 的通过行列出壳交互与各业务流实际执行的断言数：没传 `--flows` 就不会有业务流，写错了也不会显示通过。
 - 跑业务流前重启 mock（它有状态），并且用 `set -o pipefail`（`| tail` 会吞掉非零退出码）。
+- **接口正常与接口不可达是两条路径，重构后都要跑。** 不可达时页面走的是提前返回分支：hook 一旦落在某个提前返回之后，只有这条路径会暴露（React #300，整页卸载，接口正常时毫无征兆）。`useDiscardGuard` 必须在所有提前返回之前调用；用脚本搬动过代码之后，`api-down-smoke` 是必跑项。
 
 ## coss 升级
 
@@ -51,6 +53,8 @@ node scripts/freeze-coss-snapshot.mjs --verify
 cd prototype && node qa/mock-control-plane.mjs --port 18090 &   # 后台
 VITE_DATAOS_API_BASE_URL=http://127.0.0.1:18090/api npm run build
 node qa/browser-smoke.mjs --serve [--flows all]
+# 控制面不可达路径（自行构建到临时目录，不需要 mock）：
+node qa/api-down-smoke.mjs
 # 依赖审计（项目配置的 npmmirror 源不实现 audit 端点）：
 npm audit --registry=https://registry.npmjs.org
 ```

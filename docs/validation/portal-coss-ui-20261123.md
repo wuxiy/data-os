@@ -1,15 +1,16 @@
-# 门户改造为 coss ui：gate 记录（2026-11-24）
+# 门户改造为 coss ui：gate 记录（2026-11-24，11-25 收口更新）
 
-分支 `feat/portal-coss-ui`（20 个提交，**未推送**，推送等用户明示）。基线为 `main` 的 `9044dc0`。
+分支 `feat/portal-coss-ui`（截至最后一个代码提交 `7dd9fb6` 共 25 个提交，其中 `573df9f` 是文档提交；加上本次文档更新共 26 个。**未推送**，推送等用户明示）。基线为 `main` 的 `9044dc0`。
 
 ## 1. 结论
 
 门户 UI 层已整体改用 [coss ui](https://github.com/cosscom/ui)（Base UI + Tailwind 4，shadcn 式源码分发）。
 手写组件层 `src/components/kit` 与旧快照 `shadcn-registry-snapshot` 已删除；页面里不再有裸的 `<button>` 主按钮、`<input>` / `<select>` / `<textarea>`、`<details>`、`role="alert"` 与原生 `title` 提示（保留项见 §7）。
 
-- 测试：30 文件 / 122 例全绿（基线 28 / 120，净增 2 例回归测试）。
+- 测试：30 文件 / 123 例全绿（基线 28 / 120，净增 3 例：2 例表单回归，1 例侧栏辅助文本）。
 - QA 锁：`mock-audit`、`portal-interactions-smoke` 全过，断言无删除。
-- 浏览器：29 路由 × 2 宽度共 58 项检查全过；业务流 fe2–fe6 在全新 mock 上全过。
+- 浏览器：29 路由 × 2 宽度共 58 项检查全过；壳交互 5 项、业务流 fe2–fe6 共 25 项断言在全新 mock 上全过（通过行逐段列出断言数）。
+- 控制面不可达：29 条路由都落到真实的不可用状态（不崩溃、不白屏），由新增的 `qa/api-down-smoke.mjs` 锁定。
 - 深色偏好模拟：计算样式与浅色完全一致，未触发 `dark:`。
 - `npm audit`：与 `main` 完全相同（6 条，全部在开发工具链，见 §8）。
 
@@ -85,7 +86,8 @@
 | `overlay.test.tsx` → `discard-guard.test.tsx`(4) + `confirm-dialog.test.tsx`(2) | 迁移 | 断言原样，改用 coss Dialog / Drawer / AlertDialog 搭最小容器 |
 | `command-palette.test.tsx` | 迁移 | 按 combobox / option 角色查询；「关闭按钮的回车不被拦截」一条无对应物（coss 命令面板没有关闭按钮），并入键盘用例 |
 | `structured-fields.test.tsx` | 新增 | 2 例回归（见 §6） |
-| 其余 24 个文件 | 未改 | — |
+| `app-shell.test.tsx` | 新增 1 例 | 侧栏热区与折叠按钮的辅助文本须含中文（见 §6 末段） |
+| 其余 23 个文件 | 未改 | — |
 
 **QA 锁**
 
@@ -98,10 +100,22 @@
 | `browser-smoke` fe5 结局过滤 | `selectOption` → 点开 combobox 再点 option；断言范围由整个 `main` 收到 `main table tbody`（旧写法把所有选项文案都算进去，恒为真） |
 | `browser-smoke` fe5 日期参数 | 改按 `textbox` 角色定位（日历按钮的标签含同一段文字） |
 | `browser-smoke` fe2 / fe6 弹窗定位 | 按 `dialog` 角色泛查会把 coss Toast（同为 dialog 角色）算进来，改为按标题定位 |
+| **新增** `qa/api-down-smoke.mjs` | 把门户构建成指向无人监听端口，逐路由断言：主工作区有内容、无横向溢出、无应用自身的控制台异常。此前的验证只覆盖接口正常的路径 |
+| **新增** `qa/routes.mjs` | 路由清单从 `browser-smoke.mjs` 抽出，两个冒烟脚本共用；清单本身未改 |
+| `browser-smoke` 通过输出 | 只改输出：通过行列出壳交互与各业务流实际执行的断言数（此前业务流通过时不输出任何内容，`--flows` 写错也会显示通过）。断言、路由与步骤未改 |
 
 ## 6. 顺带修复的存量缺陷
 
 **结构化采集表单不随表单状态重渲染。** `StructuredTaskFields` 读 `form.state.values` 却没有订阅，而项目所用 `@tanstack/react-form` 1.33.5 的 `useForm` 不随状态重渲染。后果：在该表单里连续输入只剩首字符（实测输入「abc」只留下「a」），选库后源表区域不出现。原生 select 靠自己的 DOM 值掩盖了问题；换成受控的 coss Select 后立即暴露。已在改造前提交 `9044dc0` 上复现。修法：`useStore(form.store, (state) => state.values)`（`@tanstack/react-store` 0.11.2 由传递依赖转为直接依赖，精确版本），并补 2 例回归测试（去掉修复 2 例全挂，恢复后全过）。全库只有这一个 `useForm` 使用点。提交 `11818f0`。
+
+**改造引入、交付前发现并修复的两处缺陷（提交 `00a0246`）。** 都只在控制面不可达时出现，所以靠 mock 的路由矩阵一直没碰到：
+
+- *平台运维页在接口不可达时整页崩溃。* 浮层迁移脚本把 `useDiscardGuard(...)` 提到了「离 Dialog 最近的 `return`」之前，而那个 `return` 之上还有一处「无权限 / 平台不可用」的提前返回；一旦走到提前返回就少调了一个 hook，React 卸载了整页（错误 #300：rendered fewer hooks than expected）。`main` 上同场景不崩溃，确认是改造引入。修法：把 hook 提到所有提前返回之前；另写审计脚本扫过全部 `useDiscardGuard` 调用点，没有第二处。
+- *面包屑分隔符嵌在条目内部。* coss 的分隔符本身是 `<li>`，我重写 Breadcrumb 时把它放进了每个条目里，形成 `<li>` 套 `<li>`。已按 coss 写法改为与条目平级。
+
+发现过程值得记下：崩溃是在做完导入块整理（后提交为 `7e57707`）重跑路由矩阵时暴露的——当时 mock 已经停掉，接口全部不可达，`/operations` 报控制台异常。逐层排查（整理前 / `main`）才分清：这一处是改造引入；同一轮里暴露的另两页缺 h1 是存量（§7 第 6 条）。此前的路由矩阵全部建立在 mock 正常响应之上，「控制面整体不可达」这条路径没有被覆盖。
+
+**同类的第三处（提交 `c87e633`）：侧栏边缘热区的英文悬停提示。** 收口时审计了 coss 部件在全部路由与浮层状态下实际渲染的英文辅助文本（`aria-label` / `title` / 读屏文本）。coss `SidebarRail` 自带 `title="Toggle Sidebar"`，鼠标移到侧栏边缘会显示英文提示——这是唯一肉眼可见的一处。coss 把 `props` 展开在最后，已在调用点覆盖成中文，并加 1 例测试（修复前该测试失败于 `"Toggle Sidebar"`）。实测后仍会到达读屏的只剩两处，见 §7 第 4 条。
 
 ## 7. 保留为自定义的部件与待裁决项
 
@@ -110,30 +124,37 @@
 1. **主从列表的选中项按钮（10 处）保留为自定义按钮。** 它们是内容区的选择列表，不是侧栏导航；若改用 coss `SidebarMenuButton`，页面测试都必须包一层 `SidebarProvider`。涉及 AI Data、分析看板、资产目录与资产技术视图、数据服务、治理问题、交付中心、问数面、主索引复核。
 2. **窄屏断点从 lg（1024px）变为 md（768px）。** coss Sidebar 以 md 为抽屉分界，旧壳是 lg。
 3. **体积增加。** JS gzip 合计 331 KB → 490 KB（首屏入口块约 296 KB），CSS gzip 15.3 KB → 30.2 KB。来源是 Base UI 的浮层族（Dialog / Drawer / Popover / Menu / Tooltip / Select / Autocomplete / Toast / Sidebar）与 coss 组件的状态类字符串。日期选择器（约 24 KB）已按需加载。未做裁剪优化，候选见备忘。
-4. **两处英文的辅助文本来自 coss 源码：** Toast 视口的 `aria-label="Notifications"`、分页省略号的读屏文本「More pages」。未改 coss 源码。
+4. **仍会到达读屏的两处英文来自 coss 部件内部（未改 coss 源码）：** Toast 视口的 `aria-label="Notifications"`（Base UI `Toast.Viewport` 的默认值，coss 的 `Toasts` 不向视口透传属性）；窄屏侧栏抽屉的读屏标题与说明「Sidebar」「Displays the mobile sidebar.」（写死在 `Sidebar` 的移动端分支）。两处都只有读屏用户会碰到，其中后者只在窄屏出现。此前记录的分页省略号「More pages」**并不外露**：它在带 `aria-hidden` 的子树里，不会被播报，此处更正。顶栏折叠按钮内部的读屏文本「Toggle Sidebar」已被调用点的 `aria-label` 盖住（按角色查不到该英文名的按钮）。
+   审计口径：浏览器内扫描全部 29 路由及命令面板、侧栏折叠态、登记弹窗、下拉、提示气泡、窄屏抽屉各状态下 `aria-label` / `title` / `.sr-only` 的纯 ASCII 值，再核对可访问名与 `display`。
 5. **源表芯片与版本切换芯片的 `title` 提示保留原生属性**（逐项包 Tooltip 的成本高于收益，且不影响键盘用户）。
-6. **未动的既有问题：** 采集任务的「归档」在行菜单里直接执行、没有后果确认（改造前即如此）；5 个页面各自定义了同构的 `Fact`（label / value）组件。
+6. **未动的既有问题：** 采集任务的「归档」在行菜单里直接执行、没有后果确认（改造前即如此）；5 个页面各自定义了同构的 `Fact`（label / value）组件；控制面不可达时，采集任务详情与数据源浏览两页的不可用状态没有 h1——涉及 3 条路由（任务详情占两条）；`main` 上同样是提前返回 `EmptyState`、先于页头。`api-down-smoke` 目前只断言主工作区非空，不拦这一项。
+7. **核对截图时发现的存量缺口（未改）：** 「数据质量」页的执行批次面板显示「执行器 DBT」，前后截图里都有。后端把 `DBT` 当作合法的质量执行器配置值，而门户 `src/data/domain.ts` 的 `executorLabel` 只映射 `HTTP` / `DEMO`，其余原样显示。dev 与生产模板默认 `HTTP`，只有运维配成 `DBT` 时业务用户才会看到引擎名。修法是一行映射加一条测试，属于业务称谓改动，没有混进改造分支，记入备忘。
 
 ## 8. 验证记录
 
 | 项 | 结果 |
 |---|---|
 | `npx tsc -b` | 通过 |
-| `npx vitest run` | 30 文件 / 122 例通过 |
+| `npx vitest run` | 30 文件 / 123 例通过 |
 | `node qa/mock-audit.mjs` | 通过（17 路由、运行模式可见） |
 | `node qa/portal-interactions-smoke.mjs` | 通过 |
 | `node scripts/freeze-coss-snapshot.mjs --verify` | 通过：44 项登记完整，42 个已安装源文件与快照一致（未安装：form） |
 | `npm run build` | 通过 |
 | `node qa/browser-smoke.mjs --serve` | 58 项路由检查通过（无 console.error、无横向溢出） |
-| `node qa/browser-smoke.mjs --serve --flows all` | fe2–fe6 通过（全新 mock） |
+| `node qa/api-down-smoke.mjs` | 29 条路由通过（控制面不可达）；把守卫放回提前返回之后会在 `/operations` 失败，已反向验证 |
+| `node qa/browser-smoke.mjs --serve --flows all` | 壳交互 5 项、fe2–fe6 共 25 项断言通过（全新 mock；通过行：`fe2 5、fe3 6、fe4 6、fe5 5、fe6 3`） |
 | 深色偏好模拟 | 通过（`prefers-color-scheme: dark` 下计算样式与浅色一致） |
+| 英文辅助文本审计（浏览器内扫描） | 修复后剩 Toast 视口与窄屏抽屉标题两处读屏文本，见 §7 第 4 条 |
+| `node qa/artifact-manifest.mjs --licenses` | 本分支新增生产依赖 2 个（`@daypicker/react`、`@tanstack/react-store`）均为 MIT；生产依赖无未知/未授权许可证 |
 | `npm audit`（官方源） | 6 条（2 moderate、4 high）：`@vitest/mocker`、`vitest`、`nanoid`、`source-map-js`、`undici`、`vite`。与 `main` 逐项相同，全部是开发工具链；新增的 `@daypicker/react`、`@tanstack/react-store` 无告警 |
+
+以上各项均在分支最后一个代码提交 `7dd9fb6` 上执行。`573df9f` 之后的四个代码提交：`00a0246`（不可达修复与新锁）、`7e57707`（导入整理）、`c87e633`（热区中文辅助文本）、`7dd9fb6`（冒烟脚本分段输出，只改输出）。
 
 运行业务流前必须重启 mock：控制面有状态，上一轮发布过的服务不会再次出现「发布」按钮。另：`node … | tail` 会吞掉非零退出码，脚本化时用 `set -o pipefail`。
 
 ## 9. 前后截图
 
-同一 mock 数据、1440×900。目录 [`portal-coss-ui-20261123/`](portal-coss-ui-20261123/)。
+同一 mock 数据、1440×900。目录 [`portal-coss-ui-20261123/`](portal-coss-ui-20261123/)。「改造后」截图取自 `7e57707` 的构建，其后的两个代码提交不改变外观。
 
 | 路由 | 改造前 | 改造后 |
 |---|---|---|
