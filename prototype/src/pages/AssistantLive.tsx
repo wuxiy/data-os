@@ -1,25 +1,42 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { Ban, MessageSquareText, Send, ShieldCheck, ThumbsDown, ThumbsUp } from 'lucide-react'
-import { useMemo, useState, type FormEvent } from 'react'
+import { Ban, CircleAlert, MessageSquareText, Send, ShieldCheck, ThumbsDown, ThumbsUp } from 'lucide-react'
+import { type FormEvent, useMemo, useState } from 'react'
+
+import { DatePicker } from '@/components/app/date-picker'
+import { EmptyState } from '@/components/app/empty-state'
+import { LoadingBlock } from '@/components/app/loading'
+import { SelectionListItem } from '@/components/app/selection-list-item'
+import { TableSkeleton } from '@/components/app/table-skeleton'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Field, FieldLabel } from '@/components/ui/field'
+import { FrameDescription, FrameHeader, FramePanel } from '@/components/ui/frame'
+import { Input } from '@/components/ui/input'
+import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { SidebarMenu, SidebarMenuItem } from '@/components/ui/sidebar'
+import { Textarea } from '@/components/ui/textarea'
+
 import { QueryBoundary } from '../app/query-boundary'
-import { Badge } from '../components/ui/badge'
-import { Button } from '../components/ui/button'
-import { Input, NativeSelect } from '../components/ui/input'
-import { Panel, PanelHead } from '../components/ui/panel'
-import { EmptyState, LoadingBlock, Skeleton } from '../components/ui/states'
 import { DataTable, listColumnHelper } from '../components/table/data-table'
 import {
-  assistantParamLabel,
   askAssistantQuery,
+  type AssistantAnswer,
+  assistantParamLabel,
+  type AssistantQuestionView,
   REFUSAL_LABEL,
   submitAssistantFeedback,
-  type AssistantAnswer,
-  type AssistantQuestionView,
 } from '../data/assistantApi'
 import { AssistantGovernanceSection } from '../features/assistant/governance-section'
 import { assistantQuestionsQuery } from '../features/assistant/queries'
 
 const DATE_LIKE = /^\d{4}-\d{2}-\d{2}/
+
+const BOOLEAN_PARAM_ITEMS = [
+  { value: '', label: '未指定' },
+  { value: 'true', label: 'true' },
+  { value: 'false', label: 'false' },
+]
 
 function dataTimeRangeOf(answer: AssistantAnswer): string {
   const columns = answer.columns ?? []
@@ -130,15 +147,15 @@ function AssistantWorkspace({
 
   if (questionsRequest.isError) {
     return (
-      <Panel>
+      <FramePanel className="p-0 overflow-clip">
         <EmptyState
           minHeight={240}
           icon={<MessageSquareText />}
           title="问数服务暂不可用"
           description="暂时无法读取已验证问题。可重新读取；持续失败时请联系平台运维核对服务连接。"
-          action={<Button onClick={() => void questionsRequest.refetch()}>重新读取问题</Button>}
+          action={<Button variant="outline" onClick={() => void questionsRequest.refetch()}>重新读取问题</Button>}
         />
-      </Panel>
+      </FramePanel>
     )
   }
 
@@ -147,41 +164,47 @@ function AssistantWorkspace({
   return (
     <div className="space-y-3.5">
       <div className="grid grid-cols-[280px_minmax(0,1fr)_300px] gap-3.5 max-[1320px]:grid-cols-[260px_minmax(0,1fr)] max-[1100px]:grid-cols-1">
-        <Panel className="flex flex-col">
-          <PanelHead title="已验证问题" count={questions.length} description={professional ? '专业模式 · 受控只读' : '问数面只列已发布问题'} />
-          {questionsRequest.isPending ? <div className="px-4 pb-3"><Skeleton rows={3} /></div> : null}
-          <ul className="m-0 min-h-0 flex-1 list-none px-2 pb-2">
+        <FramePanel className="flex flex-col p-0 overflow-clip">
+          <FrameHeader className="px-[18px] pt-[18px] pb-3 gap-1">
+            <div className="min-w-0">
+              <h2 className="text-title font-semibold tracking-[-0.2px]">
+                已验证问题
+                {questions.length !== undefined ? <Badge variant="outline">{questions.length}</Badge> : null}
+              </h2>
+              <FrameDescription>{professional ? '专业模式 · 受控只读' : '问数面只列已发布问题'}</FrameDescription>
+            </div>
+          </FrameHeader>
+          {questionsRequest.isPending ? <div className="px-4 pb-3"><TableSkeleton rows={3} /></div> : null}
+          <SidebarMenu className="m-0 min-h-0 flex-1 px-2 pb-2">
             {questions.map((question) => (
-              <li key={question.code}>
-                <button
-                  type="button"
-                  aria-pressed={question.code === selectedCode}
+              <SidebarMenuItem key={question.code}>
+                <SelectionListItem
+                  isActive={question.code === selectedCode}
                   disabled={asking}
                   onClick={() => selectQuestion(question)}
-                  className={`mb-1 w-full rounded-control px-2.5 py-2 text-left ${question.code === selectedCode ? 'bg-blue-soft' : 'hover:bg-wash'}`}
                 >
                   <span className="block text-body-sm text-ink-soft">{question.question}</span>
-                  <span className="mt-0.5 block font-mono text-meta text-muted">{question.serviceCode}</span>
-                </button>
-              </li>
+                  <span className="mt-0.5 block font-mono text-meta text-muted-foreground">{question.serviceCode}</span>
+                </SelectionListItem>
+              </SidebarMenuItem>
             ))}
-            {questions.length === 0 && questionsRequest.isSuccess ? <li className="px-3 py-6 text-center text-label text-muted">当前租户暂无已发布的已验证问题。</li> : null}
-          </ul>
-          <div className="border-t border-line px-3 py-2 text-meta leading-relaxed text-muted">
+            {questions.length === 0 && questionsRequest.isSuccess ? <li className="px-3 py-6 text-center text-label text-muted-foreground">当前租户暂无已发布的已验证问题。</li> : null}
+          </SidebarMenu>
+          <div className="border-t border-line px-3 py-2 text-meta leading-relaxed text-muted-foreground">
             同义表达命中同一问题代码；未知问题明确拒答，不生成任意 SQL。
           </div>
-        </Panel>
+        </FramePanel>
 
-        <Panel className="flex flex-col">
+        <FramePanel className="flex flex-col p-0 overflow-clip">
           <div className="flex items-center justify-between border-b border-line px-4 py-2.5">
             <div className="flex items-center gap-2">
               <span className="flex size-7 items-center justify-center rounded-chip bg-blue-soft text-blue"><MessageSquareText size={15} /></span>
               <div>
                 <strong className="block text-body-sm text-ink-soft">医疗运营问数助手</strong>
-                <span className="block text-meta text-muted">已验证问题 → 已发布数据服务</span>
+                <span className="block text-meta text-muted-foreground">已验证问题 → 已发布数据服务</span>
               </div>
             </div>
-            <Badge tone="success">只读模式</Badge>
+            <Badge variant="success">只读模式</Badge>
           </div>
 
           {selected && (selected.paramSchema ?? []).length > 0 ? (
@@ -197,37 +220,55 @@ function AssistantWorkspace({
             >
               {selected.paramSchema.map((contract) => {
                 const label = assistantParamLabel(contract.name, contract.description)
+                const paramValueItems = [
+                  { value: '', label: '请选择' },
+                  ...(contract.values ?? []).map((value) => ({ value, label: value })),
+                ]
                 return (
-                  <label key={contract.name} className="min-w-[140px]">
-                    <span className="mb-1 block text-meta text-muted">{label}{contract.required ? ' *' : ''}</span>
+                  <Field key={contract.name} className="w-[170px]">
+                    <FieldLabel>
+                      {label}{' '}{contract.required ? <span className="text-destructive-foreground">*</span> : null}
+                    </FieldLabel>
                     {contract.type === 'date' ? (
-                      <Input
-                        type="date"
+                      <DatePicker
                         value={params[contract.name] ?? ''}
                         aria-label={label}
-                        onChange={(event) => setParams({ ...params, [contract.name]: event.target.value })}
+                        onValueChange={(value) => setParams({ ...params, [contract.name]: value })}
                       />
                     ) : contract.type === 'boolean' ? (
-                      <NativeSelect
-                        aria-label={label}
-                        className="min-h-[35px]"
+                      <Select
+                        items={BOOLEAN_PARAM_ITEMS}
                         value={params[contract.name] ?? ''}
-                        onChange={(event) => setParams({ ...params, [contract.name]: event.target.value })}
+                        onValueChange={(next) => setParams({ ...params, [contract.name]: next ?? '' })}
                       >
-                        <option value="">未指定</option>
-                        <option value="true">true</option>
-                        <option value="false">false</option>
-                      </NativeSelect>
+                        <SelectTrigger aria-label={label}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectPopup>
+                          {BOOLEAN_PARAM_ITEMS.map((item) => (
+                            <SelectItem key={item.value} value={item.value}>
+                              {item.label}
+                            </SelectItem>
+                          ))}
+                        </SelectPopup>
+                      </Select>
                     ) : (contract.values ?? []).length > 0 ? (
-                      <NativeSelect
-                        aria-label={label}
-                        className="min-h-[35px]"
+                      <Select
+                        items={paramValueItems}
                         value={params[contract.name] ?? ''}
-                        onChange={(event) => setParams({ ...params, [contract.name]: event.target.value })}
+                        onValueChange={(next) => setParams({ ...params, [contract.name]: next ?? '' })}
                       >
-                        <option value="">请选择</option>
-                        {(contract.values ?? []).map((value) => <option key={value} value={value}>{value}</option>)}
-                      </NativeSelect>
+                        <SelectTrigger aria-label={label}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectPopup>
+                          {paramValueItems.map((item) => (
+                            <SelectItem key={item.value} value={item.value}>
+                              {item.label}
+                            </SelectItem>
+                          ))}
+                        </SelectPopup>
+                      </Select>
                     ) : (
                       <Input
                         type={contract.type === 'number' ? 'number' : 'text'}
@@ -237,10 +278,10 @@ function AssistantWorkspace({
                         onChange={(event) => setParams({ ...params, [contract.name]: event.target.value })}
                       />
                     )}
-                  </label>
+                  </Field>
                 )
               })}
-              <Button type="submit" variant="primary" disabled={asking || !draft.trim()}>
+              <Button type="submit" disabled={asking || !draft.trim()}>
                 {asking ? '查询中…' : '按参数执行'}
               </Button>
             </form>
@@ -254,12 +295,12 @@ function AssistantWorkspace({
             ) : (
               <div className="rounded-panel border border-line bg-wash px-4 py-4">
                 <h2 className="text-title font-semibold text-ink-soft">{questions.length === 0 && questionsRequest.isSuccess ? '还没有可执行的问题' : '从一个已验证问题开始'}</h2>
-                <p className="mt-1.5 text-label leading-relaxed text-muted">
+                <p className="mt-1.5 text-label leading-relaxed text-muted-foreground">
                   {questions.length === 0 && questionsRequest.isSuccess
                     ? '当前租户暂无已发布问题。请联系治理人员完成配置、试运行和发布后再查询。'
                     : '选择左侧问题，再按业务范围调整参数。结果和执行证据会在同一工作区展示。'}
                 </p>
-                <ol className="mt-3 list-decimal space-y-1 pl-5 text-label text-muted">
+                <ol className="mt-3 list-decimal space-y-1 pl-5 text-label text-muted-foreground">
                   <li><strong>选问题</strong>，确认业务口径与受控数据服务。</li>
                   <li><strong>定范围</strong>，填写时间等必需参数后执行。</li>
                   <li><strong>核对结果</strong>，查看明细、统计窗口与审计号。</li>
@@ -269,10 +310,11 @@ function AssistantWorkspace({
 
             {asking ? <LoadingBlock className="min-h-[120px]">正在执行受控查询，完成后展示结果与本次证据。</LoadingBlock> : null}
             {ask.isError ? (
-              <div role="alert" className="mt-3 rounded-control border border-red-line bg-red-soft px-3 py-2 text-label text-[#8f1d13]">
-                <strong>本次查询未完成</strong>
-                <p className="mt-1">{ask.error instanceof Error ? ask.error.message : '请核对问题与参数后重新发送。'}</p>
-              </div>
+              <Alert variant="error" className="mt-3">
+                <CircleAlert />
+                <AlertTitle>本次查询未完成</AlertTitle>
+                <AlertDescription>{ask.error instanceof Error ? ask.error.message : '请核对问题与参数后重新发送。'}</AlertDescription>
+              </Alert>
             ) : null}
 
             {answer && !answer.answered ? (
@@ -294,24 +336,24 @@ function AssistantWorkspace({
                     <span className="flex size-7 items-center justify-center rounded-chip bg-[#edf6f0] text-green"><MessageSquareText size={15} /></span>
                     <div>
                       <strong className="block text-body-sm text-ink-soft">分析结果</strong>
-                      <span className="block text-meta text-muted">{answer.evidence?.serviceCode} {answer.evidence?.serviceVersion} · 受控执行</span>
+                      <span className="block text-meta text-muted-foreground">{answer.evidence?.serviceCode} {answer.evidence?.serviceVersion} · 受控执行</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-1">
-                    <button type="button" className="inline-flex size-7 items-center justify-center rounded-chip text-muted hover:bg-wash disabled:opacity-50" onClick={() => sendFeedback('helpful')} disabled={feedbackState !== 'idle'} aria-label={feedbackState === 'recorded' ? '反馈已记录' : '回答有帮助'}><ThumbsUp size={14} /></button>
-                    <button type="button" className="inline-flex size-7 items-center justify-center rounded-chip text-muted hover:bg-wash disabled:opacity-50" onClick={() => sendFeedback('not_helpful')} disabled={feedbackState !== 'idle'} aria-label="回答需要改进"><ThumbsDown size={14} /></button>
+                    <Button variant="ghost" size="icon-sm" className="text-muted-foreground" onClick={() => sendFeedback('helpful')} disabled={feedbackState !== 'idle'} aria-label={feedbackState === 'recorded' ? '反馈已记录' : '回答有帮助'}><ThumbsUp /></Button>
+                    <Button variant="ghost" size="icon-sm" className="text-muted-foreground" onClick={() => sendFeedback('not_helpful')} disabled={feedbackState !== 'idle'} aria-label="回答需要改进"><ThumbsDown /></Button>
                   </div>
                 </header>
                 <div className="px-4 py-3">
                   <p className="text-body-sm leading-relaxed text-ink-soft">{answer.answer}</p>
                   {answer.truncated ? <p className="mt-2 text-label text-amber"><strong>结果截断：</strong>已按服务行数上限返回 {answer.rowCount} 行。</p> : null}
-                  {feedbackState === 'recorded' ? <p className="mt-2 text-meta text-muted">反馈已记录（审计 {answer.auditId.slice(0, 8)}…）。</p> : null}
+                  {feedbackState === 'recorded' ? <p className="mt-2 text-meta text-muted-foreground">反馈已记录（审计 {answer.auditId.slice(0, 8)}…）。</p> : null}
                   <h3 className="mt-3 mb-1.5 text-label font-medium text-ink-soft">核对明细</h3>
                   <DataTable
                     columns={resultColumns}
                     data={answer.rows ?? []}
                     getRowId={(_row, index) => String(index)}
-                    empty={<p className="py-2 text-label text-muted">查询已完成，当前范围内没有数据。可调整统计参数后重试。</p>}
+                    empty={<p className="py-2 text-label text-muted-foreground">查询已完成，当前范围内没有数据。可调整统计参数后重试。</p>}
                   />
                 </div>
               </article>
@@ -320,31 +362,35 @@ function AssistantWorkspace({
 
           <form className="border-t border-line px-4 py-3" onSubmit={submitQuestion}>
             <div className="flex items-center gap-2">
-              <textarea
+              <Textarea
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
                 placeholder="输入问题原文或别名，例如：每日处方量趋势"
                 aria-label="输入问数问题"
                 rows={1}
-                className="min-h-[38px] flex-1 resize-none rounded-control border border-line-strong bg-paper px-2.5 py-2 text-body-sm text-ink-soft"
+                className="flex-1 [&_[data-slot=textarea]]:min-h-[38px] [&_[data-slot=textarea]]:resize-none"
               />
-              <Button type="submit" variant="primary" size="icon" aria-label="发送问题" disabled={!draft.trim() || asking}><Send size={16} /></Button>
+              <Button type="submit" size="icon" aria-label="发送问题" disabled={!draft.trim() || asking}><Send size={16} /></Button>
             </div>
-            <p className="mt-1.5 text-meta text-muted">回答来自已发布数据服务的受限执行；重要结论请结合口径与数据时间复核。</p>
+            <p className="mt-1.5 text-meta text-muted-foreground">回答来自已发布数据服务的受限执行；重要结论请结合口径与数据时间复核。</p>
           </form>
-        </Panel>
+        </FramePanel>
 
-        <Panel className="max-[1320px]:col-span-2 max-[1100px]:col-span-1">
-          <PanelHead
-            title="回答证据"
-            actions={<Badge tone={answer?.answered ? 'success' : answer ? 'warn' : 'neutral'}>{answer?.answered ? '可复核' : answer ? '拒答留痕' : asking ? '执行中' : ask.isError ? '查询未完成' : '待提问'}</Badge>}
-          />
+        <FramePanel className="max-[1320px]:col-span-2 max-[1100px]:col-span-1 p-0 overflow-clip">
+          <FrameHeader className="px-[18px] pt-[18px] pb-3 flex-row items-center justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="text-title font-semibold tracking-[-0.2px]">
+                回答证据
+              </h2>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">{<Badge variant={answer?.answered ? 'success' : answer ? 'warning' : 'outline'}>{answer?.answered ? '可复核' : answer ? '拒答留痕' : asking ? '执行中' : ask.isError ? '查询未完成' : '待提问'}</Badge>}</div>
+          </FrameHeader>
           <div className="px-4 pb-4">
             <div className="mb-3 flex items-center gap-2 rounded-control border border-line bg-wash px-3 py-2">
               <span className="flex size-7 items-center justify-center rounded-chip bg-paper text-blue"><MessageSquareText size={15} /></span>
               <div>
                 <strong className="block text-label text-ink-soft">问数审计号</strong>
-                <span className="block font-mono text-meta text-muted">{answer ? `${answer.auditId.slice(0, 13)}…` : '提问后生成'}</span>
+                <span className="block font-mono text-meta text-muted-foreground">{answer ? `${answer.auditId.slice(0, 13)}…` : '提问后生成'}</span>
               </div>
             </div>
             <dl className="space-y-2">
@@ -360,7 +406,7 @@ function AssistantWorkspace({
               查询由受控服务执行；助手不能修改标准、质量规则、主数据或源系统。
             </div>
           </div>
-        </Panel>
+        </FramePanel>
       </div>
 
       {professional && governance ? <AssistantGovernanceSection onNotice={onNotice} /> : null}
@@ -371,7 +417,7 @@ function AssistantWorkspace({
 function Evidence({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="text-meta text-muted">{label}</dt>
+      <dt className="text-meta text-muted-foreground">{label}</dt>
       <dd className="m-0 break-all text-label text-ink-soft">{value}</dd>
     </div>
   )

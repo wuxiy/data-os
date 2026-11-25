@@ -1,0 +1,945 @@
+{
+  "schema": 1,
+  "namespace": "@coss",
+  "registry": "https://coss.com/ui/r/{name}.json",
+  "upstream": "https://github.com/cosscom/ui",
+  "license": "MIT",
+  "licenseFile": "LICENSE",
+  "fetchedAt": "2026-11-23T15:51:18.062Z",
+  "note": "coss ui 注册表项的冻结快照。CI 不拉取；升级时重跑 scripts/freeze-coss-snapshot.mjs，经 shadcn CLI 重新安装后执行 --verify，单独提交并重新验收。组件项以原样装入 src/components/ui（仅导入路径按 components.json 别名改写）；粒子只作实现蓝本入库，不安装。",
+  "defaultRegistryDependencies": [],
+  "notInstalled": {
+    "form": "coss Form 以 zod 校验为主；项目表单直接组合 Field，不引入 zod"
+  },
+  "components": [
+    {
+      "name": "alert",
+      "url": "https://coss.com/ui/r/alert.json",
+      "file": "alert.json",
+      "sha256": "0f5196b4800e1d9b9bb469229154b93276c345448f2e83b5ebde7d31b154c17c",
+      "bytes": 3580,
+      "type": "registry:ui",
+      "dependencies": [],
+      "registryDependencies": []
+    },
+    {
+      "name": "alert-dialog",
+      "url": "https://coss.com/ui/r/alert-dialog.json",
+      "file": "alert-dialog.json",
+      "sha256": "b368fffd75e71e2211b47842dce002ae7db0e183318071ba0eb2a9ae47a29cc7",
+      "bytes": 5599,
+      "type": "registry:ui",
+      "dependencies": [
+        "@base-ui/react"
+      ],
+      "registryDependencies": []
+    },
+    {
+      "name": "autocomplete",
+      "url": "https://coss.com/ui/r/autocomplete.json",
+      "file": "autocomplete.json",
+      "sha256": "cb12993e367e4895813549b43422431ab6aaa89f4f9bde746852d11d1ab0de63",
+      "bytes": 11257,
+      "type": "registry:ui",
+      "dependencies": [
+        "@base-ui/react"
+      ],
+      "registryDependencies": [
+        "@coss/input",
+        "@coss/scroll-area"
+      ]
+    },
+    {
+      "name": "avatar",
+      "url": "https://coss.com/ui/r/avatar.json",
+      "file": "avatar.json",
+      "sha256": "3b2999dce5254be0b62e5f2fd334664896ea0d998d2791f95496d5e501f09471",
+      "bytes": 5018,
+      "type": "registry:ui",
+      "dependencies": [
+        "@base-ui/react"
+      ],
+      "registryDependencies": []
+    },
+    {
+      "name": "badge",
+      "url": "https://coss.com/ui/r/badge.json",
+      "file": "badge.json",
+      "sha256": "6447fc6679885712adfd66649ed70793baec9c086dc6b47b90c3e281b3d1cf45",
+      "bytes": 3965,
+      "type": "registry:ui",
+      "dependencies": [
+        "@base-ui/react"
+      ],
+      "registryDependencies": []
+    },
+    {
+      "name": "breadcrumb",
+      "url": "https://coss.com/ui/r/breadcrumb.json",
+      "file": "breadcrumb.json",
+      "sha256": "a2c013b0c4a59f82862bc9bc23038dc9f471dae6fefcdc55cac6dc8f21b062ca",
+      "bytes": 2960,
+      "type": "registry:ui",
+      "dependencies": [
+        "@base-ui/react"
+      ],
+      "registryDependencies": []
+    },
+    {
+      "name": "button",
+      "url": "https://coss.com/ui/r/button.json",
+      "file": "button.json",
+      "sha256": "ec0425ff3e8a3d1b74f8f7f98184fae522ad012a24593d99314148333571560c",
+      "bytes": 6807,
+      "type": "registry:ui",
+      "dependencies": [
+        "@base-ui/react"
+      ],
+      "registryDependencies": [
+        "@coss/spinner"
+      ]
+    },
+    {
+      "name": "calendar",
+      "url": "https://coss.com/ui/r/calendar.json",
+      "file": "calendar.json",
+      "sha256": "b8375052e90e1d348a9cc730805f20b98ff6948cc82f918b6e73f81ef1400d0a",
+      "bytes": 5865,
+      "type": "registry:ui",
+      "dependencies": [
+        "@daypicker/react",
+        "lucide-react"
+      ],
+      "registryDependencies": []
+    },
+    {
+      "name": "checkbox",
+      "url": "https://coss.com/ui/r/checkbox.json",
+      "file": "checkbox.json",
+      "sha256": "1fe5b0cb7f79ef206b8a4bae042444aba5c66cd249128818deffdbc01b52bcae",
+      "bytes": 3371,
+      "type": "registry:ui",
+      "dependencies": [
+        "@base-ui/react"
+      ],
+      "registryDependencies": []
+    },
+    {
+      "name": "checkbox-group",
+      "url": "https://coss.com/ui/r/checkbox-group.json",
+      "file": "checkbox-group.json",
+      "sha256": "3052be19ec09c3451f7c00c5d5f917cb387fd2ae5a0eff854d7a5f510bb8da96",
+      "bytes": 801,
+      "type": "registry:ui",
+      "dependencies": [
+        "@base-ui/react"
+      ],
+      "registryDependencies": []
+    },
+    {
+      "name": "collapsible",
+      "url": "https://coss.com/ui/r/collapsible.json",
+      "file": "collapsible.json",
+      "sha256": "a9aee5a2882d2f88e1d9fc7de10a8065c9d62b270e79067d53f924fd90b985eb",
+      "bytes": 1463,
+      "type": "registry:ui",
+      "dependencies": [
+        "@base-ui/react"
+      ],
+      "registryDependencies": []
+    },
+    {
+      "name": "command",
+      "url": "https://coss.com/ui/r/command.json",
+      "file": "command.json",
+      "sha256": "c0acdb520b485319ab22e90606b872cce09322f5ffd8f17680ecd0402155dbde",
+      "bytes": 8185,
+      "type": "registry:ui",
+      "dependencies": [
+        "@base-ui/react"
+      ],
+      "registryDependencies": [
+        "@coss/autocomplete"
+      ]
+    },
+    {
+      "name": "dialog",
+      "url": "https://coss.com/ui/r/dialog.json",
+      "file": "dialog.json",
+      "sha256": "f67b1ecdb1a7e6dc357c2f5679d4554fee81065bfd7b329dd080712e27f4e0fc",
+      "bytes": 7315,
+      "type": "registry:ui",
+      "dependencies": [
+        "@base-ui/react"
+      ],
+      "registryDependencies": [
+        "@coss/button",
+        "@coss/scroll-area"
+      ]
+    },
+    {
+      "name": "drawer",
+      "url": "https://coss.com/ui/r/drawer.json",
+      "file": "drawer.json",
+      "sha256": "bd1051251899f6d39d4532ff710f18519619fd725fb8a698c1d7c23f09bb3ce5",
+      "bytes": 26475,
+      "type": "registry:ui",
+      "dependencies": [
+        "@base-ui/react"
+      ],
+      "registryDependencies": [
+        "@coss/button",
+        "@coss/scroll-area"
+      ]
+    },
+    {
+      "name": "empty",
+      "url": "https://coss.com/ui/r/empty.json",
+      "file": "empty.json",
+      "sha256": "9bf5aca8e72517b1ee4c26702e0643d30a291b3da158c84f92aee9a3bc64a21a",
+      "bytes": 3953,
+      "type": "registry:ui",
+      "dependencies": [],
+      "registryDependencies": []
+    },
+    {
+      "name": "field",
+      "url": "https://coss.com/ui/r/field.json",
+      "file": "field.json",
+      "sha256": "b0efc6f3d69fc935419ee4ebeb5ce79d4bf7ee7f1f797439ce8748240503fe94",
+      "bytes": 2372,
+      "type": "registry:ui",
+      "dependencies": [
+        "@base-ui/react"
+      ],
+      "registryDependencies": []
+    },
+    {
+      "name": "fieldset",
+      "url": "https://coss.com/ui/r/fieldset.json",
+      "file": "fieldset.json",
+      "sha256": "edd13a38784c7b7af534eacde5b0d8b4eb184b04995e52873a4ffb7d63f79183",
+      "bytes": 1053,
+      "type": "registry:ui",
+      "dependencies": [
+        "@base-ui/react"
+      ],
+      "registryDependencies": []
+    },
+    {
+      "name": "form",
+      "url": "https://coss.com/ui/r/form.json",
+      "file": "form.json",
+      "sha256": "88cd07481e6f1682b9459c9522d650b2d291dc2338d1693290334a8d8e095ce8",
+      "bytes": 610,
+      "type": "registry:ui",
+      "dependencies": [
+        "@base-ui/react"
+      ],
+      "registryDependencies": []
+    },
+    {
+      "name": "frame",
+      "url": "https://coss.com/ui/r/frame.json",
+      "file": "frame.json",
+      "sha256": "1c9ea2f31975fc504cbc7939be6636b70f044b3b576b6d4f9e0c56f3154e810a",
+      "bytes": 2370,
+      "type": "registry:ui",
+      "dependencies": [],
+      "registryDependencies": []
+    },
+    {
+      "name": "input",
+      "url": "https://coss.com/ui/r/input.json",
+      "file": "input.json",
+      "sha256": "dd80584491e555f2ee4e81f4a30c996bc0a91858bca026d4f5fb459b54b87307",
+      "bytes": 3437,
+      "type": "registry:ui",
+      "dependencies": [
+        "@base-ui/react"
+      ],
+      "registryDependencies": []
+    },
+    {
+      "name": "input-group",
+      "url": "https://coss.com/ui/r/input-group.json",
+      "file": "input-group.json",
+      "sha256": "a18db0168f7ebbeced4e86ef03ca42cdc14245b3d9cbb55cd0256f52e6678318",
+      "bytes": 6885,
+      "type": "registry:ui",
+      "dependencies": [],
+      "registryDependencies": [
+        "@coss/input",
+        "@coss/textarea"
+      ]
+    },
+    {
+      "name": "kbd",
+      "url": "https://coss.com/ui/r/kbd.json",
+      "file": "kbd.json",
+      "sha256": "c8bac185ada7123916b9a2161a263c84c89654222c8a2fc6dcf8d0c36fdb3be2",
+      "bytes": 1062,
+      "type": "registry:ui",
+      "dependencies": [],
+      "registryDependencies": []
+    },
+    {
+      "name": "label",
+      "url": "https://coss.com/ui/r/label.json",
+      "file": "label.json",
+      "sha256": "88fb40fa51b80e2924882f35d5b144c95defd156921577e093342c211ab717aa",
+      "bytes": 977,
+      "type": "registry:ui",
+      "dependencies": [
+        "@base-ui/react"
+      ],
+      "registryDependencies": []
+    },
+    {
+      "name": "menu",
+      "url": "https://coss.com/ui/r/menu.json",
+      "file": "menu.json",
+      "sha256": "e8925fe70a6a5691dd4728292d0344a42bf95dd4436c84c55a1b1f0e3e74f907",
+      "bytes": 13545,
+      "type": "registry:ui",
+      "dependencies": [
+        "@base-ui/react"
+      ],
+      "registryDependencies": []
+    },
+    {
+      "name": "pagination",
+      "url": "https://coss.com/ui/r/pagination.json",
+      "file": "pagination.json",
+      "sha256": "e0eb63bd9aa52b0448bc84bcf63c881f297d12e6e7cbad1a7048ced419e8e626",
+      "bytes": 3653,
+      "type": "registry:ui",
+      "dependencies": [],
+      "registryDependencies": [
+        "@coss/button"
+      ]
+    },
+    {
+      "name": "popover",
+      "url": "https://coss.com/ui/r/popover.json",
+      "file": "popover.json",
+      "sha256": "8a71de3696b38f0dedbb1e1e0ac74ab7c106ea2c2abfca4130c74d62039b7903",
+      "bytes": 5058,
+      "type": "registry:ui",
+      "dependencies": [
+        "@base-ui/react"
+      ],
+      "registryDependencies": []
+    },
+    {
+      "name": "radio-group",
+      "url": "https://coss.com/ui/r/radio-group.json",
+      "file": "radio-group.json",
+      "sha256": "b48e73a14bd326a673b46acffa0f4f9d41ab2382a96505c6dbb3bbdd1d527a76",
+      "bytes": 2426,
+      "type": "registry:ui",
+      "dependencies": [
+        "@base-ui/react"
+      ],
+      "registryDependencies": []
+    },
+    {
+      "name": "scroll-area",
+      "url": "https://coss.com/ui/r/scroll-area.json",
+      "file": "scroll-area.json",
+      "sha256": "ee3098b8c7e9161e59b053f4532a32c3236fc5517e1b40a80a488a9fe7a7e607",
+      "bytes": 3383,
+      "type": "registry:ui",
+      "dependencies": [
+        "@base-ui/react"
+      ],
+      "registryDependencies": []
+    },
+    {
+      "name": "segmented-control",
+      "url": "https://coss.com/ui/r/segmented-control.json",
+      "file": "segmented-control.json",
+      "sha256": "090cd008b0003cb50b597fb0462d946f5d3b1d49b85b6c45962a1905dfc6b6db",
+      "bytes": 8199,
+      "type": "registry:ui",
+      "dependencies": [
+        "@base-ui/react"
+      ],
+      "registryDependencies": []
+    },
+    {
+      "name": "select",
+      "url": "https://coss.com/ui/r/select.json",
+      "file": "select.json",
+      "sha256": "cdede6727f1da01f51a222ba855d6eef108dbfa5759150de749aed0bd1a703ec",
+      "bytes": 10190,
+      "type": "registry:ui",
+      "dependencies": [
+        "@base-ui/react"
+      ],
+      "registryDependencies": []
+    },
+    {
+      "name": "separator",
+      "url": "https://coss.com/ui/r/separator.json",
+      "file": "separator.json",
+      "sha256": "f68094544658bde480990d4cbd2ba48aacfaf10df1449b149e9d174b1a6d52d1",
+      "bytes": 1042,
+      "type": "registry:ui",
+      "dependencies": [
+        "@base-ui/react"
+      ],
+      "registryDependencies": []
+    },
+    {
+      "name": "sheet",
+      "url": "https://coss.com/ui/r/sheet.json",
+      "file": "sheet.json",
+      "sha256": "6f97a777357168d543d91bca855372bb58823db068d54e27961014538bc0af74",
+      "bytes": 7648,
+      "type": "registry:ui",
+      "dependencies": [
+        "@base-ui/react"
+      ],
+      "registryDependencies": [
+        "@coss/button",
+        "@coss/scroll-area"
+      ]
+    },
+    {
+      "name": "sidebar",
+      "url": "https://coss.com/ui/r/sidebar.json",
+      "file": "sidebar.json",
+      "sha256": "ed331decb6b685f1a4ccfb7ed6e9506fe7222dc6bc352e9e228631a67a5d40b4",
+      "bytes": 24381,
+      "type": "registry:ui",
+      "dependencies": [],
+      "registryDependencies": [
+        "@coss/button",
+        "@coss/input",
+        "@coss/scroll-area",
+        "@coss/separator",
+        "@coss/sheet",
+        "@coss/skeleton",
+        "@coss/tooltip",
+        "@coss/use-media-query",
+        "@coss/utils"
+      ]
+    },
+    {
+      "name": "skeleton",
+      "url": "https://coss.com/ui/r/skeleton.json",
+      "file": "skeleton.json",
+      "sha256": "a44259c84ccddfeaa311aa4fb7d74217953f3dcc38702f56498566e7677de161",
+      "bytes": 1090,
+      "type": "registry:ui",
+      "dependencies": [],
+      "registryDependencies": []
+    },
+    {
+      "name": "spinner",
+      "url": "https://coss.com/ui/r/spinner.json",
+      "file": "spinner.json",
+      "sha256": "5ad5667bc3e317a97f8aba803211958c1045e954c86f1110fc7325a2bc61bfad",
+      "bytes": 668,
+      "type": "registry:ui",
+      "dependencies": [],
+      "registryDependencies": []
+    },
+    {
+      "name": "table",
+      "url": "https://coss.com/ui/r/table.json",
+      "file": "table.json",
+      "sha256": "5597158df48fdab3e125f28b343a09acc9f2f8c737a8954ce6de7e681d842858",
+      "bytes": 5920,
+      "type": "registry:ui",
+      "dependencies": [
+        "@base-ui/react"
+      ],
+      "registryDependencies": []
+    },
+    {
+      "name": "tabs",
+      "url": "https://coss.com/ui/r/tabs.json",
+      "file": "tabs.json",
+      "sha256": "e99ac90e6ab9ee67a196626bdab4029ecd95955c17e6ccd77beed808b7ee893f",
+      "bytes": 4240,
+      "type": "registry:ui",
+      "dependencies": [
+        "@base-ui/react"
+      ],
+      "registryDependencies": [
+        "@coss/segmented-control"
+      ]
+    },
+    {
+      "name": "textarea",
+      "url": "https://coss.com/ui/r/textarea.json",
+      "file": "textarea.json",
+      "sha256": "1b0ee601f72466c162209c94403ed2d2866e68431c99f18f5f72ce949278a017",
+      "bytes": 2938,
+      "type": "registry:ui",
+      "dependencies": [
+        "@base-ui/react"
+      ],
+      "registryDependencies": []
+    },
+    {
+      "name": "toast",
+      "url": "https://coss.com/ui/r/toast.json",
+      "file": "toast.json",
+      "sha256": "17f22852905be5e4eaa449c386e3e451219c570b39d50c083c0341fc217e8b2d",
+      "bytes": 18045,
+      "type": "registry:ui",
+      "dependencies": [
+        "@base-ui/react"
+      ],
+      "registryDependencies": [
+        "@coss/button"
+      ]
+    },
+    {
+      "name": "toggle",
+      "url": "https://coss.com/ui/r/toggle.json",
+      "file": "toggle.json",
+      "sha256": "3907559d26e0cef2baa27ea818b2cbf7a047eb380126f1989bc5b78ae73b97f8",
+      "bytes": 2730,
+      "type": "registry:ui",
+      "dependencies": [
+        "@base-ui/react"
+      ],
+      "registryDependencies": []
+    },
+    {
+      "name": "toggle-group",
+      "url": "https://coss.com/ui/r/toggle-group.json",
+      "file": "toggle-group.json",
+      "sha256": "c0d7732a9e69e658e41d98ac681f59ceb1dced3eb0c3da1b7b37b26961ba1b15",
+      "bytes": 4152,
+      "type": "registry:ui",
+      "dependencies": [
+        "@base-ui/react"
+      ],
+      "registryDependencies": [
+        "@coss/separator",
+        "@coss/toggle"
+      ]
+    },
+    {
+      "name": "tooltip",
+      "url": "https://coss.com/ui/r/tooltip.json",
+      "file": "tooltip.json",
+      "sha256": "e462c49b1b68fe0dcdfd3308418def8bf79a1403bd8712d2941e4761885aeadb",
+      "bytes": 3647,
+      "type": "registry:ui",
+      "dependencies": [
+        "@base-ui/react"
+      ],
+      "registryDependencies": []
+    },
+    {
+      "name": "use-media-query",
+      "url": "https://coss.com/ui/r/use-media-query.json",
+      "file": "use-media-query.json",
+      "sha256": "c4c16f3bc82635a4a69b700c041776d999482a751d50552d79721d72b74b05b5",
+      "bytes": 3056,
+      "type": "registry:hook",
+      "dependencies": [],
+      "registryDependencies": []
+    },
+    {
+      "name": "utils",
+      "url": "https://coss.com/ui/r/utils.json",
+      "file": "utils.json",
+      "sha256": "4e442a7d9ce0f8a9ca3099b4c17c318063fee99d1f2f5ccb238fc26f0059a4d3",
+      "bytes": 483,
+      "type": "registry:lib",
+      "dependencies": [
+        "clsx",
+        "tailwind-merge"
+      ],
+      "registryDependencies": []
+    }
+  ],
+  "particles": [
+    {
+      "name": "p-alert-dialog-1",
+      "url": "https://coss.com/ui/r/p-alert-dialog-1.json",
+      "file": "particles/p-alert-dialog-1.json",
+      "sha256": "1214008f552557e6358eb48d2b3c08aef7371f5f51e348b9a353aaf2ab741dfa",
+      "bytes": 1666,
+      "type": "registry:block",
+      "dependencies": [],
+      "registryDependencies": [
+        "@coss/alert-dialog",
+        "@coss/button"
+      ]
+    },
+    {
+      "name": "p-avatar-2",
+      "url": "https://coss.com/ui/r/p-avatar-2.json",
+      "file": "particles/p-avatar-2.json",
+      "sha256": "25e593d050f3763211afe0b470157032deca1854303a29a628555b53a757fb96",
+      "bytes": 595,
+      "type": "registry:block",
+      "dependencies": [],
+      "registryDependencies": [
+        "@coss/avatar"
+      ]
+    },
+    {
+      "name": "p-badge-16",
+      "url": "https://coss.com/ui/r/p-badge-16.json",
+      "file": "particles/p-badge-16.json",
+      "sha256": "5b52cbc4423fa3089be23618b07a4f0bacfd854d538e7bed287bae09f1ec467e",
+      "bytes": 674,
+      "type": "registry:block",
+      "dependencies": [],
+      "registryDependencies": [
+        "@coss/badge"
+      ]
+    },
+    {
+      "name": "p-badge-17",
+      "url": "https://coss.com/ui/r/p-badge-17.json",
+      "file": "particles/p-badge-17.json",
+      "sha256": "9f4f774c7f86709fc7059fa8ee805b563a168e79d86eabbfb47eb36fa788ed04",
+      "bytes": 653,
+      "type": "registry:block",
+      "dependencies": [],
+      "registryDependencies": [
+        "@coss/badge"
+      ]
+    },
+    {
+      "name": "p-badge-18",
+      "url": "https://coss.com/ui/r/p-badge-18.json",
+      "file": "particles/p-badge-18.json",
+      "sha256": "f7912d42879f5c494e4bba8229a4f8eb073325e9c7589a22aec6f4fdffea2e65",
+      "bytes": 649,
+      "type": "registry:block",
+      "dependencies": [],
+      "registryDependencies": [
+        "@coss/badge"
+      ]
+    },
+    {
+      "name": "p-breadcrumb-2",
+      "url": "https://coss.com/ui/r/p-breadcrumb-2.json",
+      "file": "particles/p-breadcrumb-2.json",
+      "sha256": "4edae28fa722e5e6a5ea13fdb9d54fe61c37adbaf39b7c21d2f81d42ac1e5eff",
+      "bytes": 1286,
+      "type": "registry:block",
+      "dependencies": [],
+      "registryDependencies": [
+        "@coss/breadcrumb"
+      ]
+    },
+    {
+      "name": "p-calendar-17",
+      "url": "https://coss.com/ui/r/p-calendar-17.json",
+      "file": "particles/p-calendar-17.json",
+      "sha256": "1a817f04c2e797d51271ea0e72b3b714ba9ac3c7c46e7b9e87e76ad4c59f62d7",
+      "bytes": 2788,
+      "type": "registry:block",
+      "dependencies": [
+        "date-fns",
+        "lucide-react"
+      ],
+      "registryDependencies": [
+        "@coss/calendar",
+        "@coss/field",
+        "@coss/input-group"
+      ]
+    },
+    {
+      "name": "p-checkbox-5",
+      "url": "https://coss.com/ui/r/p-checkbox-5.json",
+      "file": "particles/p-checkbox-5.json",
+      "sha256": "2beacf595871eea5a6c1a641912732018c90793eefa2fa62b52ea6ebbd0bfb25",
+      "bytes": 1588,
+      "type": "registry:block",
+      "dependencies": [],
+      "registryDependencies": [
+        "@coss/button",
+        "@coss/checkbox",
+        "@coss/field",
+        "@coss/form"
+      ]
+    },
+    {
+      "name": "p-collapsible-1",
+      "url": "https://coss.com/ui/r/p-collapsible-1.json",
+      "file": "particles/p-collapsible-1.json",
+      "sha256": "b358448a4fdc6f2e4fa8984bbf9ba9886838cc7f9e5167e77e496762e2b03df0",
+      "bytes": 1448,
+      "type": "registry:block",
+      "dependencies": [
+        "lucide-react"
+      ],
+      "registryDependencies": [
+        "@coss/collapsible"
+      ]
+    },
+    {
+      "name": "p-command-1",
+      "url": "https://coss.com/ui/r/p-command-1.json",
+      "file": "particles/p-command-1.json",
+      "sha256": "9c7be797cf83baaea5cd96a63ccb8e5863ac0f77b1b60cca5e5d0a099480e85b",
+      "bytes": 5246,
+      "type": "registry:block",
+      "dependencies": [
+        "lucide-react"
+      ],
+      "registryDependencies": [
+        "@coss/button",
+        "@coss/command",
+        "@coss/kbd"
+      ]
+    },
+    {
+      "name": "p-date-picker-5",
+      "url": "https://coss.com/ui/r/p-date-picker-5.json",
+      "file": "particles/p-date-picker-5.json",
+      "sha256": "d674d47aef661305af0bdfd460ca77115ecdd4e973773179a58698fc9a156cd1",
+      "bytes": 3117,
+      "type": "registry:block",
+      "dependencies": [
+        "date-fns",
+        "lucide-react"
+      ],
+      "registryDependencies": [
+        "@coss/button",
+        "@coss/calendar",
+        "@coss/input-group",
+        "@coss/popover"
+      ]
+    },
+    {
+      "name": "p-dialog-1",
+      "url": "https://coss.com/ui/r/p-dialog-1.json",
+      "file": "particles/p-dialog-1.json",
+      "sha256": "c7f34107ef0cf270fb0ebe6e64844ced9f12dcccb765d85452701b8249907d29",
+      "bytes": 2145,
+      "type": "registry:block",
+      "dependencies": [],
+      "registryDependencies": [
+        "@coss/button",
+        "@coss/dialog",
+        "@coss/field",
+        "@coss/form",
+        "@coss/input"
+      ]
+    },
+    {
+      "name": "p-drawer-3",
+      "url": "https://coss.com/ui/r/p-drawer-3.json",
+      "file": "particles/p-drawer-3.json",
+      "sha256": "f7c11993a93229f2055332960dacf6b3f817adcb6231fbcffb286ab16dad64fa",
+      "bytes": 1504,
+      "type": "registry:block",
+      "dependencies": [],
+      "registryDependencies": [
+        "@coss/button",
+        "@coss/drawer"
+      ]
+    },
+    {
+      "name": "p-drawer-6",
+      "url": "https://coss.com/ui/r/p-drawer-6.json",
+      "file": "particles/p-drawer-6.json",
+      "sha256": "51514829c15e90851b04168aa69166043ee404c4f28f80ccd1d2893b0b06847a",
+      "bytes": 1512,
+      "type": "registry:block",
+      "dependencies": [],
+      "registryDependencies": [
+        "@coss/button",
+        "@coss/drawer"
+      ]
+    },
+    {
+      "name": "p-empty-1",
+      "url": "https://coss.com/ui/r/p-empty-1.json",
+      "file": "particles/p-empty-1.json",
+      "sha256": "08695e65ec6da8b68f2028a343d4c38c06cf43b6766b91957dde7ea69688518d",
+      "bytes": 1355,
+      "type": "registry:block",
+      "dependencies": [
+        "lucide-react"
+      ],
+      "registryDependencies": [
+        "@coss/button",
+        "@coss/empty"
+      ]
+    },
+    {
+      "name": "p-field-18",
+      "url": "https://coss.com/ui/r/p-field-18.json",
+      "file": "particles/p-field-18.json",
+      "sha256": "5940587390290dd773b02dc0ec9886fbb6de173cfe59bce10885461930a295af",
+      "bytes": 3927,
+      "type": "registry:block",
+      "dependencies": [],
+      "registryDependencies": [
+        "@coss/button",
+        "@coss/checkbox",
+        "@coss/field",
+        "@coss/form",
+        "@coss/input",
+        "@coss/select"
+      ]
+    },
+    {
+      "name": "p-frame-3",
+      "url": "https://coss.com/ui/r/p-frame-3.json",
+      "file": "particles/p-frame-3.json",
+      "sha256": "38d22429c3363d52c9484cb75031a60ef877bea44b9413159c740c94fb46fb6d",
+      "bytes": 1259,
+      "type": "registry:block",
+      "dependencies": [],
+      "registryDependencies": [
+        "@coss/frame"
+      ]
+    },
+    {
+      "name": "p-menu-1",
+      "url": "https://coss.com/ui/r/p-menu-1.json",
+      "file": "particles/p-menu-1.json",
+      "sha256": "be26b38d2fd13700739048318fb28d22153b1a3bab59b55b87f6b8c7e3f0ae55",
+      "bytes": 3578,
+      "type": "registry:block",
+      "dependencies": [],
+      "registryDependencies": [
+        "@coss/button",
+        "@coss/menu"
+      ]
+    },
+    {
+      "name": "p-pagination-3",
+      "url": "https://coss.com/ui/r/p-pagination-3.json",
+      "file": "particles/p-pagination-3.json",
+      "sha256": "2b8d3776e9d47aacd298c9de5749547328cb3de41c6a3a3fca98e3c461c973ef",
+      "bytes": 4031,
+      "type": "registry:block",
+      "dependencies": [],
+      "registryDependencies": [
+        "@coss/button",
+        "@coss/pagination",
+        "@coss/select"
+      ]
+    },
+    {
+      "name": "p-radio-group-8",
+      "url": "https://coss.com/ui/r/p-radio-group-8.json",
+      "file": "particles/p-radio-group-8.json",
+      "sha256": "1c0c135b877e71d19793d3c48167326f33939f5ee32ad7a3c3152229cf402712",
+      "bytes": 1278,
+      "type": "registry:block",
+      "dependencies": [],
+      "registryDependencies": [
+        "@coss/radio-group",
+        "@coss/segmented-control"
+      ]
+    },
+    {
+      "name": "p-select-23",
+      "url": "https://coss.com/ui/r/p-select-23.json",
+      "file": "particles/p-select-23.json",
+      "sha256": "76e2330356982cce6b9b226cacf3310178c0dd92fed789dc3449ebc043bd3bcc",
+      "bytes": 1247,
+      "type": "registry:block",
+      "dependencies": [],
+      "registryDependencies": [
+        "@coss/select"
+      ]
+    },
+    {
+      "name": "p-table-3",
+      "url": "https://coss.com/ui/r/p-table-3.json",
+      "file": "particles/p-table-3.json",
+      "sha256": "3f0547896d15b128f835b64cf936729bfcd56e67c66dee501d3ef6bf444ffb25",
+      "bytes": 6838,
+      "type": "registry:block",
+      "dependencies": [
+        "@tanstack/react-table"
+      ],
+      "registryDependencies": [
+        "@coss/badge",
+        "@coss/checkbox",
+        "@coss/frame",
+        "@coss/table"
+      ]
+    },
+    {
+      "name": "p-table-4",
+      "url": "https://coss.com/ui/r/p-table-4.json",
+      "file": "particles/p-table-4.json",
+      "sha256": "cfb2064309480fc550d39cbfc725107950f75e02eaaec6c15ecacd0fec653512",
+      "bytes": 21313,
+      "type": "registry:block",
+      "dependencies": [
+        "@tanstack/react-table",
+        "lucide-react"
+      ],
+      "registryDependencies": [
+        "@coss/badge",
+        "@coss/button",
+        "@coss/checkbox",
+        "@coss/frame",
+        "@coss/pagination",
+        "@coss/select",
+        "@coss/table"
+      ]
+    },
+    {
+      "name": "p-tabs-2",
+      "url": "https://coss.com/ui/r/p-tabs-2.json",
+      "file": "particles/p-tabs-2.json",
+      "sha256": "f1e962acb5a0a36b92f5ec4dc7d0ba87e1d474f069dba093715a08b53ec8d113",
+      "bytes": 1342,
+      "type": "registry:block",
+      "dependencies": [],
+      "registryDependencies": [
+        "@coss/tabs"
+      ]
+    },
+    {
+      "name": "p-toast-2",
+      "url": "https://coss.com/ui/r/p-toast-2.json",
+      "file": "particles/p-toast-2.json",
+      "sha256": "1965611aff8841453a0a323ef8a9e7e9865c760cdc0a04b1dcb220ef89ea3ffe",
+      "bytes": 1961,
+      "type": "registry:block",
+      "dependencies": [],
+      "registryDependencies": [
+        "@coss/button",
+        "@coss/toast"
+      ]
+    },
+    {
+      "name": "p-toggle-group-1",
+      "url": "https://coss.com/ui/r/p-toggle-group-1.json",
+      "file": "particles/p-toggle-group-1.json",
+      "sha256": "aa6cb28c496eadf602241ad5690ce8ef9d9f624f96f490362453bee3c483ca69",
+      "bytes": 1081,
+      "type": "registry:block",
+      "dependencies": [],
+      "registryDependencies": [
+        "@coss/toggle-group"
+      ]
+    },
+    {
+      "name": "p-tooltip-1",
+      "url": "https://coss.com/ui/r/p-tooltip-1.json",
+      "file": "particles/p-tooltip-1.json",
+      "sha256": "14c58635e628bfd0e7642f53fd0a0a2b7e50542522c64f629ead7d01787d29ba",
+      "bytes": 812,
+      "type": "registry:block",
+      "dependencies": [],
+      "registryDependencies": [
+        "@coss/button",
+        "@coss/tooltip"
+      ]
+    }
+  ]
+}

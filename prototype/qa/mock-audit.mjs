@@ -33,7 +33,7 @@ assert.match(src('src/features/overview/queries.ts'), /fetchOperationsSummary/, 
 assert.match(src('src/features/overview/overview-page.tsx'), /operationsSummaryQuery/, '总览必须经 Query 层读取运营投影')
 assert.doesNotMatch(src('src/features/overview/overview-page.tsx'), /managementMetrics|riskRanking/, '总览不得读取静态事实')
 assert.match(src('src/features/operations/queries.ts'), /fetchWorkItems/, '运营中心必须读取运营待办投影（原锁在 OperationsCenterPage）')
-assert.match(src('src/components/ui/RuntimeStatusBanner.tsx'), /组件就绪/, '运行状态横幅必须显示组件覆盖数')
+assert.match(src('src/app/shell/runtime-status-banner.tsx'), /组件就绪/, '运行状态横幅必须显示组件覆盖数')
 
 // G23 接真锁：标准映射真实构建切 Live、治理导航三入口不再是无动作占位
 assert.match(src('src/features/governance/mapping-page.tsx'), /fetchMappingSets|mappingSetsQuery/, '标准映射页必须读取映射 API（原锁在 StandardMappingLive）')
@@ -99,8 +99,8 @@ for (const page of [
 const runtime = src('src/data/runtimeMode.ts')
 assert.match(runtime, /VITE_DATAOS_DEMO_MODE/, '前端演示模式必须通过显式构建变量启用')
 assert.match(src('src/data/controlPlane.ts'), /fetchRuntimeStatus/, '门户必须读取控制面运行状态')
-assert.match(src('src/components/ui/RuntimeStatusBanner.tsx'), /演示运行模式/, '门户必须展示当前运行模式')
-assert.match(src('src/components/ui/RuntimeStatusBanner.tsx'), /真实运行模式/, '门户必须展示真实运行模式')
+assert.match(src('src/app/shell/runtime-status-banner.tsx'), /演示运行模式/, '门户必须展示当前运行模式')
+assert.match(src('src/app/shell/runtime-status-banner.tsx'), /真实运行模式/, '门户必须展示真实运行模式')
 // FE7 锁迁移：DemoDataBoundary 随最后一个演示页退役；演示副作用口径由运行模式模块持有。
 assert.match(src('src/data/runtimeMode.ts'), /演示数据是构建期显式开关/, '演示模式必须是显式构建开关')
 assert.match(src('src/features/ingestion/job-editor-page.tsx'), /FakeSource/, '演示模板口径仍在接入编辑器中显式声明')

@@ -1,27 +1,41 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Activity, Archive, Copy, Pause, Play, RefreshCw, RotateCcw, Settings2, TriangleAlert } from 'lucide-react'
-import { useMemo, useState } from 'react'
 import { useSearch } from '@tanstack/react-router'
-import { Badge, StatusText } from '../../components/ui/badge'
-import { Button } from '../../components/ui/button'
-import { Breadcrumb, PageHeading } from '../../components/ui/page-heading'
-import { Panel } from '../../components/ui/panel'
-import { Tabs, TabPanel } from '../../components/ui/popover'
-import { EmptyState, LoadingBlock } from '../../components/ui/states'
-import { useNotice } from '../../components/ui/toast'
+import {
+  Activity,
+  Archive,
+  Copy,
+  Pause,
+  Play,
+  RefreshCw,
+  RotateCcw,
+  Settings2,
+  TriangleAlert,
+} from 'lucide-react'
+import { useMemo, useState } from 'react'
+
+import { EmptyState } from '@/components/app/empty-state'
+import { LoadingBlock } from '@/components/app/loading'
+import { useNotice } from '@/components/app/notice'
+import { StatusBadge } from '@/components/app/status-badge'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { FramePanel } from '@/components/ui/frame'
+import { Tabs, TabsList, TabsPanel, TabsTab } from '@/components/ui/tabs'
+
+import { usePortalNavigate } from '../../app/navigate'
+import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import {
   confirmIngestionRunAbsent,
+  type IngestionJobApiItem,
+  type IngestionRunApiItem,
   retryIngestionRun,
   startIngestionRun,
   syncIngestionRun,
   updateIngestionJobStatus,
-  type IngestionJobApiItem,
-  type IngestionRunApiItem,
 } from '../../data/controlPlane'
 import { ACTIVE_RUN_STATUSES, formatDateTime, retryableRunStatus, runStatusView } from '../../data/domain'
 import { workLinks } from '../../data/routes'
-import { usePortalNavigate } from '../../app/navigate'
-import { ingestionKeys, jobRunsQuery, jobsQuery, sourcesQuery } from './queries'
+import { JobConfigurationEditor } from './job-editor-page'
 import {
   businessMessage,
   createRequestKey,
@@ -31,9 +45,9 @@ import {
   jobLifecycleView,
   sourceDisplayName,
 } from './labels'
-import { CopyJobDialog } from './source-dialogs'
-import { JobConfigurationEditor } from './job-editor-page'
+import { ingestionKeys, jobRunsQuery, jobsQuery, sourcesQuery } from './queries'
 import { SchedulePanel } from './schedule-panel'
+import { CopyJobDialog } from './source-dialogs'
 
 type DetailTab = 'overview' | 'configuration' | 'scheduling' | 'runs'
 
@@ -98,14 +112,14 @@ export function JobDetailPage({ jobId }: { jobId: string }) {
 
   if (!job) {
     return (
-      <Panel>
+      <FramePanel className="p-0 overflow-clip">
         <EmptyState
           icon={<TriangleAlert />}
           title="采集任务不存在"
           description="该任务可能已被删除，或当前账号没有访问权限。"
-          action={<Button onClick={() => navigate('/ingestion')}>返回数据接入</Button>}
+          action={<Button variant="outline" onClick={() => navigate('/ingestion')}>返回数据接入</Button>}
         />
-      </Panel>
+      </FramePanel>
     )
   }
 
@@ -127,13 +141,13 @@ export function JobDetailPage({ jobId }: { jobId: string }) {
         description={`${source ? sourceDisplayName(source) : '来源未登记'} · ${executorLabel(job.executor)} · ${job.mode === 'CDC' ? '增量变更' : '批量同步'}`}
         actions={
           <>
-            <Button onClick={() => navigate('/ingestion')}>返回列表</Button>
+            <Button variant="outline" onClick={() => navigate('/ingestion')}>返回列表</Button>
             {job.status === 'PAUSED' ? (
-              <Button disabled={busy} onClick={() => changeStatus.mutate({ target: job, status: 'ACTIVE' })}><Play size={14} />启用</Button>
+              <Button variant="outline" disabled={busy} onClick={() => changeStatus.mutate({ target: job, status: 'ACTIVE' })}><Play size={14} />启用</Button>
             ) : job.status === 'ACTIVE' ? (
-              <Button disabled={busy} onClick={() => changeStatus.mutate({ target: job, status: 'PAUSED' })}><Pause size={14} />暂停</Button>
+              <Button variant="outline" disabled={busy} onClick={() => changeStatus.mutate({ target: job, status: 'PAUSED' })}><Pause size={14} />暂停</Button>
             ) : null}
-            <Button variant="primary" disabled={busy || activeRun || job.status !== 'ACTIVE'} onClick={() => {
+            <Button disabled={busy || activeRun || job.status !== 'ACTIVE'} onClick={() => {
               if (!job.configured) {
                 notify('请先保存采集任务配置，再启动运行')
                 goTab('configuration')
@@ -147,24 +161,26 @@ export function JobDetailPage({ jobId }: { jobId: string }) {
         }
       />
 
-      <Panel>
+      <FramePanel className="p-0 overflow-clip">
         <Tabs
           value={tab}
           onValueChange={(value) => goTab(value as DetailTab)}
-          items={[
-            { value: 'overview', label: '概览' },
-            { value: 'configuration', label: '配置' },
-            { value: 'scheduling', label: '调度' },
-            { value: 'runs', label: '运行记录', count: runs.length },
-          ]}
         >
-          <TabPanel value="overview" className="px-5 py-4">
+          <TabsList variant="underline">
+            <TabsTab key="overview" value="overview">概览</TabsTab>
+            <TabsTab key="configuration" value="configuration">配置</TabsTab>
+            <TabsTab key="scheduling" value="scheduling">调度</TabsTab>
+            <TabsTab key="runs" value="runs">运行记录
+              <Badge variant="outline">{runs.length}</Badge>
+            </TabsTab>
+          </TabsList>
+          <TabsPanel value="overview" className="px-5 py-4">
             <div className="mb-4 flex flex-wrap items-center gap-2.5">
-              <Badge tone={lifecycle.tone}>{lifecycle.label}</Badge>
-              <Badge tone={job.configured ? 'blue' : 'warn'}>{job.configured ? `${job.templateKey ?? '自定义'} v${job.templateVersion ?? 1}` : '未配置'}</Badge>
-              {latestStatus ? <StatusText tone={runStatusView(latestStatus).tone === 'healthy' ? 'good' : runStatusView(latestStatus).tone === 'danger' ? 'bad' : 'running'}>{runStatusView(latestStatus).label}</StatusText> : null}
-              {activeRun ? <Badge tone="warn">运行观察中（5 秒刷新）</Badge> : null}
-              <span className="text-meta text-muted">创建于 {formatDateTime(job.createdAt)}</span>
+              <Badge variant={lifecycle.tone}>{lifecycle.label}</Badge>
+              <Badge variant={job.configured ? 'info' : 'warning'}>{job.configured ? `${job.templateKey ?? '自定义'} v${job.templateVersion ?? 1}` : '未配置'}</Badge>
+              {latestStatus ? <StatusBadge tone={runStatusView(latestStatus).tone === 'healthy' ? 'good' : runStatusView(latestStatus).tone === 'danger' ? 'bad' : 'running'}>{runStatusView(latestStatus).label}</StatusBadge> : null}
+              {activeRun ? <Badge variant="warning">运行观察中（5 秒刷新）</Badge> : null}
+              <span className="text-meta text-muted-foreground">创建于 {formatDateTime(job.createdAt)}</span>
             </div>
 
             <dl className="grid grid-cols-4 gap-4 rounded-panel border border-line bg-wash px-4 py-3 max-[1100px]:grid-cols-2">
@@ -175,29 +191,29 @@ export function JobDetailPage({ jobId }: { jobId: string }) {
             </dl>
 
             <div className="mt-4 flex flex-wrap gap-2">
-              <Button size="sm" onClick={() => goTab('configuration')}><Settings2 size={13} />任务配置</Button>
-              {dolphin ? <Button size="sm" onClick={() => goTab('scheduling')}>调度配置</Button> : null}
-              <Button size="sm" disabled={busy} onClick={() => setCopyOpen(true)}><Copy size={13} />复制任务</Button>
+              <Button variant="outline" size="sm" onClick={() => goTab('configuration')}><Settings2 size={13} />任务配置</Button>
+              {dolphin ? <Button variant="outline" size="sm" onClick={() => goTab('scheduling')}>调度配置</Button> : null}
+              <Button variant="outline" size="sm" disabled={busy} onClick={() => setCopyOpen(true)}><Copy size={13} />复制任务</Button>
               {job.status !== 'ARCHIVED' ? (
-                <Button size="sm" variant="danger-outline" disabled={busy || activeRun} onClick={() => changeStatus.mutate({ target: job, status: 'ARCHIVED' })}>
+                <Button size="sm" variant="destructive-outline" disabled={busy || activeRun} onClick={() => changeStatus.mutate({ target: job, status: 'ARCHIVED' })}>
                   <Archive size={13} />归档
                 </Button>
               ) : null}
-              <Button size="sm" onClick={() => void runsRequest.refetch()}><RefreshCw size={13} />刷新运行</Button>
+              <Button variant="outline" size="sm" onClick={() => void runsRequest.refetch()}><RefreshCw size={13} />刷新运行</Button>
             </div>
 
             {job.latestRunStatus === null && runs.length === 0 && !runsRequest.isPending ? (
-              <p className="mt-4 text-label text-muted">还没有运行记录。保存任务配置后，可从右上角启动一次采集。</p>
+              <p className="mt-4 text-label text-muted-foreground">还没有运行记录。保存任务配置后，可从右上角启动一次采集。</p>
             ) : null}
-          </TabPanel>
+          </TabsPanel>
 
-          <TabPanel value="configuration" className="py-0">
+          <TabsPanel value="configuration" className="py-0">
             <div className="px-5 py-4">
               <JobConfigurationEditor jobId={jobId} />
             </div>
-          </TabPanel>
+          </TabsPanel>
 
-          <TabPanel value="scheduling" className="px-5 py-4">
+          <TabsPanel value="scheduling" className="px-5 py-4">
             {dolphin ? <SchedulePanel jobId={jobId} jobName={job.name} /> : (
               <EmptyState
                 minHeight={220}
@@ -206,9 +222,9 @@ export function JobDetailPage({ jobId }: { jobId: string }) {
                 description="中心采集执行器的任务由门户启动，或由平台调度绑定的工作流触发。需要周期执行时，请选择平台调度通道。"
               />
             )}
-          </TabPanel>
+          </TabsPanel>
 
-          <TabPanel value="runs" className="px-0 py-0">
+          <TabsPanel value="runs" className="px-0 py-0">
             <RunsTable
               runs={runs}
               loading={runsRequest.isPending}
@@ -219,9 +235,9 @@ export function JobDetailPage({ jobId }: { jobId: string }) {
               onRetry={(run) => runAction.mutate({ run, action: 'retry' })}
               onConfirmAbsent={(run) => runAction.mutate({ run, action: 'confirm-absent' })}
             />
-          </TabPanel>
+          </TabsPanel>
         </Tabs>
-      </Panel>
+      </FramePanel>
 
       <CopyJobDialog
         job={copyOpen ? job : null}
@@ -236,7 +252,7 @@ export function JobDetailPage({ jobId }: { jobId: string }) {
 function Fact({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="mb-1 text-meta text-muted">{label}</dt>
+      <dt className="mb-1 text-meta text-muted-foreground">{label}</dt>
       <dd className="m-0 text-body-sm text-ink-soft">{value}</dd>
     </div>
   )
@@ -276,31 +292,31 @@ function RunsTable({
         return (
           <li key={run.id} className="border-b border-line-soft px-5 py-3 last:border-b-0">
             <div className="flex flex-wrap items-center gap-2.5">
-              <StatusText tone={status.tone === 'healthy' ? 'good' : status.tone === 'danger' ? 'bad' : status.tone === 'warning' ? 'running' : 'neutral'}>{status.label}</StatusText>
-              <span className="text-meta text-muted">{formatDateTime(run.submittedAt)}</span>
-              {run.finishedAt ? <span className="text-meta text-muted">完成 {formatDateTime(run.finishedAt)}</span> : null}
-              <span className="ml-auto font-mono text-meta text-muted">{run.id.slice(0, 12)}</span>
+              <StatusBadge tone={status.tone === 'healthy' ? 'good' : status.tone === 'danger' ? 'bad' : status.tone === 'warning' ? 'running' : 'neutral'}>{status.label}</StatusBadge>
+              <span className="text-meta text-muted-foreground">{formatDateTime(run.submittedAt)}</span>
+              {run.finishedAt ? <span className="text-meta text-muted-foreground">完成 {formatDateTime(run.finishedAt)}</span> : null}
+              <span className="ml-auto font-mono text-meta text-muted-foreground">{run.id.slice(0, 12)}</span>
             </div>
-            <p className="mt-1 text-label leading-relaxed text-muted">{businessMessage(run.message)}</p>
+            <p className="mt-1 text-label leading-relaxed text-muted-foreground">{businessMessage(run.message)}</p>
             {manual ? (
               <div role="status" className="mt-2 rounded-control border border-[#eee2c5] bg-[#fdf9ef] px-3 py-2 text-label text-amber">
                 <strong>待人工对账：</strong>{run.reconciliationMessage ?? '请先确认外部运行不存在后再重试。'}
                 <div className="mt-1.5 flex gap-2">
-                  <Button size="sm" disabled={acting} onClick={() => onSync(run)}>重新查询</Button>
-                  <Button size="sm" variant="danger-outline" disabled={acting} onClick={() => onConfirmAbsent(run)}>确认不存在</Button>
+                  <Button variant="outline" size="sm" disabled={acting} onClick={() => onSync(run)}>重新查询</Button>
+                  <Button size="sm" variant="destructive-outline" disabled={acting} onClick={() => onConfirmAbsent(run)}>确认不存在</Button>
                 </div>
               </div>
             ) : null}
             <div className="mt-1.5 flex gap-2">
-              {active && !manual ? <Button variant="text" disabled={acting} onClick={() => onSync(run)}><RefreshCw size={12} />同步状态</Button> : null}
+              {active && !manual ? <Button variant="link" disabled={acting} onClick={() => onSync(run)}><RefreshCw size={12} />同步状态</Button> : null}
               {retryableRunStatus(run.status) ? (
-                <Button variant="text" disabled={acting || job.status !== 'ACTIVE'} onClick={() => onRetry(run)}><RotateCcw size={12} />重试</Button>
+                <Button variant="link" disabled={acting || job.status !== 'ACTIVE'} onClick={() => onRetry(run)}><RotateCcw size={12} />重试</Button>
               ) : null}
             </div>
           </li>
         )
       })}
-      {runs.length > 10 ? <li className="px-5 py-3 text-meta text-muted">仅显示最近 10 次运行。</li> : null}
+      {runs.length > 10 ? <li className="px-5 py-3 text-meta text-muted-foreground">仅显示最近 10 次运行。</li> : null}
     </ol>
   )
 }

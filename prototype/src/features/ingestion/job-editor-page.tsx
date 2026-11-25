@@ -1,39 +1,70 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, CalendarClock, FileCog, KeyRound, LoaderCircle, Save } from 'lucide-react'
+import {
+  AlertTriangle,
+  CalendarClock,
+  ChevronDown,
+  CircleAlert,
+  FileCog,
+  KeyRound,
+  LoaderCircle,
+  Save,
+} from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { Badge } from '../../components/ui/badge'
-import { Button } from '../../components/ui/button'
-import { FormField, FormGrid, FormNotice } from '../../components/ui/form'
-import { CodeTextarea, Input, NativeSelect } from '../../components/ui/input'
-import { Breadcrumb, PageHeading } from '../../components/ui/page-heading'
-import { Panel, ScopeNote } from '../../components/ui/panel'
-import { EmptyState, LoadingBlock } from '../../components/ui/states'
-import { useNotice } from '../../components/ui/toast'
+
+import { CodeTextarea } from '@/components/app/code-textarea'
+import { EmptyState } from '@/components/app/empty-state'
+import { FormGrid } from '@/components/app/form-grid'
+import { LoadingBlock } from '@/components/app/loading'
+import { useNotice } from '@/components/app/notice'
+import { ScopeNote } from '@/components/app/scope-note'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from '@/components/ui/collapsible'
+import { Field, FieldLabel } from '@/components/ui/field'
+import { Fieldset, FieldsetLegend } from '@/components/ui/fieldset'
+import { FramePanel } from '@/components/ui/frame'
+import { Input } from '@/components/ui/input'
+import { RadioGroupPrimitive, RadioPrimitive } from '@/components/ui/radio-group'
+import { SegmentedControl, SegmentedControlItem } from '@/components/ui/segmented-control'
+import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
+
+import { useDirtyLeaveGuard } from '../../app/dirty-leave-guard'
+import { usePortalNavigate } from '../../app/navigate'
+import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import {
   createIngestionJob,
+  type IngestionJobApiItem,
   saveJobConfig,
   saveStructuredJobConfig,
-  type IngestionJobApiItem,
   type StructuredTaskSpec,
 } from '../../data/controlPlane'
-import { allowsTemplate, offersDemoTemplate } from '../../data/runtimeMode'
 import { workLinks } from '../../data/routes'
-import { usePortalNavigate } from '../../app/navigate'
-import { useDirtyLeaveGuard } from '../../app/dirty-leave-guard'
-import { ingestionKeys, jobConfigQuery, jobsQuery, sourcesQuery, workflowTemplatesQuery } from './queries'
+import { allowsTemplate, offersDemoTemplate } from '../../data/runtimeMode'
 import {
+  configForTemplate,
   DEFAULT_TEMPLATE_KEY,
   DEFAULT_TEMPLATE_VERSION,
-  LIVE_TEMPLATE_KEY,
-  configForTemplate,
   defaultJobTemplateKey,
   errorMessage,
   isDolphinExecutor,
+  LIVE_TEMPLATE_KEY,
   parseConfig,
   preferredSourceId,
   sourceDisplayName,
 } from './labels'
+import { ingestionKeys, jobConfigQuery, jobsQuery, sourcesQuery, workflowTemplatesQuery } from './queries'
 import { StructuredTaskFields } from './structured-fields'
+
+const JOB_MODE_ITEMS = [
+  { value: 'BATCH', label: '批量同步' },
+  { value: 'CDC', label: '增量变更' },
+]
+
+const EXECUTOR_ITEMS = [
+  { value: 'SEATUNNEL', label: '中心采集执行器' },
+  { value: 'DOLPHINSCHEDULER', label: '平台调度' },
+]
 
 /**
  * 采集任务工作区（独立页，替代旧 540px 抽屉）：
@@ -239,14 +270,14 @@ export function JobConfigurationEditor({ jobId }: { jobId?: string }) {
 
   if (jobId && jobsRequest.isSuccess && !job) {
     return (
-      <Panel>
+      <FramePanel className="p-0 overflow-clip">
         <EmptyState
           icon={<AlertTriangle />}
           title="采集任务不存在"
           description="该任务可能已被删除，或当前账号没有访问权限。"
-          action={<Button onClick={() => navigate('/ingestion')}>返回数据接入</Button>}
+          action={<Button variant="outline" onClick={() => navigate('/ingestion')}>返回数据接入</Button>}
         />
-      </Panel>
+      </FramePanel>
     )
   }
 
@@ -254,12 +285,21 @@ export function JobConfigurationEditor({ jobId }: { jobId?: string }) {
   const dolphin = executor === 'DOLPHINSCHEDULER' || Boolean(job && isDolphinExecutor(job.executor))
   const editingStructured = Boolean(job && configRequest.data?.structured)
 
+  const templateItems = [
+    ...(offersDemoTemplate() ? [{ value: DEFAULT_TEMPLATE_KEY, label: 'FakeSource → Console（演示）' }] : []),
+    ...templates.map((template) => ({ value: template.key, label: <>{template.displayName} · {template.systemType}</> })),
+    { value: LIVE_TEMPLATE_KEY, label: '自定义 JSON' },
+  ]
+  const jobSourceItems = [
+    { value: '', label: '选择数据源' },
+    ...sources.map((source) => ({ value: source.id, label: <>{sourceDisplayName(source)} · {source.systemType}{source.connection ? '' : ' · 未登记连接'}</> })),
+  ]
   return (
     <div>
 
       {jobId && job ? (
-        <div className="mb-3.5 flex items-center gap-3 rounded-panel border border-line bg-paper px-4 py-2.5 text-label text-muted">
-          <Badge tone={job.configured ? 'blue' : 'warn'}>{job.configured ? `${job.templateKey ?? '自定义'} v${job.templateVersion ?? 1}` : '未配置'}</Badge>
+        <div className="mb-3.5 flex items-center gap-3 rounded-panel border border-line bg-paper px-4 py-2.5 text-label text-muted-foreground">
+          <Badge variant={job.configured ? 'info' : 'warning'}>{job.configured ? `${job.templateKey ?? '自定义'} v${job.templateVersion ?? 1}` : '未配置'}</Badge>
           <span>{job.id}</span>
           <span>·</span>
           <span>{selectedSource ? sourceDisplayName(selectedSource) : '来源未登记'}</span>
@@ -270,102 +310,160 @@ export function JobConfigurationEditor({ jobId }: { jobId?: string }) {
       <div className="grid grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] gap-0 overflow-clip rounded-panel border border-line bg-paper max-[1100px]:grid-cols-1">
         <section className="border-r border-line px-6 py-5 max-[1100px]:border-r-0 max-[1100px]:border-b">
           <h2 className="text-title font-semibold text-ink-soft">来源与策略</h2>
-          <p className="mt-1.5 mb-5 text-label leading-relaxed text-muted">选择来源、命名任务并确定执行通道；结构化与 JSON 是同一任务的两种配置形态。</p>
+          <p className="mt-1.5 mb-5 text-label leading-relaxed text-muted-foreground">选择来源、命名任务并确定执行通道；结构化与 JSON 是同一任务的两种配置形态。</p>
 
           {jobId ? null : (
             <FormGrid>
-              <FormField label="数据源" required htmlFor="job-source">
-                <NativeSelect id="job-source" className="min-h-[35px]" value={sourceId} onChange={(event) => setSourceId(event.target.value)}>
-                  <option value="">选择数据源</option>
-                  {sources.map((source) => (
-                    <option key={source.id} value={source.id}>
-                      {sourceDisplayName(source)} · {source.systemType}{source.connection ? '' : ' · 未登记连接'}
-                    </option>
-                  ))}
-                </NativeSelect>
-              </FormField>
-              <FormField label="任务名称" required htmlFor="job-name">
+              <Field>
+                <FieldLabel htmlFor="job-source">
+                  数据源 <span className="text-destructive-foreground">*</span>
+                </FieldLabel>
+                <Select
+                  items={jobSourceItems}
+                  value={sourceId}
+                  onValueChange={(next) => setSourceId(next ?? '')}
+                >
+                  <SelectTrigger id="job-source">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectPopup>
+                    {jobSourceItems.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectPopup>
+                </Select>
+              </Field>
+              <Field>
+                <FieldLabel>
+                  任务名称 <span className="text-destructive-foreground">*</span>
+                </FieldLabel>
                 <Input id="job-name" value={name} onChange={(event) => setName(event.target.value)} placeholder="例如：LIS 检验结果批量同步" />
-              </FormField>
-              <FormField label="运行模式" htmlFor="job-mode">
-                <NativeSelect id="job-mode" className="min-h-[35px]" value={mode} onChange={(event) => {
-                  const nextMode = event.target.value
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="job-mode">运行模式</FieldLabel>
+                <Select
+                  items={JOB_MODE_ITEMS}
+                  value={mode}
+                  onValueChange={(next) => {
+                  const nextMode = next ?? ''
                   setMode(nextMode)
                   if (!jobId && configMode === 'json') setConfigText(JSON.stringify(configForTemplate(templateKey, nextMode, templates), null, 2))
-                }}>
-                  <option value="BATCH">批量同步</option>
-                  <option value="CDC">增量变更</option>
-                </NativeSelect>
-              </FormField>
-              <FormField label="执行通道" htmlFor="job-executor">
-                <NativeSelect id="job-executor" className="min-h-[35px]" value={executor} onChange={(event) => setExecutor(event.target.value as 'SEATUNNEL' | 'DOLPHINSCHEDULER')} disabled={Boolean(job)}>
-                  <option value="SEATUNNEL">中心采集执行器</option>
-                  <option value="DOLPHINSCHEDULER">平台调度</option>
-                </NativeSelect>
-              </FormField>
+                }}
+                >
+                  <SelectTrigger id="job-mode">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectPopup>
+                    {JOB_MODE_ITEMS.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectPopup>
+                </Select>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="job-executor">执行通道</FieldLabel>
+                <Select
+                  items={EXECUTOR_ITEMS}
+                  value={executor}
+                  onValueChange={(next) => setExecutor((next ?? '') as 'SEATUNNEL' | 'DOLPHINSCHEDULER')}
+                  disabled={Boolean(job)}
+                >
+                  <SelectTrigger id="job-executor">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectPopup>
+                    {EXECUTOR_ITEMS.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectPopup>
+                </Select>
+              </Field>
             </FormGrid>
           )}
 
           {dolphin ? (
-            <FormNotice icon={<CalendarClock />}>
-              平台调度通道绑定平台调度中已发布的工作流；门户负责调度与运行面的统一管理。周期配置在任务详情「调度」页。
-            </FormNotice>
+            <Alert variant="info" role="note" className="mb-4">
+              <CalendarClock />
+              <AlertDescription>
+                平台调度通道绑定平台调度中已发布的工作流；门户负责调度与运行面的统一管理。周期配置在任务详情「调度」页。
+              </AlertDescription>
+            </Alert>
           ) : null}
 
           {dolphin ? (
             <FormGrid>
-              <FormField label="平台调度项目编号" htmlFor="job-ds-project">
+              <Field>
+                <FieldLabel>平台调度项目编号</FieldLabel>
                 <Input id="job-ds-project" type="number" min={1} value={dsProject} onChange={(event) => setDsProject(event.target.value)} placeholder="例如：15187263948032" />
-              </FormField>
-              <FormField label="平台调度工作流编号" htmlFor="job-ds-workflow">
+              </Field>
+              <Field>
+                <FieldLabel>平台调度工作流编号</FieldLabel>
                 <Input id="job-ds-workflow" type="number" min={1} value={dsWorkflow} onChange={(event) => setDsWorkflow(event.target.value)} placeholder="工作流定义编号" />
-              </FormField>
+              </Field>
             </FormGrid>
           ) : (
             <>
-              <FormField label="配置方式">
-                <div role="radiogroup" aria-label="配置方式" className="inline-flex gap-1 rounded-control border border-line bg-wash p-0.5">
-                  {([
-                    { value: 'structured' as const, label: '结构化表单' },
-                    { value: 'json' as const, label: '模板 JSON' },
-                  ]).map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      role="radio"
-                      aria-checked={configMode === option.value}
-                      disabled={option.value === 'structured' && !structuredReady && !editingStructured}
-                      onClick={() => setConfigMode(option.value)}
-                      className={`rounded-chip px-2.5 py-1 text-label ${configMode === option.value ? 'bg-paper text-blue shadow-focus' : 'text-muted hover:text-ink'} disabled:opacity-50`}
-                    >
-                      {option.label}{option.value === 'structured' && !structuredReady ? '（需先登记连接）' : ''}
-                    </button>
-                  ))}
-                </div>
-              </FormField>
+              <Field className="mb-4" render={(props) => <Fieldset {...props} />}>
+                <FieldsetLegend className="font-medium text-sm">配置方式</FieldsetLegend>
+                <SegmentedControl
+                  size="sm"
+                  render={<RadioGroupPrimitive value={configMode} onValueChange={setConfigMode} />}
+                >
+                  <SegmentedControlItem render={<RadioPrimitive.Root value="structured" disabled={!structuredReady && !editingStructured} />}>
+                    结构化表单{!structuredReady ? '（需先登记连接）' : ''}
+                  </SegmentedControlItem>
+                  <SegmentedControlItem render={<RadioPrimitive.Root value="json" />}>
+                    模板 JSON
+                  </SegmentedControlItem>
+                </SegmentedControl>
+              </Field>
 
               {configMode === 'json' ? (
                 <>
-                  <FormField label="配置模板" htmlFor="job-template">
-                    <NativeSelect id="job-template" className="min-h-[35px]" value={templateKey} onChange={(event) => selectTemplate(event.target.value)}>
-                      {offersDemoTemplate() ? <option value={DEFAULT_TEMPLATE_KEY}>FakeSource → Console（演示）</option> : null}
-                      {templates.map((template) => <option key={template.key} value={template.key}>{template.displayName} · {template.systemType}</option>)}
-                      <option value={LIVE_TEMPLATE_KEY}>自定义 JSON</option>
-                    </NativeSelect>
-                  </FormField>
-                  <FormField label="模板版本" htmlFor="job-template-version">
+                  <Field className="mb-4">
+                    <FieldLabel htmlFor="job-template">配置模板</FieldLabel>
+                    <Select
+                      items={templateItems}
+                      value={templateKey}
+                      onValueChange={(next) => selectTemplate(next ?? '')}
+                    >
+                      <SelectTrigger id="job-template">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectPopup>
+                        {templateItems.map((item) => (
+                          <SelectItem key={item.value} value={item.value}>
+                            {item.label}
+                          </SelectItem>
+                        ))}
+                      </SelectPopup>
+                    </Select>
+                  </Field>
+                  <Field className="mb-4">
+                    <FieldLabel>模板版本</FieldLabel>
                     <Input id="job-template-version" type="number" min={1} value={templateVersion} onChange={(event) => setTemplateVersion(Math.max(1, Number(event.target.value) || 1))} className="w-[140px]" />
-                  </FormField>
+                  </Field>
                 </>
               ) : !structuredReady && !editingStructured ? (
-                <FormNotice icon={<KeyRound />}>
-                  结构化配置要求所选数据源已登记连接配置。
-                  {selectedSource ? (
-                    <button type="button" className="ml-2 text-blue underline underline-offset-2" onClick={() => requestLeave(workLinks.ingestionSourceExplorer(selectedSource.id))}>
-                      去登记「{sourceDisplayName(selectedSource)}」连接
-                    </button>
-                  ) : null}
-                </FormNotice>
+                <Alert variant="info" role="note" className="mb-4">
+                  <KeyRound />
+                  <AlertDescription>
+                    <p>
+                      结构化配置要求所选数据源已登记连接配置。
+                      {selectedSource ? (
+                        <Button variant="link" size="xs" className="ml-1 h-auto p-0" onClick={() => requestLeave(workLinks.ingestionSourceExplorer(selectedSource.id))}>
+                          去登记「{sourceDisplayName(selectedSource)}」连接
+                        </Button>
+                      ) : null}
+                    </p>
+                  </AlertDescription>
+                </Alert>
               ) : null}
             </>
           )}
@@ -375,28 +473,32 @@ export function JobConfigurationEditor({ jobId }: { jobId?: string }) {
             <div className="mt-2 flex items-center gap-2">
               {dolphin || configMode === 'json' || !structuredReady ? (
                 <Button
-                  variant="primary"
                   disabled={saving}
                   onClick={() => { setError(null); createMutation.mutate() }}
                 >
                   <Save size={14} />{createMutation.isPending ? '创建中…' : dolphin || configMode === 'json' ? '创建并保存配置' : '创建任务'}
                 </Button>
               ) : null}
-              <Button onClick={() => requestLeave('/ingestion')} disabled={saving}>取消</Button>
+              <Button variant="outline" onClick={() => requestLeave('/ingestion')} disabled={saving}>取消</Button>
             </div>
           ) : editingStructured ? null : (
             <div className="mt-2 flex items-center gap-2">
-              <Button variant="primary" disabled={saving} onClick={() => { setError(null); saveMutation.mutate() }}>
+              <Button disabled={saving} onClick={() => { setError(null); saveMutation.mutate() }}>
                 <Save size={14} />{saveMutation.isPending ? '保存中…' : dolphin ? '保存绑定' : '保存配置'}
               </Button>
             </div>
           )}
-          {error ? <p role="alert" className="mt-3 text-body-sm leading-relaxed text-red">{error}</p> : null}
+          {error ? (
+            <Alert variant="error" className="mt-3">
+              <CircleAlert />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          ) : null}
         </section>
 
         <section className="bg-wash px-6 py-5">
           <h2 className="text-title font-semibold text-ink-soft">{dolphin ? '工作流绑定' : configMode === 'json' ? '采集配置 JSON' : '结构化意图'}</h2>
-          <p className="mt-1.5 mb-4 text-label leading-relaxed text-muted">
+          <p className="mt-1.5 mb-4 text-label leading-relaxed text-muted-foreground">
             {dolphin
               ? '绑定失败会如实回显；周期调度随工作流生效，不受此处影响。'
               : configMode === 'json'
@@ -411,21 +513,24 @@ export function JobConfigurationEditor({ jobId }: { jobId?: string }) {
               <p>· 门户发起的运行进入任务运行记录；平台定时触发的实例在调度实例中查看。</p>
             </div>
           ) : configMode === 'json' ? (
-            <details open className="rounded-control border border-line bg-paper">
-              <summary className="cursor-pointer border-b border-line px-3 py-2 text-label font-medium text-ink-soft">
-                配置内容 <span className="ml-1 font-normal text-muted">默认展开 · 可编辑</span>
-              </summary>
-              <div className="p-3">
-                <CodeTextarea
-                  aria-label="采集配置 JSON"
-                  className="min-h-[420px]"
-                  value={configText}
-                  onChange={(event) => setConfigText(event.target.value)}
-                  spellCheck={false}
-                />
-                {templatesRequest.isError ? <p className="mt-2 text-meta text-amber">模板目录读取失败：可直接填写 JSON 或稍后重试。</p> : null}
-              </div>
-            </details>
+            <Collapsible defaultOpen className="rounded-control border border-line bg-paper">
+              <CollapsibleTrigger className="flex w-full cursor-pointer items-center gap-2 border-b border-line px-3 py-2 text-label font-medium text-ink-soft data-panel-open:[&_svg]:rotate-180">
+                配置内容 <span className="font-normal text-muted-foreground">默认展开 · 可编辑</span>
+                <ChevronDown className="ml-auto size-4 text-muted-foreground" />
+              </CollapsibleTrigger>
+              <CollapsiblePanel>
+                <div className="p-3">
+                  <CodeTextarea
+                    aria-label="采集配置 JSON"
+                    className="min-h-[420px]"
+                    value={configText}
+                    onChange={(event) => setConfigText(event.target.value)}
+                    spellCheck={false}
+                  />
+                  {templatesRequest.isError ? <p className="mt-2 text-meta text-amber">模板目录读取失败：可直接填写 JSON 或稍后重试。</p> : null}
+                </div>
+              </CollapsiblePanel>
+            </Collapsible>
           ) : editingStructured && job && selectedSource && configRequest.data ? (
             <StructuredTaskFields
               source={selectedSource}
@@ -450,7 +555,10 @@ export function JobConfigurationEditor({ jobId }: { jobId?: string }) {
               onCancel={() => requestLeave('/ingestion')}
             />
           ) : (
-            <FormNotice icon={<FileCog />}>所选数据源还没有可用的连接配置；先保存连接，或改用模板 JSON。</FormNotice>
+            <Alert variant="info" role="note" className="mb-4">
+              <FileCog />
+              <AlertDescription>所选数据源还没有可用的连接配置；先保存连接，或改用模板 JSON。</AlertDescription>
+            </Alert>
           )}
         </section>
       </div>
@@ -480,7 +588,7 @@ export function JobEditorPage({ jobId }: { jobId?: string }) {
         description={jobId
           ? '保存的是可审计的结构配置；连接密码、Token、Secret 通过凭据引用接入。'
           : '表单只收集采集意图；库表、字段与连接在保存前由控制面对数据源实校验后编译。'}
-        actions={<Button onClick={() => navigate(jobId ? workLinks.ingestionJob(jobId) : '/ingestion')}>返回</Button>}
+        actions={<Button variant="outline" onClick={() => navigate(jobId ? workLinks.ingestionJob(jobId) : '/ingestion')}>返回</Button>}
       />
       <JobConfigurationEditor jobId={jobId} />
     </div>

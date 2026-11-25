@@ -1,22 +1,25 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, FlaskConical, Pencil, Play, Plus, ShieldQuestion } from 'lucide-react'
 import { useState } from 'react'
-import { Badge } from '../../components/ui/badge'
-import { Button } from '../../components/ui/button'
-import { Confirm } from '../../components/ui/overlay'
-import { Panel, PanelHead } from '../../components/ui/panel'
-import { EmptyState } from '../../components/ui/states'
-import { DataTable, TablePagination, listColumnHelper } from '../../components/table/data-table'
-import { useNotice } from '../../components/ui/toast'
+
+import { ConfirmDialog } from '@/components/app/confirm-dialog'
+import { EmptyState } from '@/components/app/empty-state'
+import { useNotice } from '@/components/app/notice'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { FrameDescription, FrameHeader, FramePanel } from '@/components/ui/frame'
+import { Tooltip, TooltipPopup, TooltipTrigger } from '@/components/ui/tooltip'
+
+import { usePortalNavigate } from '../../app/navigate'
+import { DataTable, listColumnHelper, TablePagination } from '../../components/table/data-table'
 import {
+  type AssistantAdminQuestionView,
   assistantQuestionAction,
   deleteAssistantQuestion,
   QUESTION_STATUS_LABEL,
-  type AssistantAdminQuestionView,
 } from '../../data/assistantApi'
 import { workLinks } from '../../data/routes'
-import { usePortalNavigate } from '../../app/navigate'
-import { assistantKeys, assistantAdminQuestionsQuery } from './queries'
+import { assistantAdminQuestionsQuery, assistantKeys } from './queries'
 
 const PAGE_SIZE = 6
 
@@ -68,7 +71,7 @@ export function AssistantGovernanceSection({ onNotice }: { onNotice: (message: s
       cell: ({ row }) => (
         <div>
           <div className="text-body-sm font-medium text-ink">{row.original.question}</div>
-          <div className="font-mono text-meta text-muted">{row.original.code}</div>
+          <div className="font-mono text-meta text-muted-foreground">{row.original.code}</div>
         </div>
       ),
     }),
@@ -77,19 +80,19 @@ export function AssistantGovernanceSection({ onNotice }: { onNotice: (message: s
       header: '状态',
       size: 90,
       cell: ({ row }) => (
-        <Badge tone={row.original.status === 'PUBLISHED' ? 'success' : row.original.status === 'DRAFT' ? 'neutral' : 'warn'}>
+        <Badge variant={row.original.status === 'PUBLISHED' ? 'success' : row.original.status === 'DRAFT' ? 'outline' : 'warning'}>
           {QUESTION_STATUS_LABEL[row.original.status] ?? row.original.status}
         </Badge>
       ),
     }),
-    helper.display({ id: 'service', header: '数据服务', size: 170, cell: ({ row }) => <span className="font-mono text-label text-muted">{row.original.serviceCode}</span> }),
+    helper.display({ id: 'service', header: '数据服务', size: 170, cell: ({ row }) => <span className="font-mono text-label text-muted-foreground">{row.original.serviceCode}</span> }),
     helper.display({
       id: 'verified',
       header: '试运行验证',
       size: 130,
       cell: ({ row }) => row.original.verified
         ? <span className="text-label text-green">已验证（试运行通过）</span>
-        : <span className="text-label text-muted">未验证</span>,
+        : <span className="text-label text-muted-foreground">未验证</span>,
     }),
     helper.display({
       id: 'actions',
@@ -102,30 +105,28 @@ export function AssistantGovernanceSection({ onNotice }: { onNotice: (message: s
           <div className="flex flex-wrap items-center gap-1.5" onClick={(event) => event.stopPropagation()}>
             {question.status === 'DRAFT' ? (
               <>
-                <Button size="sm" onClick={() => navigate(workLinks.assistantQuestion(question.code, 'definition'))}><Pencil size={12} />编辑</Button>
-                <Button size="sm" onClick={() => navigate(workLinks.assistantQuestion(question.code, 'try'))}><FlaskConical size={12} />试运行</Button>
-                <Button
-                  size="sm"
-                  variant="primary"
-                  disabled={!question.verified || busy}
-                  title={question.verified ? '发布到问数面' : '需最近一次成功试运行晚于最后编辑'}
-                  onClick={() => actionMutation.mutate({ code: question.code, action: 'publish' })}
-                >
-                  发布
-                </Button>
-                <Button size="sm" variant="danger-outline" disabled={busy} onClick={() => setPendingAction({ action: 'delete', question })}>删除</Button>
+                <Button variant="outline" size="sm" onClick={() => navigate(workLinks.assistantQuestion(question.code, 'definition'))}><Pencil size={12} />编辑</Button>
+                <Button variant="outline" size="sm" onClick={() => navigate(workLinks.assistantQuestion(question.code, 'try'))}><FlaskConical size={12} />试运行</Button>
+                {/* 禁用态的按钮收不到悬停与焦点：按 coss 的写法包一层可聚焦的 span 来承载提示。 */}
+                <Tooltip>
+                  <TooltipTrigger render={<span className="inline-flex" tabIndex={question.verified ? undefined : 0} />}>
+                    <Button size="sm" disabled={!question.verified || busy} onClick={() => actionMutation.mutate({ code: question.code, action: 'publish' })}>发布</Button>
+                  </TooltipTrigger>
+                  <TooltipPopup>{question.verified ? '发布到问数面' : '需最近一次成功试运行晚于最后编辑'}</TooltipPopup>
+                </Tooltip>
+                <Button size="sm" variant="destructive-outline" disabled={busy} onClick={() => setPendingAction({ action: 'delete', question })}>删除</Button>
               </>
             ) : null}
             {question.status === 'PUBLISHED' ? (
               <>
-                <Button size="sm" onClick={() => navigate(workLinks.assistantQuestion(question.code, 'try'))}><FlaskConical size={12} />试运行</Button>
-                <Button size="sm" variant="danger-outline" disabled={busy} onClick={() => setPendingAction({ action: 'deprecate', question })}>停用</Button>
+                <Button variant="outline" size="sm" onClick={() => navigate(workLinks.assistantQuestion(question.code, 'try'))}><FlaskConical size={12} />试运行</Button>
+                <Button size="sm" variant="destructive-outline" disabled={busy} onClick={() => setPendingAction({ action: 'deprecate', question })}>停用</Button>
               </>
             ) : null}
             {question.status === 'DEPRECATED' ? (
-              <Button size="sm" disabled={busy} onClick={() => actionMutation.mutate({ code: question.code, action: 'reopen' })}><Play size={12} />重新起草</Button>
+              <Button variant="outline" size="sm" disabled={busy} onClick={() => actionMutation.mutate({ code: question.code, action: 'reopen' })}><Play size={12} />重新起草</Button>
             ) : null}
-            <Button size="sm" variant="quiet" onClick={() => navigate(workLinks.assistantQuestion(question.code, 'events'))}><ShieldQuestion size={12} />事件</Button>
+            <Button size="sm" variant="ghost" onClick={() => navigate(workLinks.assistantQuestion(question.code, 'events'))}><ShieldQuestion size={12} />事件</Button>
           </div>
         )
       },
@@ -133,19 +134,21 @@ export function AssistantGovernanceSection({ onNotice }: { onNotice: (message: s
   ])
 
   return (
-    <Panel>
-      <PanelHead
-        title="问题治理"
-        count={questions.length}
-        description="发布须最近一次成功试运行晚于最后一次编辑；停用后从问数面消失并可重新起草"
-        actions={
-          <>
-            <Button size="sm" onClick={() => void questionsRequest.refetch()}>刷新</Button>
-            <Button size="sm" onClick={() => navigate(workLinks.assistantAudit())}><Download size={13} />问数审计</Button>
-            <Button size="sm" variant="primary" onClick={() => navigate(workLinks.assistantQuestionNew())}><Plus size={13} />新建问题（草稿）</Button>
-          </>
-        }
-      />
+    <FramePanel className="p-0 overflow-clip">
+      <FrameHeader className="px-[18px] pt-[18px] pb-3 flex-row items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-title font-semibold tracking-[-0.2px]">
+            问题治理
+            {questions.length !== undefined ? <Badge variant="outline">{questions.length}</Badge> : null}
+          </h2>
+          <FrameDescription>发布须最近一次成功试运行晚于最后一次编辑；停用后从问数面消失并可重新起草</FrameDescription>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">{          <>
+            <Button variant="outline" size="sm" onClick={() => void questionsRequest.refetch()}>刷新</Button>
+            <Button variant="outline" size="sm" onClick={() => navigate(workLinks.assistantAudit())}><Download size={13} />问数审计</Button>
+            <Button size="sm" onClick={() => navigate(workLinks.assistantQuestionNew())}><Plus size={13} />新建问题（草稿）</Button>
+          </>}</div>
+      </FrameHeader>
       {questions.length > 0 ? (
         <dl className="mx-[18px] mb-2 grid grid-cols-3 gap-3 rounded-control border border-line bg-wash px-3 py-2" aria-label="问题发布概览">
           <Summary label="已发布" value={questions.filter((question) => question.status === 'PUBLISHED').length} />
@@ -167,7 +170,7 @@ export function AssistantGovernanceSection({ onNotice }: { onNotice: (message: s
         footer={<TablePagination page={currentPage} pageSize={PAGE_SIZE} total={questions.length} onPageChange={setPage} label="治理问题分页" />}
       />
 
-      <Confirm
+      <ConfirmDialog
         open={pendingAction !== null}
         onOpenChange={(open) => { if (!open) setPendingAction(null) }}
         title={pendingAction?.action === 'delete' ? `删除草稿 ${pendingAction.question.code}` : `停用 ${pendingAction?.question.code ?? ''}`}
@@ -183,14 +186,14 @@ export function AssistantGovernanceSection({ onNotice }: { onNotice: (message: s
           actionMutation.mutate({ code: pendingAction.question.code, action: pendingAction.action })
         }}
       />
-    </Panel>
+    </FramePanel>
   )
 }
 
 function Summary({ label, value }: { label: string; value: number }) {
   return (
     <div>
-      <dt className="text-meta text-muted">{label}</dt>
+      <dt className="text-meta text-muted-foreground">{label}</dt>
       <dd className="m-0 text-body-sm font-medium text-ink">{value}</dd>
     </div>
   )

@@ -1,35 +1,47 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearch } from '@tanstack/react-router'
-import { Download, FlaskConical, Plus, Save, ShieldQuestion, Trash2 } from 'lucide-react'
+import { CircleAlert, Download, FlaskConical, Plus, Save, ShieldQuestion, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { Badge } from '../../components/ui/badge'
-import { Button } from '../../components/ui/button'
-import { FormField, FormGrid, FormNotice } from '../../components/ui/form'
-import { CodeTextarea, Input, NativeSelect } from '../../components/ui/input'
-import { Confirm } from '../../components/ui/overlay'
-import { Breadcrumb, PageHeading } from '../../components/ui/page-heading'
-import { Panel, PanelHead } from '../../components/ui/panel'
-import { Tabs, TabPanel } from '../../components/ui/popover'
-import { EmptyState, LoadingBlock } from '../../components/ui/states'
+
+import { CodeTextarea } from '@/components/app/code-textarea'
+import { ConfirmDialog } from '@/components/app/confirm-dialog'
+import { DatePicker } from '@/components/app/date-picker'
+import { EmptyState } from '@/components/app/empty-state'
+import { FormGrid } from '@/components/app/form-grid'
+import { LoadingBlock } from '@/components/app/loading'
+import { useNotice } from '@/components/app/notice'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
+import { FramePanel } from '@/components/ui/frame'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Tabs, TabsList, TabsPanel, TabsTab } from '@/components/ui/tabs'
+import { Tooltip, TooltipPopup, TooltipTrigger } from '@/components/ui/tooltip'
+
+import { useDirtyLeaveGuard } from '../../app/dirty-leave-guard'
+import { usePortalNavigate } from '../../app/navigate'
+import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { DataTable, listColumnHelper } from '../../components/table/data-table'
-import { useNotice } from '../../components/ui/toast'
 import {
+  type AssistantAdminQuestionView,
+  type AssistantAnswer,
   assistantParamLabel,
   assistantQuestionAction,
+  type AssistantQuestionDraft,
+  type AssistantQuestionEventView,
   deleteAssistantQuestion,
   QUESTION_STATUS_LABEL,
   saveAssistantQuestion,
   testAssistantQuestion,
-  type AssistantAdminQuestionView,
-  type AssistantAnswer,
-  type AssistantQuestionDraft,
-  type AssistantQuestionEventView,
 } from '../../data/assistantApi'
 import { formatDateTime } from '../../data/domain'
 import { workLinks } from '../../data/routes'
-import { usePortalNavigate } from '../../app/navigate'
-import { useDirtyLeaveGuard } from '../../app/dirty-leave-guard'
-import { assistantKeys, assistantAdminQuestionsQuery, assistantQuestionEventsQuery } from './queries'
+import { assistantAdminQuestionsQuery, assistantKeys, assistantQuestionEventsQuery } from './queries'
 
 type TabValue = 'definition' | 'try' | 'events'
 
@@ -51,6 +63,13 @@ interface DraftForm {
 }
 
 const EMPTY_FORM: DraftForm = { code: '', question: '', aliasesText: '', serviceCode: '', answerTemplate: '', paramRows: [] }
+/** 参数行可选的类型：与数据服务契约的类型枚举一致。 */
+const PARAM_TYPE_ITEMS = [
+  { value: 'date', label: 'date' },
+  { value: 'string', label: 'string' },
+  { value: 'number', label: 'number' },
+  { value: 'boolean', label: 'boolean' },
+]
 
 function formOf(question: AssistantAdminQuestionView): DraftForm {
   return {
@@ -180,73 +199,89 @@ export function QuestionEditorPage({ questionCode }: { questionCode?: string }) 
   if (questionCode && questionsRequest.isPending) return <LoadingBlock>正在读取问题…</LoadingBlock>
   if (questionCode && questionsRequest.isSuccess && !question) {
     return (
-      <Panel>
+      <FramePanel className="p-0 overflow-clip">
         <EmptyState
           icon={<ShieldQuestion />}
           title="问题不存在"
           description="该问题可能已被删除，或当前账号没有治理权限。"
-          action={<Button onClick={() => navigate('/assistant/workspace')}>返回问数工作区</Button>}
+          action={<Button variant="outline" onClick={() => navigate('/assistant/workspace')}>返回问数工作区</Button>}
         />
-      </Panel>
+      </FramePanel>
     )
   }
 
   const eventColumns = eventHelper.columns([
-    eventHelper.display({ id: 'type', header: '事件', size: 160, cell: ({ row }) => <Badge>{row.original.action}</Badge> }),
+    eventHelper.display({ id: 'type', header: '事件', size: 160, cell: ({ row }) => <Badge variant="outline">{row.original.action}</Badge> }),
     eventHelper.display({ id: 'actor', header: '操作者', size: 140, cell: ({ row }) => <span className="text-label">{row.original.actor}</span> }),
-    eventHelper.display({ id: 'detail', header: '说明', cell: ({ row }) => <span className="text-label text-muted">{row.original.detail}</span> }),
-    eventHelper.display({ id: 'at', header: '时间', size: 140, cell: ({ row }) => <span className="text-meta text-muted">{formatDateTime(row.original.createdAt)}</span> }),
+    eventHelper.display({ id: 'detail', header: '说明', cell: ({ row }) => <span className="text-label text-muted-foreground">{row.original.detail}</span> }),
+    eventHelper.display({ id: 'at', header: '时间', size: 140, cell: ({ row }) => <span className="text-meta text-muted-foreground">{formatDateTime(row.original.createdAt)}</span> }),
   ])
 
   return (
     <div>
-      <Breadcrumb items={[{ label: '数据应用' }, { label: '智能问数' }, { label: '专业工作区' }, { label: questionCode ?? '新建问题' }]} trailing={question ? <><Badge tone={question.status === 'PUBLISHED' ? 'success' : question.status === 'DRAFT' ? 'neutral' : 'warn'}>{QUESTION_STATUS_LABEL[question.status] ?? question.status}</Badge></> : null} />
+      <Breadcrumb items={[{ label: '数据应用' }, { label: '智能问数' }, { label: '专业工作区' }, { label: questionCode ?? '新建问题' }]} trailing={question ? <><Badge variant={question.status === 'PUBLISHED' ? 'success' : question.status === 'DRAFT' ? 'outline' : 'warning'}>{QUESTION_STATUS_LABEL[question.status] ?? question.status}</Badge></> : null} />
       <PageHeading
         title={questionCode ? '已验证问题' : '新建已验证问题'}
         description="发布须最近一次成功试运行晚于最后一次编辑；已发布问题只读，可继续试运行核对口径。"
         actions={
           <>
-            <Button onClick={() => navigate('/assistant/workspace')}>返回工作区</Button>
-            {questionCode ? <Button onClick={() => navigate(workLinks.assistantAudit())}><Download size={14} />问数审计</Button> : null}
+            <Button variant="outline" onClick={() => navigate('/assistant/workspace')}>返回工作区</Button>
+            {questionCode ? <Button variant="outline" onClick={() => navigate(workLinks.assistantAudit())}><Download size={14} />问数审计</Button> : null}
           </>
         }
       />
 
-      <Panel>
+      <FramePanel className="p-0 overflow-clip">
         <Tabs
           value={tab}
           onValueChange={(value) => goTab(value as TabValue)}
-          items={[
-            { value: 'definition', label: '定义' },
-            { value: 'try', label: '试运行' },
-            { value: 'events', label: '事件', count: eventsRequest.data?.total },
-          ]}
         >
-          <TabPanel value="definition" className="px-5 py-4">
-            <FormNotice icon={<ShieldQuestion />}>
-              {readOnly
-                ? '当前状态不可编辑定义。发布后仍可试运行核对口径；如需修改，先停用再重新起草。'
-                : '门户只声明问题与参数契约；执行由已发布的数据服务受限完成，未知问题明确拒答。'}
-            </FormNotice>
+          <TabsList variant="underline">
+            <TabsTab key="definition" value="definition">定义</TabsTab>
+            <TabsTab key="try" value="try">试运行</TabsTab>
+            <TabsTab key="events" value="events">事件
+              <Badge variant="outline">{eventsRequest.data?.total}</Badge>
+            </TabsTab>
+          </TabsList>
+          <TabsPanel value="definition" className="px-5 py-4">
+            <Alert variant="info" role="note" className="mb-4">
+              <ShieldQuestion />
+              <AlertDescription>
+                {readOnly
+                  ? '当前状态不可编辑定义。发布后仍可试运行核对口径；如需修改，先停用再重新起草。'
+                  : '门户只声明问题与参数契约；执行由已发布的数据服务受限完成，未知问题明确拒答。'}
+              </AlertDescription>
+            </Alert>
             <FormGrid>
-              <FormField label="问题代码" required htmlFor="question-code" hint="小写字母/数字/连字符，创建后不可修改">
+              <Field>
+                <FieldLabel>
+                  问题代码 <span className="text-destructive-foreground">*</span>
+                </FieldLabel>
                 <Input id="question-code" value={form.code} disabled={Boolean(questionCode)} onChange={(event) => setForm({ ...form, code: event.target.value })} placeholder="prescription-daily-summary" />
-              </FormField>
-              <FormField label="数据服务代码" required htmlFor="question-service">
+                <FieldDescription>小写字母/数字/连字符，创建后不可修改</FieldDescription>
+              </Field>
+              <Field>
+                <FieldLabel>
+                  数据服务代码 <span className="text-destructive-foreground">*</span>
+                </FieldLabel>
                 <Input id="question-service" value={form.serviceCode} disabled={readOnly} onChange={(event) => setForm({ ...form, serviceCode: event.target.value })} placeholder="已发布的数据服务（Data API registry）" />
-              </FormField>
+              </Field>
             </FormGrid>
-            <FormField label="问题原文" required htmlFor="question-text">
+            <Field className="mb-4">
+              <FieldLabel>
+                问题原文 <span className="text-destructive-foreground">*</span>
+              </FieldLabel>
               <Input id="question-text" value={form.question} disabled={readOnly} onChange={(event) => setForm({ ...form, question: event.target.value })} placeholder="用户将以此原文或别名命中该问题" />
-            </FormField>
-            <FormField label="同义别名（每行一个）" htmlFor="question-aliases">
+            </Field>
+            <Field className="mb-4">
+              <FieldLabel>同义别名（每行一个）</FieldLabel>
               <CodeTextarea id="question-aliases" className="min-h-[90px]" value={form.aliasesText} disabled={readOnly} onChange={(event) => setForm({ ...form, aliasesText: event.target.value })} placeholder={'每日处方量趋势\n按天统计处方量'} />
-            </FormField>
+            </Field>
 
             <div className="mb-4">
               <div className="mb-1.5 flex items-center justify-between">
                 <span className="text-body-sm text-ink-soft">参数 Schema（与数据服务契约一致）</span>
-                {!readOnly ? <Button size="sm" variant="text" onClick={() => setForm({ ...form, paramRows: [...form.paramRows, { name: '', type: 'string', required: false, defaultValue: '', valuesText: '' }] })}><Plus size={12} />添加参数</Button> : null}
+                {!readOnly ? <Button size="sm" variant="link" onClick={() => setForm({ ...form, paramRows: [...form.paramRows, { name: '', type: 'string', required: false, defaultValue: '', valuesText: '' }] })}><Plus size={12} />添加参数</Button> : null}
               </div>
               {form.paramRows.map((row, index) => (
                 <div key={index} className="mb-2 grid grid-cols-[minmax(0,1fr)_120px_120px_minmax(0,1fr)_minmax(0,1fr)_auto] items-center gap-2">
@@ -257,107 +292,146 @@ export function QuestionEditorPage({ questionCode }: { questionCode?: string }) 
                     onChange={(event) => setForm({ ...form, paramRows: form.paramRows.map((item, itemIndex) => itemIndex === index ? { ...item, name: event.target.value } : item) })}
                     placeholder="start_date"
                   />
-                  <NativeSelect aria-label={`参数 ${index + 1} 类型`} className="min-h-[35px]" value={row.type} disabled={readOnly} onChange={(event) => setForm({ ...form, paramRows: form.paramRows.map((item, itemIndex) => itemIndex === index ? { ...item, type: event.target.value } : item) })}>
-                    <option value="date">date</option><option value="string">string</option><option value="number">number</option><option value="boolean">boolean</option>
-                  </NativeSelect>
-                  <label className="flex items-center gap-1.5 text-label text-ink-soft">
-                    <input type="checkbox" className="size-[13px] accent-blue" checked={row.required} disabled={readOnly} onChange={(event) => setForm({ ...form, paramRows: form.paramRows.map((item, itemIndex) => itemIndex === index ? { ...item, required: event.target.checked } : item) })} />
+                  <Select
+                    items={PARAM_TYPE_ITEMS}
+                    value={row.type}
+                    onValueChange={(next) => setForm({ ...form, paramRows: form.paramRows.map((item, itemIndex) => itemIndex === index ? { ...item, type: next ?? '' } : item) })}
+                    disabled={readOnly}
+                  >
+                    <SelectTrigger aria-label={`参数 ${index + 1} 类型`}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectPopup>
+                      {PARAM_TYPE_ITEMS.map((item) => (
+                        <SelectItem key={item.value} value={item.value}>
+                          {item.label}
+                        </SelectItem>
+                      ))}
+                    </SelectPopup>
+                  </Select>
+                  <Label>
+                    <Checkbox checked={row.required} disabled={readOnly} onCheckedChange={(checked) => setForm({ ...form, paramRows: form.paramRows.map((item, itemIndex) => itemIndex === index ? { ...item, required: checked } : item) })} />
                     必填
-                  </label>
+                  </Label>
                   <Input aria-label={`参数 ${index + 1} 默认值`} value={row.defaultValue} disabled={readOnly} onChange={(event) => setForm({ ...form, paramRows: form.paramRows.map((item, itemIndex) => itemIndex === index ? { ...item, defaultValue: event.target.value } : item) })} placeholder="默认值" />
                   <Input aria-label={`参数 ${index + 1} 枚举`} value={row.valuesText} disabled={readOnly} onChange={(event) => setForm({ ...form, paramRows: form.paramRows.map((item, itemIndex) => itemIndex === index ? { ...item, valuesText: event.target.value } : item) })} placeholder="枚举（逗号分隔）" />
-                  {!readOnly ? <Button size="sm" variant="text" aria-label={`移除参数 ${index + 1}`} onClick={() => setForm({ ...form, paramRows: form.paramRows.filter((_, itemIndex) => itemIndex !== index) })}><Trash2 size={12} /></Button> : null}
+                  {!readOnly ? <Button size="sm" variant="link" aria-label={`移除参数 ${index + 1}`} onClick={() => setForm({ ...form, paramRows: form.paramRows.filter((_, itemIndex) => itemIndex !== index) })}><Trash2 size={12} /></Button> : null}
                 </div>
               ))}
-              {form.paramRows.length === 0 ? <p className="text-label text-muted">无参数问题可直接执行；有参数时问数面会要求填写。</p> : null}
+              {form.paramRows.length === 0 ? <p className="text-label text-muted-foreground">无参数问题可直接执行；有参数时问数面会要求填写。</p> : null}
             </div>
 
-            <FormField label="回答模板" htmlFor="question-template">
+            <Field className="mb-4">
+              <FieldLabel>回答模板</FieldLabel>
               <CodeTextarea id="question-template" className="min-h-[90px]" value={form.answerTemplate} disabled={readOnly} onChange={(event) => setForm({ ...form, answerTemplate: event.target.value })} placeholder="回答前缀或口径说明（可选）" />
-            </FormField>
+            </Field>
 
-            {error ? <p role="alert" className="mb-3 text-body-sm text-red">{error}</p> : null}
+            {error ? (
+              <Alert variant="error" className="mb-3">
+                <CircleAlert />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            ) : null}
 
             <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line pt-4">
-              <span className="text-meta text-muted">{question ? `最近${question.verified ? '已试运行通过' : '未验证'}` : '保存后进入草稿'}</span>
+              <span className="text-meta text-muted-foreground">{question ? `最近${question.verified ? '已试运行通过' : '未验证'}` : '保存后进入草稿'}</span>
               <div className="flex flex-wrap items-center gap-2">
                 {question?.status === 'DRAFT' ? (
                   <>
-                    <Button disabled={saveMutation.isPending} onClick={() => setConfirmDelete(true)} variant="danger-outline"><Trash2 size={13} />删除草稿</Button>
-                    <Button disabled={saveMutation.isPending} onClick={() => saveMutation.mutate()}><Save size={13} />{saveMutation.isPending ? '保存中…' : '保存草稿'}</Button>
-                    <Button variant="primary" disabled={!question.verified || actionMutation.isPending} title={question.verified ? '发布到问数面' : '需最近一次成功试运行晚于最后编辑'} onClick={() => actionMutation.mutate('publish')}>发布</Button>
+                    <Button disabled={saveMutation.isPending} onClick={() => setConfirmDelete(true)} variant="destructive-outline"><Trash2 size={13} />删除草稿</Button>
+                    <Button variant="outline" disabled={saveMutation.isPending} onClick={() => saveMutation.mutate()}><Save size={13} />{saveMutation.isPending ? '保存中…' : '保存草稿'}</Button>
+                    {/* 禁用态的按钮收不到悬停与焦点：按 coss 的写法包一层可聚焦的 span 来承载提示。 */}
+                    <Tooltip>
+                      <TooltipTrigger render={<span className="inline-flex" tabIndex={question.verified ? undefined : 0} />}>
+                        <Button disabled={!question.verified || actionMutation.isPending} onClick={() => actionMutation.mutate('publish')}>发布</Button>
+                      </TooltipTrigger>
+                      <TooltipPopup>{question.verified ? '发布到问数面' : '需最近一次成功试运行晚于最后编辑'}</TooltipPopup>
+                    </Tooltip>
                   </>
                 ) : null}
                 {question?.status === 'PUBLISHED' ? (
-                  <Button variant="danger-outline" disabled={actionMutation.isPending} onClick={() => actionMutation.mutate('deprecate')}>停用</Button>
+                  <Button variant="destructive-outline" disabled={actionMutation.isPending} onClick={() => actionMutation.mutate('deprecate')}>停用</Button>
                 ) : null}
                 {question?.status === 'DEPRECATED' ? (
-                  <Button disabled={actionMutation.isPending} onClick={() => actionMutation.mutate('reopen')}>重新起草</Button>
+                  <Button variant="outline" disabled={actionMutation.isPending} onClick={() => actionMutation.mutate('reopen')}>重新起草</Button>
                 ) : null}
-                {!questionCode ? <Button variant="primary" disabled={saveMutation.isPending} onClick={() => saveMutation.mutate()}><Save size={13} />{saveMutation.isPending ? '保存中…' : '创建草稿'}</Button> : null}
+                {!questionCode ? <Button disabled={saveMutation.isPending} onClick={() => saveMutation.mutate()}><Save size={13} />{saveMutation.isPending ? '保存中…' : '创建草稿'}</Button> : null}
               </div>
             </div>
-          </TabPanel>
+          </TabsPanel>
 
-          <TabPanel value="try" className="px-5 py-4">
+          <TabsPanel value="try" className="px-5 py-4">
             {!questionCode ? (
               <EmptyState minHeight={220} icon={<FlaskConical />} title="先保存草稿再试运行" description="试运行需要问题代码与服务绑定；创建后即可在此验证参数与回答。" />
             ) : (
               <>
-                <FormNotice icon={<FlaskConical />}>
-                  试运行使用与问数面相同的执行链路；结果与拒答信封同构，参数与结果留在此页以便往返核对。
-                </FormNotice>
+                <Alert variant="info" role="note" className="mb-4">
+                  <FlaskConical />
+                  <AlertDescription>
+                    试运行使用与问数面相同的执行链路；结果与拒答信封同构，参数与结果留在此页以便往返核对。
+                  </AlertDescription>
+                </Alert>
                 <div className="mb-3 flex flex-wrap items-end gap-2.5">
                   {(question?.paramSchema ?? []).map((contract) => {
                     const label = assistantParamLabel(contract.name, contract.description)
                     return (
-                      <label key={contract.name} className="min-w-[150px]">
-                        <span className="mb-1 block text-meta text-muted">{label}{contract.required ? ' *' : ''}</span>
-                        <Input
-                          type={contract.type === 'date' ? 'date' : contract.type === 'number' ? 'number' : 'text'}
-                          aria-label={label}
-                          value={testParams[contract.name] ?? contract.defaultValue ?? ''}
-                          onChange={(event) => setTestParams({ ...testParams, [contract.name]: event.target.value })}
-                        />
-                      </label>
+                      <Field key={contract.name} className="w-[170px]">
+                        <FieldLabel>
+                          {label}{' '}{contract.required ? <span className="text-destructive-foreground">*</span> : null}
+                        </FieldLabel>
+                        {contract.type === 'date' ? (
+                          <DatePicker
+                            aria-label={label}
+                            value={testParams[contract.name] ?? contract.defaultValue ?? ''}
+                            onValueChange={(value) => setTestParams({ ...testParams, [contract.name]: value })}
+                          />
+                        ) : (
+                          <Input
+                            type={contract.type === 'number' ? 'number' : 'text'}
+                            aria-label={label}
+                            value={testParams[contract.name] ?? contract.defaultValue ?? ''}
+                            onChange={(event) => setTestParams({ ...testParams, [contract.name]: event.target.value })}
+                          />
+                        )}
+                      </Field>
                     )
                   })}
-                  <Button variant="primary" disabled={testMutation.isPending} onClick={() => testMutation.mutate()}>
+                  <Button disabled={testMutation.isPending} onClick={() => testMutation.mutate()}>
                     <FlaskConical size={13} />{testMutation.isPending ? '试运行中…' : '试运行'}
                   </Button>
                 </div>
                 {testResult ? (
                   <div className={`rounded-panel border px-4 py-3 ${testResult.answered ? 'border-line' : 'border-[#eee2c5] bg-[#fdf9ef]'}`}>
                     <div className="flex items-center gap-2">
-                      <Badge tone={testResult.answered ? 'success' : 'warn'}>{testResult.answered ? '通过' : '拒答'}</Badge>
-                      <span className="text-label text-muted">
+                      <Badge variant={testResult.answered ? 'success' : 'warning'}>{testResult.answered ? '通过' : '拒答'}</Badge>
+                      <span className="text-label text-muted-foreground">
                         {testResult.answered ? `${testResult.rowCount ?? testResult.rows?.length ?? 0} 行 · ${testResult.evidence?.elapsedMs ?? 0} ms` : (testResult.reason ?? '未命中已验证问题')}
                       </span>
                     </div>
                     {testResult.answered && (testResult.columns ?? []).length > 0 ? (
                       <div className="mt-2 overflow-x-auto">
-                        <table className="w-full border-collapse text-left text-label">
-                          <thead className="bg-wash text-muted">
-                            <tr>{(testResult.columns ?? []).map((column) => <th key={column} className="border-b border-line px-2 py-1.5 font-normal">{column}</th>)}</tr>
-                          </thead>
-                          <tbody>
+                        <Table className="w-full border-collapse text-left text-label">
+                          <TableHeader className="bg-wash text-muted-foreground">
+                            <TableRow>{(testResult.columns ?? []).map((column) => <TableHead key={column} className="border-b border-line px-2 py-1.5 font-normal">{column}</TableHead>)}</TableRow>
+                          </TableHeader>
+                          <TableBody>
                             {(testResult.rows ?? []).slice(0, 20).map((row, rowIndex) => (
-                              <tr key={rowIndex} className="border-b border-line-soft last:border-b-0">
-                                {(row as unknown[]).map((cell, cellIndex) => <td key={cellIndex} className="px-2 py-1.5 font-mono text-meta text-ink-soft">{String(cell ?? '')}</td>)}
-                              </tr>
+                              <TableRow key={rowIndex} className="border-b border-line-soft last:border-b-0">
+                                {(row as unknown[]).map((cell, cellIndex) => <TableCell key={cellIndex} className="px-2 py-1.5 font-mono text-meta text-ink-soft">{String(cell ?? '')}</TableCell>)}
+                              </TableRow>
                             ))}
-                          </tbody>
-                        </table>
+                          </TableBody>
+                        </Table>
                       </div>
                     ) : null}
-                    <p className="mt-2 text-meta text-muted">最近一次成功试运行须晚于最后编辑，才允许发布。</p>
+                    <p className="mt-2 text-meta text-muted-foreground">最近一次成功试运行须晚于最后编辑，才允许发布。</p>
                   </div>
                 ) : null}
               </>
             )}
-          </TabPanel>
+          </TabsPanel>
 
-          <TabPanel value="events" className="px-5 py-4">
+          <TabsPanel value="events" className="px-5 py-4">
             {!questionCode ? (
               <EmptyState minHeight={200} icon={<ShieldQuestion />} title="先保存草稿" description="问题创建后才有事件留痕。" />
             ) : (
@@ -368,15 +442,15 @@ export function QuestionEditorPage({ questionCode }: { questionCode?: string }) 
                 loading={eventsRequest.isPending}
                 empty={<EmptyState minHeight={180} title="暂无事件" description="创建、保存、试运行与生命周期动作都会留下记录。" />}
                 footer={eventsRequest.data && eventsRequest.data.total > eventsRequest.data.returned
-                  ? <p className="px-4 py-2 text-meta text-muted">共 {eventsRequest.data.total} 条，已显示最近 {eventsRequest.data.returned} 条。</p>
+                  ? <p className="px-4 py-2 text-meta text-muted-foreground">共 {eventsRequest.data.total} 条，已显示最近 {eventsRequest.data.returned} 条。</p>
                   : undefined}
               />
             )}
-          </TabPanel>
+          </TabsPanel>
         </Tabs>
-      </Panel>
+      </FramePanel>
 
-      <Confirm
+      <ConfirmDialog
         open={confirmDelete}
         onOpenChange={setConfirmDelete}
         title={`删除草稿 ${questionCode ?? ''}`}

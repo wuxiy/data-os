@@ -1,30 +1,56 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CalendarClock, Eye, ListTree, Power, RotateCcw, Save, Square, Trash2 } from 'lucide-react'
+import {
+  CalendarClock,
+  CircleAlert,
+  Eye,
+  ListTree,
+  Power,
+  RotateCcw,
+  Save,
+  Square,
+  Trash2,
+} from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { Badge, StatusText } from '../../components/ui/badge'
-import { Button } from '../../components/ui/button'
-import { FormField, FormGrid, FormNotice } from '../../components/ui/form'
-import { Input, NativeSelect } from '../../components/ui/input'
-import { Confirm } from '../../components/ui/overlay'
-import { Panel, PanelHead } from '../../components/ui/panel'
-import { EmptyState, LoadingInline } from '../../components/ui/states'
+
+import { ConfirmDialog } from '@/components/app/confirm-dialog'
+import { DatePicker } from '@/components/app/date-picker'
+import { EmptyState } from '@/components/app/empty-state'
+import { FormGrid } from '@/components/app/form-grid'
+import { LoadingInline } from '@/components/app/loading'
+import { useNotice } from '@/components/app/notice'
+import { StatusBadge } from '@/components/app/status-badge'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Field, FieldLabel } from '@/components/ui/field'
+import { FrameDescription, FrameHeader, FramePanel } from '@/components/ui/frame'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
+
 import { DataTable, listColumnHelper, TablePagination } from '../../components/table/data-table'
-import { useNotice } from '../../components/ui/toast'
 import {
   backfillScheduleInstances,
   changeJobScheduleState,
   deleteJobSchedule,
+  type JobScheduleApiItem,
   previewJobSchedule,
   retryScheduleInstance,
   saveJobSchedule,
-  stopScheduleInstance,
-  type JobScheduleApiItem,
   type ScheduleInstanceApiItem,
+  stopScheduleInstance,
 } from '../../data/controlPlane'
 import { formatDateTime } from '../../data/domain'
-import { ingestionKeys, jobScheduleQuery, scheduleInstancesQuery, scheduleTaskLogQuery, scheduleTasksQuery } from './queries'
 import { buildCron, parseCron, shiftMinutes, toDsTime, toLocalInput } from './cron'
 import { errorMessage } from './labels'
+import {
+  ingestionKeys,
+  jobScheduleQuery,
+  scheduleInstancesQuery,
+  scheduleTaskLogQuery,
+  scheduleTasksQuery,
+} from './queries'
 
 const INSTANCE_PAGE_SIZE = 10
 
@@ -173,8 +199,8 @@ export function SchedulePanel({ jobId, jobName }: { jobId: string; jobName: stri
 
   const schedule = scheduleRequest.data
   const strategy = schedule?.scheduled
-    ? schedule.online ? { label: '周期调度 · 上线中', tone: 'success' as const } : { label: '周期调度 · 已下线', tone: 'warn' as const }
-    : { label: '手动调度', tone: 'neutral' as const }
+    ? schedule.online ? { label: '周期调度 · 上线中', tone: 'success' as const } : { label: '周期调度 · 已下线', tone: 'warning' as const }
+    : { label: '手动调度', tone: 'outline' as const }
   const busy = saveMutation.isPending || stateMutation.isPending
 
   const instanceColumns = instanceHelper.columns([
@@ -183,7 +209,7 @@ export function SchedulePanel({ jobId, jobName }: { jobId: string; jobName: stri
       id: 'state',
       header: '状态',
       size: 110,
-      cell: ({ row }) => <StatusText tone={instanceTone(row.original.state)}>{instanceLabel(row.original.state)}</StatusText>,
+      cell: ({ row }) => <StatusBadge tone={instanceTone(row.original.state)}>{instanceLabel(row.original.state)}</StatusBadge>,
     }),
     instanceHelper.display({
       id: 'start',
@@ -203,13 +229,13 @@ export function SchedulePanel({ jobId, jobName }: { jobId: string; jobName: stri
       size: 220,
       cell: ({ row }) => (
         <div className="flex items-center gap-2.5" onClick={(event) => event.stopPropagation()}>
-          <Button variant="text" onClick={() => setExpandedInstance((current) => current === row.original.id ? null : row.original.id)}>
+          <Button variant="link" onClick={() => setExpandedInstance((current) => current === row.original.id ? null : row.original.id)}>
             {expandedInstance === row.original.id ? '收起任务' : '查看任务'}
           </Button>
-          <Button variant="text" disabled={instanceMutation.isPending} onClick={() => instanceMutation.mutate({ id: row.original.id, action: 'stop' })}>
+          <Button variant="link" disabled={instanceMutation.isPending} onClick={() => instanceMutation.mutate({ id: row.original.id, action: 'stop' })}>
             <Square size={12} />终止
           </Button>
-          <Button variant="text" disabled={instanceMutation.isPending} onClick={() => instanceMutation.mutate({ id: row.original.id, action: 'retry' })}>
+          <Button variant="link" disabled={instanceMutation.isPending} onClick={() => instanceMutation.mutate({ id: row.original.id, action: 'retry' })}>
             <RotateCcw size={12} />重跑
           </Button>
         </div>
@@ -217,93 +243,149 @@ export function SchedulePanel({ jobId, jobName }: { jobId: string; jobName: stri
     }),
   ])
 
+  const presetItems = [
+    { value: 'daily', label: '周期 · 每天（HH:mm）' },
+    { value: 'hourly', label: '周期 · 时段内每小时' },
+    { value: 'everyNHours', label: '周期 · 时段内每 N 小时' },
+    { value: 'everyNMinutes', label: '周期 · 时段内每 N 分钟' },
+    { value: 'once', label: '延迟一次 · 指定时刻触发' },
+    ...(advanced ? [{ value: 'advanced', label: '高级模式 · 直编 CRON' }] : []),
+  ]
   return (
     <div className="space-y-3.5">
-      <Panel>
-        <PanelHead title="调度配置" description={`周期调度 · ${jobName}`} actions={<Badge tone={strategy.tone}>{strategy.label}</Badge>} />
+      <FramePanel className="p-0 overflow-clip">
+        <FrameHeader className="px-[18px] pt-[18px] pb-3 flex-row items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="text-title font-semibold tracking-[-0.2px]">
+              调度配置
+            </h2>
+            <FrameDescription>{`周期调度 · ${jobName}`}</FrameDescription>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">{<Badge variant={strategy.tone}>{strategy.label}</Badge>}</div>
+        </FrameHeader>
         <div className="px-5 pb-5">
-          <FormNotice icon={<CalendarClock />}>
-            调度由平台调度引擎执行，调度平台是唯一事实源；本页每次打开实时读取。保存不改变上下线状态，新建调度需显式上线。平台定时触发的运行在「调度实例」中查看（门户发起的运行才进任务运行记录）。
-          </FormNotice>
+          <Alert variant="info" role="note" className="mb-4">
+            <CalendarClock />
+            <AlertDescription>
+              调度由平台调度引擎执行，调度平台是唯一事实源；本页每次打开实时读取。保存不改变上下线状态，新建调度需显式上线。平台定时触发的运行在「调度实例」中查看（门户发起的运行才进任务运行记录）。
+            </AlertDescription>
+          </Alert>
 
           {scheduleRequest.isPending ? <LoadingInline>正在读取当前调度状态…</LoadingInline> : null}
-          {scheduleRequest.isError ? <p role="alert" className="text-body-sm text-red">{errorMessage(scheduleRequest.error, '调度状态读取失败')}</p> : null}
+          {scheduleRequest.isError ? (
+            <Alert variant="error">
+              <CircleAlert />
+              <AlertDescription>{errorMessage(scheduleRequest.error, '调度状态读取失败')}</AlertDescription>
+            </Alert>
+          ) : null}
 
           {schedule ? (
             <>
-              <FormGrid className="mb-1">
-                <FormField label="下次触发">{schedule.nextFireTime ? formatDateTime(schedule.nextFireTime) : '—'}</FormField>
-                <FormField label="当前 CRON"><code className="font-mono text-label">{schedule.crontab ?? '（未配置）'}</code></FormField>
-                <FormField label="生效窗口">{schedule.startTime || schedule.endTime ? `${schedule.startTime ?? '…'} ~ ${schedule.endTime ?? '…'}` : '长期有效'}</FormField>
-                <FormField label="时区">{schedule.timezoneId ?? '平台默认'}</FormField>
-              </FormGrid>
-
-              <FormField label={`调度策略${advanced ? '（高级模式 · 直接编辑 CRON）' : ''}`} htmlFor="schedule-preset">
-                <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4">
-                  <NativeSelect
-                    id="schedule-preset"
-                    className="min-h-[35px]"
-                    value={advanced ? 'advanced' : preset}
-                    disabled={advanced}
-                    onChange={(event) => setPreset(event.target.value as typeof preset)}
-                  >
-                    <option value="daily">周期 · 每天（HH:mm）</option>
-                    <option value="hourly">周期 · 时段内每小时</option>
-                    <option value="everyNHours">周期 · 时段内每 N 小时</option>
-                    <option value="everyNMinutes">周期 · 时段内每 N 分钟</option>
-                    <option value="once">延迟一次 · 指定时刻触发</option>
-                    {advanced ? <option value="advanced">高级模式 · 直编 CRON</option> : null}
-                  </NativeSelect>
-                  <label className="flex items-center gap-2 text-label text-ink-soft">
-                    <input type="checkbox" className="size-[13px] accent-blue" checked={advanced} onChange={(event) => setAdvanced(event.target.checked)} />
-                    高级模式（直接编辑 CRON）
-                  </label>
+              {/* 调度现状是只读事实，用定义列表呈现，不占用表单字段的标签语义。 */}
+              <dl className="mb-5 grid grid-cols-2 gap-x-4 gap-y-3">
+                <div>
+                  <dt className="mb-1 text-meta text-muted-foreground">下次触发</dt>
+                  <dd className="m-0 text-body-sm text-ink-soft">{schedule.nextFireTime ? formatDateTime(schedule.nextFireTime) : '—'}</dd>
                 </div>
-              </FormField>
+                <div>
+                  <dt className="mb-1 text-meta text-muted-foreground">当前 CRON</dt>
+                  <dd className="m-0 font-mono text-label text-ink-soft">{schedule.crontab ?? '（未配置）'}</dd>
+                </div>
+                <div>
+                  <dt className="mb-1 text-meta text-muted-foreground">生效窗口</dt>
+                  <dd className="m-0 text-body-sm text-ink-soft">{schedule.startTime || schedule.endTime ? `${schedule.startTime ?? '…'} ~ ${schedule.endTime ?? '…'}` : '长期有效'}</dd>
+                </div>
+                <div>
+                  <dt className="mb-1 text-meta text-muted-foreground">时区</dt>
+                  <dd className="m-0 text-body-sm text-ink-soft">{schedule.timezoneId ?? '平台默认'}</dd>
+                </div>
+              </dl>
+
+              <Field className="mb-4">
+                <FieldLabel htmlFor="schedule-preset">{`调度策略${advanced ? '（高级模式 · 直接编辑 CRON）' : ''}`}</FieldLabel>
+                <div className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-4">
+                  <Select
+                    items={presetItems}
+                    value={advanced ? 'advanced' : preset}
+                    onValueChange={(next) => setPreset((next ?? '') as typeof preset)}
+                    disabled={advanced}
+                  >
+                    <SelectTrigger id="schedule-preset">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectPopup>
+                      {presetItems.map((item) => (
+                        <SelectItem key={item.value} value={item.value}>
+                          {item.label}
+                        </SelectItem>
+                      ))}
+                    </SelectPopup>
+                  </Select>
+                  <Label className="whitespace-nowrap">
+                    <Checkbox checked={advanced} onCheckedChange={setAdvanced} />
+                    高级模式（直接编辑 CRON）
+                  </Label>
+                </div>
+              </Field>
 
               {advanced ? (
-                <FormField label="CRON 表达式（秒 分 时 日 月 周，六位）" htmlFor="schedule-cron">
+                <Field className="mb-4">
+                  <FieldLabel>CRON 表达式（秒 分 时 日 月 周，六位）</FieldLabel>
                   <Input id="schedule-cron" className="font-mono" value={crontab} onChange={(event) => setCrontab(event.target.value)} spellCheck={false} placeholder="0 30 2 * * ?" />
-                </FormField>
+                </Field>
               ) : preset === 'daily' ? (
-                <FormField label="每天执行时刻" htmlFor="schedule-daily">
+                <Field className="mb-4">
+                  <FieldLabel>每天执行时刻</FieldLabel>
                   <Input id="schedule-daily" type="time" value={dailyTime} onChange={(event) => setDailyTime(event.target.value)} className="w-[160px]" />
-                </FormField>
+                </Field>
               ) : preset === 'once' ? (
-                <FormField label="触发时刻（到点触发一次；触发后建议删除调度）" htmlFor="schedule-once">
+                <Field className="mb-4">
+                  <FieldLabel>触发时刻（到点触发一次；触发后建议删除调度）</FieldLabel>
                   <Input id="schedule-once" type="datetime-local" value={onceAt} onChange={(event) => setOnceAt(event.target.value)} className="w-[220px]" />
-                </FormField>
+                </Field>
               ) : (
                 <FormGrid>
-                  <FormField label="每日时段起（时:分）" htmlFor="schedule-range-start">
+                  <Field>
+                    <FieldLabel>每日时段起（时:分）</FieldLabel>
                     <Input id="schedule-range-start" type="time" value={rangeStart} onChange={(event) => setRangeStart(event.target.value)} />
-                  </FormField>
-                  <FormField label="每日时段止（时:分）" htmlFor="schedule-range-end">
+                  </Field>
+                  <Field>
+                    <FieldLabel>每日时段止（时:分）</FieldLabel>
                     <Input id="schedule-range-end" type="time" value={rangeEnd} onChange={(event) => setRangeEnd(event.target.value)} />
-                  </FormField>
+                  </Field>
                   {preset !== 'hourly' ? (
-                    <FormField label={`间隔（${preset === 'everyNHours' ? '小时 1-11' : '分钟 1-59'}）`} htmlFor="schedule-interval">
+                    <Field>
+                      <FieldLabel>{`间隔（${preset === 'everyNHours' ? '小时 1-11' : '分钟 1-59'}）`}</FieldLabel>
                       <Input id="schedule-interval" type="number" min={1} max={preset === 'everyNHours' ? 11 : 59} value={interval} onChange={(event) => setIntervalValue(event.target.value)} />
-                    </FormField>
+                    </Field>
                   ) : null}
                 </FormGrid>
               )}
 
               {preset !== 'once' && !advanced ? (
                 <FormGrid>
-                  <FormField label="生效开始（可空）" htmlFor="schedule-start"><Input id="schedule-start" type="datetime-local" value={startTime} onChange={(event) => setStartTime(event.target.value)} /></FormField>
-                  <FormField label="生效结束（可空）" htmlFor="schedule-end"><Input id="schedule-end" type="datetime-local" value={endTime} onChange={(event) => setEndTime(event.target.value)} /></FormField>
+                  <Field>
+                    <FieldLabel>生效开始（可空）</FieldLabel>
+                    <Input id="schedule-start" type="datetime-local" value={startTime} onChange={(event) => setStartTime(event.target.value)} />
+                  </Field>
+                  <Field>
+                    <FieldLabel>生效结束（可空）</FieldLabel>
+                    <Input id="schedule-end" type="datetime-local" value={endTime} onChange={(event) => setEndTime(event.target.value)} />
+                  </Field>
                 </FormGrid>
               ) : null}
 
-              <FormField label="编译结果">
-                <code className="font-mono text-label text-ink-soft">{composedCrontab || '（待填写）'}</code>
-                {composedStart ? <small className="ml-2 text-meta text-muted">生效 {toDsTime(composedStart)} ~ {toDsTime(composedEnd ?? '')}</small> : null}
-              </FormField>
+              <Field className="mb-4">
+                <FieldLabel>编译结果</FieldLabel>
+                <div>
+                  <code className="font-mono text-label text-ink-soft">{composedCrontab || '（待填写）'}</code>
+                  {composedStart ? <small className="ml-2 text-meta text-muted-foreground">生效 {toDsTime(composedStart)} ~ {toDsTime(composedEnd ?? '')}</small> : null}
+                </div>
+              </Field>
 
               {preview ? (
                 <div className="mb-3 rounded-control border border-line bg-wash px-3 py-2.5">
-                  <Badge tone={preview.source === 'DS' ? 'success' : 'warn'}>{preview.source === 'DS' ? '平台调度引擎计算' : '引擎不可达 · 本地估算'}</Badge>
+                  <Badge variant={preview.source === 'DS' ? 'success' : 'warning'}>{preview.source === 'DS' ? '平台调度引擎计算' : '引擎不可达 · 本地估算'}</Badge>
                   <ul className="mt-2 space-y-1 text-label text-ink-soft">
                     {preview.fireTimes.map((time) => <li key={time}>{formatDateTime(time)}</li>)}
                     {preview.fireTimes.length === 0 ? <li>生效窗口内无触发时刻</li> : null}
@@ -312,20 +394,20 @@ export function SchedulePanel({ jobId, jobName }: { jobId: string; jobName: stri
               ) : null}
 
               <div className="flex flex-wrap items-center gap-2">
-                <Button size="sm" disabled={busy} onClick={() => previewMutation.mutate()}>
+                <Button variant="outline" size="sm" disabled={busy} onClick={() => previewMutation.mutate()}>
                   <Eye size={13} />{previewMutation.isPending ? '计算中…' : '预览触发时间'}
                 </Button>
-                <Button size="sm" variant="primary" disabled={busy || !composedCrontab} onClick={() => saveMutation.mutate()}>
+                <Button size="sm" disabled={busy || !composedCrontab} onClick={() => saveMutation.mutate()}>
                   <Save size={13} />{saveMutation.isPending ? '处理中…' : '保存调度'}
                 </Button>
-                <Button size="sm" disabled={busy || !schedule.scheduled || schedule.online} onClick={() => stateMutation.mutate(true)}>
+                <Button variant="outline" size="sm" disabled={busy || !schedule.scheduled || schedule.online} onClick={() => stateMutation.mutate(true)}>
                   <Power size={13} />上线
                 </Button>
-                <Button size="sm" disabled={busy || !schedule.online} onClick={() => stateMutation.mutate(false)}>
+                <Button variant="outline" size="sm" disabled={busy || !schedule.online} onClick={() => stateMutation.mutate(false)}>
                   <Power size={13} />下线
                 </Button>
                 {schedule.scheduled ? (
-                  <Button size="sm" variant="danger-outline" disabled={busy} onClick={() => setDeleteOpen(true)}>
+                  <Button size="sm" variant="destructive-outline" disabled={busy} onClick={() => setDeleteOpen(true)}>
                     <Trash2 size={13} />删除调度
                   </Button>
                 ) : null}
@@ -333,28 +415,37 @@ export function SchedulePanel({ jobId, jobName }: { jobId: string; jobName: stri
             </>
           ) : null}
         </div>
-      </Panel>
+      </FramePanel>
 
-      <Panel>
-        <PanelHead title="调度实例" count={instancesRequest.data?.total ?? 0} description="平台调度触发/补数产生的实例" actions={<Button size="sm" onClick={() => void instancesRequest.refetch()}>刷新</Button>} />
+      <FramePanel className="p-0 overflow-clip">
+        <FrameHeader className="px-[18px] pt-[18px] pb-3 flex-row items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="text-title font-semibold tracking-[-0.2px]">
+              调度实例
+              {instancesRequest.data?.total ?? 0 !== undefined ? <Badge variant="outline">{instancesRequest.data?.total ?? 0}</Badge> : null}
+            </h2>
+            <FrameDescription>平台调度触发/补数产生的实例</FrameDescription>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">{<Button variant="outline" size="sm" onClick={() => void instancesRequest.refetch()}>刷新</Button>}</div>
+        </FrameHeader>
         <div className="px-5 pb-2">
           <div className="mb-3 flex flex-wrap items-end gap-2 rounded-control border border-line bg-wash px-3 py-2.5">
-            <div>
-              <label htmlFor="backfill-start" className="mb-1 block text-meta text-muted">补数开始日期</label>
-              <Input id="backfill-start" type="date" value={backfillStart} onChange={(event) => setBackfillStart(event.target.value)} className="w-[150px]" />
-            </div>
-            <div>
-              <label htmlFor="backfill-end" className="mb-1 block text-meta text-muted">补数结束日期</label>
-              <Input id="backfill-end" type="date" value={backfillEnd} onChange={(event) => setBackfillEnd(event.target.value)} className="w-[150px]" />
-            </div>
-            <Button
+            <Field className="w-[150px]">
+              <FieldLabel htmlFor="backfill-start">补数开始日期</FieldLabel>
+              <DatePicker id="backfill-start" value={backfillStart} onValueChange={setBackfillStart} />
+            </Field>
+            <Field className="w-[150px]">
+              <FieldLabel htmlFor="backfill-end">补数结束日期</FieldLabel>
+              <DatePicker id="backfill-end" value={backfillEnd} onValueChange={setBackfillEnd} />
+            </Field>
+            <Button variant="outline"
               size="sm"
               disabled={backfillMutation.isPending || !backfillStart || !backfillEnd}
               onClick={() => backfillMutation.mutate()}
             >
               <CalendarClock size={13} />{backfillMutation.isPending ? '提交中…' : '提交补数'}
             </Button>
-            <span className="ml-auto text-meta text-muted">补数按日期逐日触发，与手动运行分开记录。</span>
+            <span className="ml-auto text-meta text-muted-foreground">补数按日期逐日触发，与手动运行分开记录。</span>
           </div>
         </div>
         <DataTable
@@ -370,15 +461,15 @@ export function SchedulePanel({ jobId, jobName }: { jobId: string; jobName: stri
           <div className="border-t border-line bg-[#fbfcfe] px-5 py-3">
             <div className="mb-2 flex items-center gap-2 text-label font-medium text-ink-soft">任务实例</div>
             {tasksRequest.isPending ? <LoadingInline>正在读取任务…</LoadingInline> : null}
-            {tasksRequest.data?.length === 0 ? <p className="text-label text-muted">该实例还没有任务记录。</p> : null}
+            {tasksRequest.data?.length === 0 ? <p className="text-label text-muted-foreground">该实例还没有任务记录。</p> : null}
             <ul className="space-y-1.5">
               {(tasksRequest.data ?? []).map((task) => (
                 <li key={task.id} className="flex flex-wrap items-center gap-3 rounded-control border border-line bg-paper px-3 py-2 text-label">
                   <span className="text-ink-soft">{task.name}</span>
-                  <StatusText tone={instanceTone(task.state)}>{instanceLabel(task.state)}</StatusText>
-                  <span className="text-meta text-muted">{formatDateTime(task.startTime)} → {formatDateTime(task.endTime)}</span>
+                  <StatusBadge tone={instanceTone(task.state)}>{instanceLabel(task.state)}</StatusBadge>
+                  <span className="text-meta text-muted-foreground">{formatDateTime(task.startTime)} → {formatDateTime(task.endTime)}</span>
                   <Button
-                    variant="text"
+                    variant="link"
                     className="ml-auto"
                     onClick={() => setLogTask((current) => current?.taskId === task.id ? null : { instanceId: expandedInstance, taskId: task.id })}
                   >
@@ -398,9 +489,9 @@ export function SchedulePanel({ jobId, jobName }: { jobId: string; jobName: stri
             ) : null}
           </div>
         ) : null}
-      </Panel>
+      </FramePanel>
 
-      <Confirm
+      <ConfirmDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
         title="删除任务调度"

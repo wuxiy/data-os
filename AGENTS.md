@@ -62,4 +62,4 @@ cd prototype && npx tsc -b && npx vitest run \
 
 - [架构边界](docs/agents/architecture.md) — 唯一状态机、单一来源清单、仓储拆分；动 `run/` 或做跨栈抽象前必读
 - [后端服务](docs/agents/services.md) — 控制面与质量执行器的测试、跨服务契约与红线
-- [门户前端](docs/agents/frontend.md) — CSS Modules、演示数据边界、hooks/Drawer、qa 锁规则
+- [门户前端](docs/agents/frontend.md) — coss ui 组件层（`components/ui` 原样、`components/app` 自有件）、令牌桥与无 preflight 补丁、演示数据边界、qa 锁规则

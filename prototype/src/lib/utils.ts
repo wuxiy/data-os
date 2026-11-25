@@ -1,4 +1,4 @@
-import { clsx, type ClassValue } from 'clsx'
+import { type ClassValue, clsx } from 'clsx'
 import { extendTailwindMerge } from 'tailwind-merge'
 
 // 主题语义字号与文字颜色同属 text-* 前缀；明确分类以免字号被颜色覆盖。

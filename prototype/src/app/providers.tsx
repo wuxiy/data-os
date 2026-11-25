@@ -1,15 +1,17 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+
+import { ToastProvider } from '@/components/ui/toast'
+
 import {
+  type AuthSnapshot,
   canGovernAssistant,
   clearOidcSession,
   hasTechnicalAccess,
   initializeOidc,
   logoutOidc,
   oidcIsConfigured,
-  type AuthSnapshot,
 } from '../data/oidc'
-import { NoticeProvider } from '../components/ui/toast'
 
 interface AuthContextValue {
   snapshot: AuthSnapshot
@@ -97,7 +99,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   return (
     <AuthContext.Provider value={value}>
       <QueryClientProvider client={client}>
-        <NoticeProvider>{children}</NoticeProvider>
+        <ToastProvider position="bottom-center">{children}</ToastProvider>
       </QueryClientProvider>
     </AuthContext.Provider>
   )

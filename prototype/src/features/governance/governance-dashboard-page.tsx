@@ -1,19 +1,22 @@
 import { useQuery } from '@tanstack/react-query'
 import { ChevronRight, RefreshCw, Shield } from 'lucide-react'
 import { useState } from 'react'
-import { Badge } from '../../components/ui/badge'
-import { Button } from '../../components/ui/button'
-import { MetricCard, MetricStrip } from '../../components/ui/metric'
-import { Breadcrumb, PageHeading } from '../../components/ui/page-heading'
-import { Count, Panel, PanelHead } from '../../components/ui/panel'
-import { EmptyState, LoadingBlock } from '../../components/ui/states'
-import { DataTable, listColumnHelper } from '../../components/table/data-table'
-import { formatDateTime, issueStatusLabel, issueStatusTone } from '../../data/domain'
-import type { GovernanceApiIssue } from '../../data/controlPlane'
-import { deepLinks } from '../../data/routes'
+
+import { EmptyState } from '@/components/app/empty-state'
+import { LoadingBlock } from '@/components/app/loading'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { FrameDescription, FrameHeader, FramePanel } from '@/components/ui/frame'
+
 import { usePortalNavigate } from '../../app/navigate'
-import { governanceSummaryQuery } from './queries'
+import { MetricCard, MetricStrip } from '../../components/app/metric'
+import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
+import { DataTable, listColumnHelper } from '../../components/table/data-table'
+import type { GovernanceApiIssue } from '../../data/controlPlane'
+import { formatDateTime, issueStatusLabel, issueStatusTone } from '../../data/domain'
+import { deepLinks } from '../../data/routes'
 import { QualityScorePanel } from './quality-score-panel'
+import { governanceSummaryQuery } from './queries'
 import { ResponsibilitySheet } from './responsibility-sheet'
 
 /** 指标卡 → 工作台：标签来自治理摘要接口，未知标签不跳转。 */
@@ -86,7 +89,7 @@ const todoColumns = helper.columns([
     size: 100,
     cell: ({ row }) => {
       const tone = issueStatusTone(row.original.status)
-      return <Badge tone={tone === 'healthy' ? 'success' : tone === 'danger' ? 'danger' : tone === 'warning' ? 'warn' : 'neutral'}>{issueStatusLabel(row.original.status)}</Badge>
+      return <Badge variant={tone === 'healthy' ? 'success' : tone === 'danger' ? 'error' : tone === 'warning' ? 'warning' : 'outline'}>{issueStatusLabel(row.original.status)}</Badge>
     },
   }),
 ])
@@ -127,10 +130,10 @@ export function GovernanceDashboardPage() {
         description="先处理逾期风险，再追溯规则证据与责任归属。"
         actions={
           <>
-            <Button onClick={() => void query.refetch()} disabled={query.isFetching}>
+            <Button variant="outline" onClick={() => void query.refetch()} disabled={query.isFetching}>
               <RefreshCw size={14} className={query.isFetching ? 'animate-spin' : undefined} />刷新
             </Button>
-            <Button variant="primary" onClick={() => navigate('/governance/quality')}>进入质量闭环</Button>
+            <Button onClick={() => navigate('/governance/quality')}>进入质量闭环</Button>
           </>
         }
       />
@@ -138,15 +141,15 @@ export function GovernanceDashboardPage() {
       {query.isPending ? <LoadingBlock>正在读取治理指标…</LoadingBlock> : null}
 
       {query.isError ? (
-        <Panel>
+        <FramePanel className="p-0 overflow-clip">
           <EmptyState
             minHeight={240}
             icon={<Shield />}
             title="治理控制面不可用"
             description="控制面暂不可用 · 未加载真实治理指标或问题。为避免误导，当前没有展示本地演示指标、问题或责任链样例。请恢复控制面后重新连接。"
-            action={<Button onClick={() => void query.refetch()}>重新连接</Button>}
+            action={<Button variant="outline" onClick={() => void query.refetch()}>重新连接</Button>}
           />
-        </Panel>
+        </FramePanel>
       ) : null}
 
       {summary ? (
@@ -167,13 +170,17 @@ export function GovernanceDashboardPage() {
             </MetricStrip>
           ) : null}
 
-          <Panel className="mb-3.5">
-            <PanelHead
-              title="治理待办"
-              count={todoIssues.length}
-              description="未闭环问题按 SLA 截止时间排序"
-              actions={<Button variant="text" onClick={() => navigate('/governance/quality')}>进入质量闭环<ChevronRight size={13} /></Button>}
-            />
+          <FramePanel className="mb-3.5 p-0 overflow-clip">
+            <FrameHeader className="px-[18px] pt-[18px] pb-3 flex-row items-center justify-between gap-3">
+              <div className="min-w-0">
+                <h2 className="text-title font-semibold tracking-[-0.2px]">
+                  治理待办
+                  {todoIssues.length !== undefined ? <Badge variant="outline">{todoIssues.length}</Badge> : null}
+                </h2>
+                <FrameDescription>未闭环问题按 SLA 截止时间排序</FrameDescription>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">{<Button variant="link" onClick={() => navigate('/governance/quality')}>进入质量闭环<ChevronRight size={13} /></Button>}</div>
+            </FrameHeader>
             <DataTable
               columns={todoColumns}
               data={todoIssues}
@@ -182,22 +189,26 @@ export function GovernanceDashboardPage() {
               onRowClick={openIssue}
               empty={<EmptyState minHeight={200} icon={<Shield />} title="当前机构暂无待办问题" description="新问题由质量规则运行登记后出现在这里。" />}
             />
-          </Panel>
+          </FramePanel>
 
-          <Panel className="mb-3.5">
-            <PanelHead
-              title="治理责任链 · v1"
-              description="围绕同一问题核对对象、规则、责任人与处理记录"
-              actions={chainTodo
-                ? <Button variant="text" onClick={() => setChainOpen(true)}>打开 {chainTodo.id} 的责任链<ChevronRight size={13} /></Button>
-                : <Button variant="text" onClick={() => navigate('/governance/quality')}>前往质量问题工作台<ChevronRight size={13} /></Button>}
-            />
+          <FramePanel className="mb-3.5 p-0 overflow-clip">
+            <FrameHeader className="px-[18px] pt-[18px] pb-3 flex-row items-center justify-between gap-3">
+              <div className="min-w-0">
+                <h2 className="text-title font-semibold tracking-[-0.2px]">
+                  治理责任链 · v1
+                </h2>
+                <FrameDescription>围绕同一问题核对对象、规则、责任人与处理记录</FrameDescription>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">{chainTodo
+                                ? <Button variant="link" onClick={() => setChainOpen(true)}>打开 {chainTodo.id} 的责任链<ChevronRight size={13} /></Button>
+                                : <Button variant="link" onClick={() => navigate('/governance/quality')}>前往质量问题工作台<ChevronRight size={13} /></Button>}</div>
+            </FrameHeader>
             {chainTodo ? (
               <div className="px-5 pb-5">
                 <div className="mb-3 rounded-control border border-line bg-wash px-3.5 py-3">
-                  <span className="text-meta text-muted">优先跟进</span>
+                  <span className="text-meta text-muted-foreground">优先跟进</span>
                   <strong className="mt-1 block text-body-sm text-ink-soft">{chainTodo.title}</strong>
-                  <span className="mt-0.5 block text-meta text-muted">{chainTodo.id} · 更新于 {formatDateTime(chainTodo.updatedAt ?? null)}</span>
+                  <span className="mt-0.5 block text-meta text-muted-foreground">{chainTodo.id} · 更新于 {formatDateTime(chainTodo.updatedAt ?? null)}</span>
                 </div>
                 <dl className="grid grid-cols-4 gap-4 max-[1100px]:grid-cols-2">
                   <Fact label="影响对象" value={chainTodo.objectLabel || chainTodo.impact || chainTodo.datasetId} />
@@ -207,27 +218,35 @@ export function GovernanceDashboardPage() {
                 </dl>
               </div>
             ) : (
-              <p className="px-5 pb-5 text-label text-muted">当前没有待闭环问题。新问题登记后，可在此追踪治理责任链。</p>
+              <p className="px-5 pb-5 text-label text-muted-foreground">当前没有待闭环问题。新问题登记后，可在此追踪治理责任链。</p>
             )}
-          </Panel>
+          </FramePanel>
 
           <div className="mb-3.5 grid grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] gap-3.5 max-[1100px]:grid-cols-1">
-            <Panel>
-              <PanelHead title="数据集风险排行" description="按数据集聚合，依逾期与未闭环问题排序" actions={<Button variant="text" onClick={() => navigate('/governance/quality')}>查看全部<ChevronRight size={13} /></Button>} />
+            <FramePanel className="p-0 overflow-clip">
+              <FrameHeader className="px-[18px] pt-[18px] pb-3 flex-row items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <h2 className="text-title font-semibold tracking-[-0.2px]">
+                    数据集风险排行
+                  </h2>
+                  <FrameDescription>按数据集聚合，依逾期与未闭环问题排序</FrameDescription>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">{<Button variant="link" onClick={() => navigate('/governance/quality')}>查看全部<ChevronRight size={13} /></Button>}</div>
+              </FrameHeader>
               <ol className="m-0 list-none px-5 pb-4">
                 {riskRanking.map((item, index) => (
                   <li key={item.dataset} className="flex items-center gap-3 border-b border-line-soft py-2.5 last:border-b-0">
-                    <span className="flex size-6 items-center justify-center rounded-chip border border-line bg-[#f7f9fc] text-label text-muted">{String(index + 1).padStart(2, '0')}</span>
+                    <span className="flex size-6 items-center justify-center rounded-chip border border-line bg-[#f7f9fc] text-label text-muted-foreground">{String(index + 1).padStart(2, '0')}</span>
                     <div className="min-w-0 flex-1">
                       <strong className="block truncate text-body-sm font-medium text-ink-soft">{item.dataset}</strong>
-                      <span className="block text-meta text-muted">{item.owner}</span>
+                      <span className="block text-meta text-muted-foreground">{item.owner}</span>
                     </div>
                     <span className={`text-label ${item.overdue > 0 ? 'text-red' : 'text-ink-soft'}`}>{item.value}</span>
                   </li>
                 ))}
-                {riskRanking.length === 0 ? <li className="py-6 text-center text-label text-muted">当前没有未闭环风险问题</li> : null}
+                {riskRanking.length === 0 ? <li className="py-6 text-center text-label text-muted-foreground">当前没有未闭环风险问题</li> : null}
               </ol>
-            </Panel>
+            </FramePanel>
             <QualityScorePanel compact />
           </div>
         </>
@@ -241,10 +260,9 @@ export function GovernanceDashboardPage() {
 function Fact({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="mb-1 text-meta text-muted">{label}</dt>
+      <dt className="mb-1 text-meta text-muted-foreground">{label}</dt>
       <dd className="m-0 text-body-sm text-ink-soft">{value}</dd>
     </div>
   )
 }
 
-export { Count }

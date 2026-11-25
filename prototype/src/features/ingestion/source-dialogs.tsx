@@ -1,12 +1,28 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Cable, CheckCircle2, Copy } from 'lucide-react'
+import { Cable, CheckCircle2, CircleAlert, Copy } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { Badge } from '../../components/ui/badge'
-import { Button } from '../../components/ui/button'
-import { FormField, FormNotice } from '../../components/ui/form'
-import { CodeTextarea, Input, NativeSelect } from '../../components/ui/input'
-import { Dialog, DialogFooter } from '../../components/ui/overlay'
-import { useNotice } from '../../components/ui/toast'
+
+import { CodeTextarea } from '@/components/app/code-textarea'
+import { DiscardPrompt, useDiscardGuard } from '@/components/app/discard-guard'
+import { FormGrid } from '@/components/app/form-grid'
+import { useNotice } from '@/components/app/notice'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogClose,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogPanel,
+  DialogPopup,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Field, FieldLabel } from '@/components/ui/field'
+import { Input } from '@/components/ui/input'
+import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
+
 import {
   checkSource,
   copyIngestionJob,
@@ -15,11 +31,15 @@ import {
   type SourceApiItem,
 } from '../../data/controlPlane'
 import { formatDateTime } from '../../data/domain'
-import { ingestionKeys } from './queries'
 import { errorMessage, parseConfig, sourceCheckDefaults, sourceDisplayName, sourceStatusView } from './labels'
+import { ingestionKeys } from './queries'
 
 const SYSTEM_TYPES = ['LIS', 'EMR', 'HIS', 'PACS']
 const PROTOCOLS = ['JDBC', 'HTTP', 'FHIR', 'SFTP']
+
+const PROTOCOL_ITEMS = PROTOCOLS.map((protocol) => ({ value: protocol, label: protocol }))
+
+const SYSTEM_TYPE_ITEMS = SYSTEM_TYPES.map((type) => ({ value: type, label: type }))
 
 /** 数据源登记（3 字段短表单）：提交后为「待检查」，不读取院内数据。 */
 export function SourceRegisterDialog({
@@ -51,49 +71,89 @@ export function SourceRegisterDialog({
 
   const dirty = Boolean(form.name.trim())
 
+  const guard = useDiscardGuard(dirty && !mutation.isPending, onOpenChange)
   return (
-    <Dialog
-      open={open}
-      onOpenChange={onOpenChange}
-      title="登记数据源"
-      description="登记来源系统与接入方式；提交后为待检查，不会立即读取院内数据。"
-      width={540}
-      dirty={dirty && !mutation.isPending}
-      footer={
-        <DialogFooter note="登记与连通性检查分开呈现">
-          <Button onClick={() => onOpenChange(false)} disabled={mutation.isPending}>取消</Button>
+    <Dialog open={open} onOpenChange={guard.requestOpenChange}>
+      <DialogPopup closeProps={{ 'aria-label': '关闭' }}>
+        <DialogHeader>
+          <DialogTitle>登记数据源</DialogTitle>
+          <DialogDescription>登记来源系统与接入方式；提交后为待检查，不会立即读取院内数据。</DialogDescription>
+        </DialogHeader>
+        <DialogPanel>
+          {guard.discardPrompt ? <DiscardPrompt onKeepEditing={guard.keepEditing} onDiscard={guard.confirmDiscard} /> : null}
+          <Alert variant="info" role="note" className="mb-4">
+            <Cable />
+            <AlertDescription>系统类型与接入协议决定后续可用的配置形态；凭据只以引用形式登记，不写入来源记录。</AlertDescription>
+          </Alert>
+          <Field className="mb-4">
+            <FieldLabel>
+              来源名称 <span className="text-destructive-foreground">*</span>
+            </FieldLabel>
+            <Input
+              id="source-name"
+              value={form.name}
+              onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
+              placeholder="例如：检验前置机"
+            />
+          </Field>
+          <FormGrid>
+            <Field>
+              <FieldLabel htmlFor="source-system">系统类型</FieldLabel>
+              <Select
+                items={SYSTEM_TYPE_ITEMS}
+                value={form.systemType}
+                onValueChange={(next) => setForm((current) => ({ ...current, systemType: next ?? '' }))}
+              >
+                <SelectTrigger id="source-system">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectPopup>
+                  {SYSTEM_TYPE_ITEMS.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectPopup>
+              </Select>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="source-protocol">接入协议</FieldLabel>
+              <Select
+                items={PROTOCOL_ITEMS}
+                value={form.protocol}
+                onValueChange={(next) => setForm((current) => ({ ...current, protocol: next ?? '' }))}
+              >
+                <SelectTrigger id="source-protocol">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectPopup>
+                  {PROTOCOL_ITEMS.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectPopup>
+              </Select>
+            </Field>
+          </FormGrid>
+          {error ? (
+            <Alert variant="error" className="mt-3">
+              <CircleAlert />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          ) : null}
+        </DialogPanel>
+        <DialogFooter>
+          <span className="text-muted-foreground text-xs sm:mr-auto">登记与连通性检查分开呈现</span>
+          <DialogClose render={<Button variant="outline" disabled={mutation.isPending} />}>取消</DialogClose>
           <Button
-            variant="primary"
             disabled={!form.name.trim() || mutation.isPending}
             onClick={() => { setError(null); mutation.mutate() }}
           >
             {mutation.isPending ? '登记中…' : '登记来源'}
           </Button>
         </DialogFooter>
-      }
-    >
-      <FormNotice icon={<Cable />}>系统类型与接入协议决定后续可用的配置形态；凭据只以引用形式登记，不写入来源记录。</FormNotice>
-      <FormField label="来源名称" required htmlFor="source-name">
-        <Input
-          id="source-name"
-          value={form.name}
-          onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
-          placeholder="例如：检验前置机"
-        />
-      </FormField>
-      <div className="grid grid-cols-2 gap-4">
-        <FormField label="系统类型" htmlFor="source-system">
-          <NativeSelect id="source-system" value={form.systemType} onChange={(event) => setForm((current) => ({ ...current, systemType: event.target.value }))}>
-            {SYSTEM_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
-          </NativeSelect>
-        </FormField>
-        <FormField label="接入协议" htmlFor="source-protocol">
-          <NativeSelect id="source-protocol" value={form.protocol} onChange={(event) => setForm((current) => ({ ...current, protocol: event.target.value }))}>
-            {PROTOCOLS.map((protocol) => <option key={protocol} value={protocol}>{protocol}</option>)}
-          </NativeSelect>
-        </FormField>
-      </div>
-      {error ? <p role="alert" className="mt-3 text-body-sm text-red">{error}</p> : null}
+      </DialogPopup>
     </Dialog>
   )
 }
@@ -146,40 +206,47 @@ export function SourceCheckDialog({
   const status = source ? sourceStatusView(source.status) : null
 
   return (
-    <Dialog
-      open={source !== null}
-      onOpenChange={onOpenChange}
-      title={source ? `${sourceDisplayName(source)} · ${source.protocol}` : '数据源检查'}
-      description="检查只在当前请求中使用连接参数，不会把密码或 Token 写入来源记录。"
-      width={540}
-      footer={
-        <DialogFooter note="结果回写为健康、失败或待配置">
-          <Button onClick={() => onOpenChange(false)}>关闭</Button>
-          <Button variant="primary" onClick={submit} disabled={mutation.isPending || !source}>
+    <Dialog open={source !== null} onOpenChange={onOpenChange}>
+      <DialogPopup closeProps={{ 'aria-label': '关闭' }}>
+        <DialogHeader>
+          <DialogTitle>{source ? `${sourceDisplayName(source)} · ${source.protocol}` : '数据源检查'}</DialogTitle>
+          <DialogDescription>检查只在当前请求中使用连接参数，不会把密码或 Token 写入来源记录。</DialogDescription>
+        </DialogHeader>
+        <DialogPanel>
+          <Field className="mb-4">
+            <FieldLabel>检查配置 JSON</FieldLabel>
+            <CodeTextarea
+              id="source-check-config"
+              value={text}
+              onChange={(event) => setText(event.target.value)}
+              disabled={mutation.isPending}
+              className="min-h-[200px]"
+            />
+          </Field>
+          {error ? (
+            <Alert variant="error" className="mb-3">
+              <CircleAlert />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          ) : null}
+          {source?.lastCheckMessage ? (
+            <div className="rounded-control border border-line bg-wash px-3 py-2.5">
+              <div className="flex items-center gap-2">
+                {status ? <Badge variant={status.tone}>{status.label}</Badge> : null}
+                <span className="text-label text-ink-soft">{source.lastCheckMessage}</span>
+              </div>
+              <p className="mt-1 text-meta text-muted-foreground">最近检查：{formatDateTime(source.lastCheckedAt)}</p>
+            </div>
+          ) : null}
+        </DialogPanel>
+        <DialogFooter>
+          <span className="text-muted-foreground text-xs sm:mr-auto">结果回写为健康、失败或待配置</span>
+          <DialogClose render={<Button variant="outline" />}>关闭</DialogClose>
+          <Button onClick={submit} disabled={mutation.isPending || !source}>
             <CheckCircle2 size={14} />{mutation.isPending ? '检查中…' : '开始检查'}
           </Button>
         </DialogFooter>
-      }
-    >
-      <FormField label="检查配置 JSON" htmlFor="source-check-config">
-        <CodeTextarea
-          id="source-check-config"
-          value={text}
-          onChange={(event) => setText(event.target.value)}
-          disabled={mutation.isPending}
-          className="min-h-[200px]"
-        />
-      </FormField>
-      {error ? <p role="alert" className="mb-3 text-body-sm text-red">{error}</p> : null}
-      {source?.lastCheckMessage ? (
-        <div className="rounded-control border border-line bg-wash px-3 py-2.5">
-          <div className="flex items-center gap-2">
-            {status ? <Badge tone={status.tone}>{status.label}</Badge> : null}
-            <span className="text-label text-ink-soft">{source.lastCheckMessage}</span>
-          </div>
-          <p className="mt-1 text-meta text-muted">最近检查：{formatDateTime(source.lastCheckedAt)}</p>
-        </div>
-      ) : null}
+      </DialogPopup>
     </Dialog>
   )
 }
@@ -221,43 +288,59 @@ export function CopyJobDialog({
 
   const dirty = Boolean(job && form.name !== `${job.name}-副本`)
 
+  const sourceItems = [
+    ...sources.map((source) => ({ value: source.id, label: <>{sourceDisplayName(source)} · {source.systemType}{source.connection ? '' : ' · 未登记连接'}</> })),
+  ]
+  const guard = useDiscardGuard(dirty && !mutation.isPending, onOpenChange)
   return (
-    <Dialog
-      open={job !== null}
-      onOpenChange={onOpenChange}
-      title={job ? `复制任务 · ${job.name}` : '复制任务'}
-      description="结构化任务复制后会对目标源重新校验库表字段；副本以草稿落库，不继承运行历史。"
-      width={540}
-      dirty={dirty && !mutation.isPending}
-      footer={
-        <DialogFooter note="副本保留配置，不带运行记录">
-          <Button onClick={() => onOpenChange(false)} disabled={mutation.isPending}>取消</Button>
-          <Button variant="primary" onClick={() => { setError(null); mutation.mutate() }} disabled={mutation.isPending || !job}>
+    <Dialog open={job !== null} onOpenChange={guard.requestOpenChange}>
+      <DialogPopup closeProps={{ 'aria-label': '关闭' }}>
+        <DialogHeader>
+          <DialogTitle>{job ? `复制任务 · ${job.name}` : '复制任务'}</DialogTitle>
+          <DialogDescription>结构化任务复制后会对目标源重新校验库表字段；副本以草稿落库，不继承运行历史。</DialogDescription>
+        </DialogHeader>
+        <DialogPanel>
+          {guard.discardPrompt ? <DiscardPrompt onKeepEditing={guard.keepEditing} onDiscard={guard.confirmDiscard} /> : null}
+          <FormGrid>
+            <Field>
+              <FieldLabel htmlFor="copy-source">目标数据源</FieldLabel>
+              <Select
+                items={sourceItems}
+                value={form.sourceId}
+                onValueChange={(next) => setForm((current) => ({ ...current, sourceId: next ?? '' }))}
+              >
+                <SelectTrigger id="copy-source">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectPopup>
+                  {sourceItems.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectPopup>
+              </Select>
+            </Field>
+            <Field>
+              <FieldLabel>副本名称</FieldLabel>
+              <Input id="copy-name" value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} />
+            </Field>
+          </FormGrid>
+          {error ? (
+            <Alert variant="error" className="mt-3">
+              <CircleAlert />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          ) : null}
+        </DialogPanel>
+        <DialogFooter>
+          <span className="text-muted-foreground text-xs sm:mr-auto">副本保留配置，不带运行记录</span>
+          <DialogClose render={<Button variant="outline" disabled={mutation.isPending} />}>取消</DialogClose>
+          <Button onClick={() => { setError(null); mutation.mutate() }} disabled={mutation.isPending || !job}>
             <Copy size={14} />{mutation.isPending ? '复制中…' : '创建副本'}
           </Button>
         </DialogFooter>
-      }
-    >
-      <div className="grid grid-cols-2 gap-4">
-        <FormField label="目标数据源" htmlFor="copy-source">
-          <NativeSelect
-            id="copy-source"
-            className="min-h-[35px]"
-            value={form.sourceId}
-            onChange={(event) => setForm((current) => ({ ...current, sourceId: event.target.value }))}
-          >
-            {sources.map((source) => (
-              <option key={source.id} value={source.id}>
-                {sourceDisplayName(source)} · {source.systemType}{source.connection ? '' : ' · 未登记连接'}
-              </option>
-            ))}
-          </NativeSelect>
-        </FormField>
-        <FormField label="副本名称" htmlFor="copy-name">
-          <Input id="copy-name" value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} />
-        </FormField>
-      </div>
-      {error ? <p role="alert" className="mt-3 text-body-sm text-red">{error}</p> : null}
+      </DialogPopup>
     </Dialog>
   )
 }

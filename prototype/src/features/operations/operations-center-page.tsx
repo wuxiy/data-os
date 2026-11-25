@@ -1,22 +1,25 @@
 import { useQuery } from '@tanstack/react-query'
 import { Inbox, RefreshCw } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { Badge } from '../../components/ui/badge'
-import { Button } from '../../components/ui/button'
-import { NativeSelect } from '../../components/ui/input'
-import { Breadcrumb, PageHeading } from '../../components/ui/page-heading'
-import { Panel, PanelHead } from '../../components/ui/panel'
-import { EmptyState, LoadingBlock } from '../../components/ui/states'
-import { DataTable, TablePagination, listColumnHelper } from '../../components/table/data-table'
+
+import { EmptyState } from '@/components/app/empty-state'
+import { LoadingBlock } from '@/components/app/loading'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { FrameDescription, FrameHeader, FramePanel } from '@/components/ui/frame'
+import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
+
+import { usePortalNavigate } from '../../app/navigate'
+import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
+import { DataTable, listColumnHelper, TablePagination } from '../../components/table/data-table'
 import { formatDateTime } from '../../data/domain'
 import {
   EVENT_DOMAIN_LABEL,
   EVENT_TYPE_LABEL,
+  type OperationsWorkItem,
   WORK_ITEM_SOURCE_LABEL,
   WORK_ITEM_TYPES,
-  type OperationsWorkItem,
 } from '../../data/operationsApi'
-import { usePortalNavigate } from '../../app/navigate'
 import { operationsEventsQuery, operationsSummaryQuery, operationsWorkItemsQuery } from './queries'
 
 const PAGE_SIZE = 12
@@ -32,6 +35,11 @@ const DEEP_LINK_ROUTES: Record<string, string> = {
 }
 
 const helper = listColumnHelper<OperationsWorkItem>()
+
+const TYPE_ITEMS = [
+  { value: '', label: '全部类型' },
+  ...WORK_ITEM_TYPES.map((item) => ({ value: item, label: item })),
+]
 
 /**
  * 运营中心：面向治理负责人的跨域待办与事件流，与总览共用运营投影事实源。
@@ -56,7 +64,7 @@ export function OperationsCenterPage() {
       id: 'severity',
       header: '严重度',
       size: 90,
-      cell: ({ row }) => <Badge tone={row.original.severity === 'CRITICAL' || row.original.severity === 'HIGH' ? 'danger' : row.original.severity === 'MEDIUM' ? 'warn' : 'neutral'}>{SEVERITY_LABEL[row.original.severity] ?? row.original.severity}</Badge>,
+      cell: ({ row }) => <Badge variant={row.original.severity === 'CRITICAL' || row.original.severity === 'HIGH' ? 'error' : row.original.severity === 'MEDIUM' ? 'warning' : 'outline'}>{SEVERITY_LABEL[row.original.severity] ?? row.original.severity}</Badge>,
     }),
     helper.display({
       id: 'title',
@@ -64,7 +72,7 @@ export function OperationsCenterPage() {
       cell: ({ row }) => (
         <div>
           <div className="text-body-sm text-ink">{row.original.title}</div>
-          <div className="text-meta text-muted">{row.original.type}</div>
+          <div className="text-meta text-muted-foreground">{row.original.type}</div>
         </div>
       ),
     }),
@@ -84,30 +92,44 @@ export function OperationsCenterPage() {
       <PageHeading
         title="运营中心"
         description="跨域待办与事件流；每项待办带来源与深链，可直接进入对应工作台。"
-        actions={<Button onClick={() => { void workItemsRequest.refetch(); void eventsRequest.refetch(); void summaryRequest.refetch() }} disabled={workItemsRequest.isFetching}><RefreshCw size={14} className={workItemsRequest.isFetching ? 'animate-spin' : undefined} />刷新</Button>}
+        actions={<Button variant="outline" onClick={() => { void workItemsRequest.refetch(); void eventsRequest.refetch(); void summaryRequest.refetch() }} disabled={workItemsRequest.isFetching}><RefreshCw size={14} className={workItemsRequest.isFetching ? 'animate-spin' : undefined} />刷新</Button>}
       />
 
       {workItemsRequest.isPending ? <LoadingBlock>正在读取运营待办…</LoadingBlock> : null}
       {workItemsRequest.isError ? (
-        <Panel>
-          <EmptyState minHeight={240} icon={<Inbox />} title="运营待办投影暂不可用" description="控制面运营投影不可达；本页不显示静态回退。" action={<Button onClick={() => void workItemsRequest.refetch()}>重试</Button>} />
-        </Panel>
+        <FramePanel className="p-0 overflow-clip">
+          <EmptyState minHeight={240} icon={<Inbox />} title="运营待办投影暂不可用" description="控制面运营投影不可达；本页不显示静态回退。" action={<Button variant="outline" onClick={() => void workItemsRequest.refetch()}>重试</Button>} />
+        </FramePanel>
       ) : null}
 
       {workItemsRequest.isSuccess ? (
         <div className="grid grid-cols-[minmax(0,1.6fr)_minmax(280px,1fr)] gap-3.5 max-[1100px]:grid-cols-1">
-          <Panel>
-            <PanelHead
-              title="跨域待办"
-              count={sorted.length}
-              description="按严重度排序；筛选按待办类型"
-              actions={
-                <NativeSelect aria-label="按类型筛选" className="w-auto" value={type} onChange={(event) => { setType(event.target.value); setPage(0) }}>
-                  <option value="">全部类型</option>
-                  {WORK_ITEM_TYPES.map((item) => <option key={item} value={item}>{item}</option>)}
-                </NativeSelect>
-              }
-            />
+          <FramePanel className="p-0 overflow-clip">
+            <FrameHeader className="px-[18px] pt-[18px] pb-3 flex-row items-center justify-between gap-3">
+              <div className="min-w-0">
+                <h2 className="text-title font-semibold tracking-[-0.2px]">
+                  跨域待办
+                  {sorted.length !== undefined ? <Badge variant="outline">{sorted.length}</Badge> : null}
+                </h2>
+                <FrameDescription>按严重度排序；筛选按待办类型</FrameDescription>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">{                <Select
+                  items={TYPE_ITEMS}
+                  value={type}
+                  onValueChange={(next) => { setType(next ?? ''); setPage(0) }}
+                >
+                  <SelectTrigger aria-label="按类型筛选" className="w-auto min-w-none" size="sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectPopup>
+                    {TYPE_ITEMS.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectPopup>
+                </Select>}</div>
+            </FrameHeader>
             <DataTable
               columns={columns}
               data={sorted.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE)}
@@ -121,10 +143,17 @@ export function OperationsCenterPage() {
               empty={<EmptyState minHeight={220} icon={<Inbox />} title="当前没有待处理的跨域事项" description="待办来自各业务域的真实记录。" />}
               footer={<TablePagination page={currentPage} pageSize={PAGE_SIZE} total={sorted.length} onPageChange={setPage} label="运营待办分页" />}
             />
-          </Panel>
+          </FramePanel>
 
-          <Panel>
-            <PanelHead title="最近事件" description="跨域操作留痕（近 48 小时）" />
+          <FramePanel className="p-0 overflow-clip">
+            <FrameHeader className="px-[18px] pt-[18px] pb-3 gap-1">
+              <div className="min-w-0">
+                <h2 className="text-title font-semibold tracking-[-0.2px]">
+                  最近事件
+                </h2>
+                <FrameDescription>跨域操作留痕（近 48 小时）</FrameDescription>
+              </div>
+            </FrameHeader>
             <div className="px-5 pb-5">
               {eventsRequest.isPending ? <LoadingBlock className="min-h-[160px]">正在读取事件…</LoadingBlock> : null}
               {eventsRequest.isError ? <p className="py-4 text-center text-label text-amber">事件暂不可用，可重新加载。</p> : null}
@@ -133,15 +162,15 @@ export function OperationsCenterPage() {
                   <li key={`${event.domain}-${index}`} className="border-b border-line-soft py-2 last:border-b-0">
                     <div className="flex items-start justify-between gap-2">
                       <strong className="text-label font-medium text-ink-soft">{EVENT_DOMAIN_LABEL[event.domain] ?? event.domain} · {EVENT_TYPE_LABEL[event.type] ?? event.type}</strong>
-                      <span className="shrink-0 text-meta text-muted">{formatDateTime(event.asOf)}</span>
+                      <span className="shrink-0 text-meta text-muted-foreground">{formatDateTime(event.asOf)}</span>
                     </div>
-                    <p className="mt-0.5 text-meta leading-relaxed text-muted">{event.detail}</p>
+                    <p className="mt-0.5 text-meta leading-relaxed text-muted-foreground">{event.detail}</p>
                   </li>
                 ))}
-                {eventsRequest.isSuccess && (eventsRequest.data?.length ?? 0) === 0 ? <li className="py-6 text-center text-label text-muted">近 48 小时无跨域事件。</li> : null}
+                {eventsRequest.isSuccess && (eventsRequest.data?.length ?? 0) === 0 ? <li className="py-6 text-center text-label text-muted-foreground">近 48 小时无跨域事件。</li> : null}
               </ol>
             </div>
-          </Panel>
+          </FramePanel>
         </div>
       ) : null}
     </div>

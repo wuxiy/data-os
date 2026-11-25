@@ -1,4 +1,8 @@
-import type { QualityEvidenceColumn, QualityRuleDefinitionApiItem, QualityRuleType } from '../../data/controlPlane'
+import type {
+  QualityEvidenceColumn,
+  QualityRuleDefinitionApiItem,
+  QualityRuleType,
+} from '../../data/controlPlane'
 
 /**
  * 质量规则表单的纯逻辑：参数映射与提交前校验。

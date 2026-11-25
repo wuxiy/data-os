@@ -1,4 +1,5 @@
 import { queryOptions } from '@tanstack/react-query'
+
 import {
   fetchIngestionJobs,
   fetchIngestionRuns,
@@ -9,8 +10,8 @@ import {
   fetchScheduleTasks,
   fetchSourceCatalogs,
   fetchSourceColumns,
-  fetchSourceTables,
   fetchSources,
+  fetchSourceTables,
   fetchWorkflowTemplates,
 } from '../../data/controlPlane'
 

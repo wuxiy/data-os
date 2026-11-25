@@ -1,42 +1,74 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Archive, ArrowRightLeft, Download, FileSearch, GitCompareArrows, RefreshCw, Send, ShieldCheck, UploadCloud } from 'lucide-react'
+import {
+  Archive,
+  ArrowRightLeft,
+  CircleAlert,
+  Download,
+  FileSearch,
+  GitCompareArrows,
+  RefreshCw,
+  Send,
+  ShieldCheck,
+  UploadCloud,
+} from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { Badge } from '../../components/ui/badge'
-import { Button } from '../../components/ui/button'
-import { FormField, FormGrid } from '../../components/ui/form'
-import { CodeTextarea, Input, NativeSelect, SearchField } from '../../components/ui/input'
-import { Breadcrumb, PageHeading } from '../../components/ui/page-heading'
-import { Panel, PanelHead } from '../../components/ui/panel'
-import { EmptyState, LoadingBlock, LoadingInline } from '../../components/ui/states'
-import { DataTable, TablePagination, listColumnHelper } from '../../components/table/data-table'
-import { useNotice } from '../../components/ui/toast'
+
+import { CodeTextarea } from '@/components/app/code-textarea'
+import { EmptyState } from '@/components/app/empty-state'
+import { FormGrid } from '@/components/app/form-grid'
+import { LoadingBlock, LoadingInline } from '@/components/app/loading'
+import { useNotice } from '@/components/app/notice'
+import { SearchField } from '@/components/app/search-field'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
+import { FrameDescription, FrameHeader, FramePanel } from '@/components/ui/frame'
+import { Input } from '@/components/ui/input'
+import { RadioGroupPrimitive, RadioPrimitive } from '@/components/ui/radio-group'
+import { SegmentedControl, SegmentedControlItem } from '@/components/ui/segmented-control'
+import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
+
+import { usePortalNavigate } from '../../app/navigate'
+import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
+import { DataTable, listColumnHelper, TablePagination } from '../../components/table/data-table'
+import {
+  actorLabel,
+  formatDateTime,
+  sensitivityLabel,
+  severityTone,
+  standardEventLabel,
+} from '../../data/domain'
 import {
   compareStandardVersions,
   createStandardVersion,
   deprecateStandardVersion,
   fetchFhirBundle,
+  type ImportReport,
   importStandards,
   publishStandardVersion,
   retryStandardSync,
-  submitStandardVersion,
-  updateStandardVersion,
-  type ImportReport,
   type StandardDetailView,
   type StandardElementView,
   type StandardListItem,
+  submitStandardVersion,
+  updateStandardVersion,
   type VersionCompare,
 } from '../../data/standardsApi'
-import { actorLabel, formatDateTime, sensitivityLabel, severityTone, standardEventLabel } from '../../data/domain'
 import { governanceKeys, standardDetailQuery, standardImpactQuery, standardsQuery } from './queries'
-import { usePortalNavigate } from '../../app/navigate'
 
 const STATUS_LABEL: Record<string, string> = { DRAFT: '草稿', IN_REVIEW: '评审中', PUBLISHED: '已发布', DEPRECATED: '已停用' }
 
-function statusTone(status: string): 'success' | 'warn' | 'danger' | 'neutral' {
+const STATUS_ITEMS = [
+  { value: '', label: '全部状态' },
+  ...Object.entries(STATUS_LABEL).map(([value, label]) => ({ value, label })),
+]
+
+function statusTone(status: string): 'success' | 'warning' | 'outline' {
   if (status === 'PUBLISHED') return 'success'
-  if (status === 'IN_REVIEW') return 'warn'
-  if (status === 'DEPRECATED') return 'neutral'
-  return 'neutral'
+  if (status === 'IN_REVIEW') return 'warning'
+  if (status === 'DEPRECATED') return 'outline'
+  return 'outline'
 }
 
 /** 事件 detail 为后端原文；引擎缩写不进入业务视图（同 businessMessage 消毒器先例）。 */
@@ -179,17 +211,17 @@ export function StandardsPage() {
   }
 
   const listColumns = listHelper.columns([
-    listHelper.display({ id: 'code', header: '代码', size: 160, cell: ({ row }) => <code className="font-mono text-label text-muted">{row.original.code}</code> }),
+    listHelper.display({ id: 'code', header: '代码', size: 160, cell: ({ row }) => <code className="font-mono text-label text-muted-foreground">{row.original.code}</code> }),
     listHelper.accessor('name', { header: '名称' }),
     listHelper.display({ id: 'owner', header: '负责人', size: 110, cell: ({ row }) => row.original.owner || '—' }),
     listHelper.display({ id: 'version', header: '最新版本', size: 130, cell: ({ row }) => `v${row.original.latestVersion.versionNo} / 共 ${row.original.versionCount} 版` }),
-    listHelper.display({ id: 'status', header: '状态', size: 100, cell: ({ row }) => <Badge tone={statusTone(row.original.latestVersion.status)}>{STATUS_LABEL[row.original.latestVersion.status] ?? row.original.latestVersion.status}</Badge> }),
+    listHelper.display({ id: 'status', header: '状态', size: 100, cell: ({ row }) => <Badge variant={statusTone(row.original.latestVersion.status)}>{STATUS_LABEL[row.original.latestVersion.status] ?? row.original.latestVersion.status}</Badge> }),
     listHelper.display({
       id: 'sync',
       header: '术语投影',
       size: 100,
       cell: ({ row }) => row.original.latestVersion.status === 'PUBLISHED'
-        ? <Badge tone={row.original.latestVersion.syncStatus === 'SYNCED' ? 'success' : 'warn'}>{row.original.latestVersion.syncStatus === 'SYNCED' ? '已同步' : '待同步'}</Badge>
+        ? <Badge variant={row.original.latestVersion.syncStatus === 'SYNCED' ? 'success' : 'warning'}>{row.original.latestVersion.syncStatus === 'SYNCED' ? '已同步' : '待同步'}</Badge>
         : '—',
     }),
   ])
@@ -198,7 +230,7 @@ export function StandardsPage() {
     elementHelper.display({
       id: 'element',
       header: '数据元',
-      cell: ({ row }) => <div><code className="font-mono text-label text-muted">{row.original.code}</code><div className="text-meta text-muted">{row.original.name}</div></div>,
+      cell: ({ row }) => <div><code className="font-mono text-label text-muted-foreground">{row.original.code}</code><div className="text-meta text-muted-foreground">{row.original.name}</div></div>,
     }),
     elementHelper.accessor('dataType', { header: '类型', size: 100 }),
     elementHelper.display({ id: 'required', header: '必填', size: 70, cell: ({ row }) => row.original.required ? '必填' : '可选' }),
@@ -206,14 +238,14 @@ export function StandardsPage() {
       id: 'sensitivity',
       header: '敏感级别',
       size: 100,
-      cell: ({ row }) => <Badge tone={severityTone(row.original.sensitivity) === 'danger' ? 'danger' : severityTone(row.original.sensitivity) === 'warning' ? 'warn' : 'neutral'}>{sensitivityLabel(row.original.sensitivity)}</Badge>,
+      cell: ({ row }) => <Badge variant={severityTone(row.original.sensitivity) === 'danger' ? 'error' : severityTone(row.original.sensitivity) === 'warning' ? 'warning' : 'outline'}>{sensitivityLabel(row.original.sensitivity)}</Badge>,
     }),
-    elementHelper.display({ id: 'definition', header: '定义', cell: ({ row }) => <span className="text-label text-muted">{row.original.definition || '—'}</span> }),
+    elementHelper.display({ id: 'definition', header: '定义', cell: ({ row }) => <span className="text-label text-muted-foreground">{row.original.definition || '—'}</span> }),
     elementHelper.display({
       id: 'values',
       header: '值域',
       cell: ({ row }) => row.original.dataType === 'CODE'
-        ? <span className="flex flex-wrap gap-1">{row.original.values.map((value) => <span key={value.code} className="rounded-chip bg-wash px-1.5 py-0.5 text-meta text-muted">{value.code} {value.displayName}</span>)}</span>
+        ? <span className="flex flex-wrap gap-1">{row.original.values.map((value) => <span key={value.code} className="rounded-chip bg-wash px-1.5 py-0.5 text-meta text-muted-foreground">{value.code} {value.displayName}</span>)}</span>
         : '—',
     }),
   ])
@@ -222,24 +254,48 @@ export function StandardsPage() {
   const otherVersions = useMemo(() => detail?.versions.filter((item) => item.id !== version?.id) ?? [], [detail, version?.id])
   const busy = versionAction.isPending || createDraft.isPending || saveDraft.isPending
 
+  const compareVersionItems = [
+    { value: '', label: otherVersions.length === 0 ? '没有可比版本' : '选择另一版本…' },
+    ...otherVersions.map((item) => ({ value: item.id, label: <>v{item.versionNo}（{STATUS_LABEL[item.status]}）</> })),
+  ]
   return (
     <div>
       <Breadcrumb items={[{ label: '数据治理' }, { label: '数据标准' }]} trailing={detail ? <span>更新 {formatDateTime(detail.standard.updatedAt)}</span> : null} />
       <PageHeading
         title="数据标准中心"
         description="维护院级业务定义与值域，通过评审发布可追溯的标准版本。"
-        actions={<Button onClick={() => navigate('/governance/quality')}>返回治理</Button>}
+        actions={<Button variant="outline" onClick={() => navigate('/governance/quality')}>返回治理</Button>}
       />
 
-      <Panel className="mb-3.5">
-        <PanelHead title="标准清单" count={items.length} description="草稿 → 评审 → 发布；选择标准后查看版本与数据元" />
+      <FramePanel className="mb-3.5 p-0 overflow-clip">
+        <FrameHeader className="px-[18px] pt-[18px] pb-3 gap-1">
+          <div className="min-w-0">
+            <h2 className="text-title font-semibold tracking-[-0.2px]">
+              标准清单
+              {items.length !== undefined ? <Badge variant="outline">{items.length}</Badge> : null}
+            </h2>
+            <FrameDescription>草稿 → 评审 → 发布；选择标准后查看版本与数据元</FrameDescription>
+          </div>
+        </FrameHeader>
         <div className="flex items-center gap-2 px-[18px] pb-3">
           <SearchField value={keyword} onValueChange={(value) => { setKeyword(value); setPage(0) }} placeholder="搜索标准代码或名称" />
-          <NativeSelect aria-label="按最新版本状态筛选" className="w-auto" value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setPage(0) }}>
-            <option value="">全部状态</option>
-            {Object.entries(STATUS_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-          </NativeSelect>
-          {keyword || statusFilter ? <Button variant="text" size="sm" onClick={() => { setKeyword(''); setStatusFilter(''); setPage(0) }}>清除筛选</Button> : null}
+          <Select
+            items={STATUS_ITEMS}
+            value={statusFilter}
+            onValueChange={(next) => { setStatusFilter(next ?? ''); setPage(0) }}
+          >
+            <SelectTrigger aria-label="按最新版本状态筛选" className="w-auto min-w-none" size="sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectPopup>
+              {STATUS_ITEMS.map((item) => (
+                <SelectItem key={item.value} value={item.value}>
+                  {item.label}
+                </SelectItem>
+              ))}
+            </SelectPopup>
+          </Select>
+          {keyword || statusFilter ? <Button variant="link" size="sm" onClick={() => { setKeyword(''); setStatusFilter(''); setPage(0) }}>清除筛选</Button> : null}
         </div>
         <DataTable
           columns={listColumns}
@@ -251,66 +307,68 @@ export function StandardsPage() {
           empty={<EmptyState minHeight={200} title={keyword || statusFilter ? '没有匹配的标准' : '还没有数据标准'} description={keyword || statusFilter ? '请调整关键词或清除筛选。' : '在下方导入内容，预检通过后创建草稿。'} />}
           footer={<TablePagination page={currentPage} pageSize={8} total={items.length} onPageChange={setPage} label="标准清单分页" />}
         />
-      </Panel>
+      </FramePanel>
 
       {listRequest.isError ? (
-        <Panel className="mb-3.5">
-          <EmptyState minHeight={200} title="控制面暂不可用" description="暂时无法读取标准清单。恢复连接后，可继续查看版本、评审记录与影响范围。" action={<Button size="sm" onClick={() => void listRequest.refetch()}>重试</Button>} />
-        </Panel>
+        <FramePanel className="mb-3.5 p-0 overflow-clip">
+          <EmptyState minHeight={200} title="控制面暂不可用" description="暂时无法读取标准清单。恢复连接后，可继续查看版本、评审记录与影响范围。" action={<Button variant="outline" size="sm" onClick={() => void listRequest.refetch()}>重试</Button>} />
+        </FramePanel>
       ) : null}
 
       {selectedId && detailRequest.isPending ? <LoadingBlock>正在读取标准详情…</LoadingBlock> : null}
       {detailRequest.isError ? (
-        <Panel className="mb-3.5">
-          <EmptyState minHeight={180} title="标准详情读取失败" description="标准清单仍可使用。请重试读取所选标准的版本与数据元。" action={<Button size="sm" onClick={() => void detailRequest.refetch()}>重试详情</Button>} />
-        </Panel>
+        <FramePanel className="mb-3.5 p-0 overflow-clip">
+          <EmptyState minHeight={180} title="标准详情读取失败" description="标准清单仍可使用。请重试读取所选标准的版本与数据元。" action={<Button variant="outline" size="sm" onClick={() => void detailRequest.refetch()}>重试详情</Button>} />
+        </FramePanel>
       ) : null}
 
       {detail && version ? (
         <div className="mb-3.5 grid grid-cols-[minmax(0,1fr)_300px] gap-3.5 max-[1100px]:grid-cols-1">
-          <Panel>
-            <PanelHead
-              title={detail.standard.name}
-              description={`${detail.standard.code} · ${detail.standard.owner || '未指定负责人'}`}
-              actions={<Button size="sm" disabled={busy} onClick={() => createDraft.mutate()}><GitCompareArrows size={14} />基于当前版本新建草稿</Button>}
-            />
+          <FramePanel className="p-0 overflow-clip">
+            <FrameHeader className="px-[18px] pt-[18px] pb-3 flex-row items-center justify-between gap-3">
+              <div className="min-w-0">
+                <h2 className="text-title font-semibold tracking-[-0.2px]">
+                  {detail.standard.name}
+                </h2>
+                <FrameDescription>{`${detail.standard.code} · ${detail.standard.owner || '未指定负责人'}`}</FrameDescription>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">{<Button variant="outline" size="sm" disabled={busy} onClick={() => createDraft.mutate()}><GitCompareArrows size={14} />基于当前版本新建草稿</Button>}</div>
+            </FrameHeader>
             <div className="px-[18px] pb-3">
-              <div className="flex flex-wrap items-center gap-2 text-label text-muted">
+              <div className="flex flex-wrap items-center gap-2 text-label text-muted-foreground">
                 <strong className="text-body-sm text-ink-soft">当前查看 v{version.versionNo}</strong>
-                <Badge tone={statusTone(version.status)}>{STATUS_LABEL[version.status]}</Badge>
+                <Badge variant={statusTone(version.status)}>{STATUS_LABEL[version.status]}</Badge>
                 <span>{version.elements.length} 个数据元 · {version.status === 'DRAFT' ? '修改后提交评审，发布后供资产与映射引用' : version.status === 'IN_REVIEW' ? '评审通过后由管理员发布' : version.status === 'PUBLISHED' ? '已发布版本只读，变更请新建草稿' : '该版本已停用，保留历史追溯'}</span>
               </div>
-              <div className="mt-2 flex flex-wrap gap-1.5">
+              <SegmentedControl
+                className="mt-2 flex-wrap"
+                size="sm"
+                render={<RadioGroupPrimitive aria-label="选择查看的版本" value={version.id} onValueChange={setVersionId} />}
+              >
                 {detail.versions.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    aria-pressed={item.id === version.id}
-                    onClick={() => setVersionId(item.id)}
-                    className={`inline-flex min-h-[36px] items-center gap-2 rounded-control border px-2.5 py-1.5 text-label ${item.id === version.id ? 'border-blue-line bg-blue-soft text-blue' : 'border-line bg-paper text-ink-soft hover:bg-wash'}`}
-                  >
-                    <strong>v{item.versionNo}</strong>
-                    <Badge tone={statusTone(item.status)}>{STATUS_LABEL[item.status]}</Badge>
-                    <span className="text-meta text-muted">{item.syncStatus === 'SYNCED' ? '术语已投影' : item.status === 'PUBLISHED' ? '投影待同步' : ''}</span>
-                  </button>
+                  <SegmentedControlItem key={item.id} className="min-h-[36px]" render={<RadioPrimitive.Root value={item.id} />}>
+                    v{item.versionNo}
+                    <Badge variant={statusTone(item.status)}>{STATUS_LABEL[item.status]}</Badge>
+                    {item.syncStatus === 'SYNCED' ? '术语已投影' : item.status === 'PUBLISHED' ? '投影待同步' : ''}
+                  </SegmentedControlItem>
                 ))}
-              </div>
+              </SegmentedControl>
 
               <div className="mt-3 flex flex-wrap items-center gap-2">
-                {version.status === 'DRAFT' ? <Button size="sm" disabled={busy} onClick={() => versionAction.mutate({ action: 'submit', versionId: version.id })}><Send size={13} />提交评审</Button> : null}
-                {version.status === 'IN_REVIEW' ? <Button size="sm" disabled={busy} onClick={() => versionAction.mutate({ action: 'publish', versionId: version.id })}><ShieldCheck size={13} />发布（管理员）</Button> : null}
+                {version.status === 'DRAFT' ? <Button variant="outline" size="sm" disabled={busy} onClick={() => versionAction.mutate({ action: 'submit', versionId: version.id })}><Send size={13} />提交评审</Button> : null}
+                {version.status === 'IN_REVIEW' ? <Button variant="outline" size="sm" disabled={busy} onClick={() => versionAction.mutate({ action: 'publish', versionId: version.id })}><ShieldCheck size={13} />发布（管理员）</Button> : null}
                 {version.status === 'PUBLISHED' ? (
                   <>
-                    <Button size="sm" disabled={busy} onClick={() => versionAction.mutate({ action: 'deprecate', versionId: version.id })}><Archive size={13} />停用</Button>
-                    {version.syncStatus !== 'SYNCED' ? <Button size="sm" disabled={busy} onClick={() => versionAction.mutate({ action: 'sync', versionId: version.id })}><RefreshCw size={13} />重试术语投影</Button> : null}
+                    <Button variant="outline" size="sm" disabled={busy} onClick={() => versionAction.mutate({ action: 'deprecate', versionId: version.id })}><Archive size={13} />停用</Button>
+                    {version.syncStatus !== 'SYNCED' ? <Button variant="outline" size="sm" disabled={busy} onClick={() => versionAction.mutate({ action: 'sync', versionId: version.id })}><RefreshCw size={13} />重试术语投影</Button> : null}
                   </>
                 ) : null}
-                <Button size="sm" onClick={() => setImpactOpen((open) => !open)}><FileSearch size={13} />影响范围</Button>
-                <Button size="sm" onClick={downloadFhir}><Download size={13} />FHIR 导出</Button>
+                <Button variant="outline" size="sm" onClick={() => setImpactOpen((open) => !open)}><FileSearch size={13} />影响范围</Button>
+                <Button variant="outline" size="sm" onClick={downloadFhir}><Download size={13} />FHIR 导出</Button>
               </div>
 
               {impactOpen ? (
-                <div className="mt-3 rounded-control border border-line bg-wash px-3 py-2.5 text-label text-muted">
+                <div className="mt-3 rounded-control border border-line bg-wash px-3 py-2.5 text-label text-muted-foreground">
                   {impactRequest.isPending ? <LoadingInline>正在读取影响范围…</LoadingInline> : null}
                   {impactRequest.data ? (
                     <>
@@ -326,11 +384,21 @@ export function StandardsPage() {
                 <div className="mt-4 rounded-control border border-line bg-wash px-3.5 py-3">
                   <h3 className="mb-2 text-label font-medium text-ink-soft">草稿修改（仅 DRAFT 可改）</h3>
                   <FormGrid>
-                    <FormField label="标准名称" htmlFor="standard-name"><Input id="standard-name" value={metaDraft.name} onChange={(event) => setMetaDraft((current) => ({ ...current, name: event.target.value }))} placeholder={detail.standard.name} /></FormField>
-                    <FormField label="负责人" htmlFor="standard-owner"><Input id="standard-owner" value={metaDraft.owner} onChange={(event) => setMetaDraft((current) => ({ ...current, owner: event.target.value }))} placeholder={detail.standard.owner || '未指定'} /></FormField>
+                    <Field>
+                      <FieldLabel>标准名称</FieldLabel>
+                      <Input id="standard-name" value={metaDraft.name} onChange={(event) => setMetaDraft((current) => ({ ...current, name: event.target.value }))} placeholder={detail.standard.name} />
+                    </Field>
+                    <Field>
+                      <FieldLabel>负责人</FieldLabel>
+                      <Input id="standard-owner" value={metaDraft.owner} onChange={(event) => setMetaDraft((current) => ({ ...current, owner: event.target.value }))} placeholder={detail.standard.owner || '未指定'} />
+                    </Field>
                   </FormGrid>
-                  <FormField label="描述" htmlFor="standard-description"><Input id="standard-description" value={metaDraft.description} onChange={(event) => setMetaDraft((current) => ({ ...current, description: event.target.value }))} placeholder={detail.standard.description || '补充标准描述'} /></FormField>
-                  <FormField label="元素集整体替换" htmlFor="standard-elements" hint="JSON 数组，与创建接口的元素结构同构；留空则不修改元素集。">
+                  <Field className="mb-4">
+                    <FieldLabel>描述</FieldLabel>
+                    <Input id="standard-description" value={metaDraft.description} onChange={(event) => setMetaDraft((current) => ({ ...current, description: event.target.value }))} placeholder={detail.standard.description || '补充标准描述'} />
+                  </Field>
+                  <Field className="mb-4">
+                    <FieldLabel>元素集整体替换</FieldLabel>
                     <CodeTextarea
                       id="standard-elements"
                       className="min-h-[120px]"
@@ -338,9 +406,10 @@ export function StandardsPage() {
                       onChange={(event) => setElementsDraft(event.target.value)}
                       placeholder='[{"code":"channel","name":"挂号渠道","dataType":"CODE","required":true,"definition":"渠道枚举","sensitivity":"NORMAL","assetRef":"","values":[{"code":"OPD","displayName":"门诊"}]}]'
                     />
-                  </FormField>
+                    <FieldDescription>JSON 数组，与创建接口的元素结构同构；留空则不修改元素集。</FieldDescription>
+                  </Field>
                   <div className="flex justify-end">
-                    <Button size="sm" disabled={busy} onClick={() => saveDraft.mutate()}>保存草稿修改</Button>
+                    <Button variant="outline" size="sm" disabled={busy} onClick={() => saveDraft.mutate()}>保存草稿修改</Button>
                   </div>
                 </div>
               ) : null}
@@ -350,23 +419,30 @@ export function StandardsPage() {
                   columns={elementColumns}
                   data={version.elements}
                   getRowId={(element) => element.id}
-                  empty={<p className="px-1 py-3 text-label text-muted">该版本暂无数据元。</p>}
+                  empty={<p className="px-1 py-3 text-label text-muted-foreground">该版本暂无数据元。</p>}
                 />
               </div>
 
               <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-line pt-3">
-                <span className="text-label text-muted">版本对比：与</span>
-                <NativeSelect
-                  aria-label="选择对比版本"
-                  className="w-[200px]"
+                <span className="text-label text-muted-foreground">版本对比：与</span>
+                <Select
+                  items={compareVersionItems}
                   value={compareWith}
+                  onValueChange={(next) => setCompareWith(next ?? '')}
                   disabled={otherVersions.length === 0}
-                  onChange={(event) => setCompareWith(event.target.value)}
                 >
-                  <option value="">{otherVersions.length === 0 ? '没有可比版本' : '选择另一版本…'}</option>
-                  {otherVersions.map((item) => <option key={item.id} value={item.id}>v{item.versionNo}（{STATUS_LABEL[item.status]}）</option>)}
-                </NativeSelect>
-                <Button
+                  <SelectTrigger aria-label="选择对比版本" className="w-[200px]" size="sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectPopup>
+                    {compareVersionItems.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectPopup>
+                </Select>
+                <Button variant="outline"
                   size="sm"
                   disabled={!compareWith}
                   onClick={() => {
@@ -388,37 +464,53 @@ export function StandardsPage() {
                 </ul>
               ) : null}
 
-              {error ? <p role="alert" className="mt-2 text-body-sm text-red">{error}</p> : null}
+              {error ? (
+                <Alert variant="error" className="mt-2">
+                  <CircleAlert />
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              ) : null}
             </div>
-          </Panel>
+          </FramePanel>
 
-          <Panel>
-            <PanelHead title="审计事件" description="当前标准 · 最近 20 条" />
+          <FramePanel className="p-0 overflow-clip">
+            <FrameHeader className="px-[18px] pt-[18px] pb-3 gap-1">
+              <div className="min-w-0">
+                <h2 className="text-title font-semibold tracking-[-0.2px]">
+                  审计事件
+                </h2>
+                <FrameDescription>当前标准 · 最近 20 条</FrameDescription>
+              </div>
+            </FrameHeader>
             <ol className="m-0 list-none px-4 pb-4">
               {detail.events.map((event) => (
                 <li key={event.id} className="border-b border-line-soft py-2 last:border-b-0">
                   <div className="flex items-center justify-between gap-2">
                     <strong className="text-label font-medium text-ink-soft">{standardEventLabel(event.eventType)}</strong>
-                    <span className="text-meta text-muted">{actorLabel(event.actor)}</span>
+                    <span className="text-meta text-muted-foreground">{actorLabel(event.actor)}</span>
                   </div>
-                  <p className="mt-0.5 text-meta leading-relaxed text-muted">{standardEventDetail(event.detail)}</p>
-                  <small className="text-meta text-muted">{formatDateTime(event.createdAt)}</small>
+                  <p className="mt-0.5 text-meta leading-relaxed text-muted-foreground">{standardEventDetail(event.detail)}</p>
+                  <small className="text-meta text-muted-foreground">{formatDateTime(event.createdAt)}</small>
                 </li>
               ))}
-              {detail.events.length === 0 ? <li className="py-4 text-center text-label text-muted">暂无事件。</li> : null}
+              {detail.events.length === 0 ? <li className="py-4 text-center text-label text-muted-foreground">暂无事件。</li> : null}
             </ol>
-          </Panel>
+          </FramePanel>
         </div>
       ) : null}
 
-      <Panel>
-        <PanelHead title="导入标准" description="粘贴 CSV 或 JSON → 预检内容 → 确认创建草稿" />
+      <FramePanel className="p-0 overflow-clip">
+        <FrameHeader className="px-[18px] pt-[18px] pb-3 gap-1">
+          <div className="min-w-0">
+            <h2 className="text-title font-semibold tracking-[-0.2px]">
+              导入标准
+            </h2>
+            <FrameDescription>粘贴 CSV 或 JSON → 预检内容 → 确认创建草稿</FrameDescription>
+          </div>
+        </FrameHeader>
         <div className="px-5 pb-5">
-          <FormField
-            label="导入内容"
-            htmlFor="standard-import"
-            hint="支持平台 CSV 模板（standard_code, standard_name, element_code, element_name, data_type, required, definition, sensitivity, value_code, value_display）或与创建接口同构的 JSON。"
-          >
+          <Field className="mb-4">
+            <FieldLabel>导入内容</FieldLabel>
             <CodeTextarea
               id="standard-import"
               className="min-h-[120px]"
@@ -426,14 +518,14 @@ export function StandardsPage() {
               onChange={(event) => { setImportBody(event.target.value); setImportReport(null) }}
               placeholder={'standard_code,standard_name,element_code,element_name,data_type,required,definition,sensitivity,value_code,value_display\nreg-channel,挂号渠道,channel,挂号渠道,CODE,true,渠道枚举,NORMAL,OPD,门诊'}
             />
-          </FormField>
+            <FieldDescription>支持平台 CSV 模板（standard_code, standard_name, element_code, element_name, data_type, required, definition, sensitivity, value_code, value_display）或与创建接口同构的 JSON。</FieldDescription>
+          </Field>
           <div className="flex items-center gap-2">
-            <Button size="sm" disabled={!importBody.trim() || importMutation.isPending} onClick={() => { setError(null); importMutation.mutate(true) }}>
+            <Button variant="outline" size="sm" disabled={!importBody.trim() || importMutation.isPending} onClick={() => { setError(null); importMutation.mutate(true) }}>
               <UploadCloud size={13} />预检（dry-run）
             </Button>
             <Button
               size="sm"
-              variant="primary"
               disabled={!importReport || importReport.dryRun === false || importReport.problems.length > 0 || importMutation.isPending}
               onClick={() => { setError(null); importMutation.mutate(false) }}
             >
@@ -441,7 +533,7 @@ export function StandardsPage() {
             </Button>
           </div>
           {importReport ? (
-            <div className="mt-3 rounded-control border border-line bg-wash px-3 py-2.5 text-label text-muted">
+            <div className="mt-3 rounded-control border border-line bg-wash px-3 py-2.5 text-label text-muted-foreground">
               <strong className="block text-body-sm text-ink-soft">{importReport.created ? '导入结果' : '预检报告'} · {importReport.standardCode || '（空代码）'}</strong>
               <p className="mt-1">数据元 {importReport.elementCount} 个 · 值域 {importReport.valueCount} 条 · 问题 {importReport.problems.length} 项</p>
               {importReport.problems.length > 0
@@ -451,7 +543,7 @@ export function StandardsPage() {
             </div>
           ) : null}
         </div>
-      </Panel>
+      </FramePanel>
     </div>
   )
 }

@@ -1,20 +1,31 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Gauge, Plus, Save } from 'lucide-react'
+import { CircleAlert, Gauge, Plus, Save } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { Badge } from '../../components/ui/badge'
-import { Button } from '../../components/ui/button'
-import { FormField, FormGrid, FormNotice } from '../../components/ui/form'
-import { Input } from '../../components/ui/input'
-import { Dialog, DialogFooter } from '../../components/ui/overlay'
-import { Breadcrumb, PageHeading } from '../../components/ui/page-heading'
-import { Panel, PanelHead } from '../../components/ui/panel'
-import { LoadingBlock } from '../../components/ui/states'
-import { useNotice } from '../../components/ui/toast'
-import { updateQualityScoreStandard, type QualityGradeView } from '../../data/controlPlane'
-import { formatDateTime } from '../../data/domain'
+
+import { FormGrid } from '@/components/app/form-grid'
+import { LoadingBlock } from '@/components/app/loading'
+import { useNotice } from '@/components/app/notice'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogPopup,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Field, FieldLabel } from '@/components/ui/field'
+import { FrameDescription, FrameHeader, FramePanel } from '@/components/ui/frame'
+import { Input } from '@/components/ui/input'
+
 import { usePortalNavigate } from '../../app/navigate'
-import { governanceKeys, qualityScoreQuery } from './queries'
+import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
+import { type QualityGradeView, updateQualityScoreStandard } from '../../data/controlPlane'
+import { formatDateTime } from '../../data/domain'
 import { QUALITY_DIMENSIONS } from './quality-score-panel'
+import { governanceKeys, qualityScoreQuery } from './queries'
 
 /**
  * 质量评分设置（独立配置页，替代旧抽屉）：
@@ -91,22 +102,36 @@ export function ScoringPage() {
       <PageHeading
         title="质量评分设置"
         description="维度分 = 维度内规则得分均值；总分 = 维度加权平均；等级按最低分阈值从高到低判定。"
-        actions={<Button onClick={leave}>返回质量工作台</Button>}
+        actions={<Button variant="outline" onClick={leave}>返回质量工作台</Button>}
       />
 
       <div className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] gap-3.5 max-[1100px]:grid-cols-1">
-        <Panel>
-          <PanelHead title="通过线与维度权重" description="标准单一生效，保存后立即重算总分与等级" />
+        <FramePanel className="p-0 overflow-clip">
+          <FrameHeader className="px-[18px] pt-[18px] pb-3 gap-1">
+            <div className="min-w-0">
+              <h2 className="text-title font-semibold tracking-[-0.2px]">
+                通过线与维度权重
+              </h2>
+              <FrameDescription>标准单一生效，保存后立即重算总分与等级</FrameDescription>
+            </div>
+          </FrameHeader>
           <div className="px-5 pb-5">
-            <FormNotice icon={<Gauge />}>
-              无终态运行的规则不计入维度均值；权重全为 1 时即等权平均。修改标准不影响历史运行记录，只影响下一次评分读数的计算口径。
-            </FormNotice>
-            <FormField label="规则通过线（0-100）" required htmlFor="pass-score">
+            <Alert variant="info" role="note" className="mb-4">
+              <Gauge />
+              <AlertDescription>
+                无终态运行的规则不计入维度均值；权重全为 1 时即等权平均。修改标准不影响历史运行记录，只影响下一次评分读数的计算口径。
+              </AlertDescription>
+            </Alert>
+            <Field className="mb-4">
+              <FieldLabel>
+                规则通过线（0-100） <span className="text-destructive-foreground">*</span>
+              </FieldLabel>
               <Input id="pass-score" type="number" min={0} max={100} value={passScore} onChange={(event) => setPassScore(event.target.value)} className="w-[160px]" />
-            </FormField>
+            </Field>
             <FormGrid>
               {QUALITY_DIMENSIONS.map((dimension) => (
-                <FormField key={dimension} label={dimension} htmlFor={`weight-${dimension}`}>
+                <Field key={dimension}>
+                  <FieldLabel>{dimension}</FieldLabel>
                   <Input
                     id={`weight-${dimension}`}
                     type="number"
@@ -116,19 +141,23 @@ export function ScoringPage() {
                     aria-label={`${dimension}权重`}
                     onChange={(event) => setWeights((current) => ({ ...current, [dimension]: event.target.value }))}
                   />
-                </FormField>
+                </Field>
               ))}
             </FormGrid>
           </div>
-        </Panel>
+        </FramePanel>
 
-        <Panel>
-          <PanelHead
-            title="等级表"
-            count={grades.length}
-            description="按最低分从高到低判定"
-            actions={<Button size="sm" onClick={() => setGrades((current) => [...current, { grade: '', lowScore: 0 }])}><Plus size={13} />添加等级</Button>}
-          />
+        <FramePanel className="p-0 overflow-clip">
+          <FrameHeader className="px-[18px] pt-[18px] pb-3 flex-row items-center justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="text-title font-semibold tracking-[-0.2px]">
+                等级表
+                {grades.length !== undefined ? <Badge variant="outline">{grades.length}</Badge> : null}
+              </h2>
+              <FrameDescription>按最低分从高到低判定</FrameDescription>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">{<Button variant="outline" size="sm" onClick={() => setGrades((current) => [...current, { grade: '', lowScore: 0 }])}><Plus size={13} />添加等级</Button>}</div>
+          </FrameHeader>
           <div className="px-5 pb-5">
             {grades.map((grade, index) => (
               <div key={index} className="mb-2 grid grid-cols-[minmax(0,1fr)_120px_auto] items-center gap-2">
@@ -146,40 +175,44 @@ export function ScoringPage() {
                   value={grade.lowScore}
                   onChange={(event) => setGrades((current) => current.map((item, i) => i === index ? { ...item, lowScore: Number(event.target.value) } : item))}
                 />
-                <Button size="sm" variant="text" disabled={grades.length <= 1} aria-label={`移除等级 ${index + 1}`} onClick={() => setGrades((current) => current.filter((_, i) => i !== index))}>移除</Button>
+                <Button size="sm" variant="link" disabled={grades.length <= 1} aria-label={`移除等级 ${index + 1}`} onClick={() => setGrades((current) => current.filter((_, i) => i !== index))}>移除</Button>
               </div>
             ))}
-            {grades.length === 0 ? <p className="py-6 text-center text-label text-muted">至少保留一个等级；等级名称不能重复。</p> : null}
+            {grades.length === 0 ? <p className="py-6 text-center text-label text-muted-foreground">至少保留一个等级；等级名称不能重复。</p> : null}
 
-            <div className="mt-4 rounded-control border border-line bg-wash px-3 py-2.5 text-label text-muted">
+            <div className="mt-4 rounded-control border border-line bg-wash px-3 py-2.5 text-label text-muted-foreground">
               <strong className="block text-body-sm text-ink-soft">保存影响</strong>
-              <p className="mt-1">保存后立即按新标准重算总分与等级；<Badge tone="warn">受影响</Badge> 只影响评分读数，不重跑规则、不改变已产生的治理问题。</p>
+              <p className="mt-1">保存后立即按新标准重算总分与等级；<Badge variant="warning">受影响</Badge> 只影响评分读数，不重跑规则、不改变已产生的治理问题。</p>
             </div>
 
-            {error ? <p role="alert" className="mt-3 text-body-sm text-red">{error}</p> : null}
+            {error ? (
+              <Alert variant="error" className="mt-3">
+                <CircleAlert />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            ) : null}
             <div className="mt-4 flex justify-end gap-2 border-t border-line pt-4">
-              <Button onClick={leave}>取消</Button>
-              <Button variant="primary" disabled={mutation.isPending || !initialized} onClick={submit}>
+              <Button variant="outline" onClick={leave}>取消</Button>
+              <Button disabled={mutation.isPending || !initialized} onClick={submit}>
                 <Save size={14} />{mutation.isPending ? '保存中…' : '保存并重算'}
               </Button>
             </div>
           </div>
-        </Panel>
+        </FramePanel>
       </div>
 
-      <Dialog
-        open={discardOpen}
-        onOpenChange={setDiscardOpen}
-        title="放弃未保存的评分标准？"
-        description="离开后本页未保存的通过线、权重与等级会丢失；已生效的评分标准不受影响。"
-        width={460}
-        footer={
+      <Dialog open={discardOpen} onOpenChange={setDiscardOpen}>
+        <DialogPopup closeProps={{ 'aria-label': '关闭' }}>
+          <DialogHeader>
+            <DialogTitle>放弃未保存的评分标准？</DialogTitle>
+            <DialogDescription>离开后本页未保存的通过线、权重与等级会丢失；已生效的评分标准不受影响。</DialogDescription>
+          </DialogHeader>
           <DialogFooter>
-            <Button onClick={() => setDiscardOpen(false)}>继续编辑</Button>
-            <Button variant="danger" onClick={() => { setDiscardOpen(false); navigate('/governance/quality') }}>放弃修改</Button>
+            <Button variant="outline" onClick={() => setDiscardOpen(false)}>继续编辑</Button>
+            <Button variant="destructive" onClick={() => { setDiscardOpen(false); navigate('/governance/quality') }}>放弃修改</Button>
           </DialogFooter>
-        }
-      />
+        </DialogPopup>
+      </Dialog>
     </div>
   )
 }

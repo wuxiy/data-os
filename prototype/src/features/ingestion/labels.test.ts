@@ -23,8 +23,8 @@ function source(overrides: Partial<SourceApiItem>): SourceApiItem {
 describe('接入域词汇与默认值', () => {
   it('状态未知值原样回退，不伪造成功', () => {
     expect(sourceStatusView('HEALTHY')).toEqual({ label: '健康', tone: 'success' })
-    expect(sourceStatusView('UNHEALTHY')).toEqual({ label: '连接失败', tone: 'danger' })
-    expect(sourceStatusView('SOMETHING_NEW')).toEqual({ label: '待检查', tone: 'warn' })
+    expect(sourceStatusView('UNHEALTHY')).toEqual({ label: '连接失败', tone: 'error' })
+    expect(sourceStatusView('SOMETHING_NEW')).toEqual({ label: '待检查', tone: 'warning' })
   })
 
   it('无名数据源不直出裸 UUID', () => {

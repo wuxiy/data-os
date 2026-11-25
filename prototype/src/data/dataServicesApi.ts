@@ -1,4 +1,4 @@
-import { parseJsonOrThrow, PortalHttpError, portalFetch } from './http'
+import { parseJsonOrThrow, portalFetch, PortalHttpError } from './http'
 
 /**
  * 数据服务管理面 API 客户端（控制面 G13 dataservice 域）。

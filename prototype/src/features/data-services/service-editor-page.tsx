@@ -1,15 +1,19 @@
-import { useMutation } from '@tanstack/react-query'
-import { useQueryClient } from '@tanstack/react-query'
-import { Save, ShieldCheck } from 'lucide-react'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { CircleAlert, Save, ShieldCheck } from 'lucide-react'
 import { useState } from 'react'
-import { Button } from '../../components/ui/button'
-import { FormField, FormGrid, FormNotice } from '../../components/ui/form'
-import { CodeTextarea, Input } from '../../components/ui/input'
-import { Breadcrumb, PageHeading } from '../../components/ui/page-heading'
-import { Panel } from '../../components/ui/panel'
-import { useNotice } from '../../components/ui/toast'
-import { createDataService } from '../../data/dataServicesApi'
+
+import { CodeTextarea } from '@/components/app/code-textarea'
+import { FormGrid } from '@/components/app/form-grid'
+import { useNotice } from '@/components/app/notice'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
+import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
+import { FramePanel } from '@/components/ui/frame'
+import { Input } from '@/components/ui/input'
+
 import { usePortalNavigate } from '../../app/navigate'
+import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
+import { createDataService } from '../../data/dataServicesApi'
 import { dataServiceKeys } from './queries'
 
 /**
@@ -84,63 +88,92 @@ export function ServiceEditorPage() {
       <PageHeading
         title="新建数据服务"
         description="定义 ToB 数据 API 的 SQL、参数与列契约、返回行数与超时；创建后为草稿，发布才对调用方开放。"
-        actions={<Button onClick={() => navigate('/data-services')}>返回目录</Button>}
+        actions={<Button variant="outline" onClick={() => navigate('/data-services')}>返回目录</Button>}
       />
 
       <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3.5 max-[1100px]:grid-cols-1">
-        <Panel>
+        <FramePanel className="p-0 overflow-clip">
           <div className="px-5 py-4">
-            <FormNotice icon={<ShieldCheck />}>
-              服务执行使用只读账号；参数为命名占位（如 :start_date），由调用方按契约传入。发布后定义变更会形成合同事件。
-            </FormNotice>
+            <Alert variant="info" role="note" className="mb-4">
+              <ShieldCheck />
+              <AlertDescription>
+                服务执行使用只读账号；参数为命名占位（如 :start_date），由调用方按契约传入。发布后定义变更会形成合同事件。
+              </AlertDescription>
+            </Alert>
             <FormGrid>
-              <FormField label="服务代码" required htmlFor="service-code" hint="小写字母/数字/连字符，创建后不可修改">
+              <Field>
+                <FieldLabel>
+                  服务代码 <span className="text-destructive-foreground">*</span>
+                </FieldLabel>
                 <Input id="service-code" value={form.code} onChange={(event) => setForm({ ...form, code: event.target.value })} placeholder="medicine-record-daily" />
-              </FormField>
-              <FormField label="服务名称" required htmlFor="service-name">
+                <FieldDescription>小写字母/数字/连字符，创建后不可修改</FieldDescription>
+              </Field>
+              <Field>
+                <FieldLabel>
+                  服务名称 <span className="text-destructive-foreground">*</span>
+                </FieldLabel>
                 <Input id="service-name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="每日用药记录统计" />
-              </FormField>
+              </Field>
             </FormGrid>
-            <FormField label="服务说明" htmlFor="service-description">
+            <Field className="mb-4">
+              <FieldLabel>服务说明</FieldLabel>
               <Input id="service-description" value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} placeholder="口径、数据范围与使用注意" />
-            </FormField>
-            <FormField label="SQL 模板" required htmlFor="service-sql" hint="单条只读 SELECT/WITH；参数用命名占位">
+            </Field>
+            <Field className="mb-4">
+              <FieldLabel>
+                SQL 模板 <span className="text-destructive-foreground">*</span>
+              </FieldLabel>
               <CodeTextarea id="service-sql" className="min-h-[180px]" value={form.sqlTemplate} onChange={(event) => setForm({ ...form, sqlTemplate: event.target.value })} placeholder={'SELECT stat_date, COUNT(*) AS cnt FROM dws_medicine_day WHERE stat_date BETWEEN :start_date AND :end_date GROUP BY stat_date'} />
-            </FormField>
+              <FieldDescription>单条只读 SELECT/WITH；参数用命名占位</FieldDescription>
+            </Field>
             <FormGrid>
-              <FormField label="行数上限" htmlFor="service-max-rows">
+              <Field>
+                <FieldLabel>行数上限</FieldLabel>
                 <Input id="service-max-rows" type="number" min={1} value={form.maxRows} onChange={(event) => setForm({ ...form, maxRows: event.target.value })} />
-              </FormField>
-              <FormField label="超时（秒）" htmlFor="service-timeout">
+              </Field>
+              <Field>
+                <FieldLabel>超时（秒）</FieldLabel>
                 <Input id="service-timeout" type="number" min={1} value={form.timeoutSeconds} onChange={(event) => setForm({ ...form, timeoutSeconds: event.target.value })} />
-              </FormField>
+              </Field>
             </FormGrid>
-            <FormField label="负责人" required htmlFor="service-owner">
+            <Field className="mb-4">
+              <FieldLabel>
+                负责人 <span className="text-destructive-foreground">*</span>
+              </FieldLabel>
               <Input id="service-owner" value={form.owner} onChange={(event) => setForm({ ...form, owner: event.target.value })} placeholder="data-team" />
-            </FormField>
+            </Field>
           </div>
-        </Panel>
+        </FramePanel>
 
-        <Panel>
+        <FramePanel className="p-0 overflow-clip">
           <div className="px-5 py-4">
-            <FormField label="参数契约（JSON 数组）" htmlFor="service-parameters" hint='每项：{"name","type":"string|number|date|boolean","required","description","values","defaultValue"}'>
+            <Field className="mb-4">
+              <FieldLabel>参数契约（JSON 数组）</FieldLabel>
               <CodeTextarea id="service-parameters" className="min-h-[220px]" value={form.parameters} onChange={(event) => setForm({ ...form, parameters: event.target.value })} />
-            </FormField>
-            <FormField label="列契约（JSON 数组）" htmlFor="service-columns" hint='每项：{"name","type","description"}'>
+              <FieldDescription>{'每项：{"name","type":"string|number|date|boolean","required","description","values","defaultValue"}'}</FieldDescription>
+            </Field>
+            <Field className="mb-4">
+              <FieldLabel>列契约（JSON 数组）</FieldLabel>
               <CodeTextarea id="service-columns" className="min-h-[180px]" value={form.columns} onChange={(event) => setForm({ ...form, columns: event.target.value })} />
-            </FormField>
-            {error ? <p role="alert" className="mb-3 text-body-sm leading-relaxed text-red">{error}</p> : null}
+              <FieldDescription>{'每项：{"name","type","description"}'}</FieldDescription>
+            </Field>
+            {error ? (
+              <Alert variant="error" className="mb-3">
+                <CircleAlert />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            ) : null}
             <div className="flex items-center justify-between gap-3 border-t border-line pt-4">
-              <span className="text-meta text-muted">创建后为草稿；发布前可继续调整</span>
+              <span className="text-meta text-muted-foreground">创建后为草稿；发布前可继续调整</span>
               <div className="flex items-center gap-2">
-                <Button onClick={() => navigate('/data-services')} disabled={create.isPending}>取消</Button>
-                <Button variant="primary" disabled={create.isPending} onClick={submit}>
+                <Button variant="outline" onClick={() => navigate('/data-services')} disabled={create.isPending}>取消</Button>
+                <Button disabled={create.isPending} onClick={submit}>
                   <Save size={14} />{create.isPending ? '创建中…' : '创建服务（草稿）'}
                 </Button>
               </div>
             </div>
           </div>
-        </Panel>
+        </FramePanel>
       </div>
     </div>
   )

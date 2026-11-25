@@ -1,21 +1,30 @@
-import { useMutation, useQuery } from '@tanstack/react-query'
 import { useForm } from '@tanstack/react-form'
+import { useMutation, useQuery } from '@tanstack/react-query'
+import { useStore } from '@tanstack/react-store'
 import { CircleAlert, FlaskConical, Play, Table2 } from 'lucide-react'
 import { useEffect, useMemo, useRef } from 'react'
-import { Badge } from '../../components/ui/badge'
-import { Button } from '../../components/ui/button'
-import { FormField, FormGrid, FormNotice } from '../../components/ui/form'
-import { CodeTextarea, Input, NativeSelect } from '../../components/ui/input'
-import { LoadingInline } from '../../components/ui/states'
-import { cn } from '../../lib/utils'
-import {
-  runSourceQuery,
-  type SourceApiItem,
-  type StructuredTaskSpec,
-} from '../../data/controlPlane'
+
+import { CodeTextarea } from '@/components/app/code-textarea'
+import { FormGrid } from '@/components/app/form-grid'
+import { LoadingInline } from '@/components/app/loading'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
+import { CheckboxGroup } from '@/components/ui/checkbox-group'
+import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
+import { Fieldset, FieldsetLegend } from '@/components/ui/fieldset'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { RadioGroupPrimitive, RadioPrimitive } from '@/components/ui/radio-group'
+import { SegmentedControl, SegmentedControlItem } from '@/components/ui/segmented-control'
+import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+
+import { runSourceQuery, type SourceApiItem, type StructuredTaskSpec } from '../../data/controlPlane'
 import { formatDateTime } from '../../data/domain'
-import { sourceCatalogsQuery, sourceColumnsQuery, sourceTablesQuery } from './queries'
 import { errorMessage } from './labels'
+import { sourceCatalogsQuery, sourceColumnsQuery, sourceTablesQuery } from './queries'
 
 export interface StructuredValues {
   form: 'TABLE' | 'SQL'
@@ -44,6 +53,11 @@ const emptyValues: StructuredValues = {
   sinkFenodes: '',
   sinkCredentialRef: '',
 }
+
+const STRUCTURED_MODE_ITEMS = [
+  { value: 'FULL', label: '全量（幂等唯一键目标模型可重跑）' },
+  { value: 'INCREMENTAL', label: '增量（时间序列键水位回放）' },
+]
 
 function valuesFromSpec(spec: StructuredTaskSpec | null): StructuredValues {
   if (!spec) return emptyValues
@@ -133,7 +147,9 @@ export function StructuredTaskFields({
 
   useEffect(() => () => onDirtyChange?.(false), [onDirtyChange])
 
-  const values = form.state.values
+  // 这一版 @tanstack/react-form 的 useForm 不随表单状态重渲染；必须显式订阅 values，
+  // 受控控件（coss Input / Select / ToggleGroup 等）才会跟着状态走，否则打字丢字、选库不联动。
+  const values = useStore(form.store, (state) => state.values)
   const catalogsQuery = useQuery(sourceCatalogsQuery(source.id))
   const activeTable = editLocked || values.tables.length === 1 ? values.tables[0] : undefined
   const tablesQuery = useQuery(sourceTablesQuery(source.id, values.catalog))
@@ -148,27 +164,25 @@ export function StructuredTaskFields({
     mutationFn: (sql: string) => runSourceQuery(source.id, { sql, catalog: values.catalog || undefined, maxRows: 5 }),
   })
 
-  function toggleTable(table: string) {
+  /** 表选择变化：已锁定的任务只保留最后点选的一张表；每次变化都重置字段白名单与序列键。 */
+  function selectTables(next: string[]) {
     const current = form.getFieldValue('tables')
-    if (current.includes(table)) {
-      form.setFieldValue('tables', current.filter((item) => item !== table))
-      form.setFieldValue('columns', [])
-      form.setFieldValue('orderKey', '')
-      return
-    }
-    const next = editLocked ? [table] : [...current, table]
-    form.setFieldValue('tables', next)
+    const added = next.find((table) => !current.includes(table))
+    form.setFieldValue('tables', editLocked && added ? [added] : next)
     form.setFieldValue('columns', [])
     form.setFieldValue('orderKey', '')
   }
 
-  function toggleColumn(column: string) {
-    const current = form.getFieldValue('columns')
-    form.setFieldValue('columns', current.includes(column) ? current.filter((item) => item !== column) : [...current, column])
-  }
+  const canSubmit = !saving && values.form !== undefined
 
-  const canSubmit = !saving && form.state.values.form !== undefined
-
+  const orderKeyItems = [
+    { value: '', label: '选择序列键' },
+    ...timeColumns.map((column) => ({ value: column, label: column })),
+  ]
+  const catalogItems = [
+    { value: '', label: catalogsQuery.isPending ? '读取中…' : '选择库' },
+    ...(catalogsQuery.data?.catalogs ?? []).map((catalog) => ({ value: catalog, label: catalog })),
+  ]
   return (
     <form
       id="structured-task-form"
@@ -180,145 +194,159 @@ export function StructuredTaskFields({
       onChange={() => onDirtyChange?.(form.state.isDirty)}
     >
       {lastSuccessWatermark ? (
-        <FormNotice icon={<CircleAlert />}>
-          上次成功水位：{formatDateTime(lastSuccessWatermark)}。增量任务从该时间点继续回放；重新保存配置不会重置进度。
-        </FormNotice>
+        <Alert variant="info" role="note" className="mb-4">
+          <CircleAlert />
+          <AlertDescription>
+            上次成功水位：{formatDateTime(lastSuccessWatermark)}。增量任务从该时间点继续回放；重新保存配置不会重置进度。
+          </AlertDescription>
+        </Alert>
       ) : null}
 
-      <FormField label="任务形态">
-        <div role="radiogroup" aria-label="任务形态" className="inline-flex gap-1 rounded-control border border-line bg-wash p-0.5">
-          {([
-            { value: 'TABLE' as const, label: '表任务', icon: <Table2 size={13} /> },
-            { value: 'SQL' as const, label: 'SQL 任务', icon: <Play size={13} /> },
-          ]).map((option) => {
-            const active = values.form === option.value
-            return (
-              <button
-                key={option.value}
-                type="button"
-                role="radio"
-                aria-checked={active}
-                disabled={editLocked}
-                onClick={() => form.setFieldValue('form', option.value)}
-                className={cn(
-                  'inline-flex items-center gap-1.5 rounded-chip px-2.5 py-1 text-label',
-                  active ? 'bg-paper text-blue shadow-focus' : 'text-muted hover:text-ink',
-                  editLocked && 'opacity-60',
-                )}
-              >
-                {option.icon}{option.label}
-              </button>
-            )
-          })}
-        </div>
-      </FormField>
+      <Field className="mb-4" render={(props) => <Fieldset {...props} />}>
+        <FieldsetLegend className="font-medium text-sm">任务形态</FieldsetLegend>
+        <SegmentedControl
+          size="sm"
+          render={<RadioGroupPrimitive value={values.form} onValueChange={(next) => form.setFieldValue('form', next)} disabled={editLocked} />}
+        >
+          <SegmentedControlItem render={<RadioPrimitive.Root value="TABLE" />}>
+            <Table2 />
+            表任务
+          </SegmentedControlItem>
+          <SegmentedControlItem render={<RadioPrimitive.Root value="SQL" />}>
+            <Play />
+            SQL 任务
+          </SegmentedControlItem>
+        </SegmentedControl>
+      </Field>
 
       {values.form === 'TABLE' ? (
         <>
           <FormGrid>
-            <FormField label="源库" htmlFor="structured-catalog">
-              <NativeSelect
-                id="structured-catalog"
-                className="min-h-[35px]"
+            <Field>
+              <FieldLabel htmlFor="structured-catalog">源库</FieldLabel>
+              <Select
+                items={catalogItems}
                 value={values.catalog}
-                onChange={(event) => {
-                  form.setFieldValue('catalog', event.target.value)
+                onValueChange={(next) => {
+                  form.setFieldValue('catalog', next ?? '')
                   form.setFieldValue('tables', [])
                   form.setFieldValue('columns', [])
                   form.setFieldValue('orderKey', '')
                 }}
               >
-                <option value="">{catalogsQuery.isPending ? '读取中…' : '选择库'}</option>
-                {(catalogsQuery.data?.catalogs ?? []).map((catalog) => <option key={catalog} value={catalog}>{catalog}</option>)}
-              </NativeSelect>
+                <SelectTrigger id="structured-catalog">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectPopup>
+                  {catalogItems.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectPopup>
+              </Select>
               {catalogsQuery.isError ? <p className="mt-1 text-meta text-red">库清单读取失败，请确认连接配置</p> : null}
-            </FormField>
-            <FormField label="采集方式" htmlFor="structured-mode">
-              <NativeSelect
-                id="structured-mode"
-                className="min-h-[35px]"
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="structured-mode">采集方式</FieldLabel>
+              <Select
+                items={STRUCTURED_MODE_ITEMS}
                 value={values.mode}
-                onChange={(event) => form.setFieldValue('mode', event.target.value as 'FULL' | 'INCREMENTAL')}
+                onValueChange={(next) => form.setFieldValue('mode', (next ?? '') as 'FULL' | 'INCREMENTAL')}
               >
-                <option value="FULL">全量（幂等唯一键目标模型可重跑）</option>
-                <option value="INCREMENTAL">增量（时间序列键水位回放）</option>
-              </NativeSelect>
-            </FormField>
+                <SelectTrigger id="structured-mode">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectPopup>
+                  {STRUCTURED_MODE_ITEMS.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectPopup>
+              </Select>
+            </Field>
           </FormGrid>
 
           {values.catalog ? (
-            <FormField label={`源表${editLocked ? '' : '（可多选，每表一个任务）'}`}>
-              {tablesQuery.isPending ? <LoadingInline>正在读取表清单…</LoadingInline> : (
-                <div className="flex flex-wrap gap-1.5">
+            <Field className="mb-4" render={(props) => <Fieldset {...props} />}>
+              <FieldsetLegend className="font-medium text-sm">{`源表${editLocked ? '' : '（可多选，每表一个任务）'}`}</FieldsetLegend>
+              {tablesQuery.isPending ? <LoadingInline>正在读取表清单…</LoadingInline> : (tablesQuery.data?.tables.length ?? 0) === 0 ? (
+                <p className="text-label text-muted-foreground">该库没有可采集的表</p>
+              ) : (
+                <ToggleGroup
+                  multiple
+                  aria-label="源表"
+                  className="flex-wrap"
+                  size="sm"
+                  value={values.tables}
+                  onValueChange={selectTables}
+                >
                   {(tablesQuery.data?.tables ?? []).map((table) => (
-                    <button
-                      key={table.name}
-                      type="button"
-                      title={table.remark || table.type}
-                      aria-pressed={values.tables.includes(table.name)}
-                      onClick={() => toggleTable(table.name)}
-                      className={cn(
-                        'inline-flex items-center gap-1 rounded-chip border border-line px-2 py-1 text-label hover:border-blue-line',
-                        values.tables.includes(table.name) ? 'border-blue-line bg-blue-soft text-blue' : 'bg-paper text-ink-soft',
-                      )}
-                    >
-                      <Table2 size={12} />{table.name}
-                    </button>
+                    <ToggleGroupItem key={table.name} value={table.name} title={table.remark || table.type}>
+                      <Table2 />
+                      {table.name}
+                    </ToggleGroupItem>
                   ))}
-                  {(tablesQuery.data?.tables.length ?? 0) === 0 && !tablesQuery.isPending ? <p className="text-label text-muted">该库没有可采集的表</p> : null}
-                </div>
+                </ToggleGroup>
               )}
               {tablesQuery.data?.truncated ? <p className="mt-1 text-meta text-amber">表数量较多，仅显示前 500 个</p> : null}
-            </FormField>
+            </Field>
           ) : null}
 
           {activeColumns ? (
-            <FormField label={`字段白名单（不选 = 全部字段）${columnsQuery.isFetching ? ' · 读取中…' : ''}`}>
-              <div className="flex max-h-[220px] flex-wrap gap-1.5 overflow-y-auto rounded-control border border-line bg-wash p-2.5">
+            <Field className="mb-4" render={(props) => <Fieldset {...props} />}>
+              <FieldsetLegend className="font-medium text-sm">{`字段白名单（不选 = 全部字段）${columnsQuery.isFetching ? ' · 读取中…' : ''}`}</FieldsetLegend>
+              <CheckboxGroup
+                aria-label="字段白名单"
+                className="w-full max-h-[220px] flex-row flex-wrap gap-1.5 overflow-y-auto rounded-control border border-line bg-wash p-2.5"
+                value={values.columns}
+                onValueChange={(next) => form.setFieldValue('columns', next)}
+              >
                 {activeColumns.map((column) => (
-                  <label key={column.name} className="inline-flex items-center gap-1.5 rounded-chip bg-paper px-2 py-1 text-label text-ink-soft">
-                    <input
-                      type="checkbox"
-                      className="size-[13px] accent-blue"
-                      checked={values.columns.includes(column.name)}
-                      onChange={() => toggleColumn(column.name)}
-                    />
-                    <span>{column.name}</span>
-                    <small className="text-meta text-muted">{column.typeName}</small>
-                  </label>
+                  <Label key={column.name} className="rounded-chip bg-paper px-2 py-1">
+                    <Checkbox value={column.name} />
+                    <span className="text-label">{column.name}</span>
+                    <small className="text-meta text-muted-foreground">{column.typeName}</small>
+                  </Label>
                 ))}
-              </div>
-            </FormField>
+              </CheckboxGroup>
+            </Field>
           ) : values.tables.length > 1 ? (
-            <p className="mb-4 text-label text-muted">多表批量任务使用全量字段；如需字段白名单或增量序列键，请单选表配置。</p>
+            <p className="mb-4 text-label text-muted-foreground">多表批量任务使用全量字段；如需字段白名单或增量序列键，请单选表配置。</p>
           ) : null}
 
           {values.mode === 'INCREMENTAL' && activeColumns !== undefined ? (
-            <FormField label="增量序列键（时间类型）" htmlFor="structured-order-key">
-              <NativeSelect
-                id="structured-order-key"
-                className="min-h-[35px]"
+            <Field className="mb-4">
+              <FieldLabel htmlFor="structured-order-key">增量序列键（时间类型）</FieldLabel>
+              <Select
+                items={orderKeyItems}
                 value={values.orderKey}
-                onChange={(event) => form.setFieldValue('orderKey', event.target.value)}
+                onValueChange={(next) => form.setFieldValue('orderKey', next ?? '')}
               >
-                <option value="">选择序列键</option>
-                {timeColumns.map((column) => <option key={column} value={column}>{column}</option>)}
-              </NativeSelect>
+                <SelectTrigger id="structured-order-key">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectPopup>
+                  {orderKeyItems.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectPopup>
+              </Select>
               {timeColumns.length === 0 ? <p className="mt-1 text-meta text-amber">该表没有时间类型字段；整数序列键不支持增量回放，请改用全量。</p> : null}
-            </FormField>
+            </Field>
           ) : null}
         </>
       ) : (
         <>
-          <FormField
-            label="查询语句（只读 · 单条 SELECT/WITH）"
-            htmlFor="structured-sql"
-            hint={sqlTest.data ? `可执行：${sqlTest.data.columns.length} 列 × ${sqlTest.data.rows.length} 行样本${sqlTest.data.truncated ? '（已截断）' : ''}` : sqlTest.error ? errorMessage(sqlTest.error, '测试失败') : undefined}
-          >
-            <div className="mb-1.5 flex justify-end">
+          <Field className="mb-4">
+            <FieldLabel htmlFor="structured-sql">查询语句（只读 · 单条 SELECT/WITH）</FieldLabel>
+            <div className="mb-1.5 flex w-full justify-end">
               <Button
                 size="sm"
-                variant="text"
+                variant="link"
                 disabled={!values.customSql.trim() || sqlTest.isPending}
                 onClick={() => sqlTest.mutate(values.customSql)}
               >
@@ -332,49 +360,60 @@ export function StructuredTaskFields({
               onChange={(event) => form.setFieldValue('customSql', event.target.value)}
               placeholder="例如：SELECT id, name FROM patient_info WHERE update_time >= '${last_success_time}'"
             />
-          </FormField>
-          <FormField label="目标表名" htmlFor="structured-sql-target">
+            <FieldDescription>{sqlTest.data ? `可执行：${sqlTest.data.columns.length} 列 × ${sqlTest.data.rows.length} 行样本${sqlTest.data.truncated ? '（已截断）' : ''}` : sqlTest.error ? errorMessage(sqlTest.error, '测试失败') : undefined}</FieldDescription>
+          </Field>
+          <Field className="mb-4">
+            <FieldLabel>目标表名</FieldLabel>
             <Input id="structured-sql-target" value={values.targetTable} onChange={(event) => form.setFieldValue('targetTable', event.target.value)} placeholder="例如：src_patient_overview" />
-          </FormField>
+          </Field>
         </>
       )}
 
       <FormGrid>
         {values.form === 'TABLE' ? (
-          <FormField label="目标表名（缺省 = 源表名）" htmlFor="structured-target-table">
+          <Field>
+            <FieldLabel>目标表名（缺省 = 源表名）</FieldLabel>
             <Input id="structured-target-table" value={values.targetTable} onChange={(event) => form.setFieldValue('targetTable', event.target.value)} placeholder={activeTable ?? '与源表同名'} />
-          </FormField>
+          </Field>
         ) : null}
-        <FormField label="目标库（缺省按系统类型命名）" htmlFor="structured-target-database">
+        <Field>
+          <FieldLabel>目标库（缺省按系统类型命名）</FieldLabel>
           <Input id="structured-target-database" value={values.targetDatabase} onChange={(event) => form.setFieldValue('targetDatabase', event.target.value)} placeholder={`ods_${source.systemType.toLowerCase()}`} />
-        </FormField>
+        </Field>
       </FormGrid>
       <FormGrid>
-        <FormField label="目标仓库 FE 地址" htmlFor="structured-fenodes">
+        <Field>
+          <FieldLabel>目标仓库 FE 地址</FieldLabel>
           <Input id="structured-fenodes" value={values.sinkFenodes} onChange={(event) => form.setFieldValue('sinkFenodes', event.target.value)} placeholder="例如：doris-fe.internal:8030" />
-        </FormField>
-        <FormField label="目标仓库凭据引用" htmlFor="structured-sink-credential">
+        </Field>
+        <Field>
+          <FieldLabel>目标仓库凭据引用</FieldLabel>
           <Input id="structured-sink-credential" value={values.sinkCredentialRef} onChange={(event) => form.setFieldValue('sinkCredentialRef', event.target.value)} placeholder="已登记凭据的引用 id" />
-        </FormField>
+        </Field>
       </FormGrid>
 
       <form.Subscribe selector={(state) => state.errors}>
         {(errors) => errors.length > 0
-          ? <p role="alert" className="mb-3 text-body-sm text-red">{errors[0]}</p>
+          ? (
+            <Alert variant="error" className="mb-3">
+              <CircleAlert />
+              <AlertDescription>{errors[0]}</AlertDescription>
+            </Alert>
+          )
           : null}
       </form.Subscribe>
 
       <div className="flex items-center justify-between gap-3 border-t border-line pt-4">
-        <span className="text-meta text-muted">{submitHint ?? '凭据只保存引用；编译后的作业 JSON 由控制面持有'}</span>
+        <span className="text-meta text-muted-foreground">{submitHint ?? '凭据只保存引用；编译后的作业 JSON 由控制面持有'}</span>
         <div className="flex items-center gap-2">
-          {onCancel ? <Button onClick={onCancel} disabled={saving}>取消</Button> : null}
-          <Button type="submit" variant="primary" disabled={!canSubmit || saving}>
+          {onCancel ? <Button variant="outline" onClick={onCancel} disabled={saving}>取消</Button> : null}
+          <Button type="submit" disabled={!canSubmit || saving}>
             {saving ? '保存中…' : submitLabel}
           </Button>
         </div>
       </div>
-      <p className="mt-2 text-meta text-muted">
-        <Badge tone="blue">结构化意图</Badge> 表单只声明采集口径，库表与字段由控制面对源实校验后编译。
+      <p className="mt-2 text-meta text-muted-foreground">
+        <Badge variant="info">结构化意图</Badge> 表单只声明采集口径，库表与字段由控制面对源实校验后编译。
       </p>
     </form>
   )

@@ -1,13 +1,16 @@
 import { useQuery } from '@tanstack/react-query'
 import { Gauge, Settings2 } from 'lucide-react'
-import { Badge } from '../../components/ui/badge'
-import { Button } from '../../components/ui/button'
-import { Panel, PanelHead } from '../../components/ui/panel'
+
+import { LoadingBlock } from '@/components/app/loading'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { FrameDescription, FrameHeader, FramePanel } from '@/components/ui/frame'
+import { Tooltip, TooltipPopup, TooltipTrigger } from '@/components/ui/tooltip'
+
+import { usePortalNavigate } from '../../app/navigate'
 import { DataTable, listColumnHelper } from '../../components/table/data-table'
-import { LoadingBlock } from '../../components/ui/states'
 import { QUALITY_RULE_TYPE_LABELS, type QualityScoreSummary } from '../../data/controlPlane'
 import { formatDateTime } from '../../data/domain'
-import { usePortalNavigate } from '../../app/navigate'
 import { qualityScoreQuery } from './queries'
 
 export const QUALITY_DIMENSIONS = ['完整性', '一致性', '规范性', '准确性', '时效性', '稳定性']
@@ -31,8 +34,17 @@ export function QualityScorePanel({ compact = false }: { compact?: boolean }) {
       cell: ({ row }) => {
         const typeLabel = row.original.ruleType ? (QUALITY_RULE_TYPE_LABELS[row.original.ruleType] ?? row.original.ruleType) : null
         return typeLabel
-          ? <span title={row.original.ruleId}>{typeLabel}{row.original.targetColumn ? ` · ${row.original.targetColumn}` : ''}</span>
-          : <code className="font-mono text-label text-muted" title={row.original.ruleId}>{row.original.ruleId}</code>
+          ? (
+            <Tooltip>
+              <TooltipTrigger render={<span />}>{typeLabel}{row.original.targetColumn ? ` · ${row.original.targetColumn}` : ''}</TooltipTrigger>
+              <TooltipPopup className="font-mono text-xs">{row.original.ruleId}</TooltipPopup>
+            </Tooltip>
+          ) : (
+            <Tooltip>
+              <TooltipTrigger render={<code className="font-mono text-label text-muted-foreground" />}>{row.original.ruleId}</TooltipTrigger>
+              <TooltipPopup className="font-mono text-xs">{row.original.ruleId}</TooltipPopup>
+            </Tooltip>
+          )
       },
     }),
     helper.accessor('datasetId', { header: '数据集' }),
@@ -47,39 +59,41 @@ export function QualityScorePanel({ compact = false }: { compact?: boolean }) {
       id: 'passed',
       header: '结果',
       size: 100,
-      cell: ({ row }) => row.original.passed == null ? '—' : <Badge tone={row.original.passed ? 'success' : 'danger'}>{row.original.passed ? '通过' : '未通过'}</Badge>,
+      cell: ({ row }) => row.original.passed == null ? '—' : <Badge variant={row.original.passed ? 'success' : 'error'}>{row.original.passed ? '通过' : '未通过'}</Badge>,
     }),
   ])
 
   const noScoredRules = Boolean(summary && summary.rules.every((rule) => rule.score == null))
 
   return (
-    <Panel>
-      <PanelHead
-        title="质量评分"
-        description="按最近一次有效运行评分；未完成运行的规则不计入总分"
-        actions={
-          <>
-            {summary ? <span className="text-meta text-muted">标准更新：{formatDateTime(summary.standard.updatedAt)}</span> : null}
-            <Button size="sm" onClick={() => navigate('/governance/quality/scoring')}><Settings2 size={13} />评分标准</Button>
-          </>
-        }
-      />
+    <FramePanel className="p-0 overflow-clip">
+      <FrameHeader className="px-[18px] pt-[18px] pb-3 flex-row items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-title font-semibold tracking-[-0.2px]">
+            质量评分
+          </h2>
+          <FrameDescription>按最近一次有效运行评分；未完成运行的规则不计入总分</FrameDescription>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">{          <>
+            {summary ? <span className="text-meta text-muted-foreground">标准更新：{formatDateTime(summary.standard.updatedAt)}</span> : null}
+            <Button variant="outline" size="sm" onClick={() => navigate('/governance/quality/scoring')}><Settings2 size={13} />评分标准</Button>
+          </>}</div>
+      </FrameHeader>
 
       {query.isPending ? <LoadingBlock className="min-h-[160px]">正在读取质量评分…</LoadingBlock> : null}
       {query.isError ? (
         <div role="status" className="px-5 py-8 text-center">
           <p className="text-body-sm font-medium text-ink-soft">暂时无法读取质量评分</p>
-          <p className="mt-1 text-label text-muted">请恢复控制面连接后重试，评分标准与历史结果不会以演示数据补位。</p>
-          <Button size="sm" className="mt-3" onClick={() => void query.refetch()}>重试</Button>
+          <p className="mt-1 text-label text-muted-foreground">请恢复控制面连接后重试，评分标准与历史结果不会以演示数据补位。</p>
+          <Button variant="outline" size="sm" className="mt-3" onClick={() => void query.refetch()}>重试</Button>
         </div>
       ) : null}
 
       {summary && noScoredRules ? (
         <div className="flex flex-col items-center gap-2 px-5 py-8 text-center">
-          <Gauge size={22} className="text-muted" aria-hidden="true" />
+          <Gauge size={22} className="text-muted-foreground" aria-hidden="true" />
           <strong className="text-body-sm text-ink-soft">等待首轮质量评分</strong>
-          <p className="max-w-[520px] text-label leading-relaxed text-muted">完成质量规则复检后，将显示六个维度的得分、加权总分与等级。可先核对「评分标准」中的通过线与权重。</p>
+          <p className="max-w-[520px] text-label leading-relaxed text-muted-foreground">完成质量规则复检后，将显示六个维度的得分、加权总分与等级。可先核对「评分标准」中的通过线与权重。</p>
         </div>
       ) : null}
 
@@ -89,9 +103,9 @@ export function QualityScorePanel({ compact = false }: { compact?: boolean }) {
             <div className="flex items-center gap-2.5">
               <Gauge size={22} className="text-blue" />
               <strong className="text-metric leading-none font-semibold tracking-[-0.6px] text-blue">{summary.totalScore == null ? '—' : summary.totalScore.toFixed(1)}</strong>
-              {summary.grade ? <Badge>{`等级 ${summary.grade}`}</Badge> : null}
+              {summary.grade ? <Badge variant="outline">{`等级 ${summary.grade}`}</Badge> : null}
               {summary.totalScore != null ? (
-                <Badge tone={summary.totalScore >= summary.standard.passScore ? 'success' : 'warn'}>{summary.totalScore >= summary.standard.passScore ? '达标' : '未达标'}</Badge>
+                <Badge variant={summary.totalScore >= summary.standard.passScore ? 'success' : 'warning'}>{summary.totalScore >= summary.standard.passScore ? '达标' : '未达标'}</Badge>
               ) : null}
             </div>
             <div className={`grid flex-1 gap-x-5 gap-y-2 ${compact ? 'grid-cols-3' : 'grid-cols-6'} max-[1100px]:grid-cols-3`}>
@@ -99,14 +113,14 @@ export function QualityScorePanel({ compact = false }: { compact?: boolean }) {
                 const item = summary.dimensions.find((entry) => entry.dimension === dimension)
                 return (
                   <div key={dimension}>
-                    <div className="flex items-center justify-between text-meta text-muted">
+                    <div className="flex items-center justify-between text-meta text-muted-foreground">
                       <span>{dimension}</span>
                       <span>{item ? item.score.toFixed(1) : '无运行'}</span>
                     </div>
                     <div className="mt-1 h-[3px] overflow-hidden rounded-full bg-line">
                       <i className="block h-full origin-left rounded-full bg-blue" style={{ transform: `scaleX(${Math.max(0, Math.min(100, item?.score ?? 0)) / 100})` }} />
                     </div>
-                    <div className="mt-0.5 text-[9px] text-muted">{item ? `${item.ruleCount} 条规则` : '—'}</div>
+                    <div className="mt-0.5 text-[9px] text-muted-foreground">{item ? `${item.ruleCount} 条规则` : '—'}</div>
                   </div>
                 )
               })}
@@ -116,10 +130,10 @@ export function QualityScorePanel({ compact = false }: { compact?: boolean }) {
             columns={columns}
             data={summary.rules}
             getRowId={(rule) => rule.ruleId}
-            empty={<p className="px-5 py-4 text-label text-muted">尚无带评分的规则运行</p>}
+            empty={<p className="px-5 py-4 text-label text-muted-foreground">尚无带评分的规则运行</p>}
           />
         </>
       ) : null}
-    </Panel>
+    </FramePanel>
   )
 }

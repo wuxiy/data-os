@@ -15,44 +15,52 @@ import {
   RotateCcw,
   Settings2,
 } from 'lucide-react'
-import { useMemo, useState, type ReactNode } from 'react'
-import { Badge, StatusText } from '../../components/ui/badge'
-import { Button } from '../../components/ui/button'
-import { NativeSelect, SearchField } from '../../components/ui/input'
-import { Breadcrumb, PageHeading } from '../../components/ui/page-heading'
-import { Count, Panel, PanelHead, ScopeNote } from '../../components/ui/panel'
-import { Popover } from '../../components/ui/popover'
-import { Confirm } from '../../components/ui/overlay'
-import { EmptyState, LoadingInline } from '../../components/ui/states'
-import { DataTable, SelectionBar, TablePagination, listColumnHelper } from '../../components/table/data-table'
-import { useNotice } from '../../components/ui/toast'
+import { type ReactNode, useMemo, useState } from 'react'
+
+import { ConfirmDialog } from '@/components/app/confirm-dialog'
+import { EmptyState } from '@/components/app/empty-state'
+import { LoadingInline } from '@/components/app/loading'
+import { useNotice } from '@/components/app/notice'
+import { ScopeNote } from '@/components/app/scope-note'
+import { SearchField } from '@/components/app/search-field'
+import { StatusBadge } from '@/components/app/status-badge'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { FramePanel } from '@/components/ui/frame'
+import { Menu, MenuItem, MenuPopup, MenuTrigger } from '@/components/ui/menu'
+import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Tabs, TabsList, TabsPanel, TabsTab } from '@/components/ui/tabs'
+import { Tooltip, TooltipPopup, TooltipTrigger } from '@/components/ui/tooltip'
+
+import { usePortalNavigate } from '../../app/navigate'
+import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
+import { DataTable, listColumnHelper, SelectionBar, TablePagination } from '../../components/table/data-table'
 import {
   confirmIngestionRunAbsent,
   fetchIngestionRuns,
+  type IngestionJobApiItem,
+  type IngestionRunApiItem,
   retryIngestionRun,
+  type SourceApiItem,
   startIngestionRun,
   syncIngestionRun,
   updateIngestionJobStatus,
-  type IngestionJobApiItem,
-  type IngestionRunApiItem,
-  type SourceApiItem,
 } from '../../data/controlPlane'
 import { ACTIVE_RUN_STATUSES, formatDateTime, retryableRunStatus, runStatusView } from '../../data/domain'
 import { workLinks } from '../../data/routes'
-import { usePortalNavigate } from '../../app/navigate'
-import { ingestionKeys, jobRunsQuery, jobsQuery, sourcesQuery, workflowTemplatesQuery } from './queries'
 import {
-  JOBS_PAGE_SIZE,
-  RUNS_PAGE_SIZE,
-  SOURCES_PAGE_SIZE,
   businessMessage,
   createRequestKey,
   errorMessage,
   executorLabel,
   jobLifecycleView,
+  JOBS_PAGE_SIZE,
+  RUNS_PAGE_SIZE,
   sourceDisplayName,
+  SOURCES_PAGE_SIZE,
   sourceStatusView,
 } from './labels'
+import { ingestionKeys, jobRunsQuery, jobsQuery, sourcesQuery, workflowTemplatesQuery } from './queries'
 import { CopyJobDialog, SourceCheckDialog, SourceRegisterDialog } from './source-dialogs'
 
 /**
@@ -61,6 +69,12 @@ import { CopyJobDialog, SourceCheckDialog, SourceRegisterDialog } from './source
  * 列表只保留能一眼判断的对象信息与主操作。
  */
 type TabValue = 'sources' | 'jobs' | 'runs'
+
+const MODE_FILTER_ITEMS = [
+  { value: '', label: '全部模式' },
+  { value: 'BATCH', label: '批量同步' },
+  { value: 'CDC', label: '增量变更' },
+]
 
 export function IngestionPage() {
   const navigate = usePortalNavigate()
@@ -229,7 +243,7 @@ export function IngestionPage() {
       cell: ({ row }) => (
         <div>
           <div className="text-body-sm font-medium text-ink">{sourceDisplayName(row.original)}</div>
-          <div className="mt-0.5 text-meta text-muted">{row.original.id.slice(0, 12)}</div>
+          <div className="mt-0.5 text-meta text-muted-foreground">{row.original.id.slice(0, 12)}</div>
         </div>
       ),
     }),
@@ -245,7 +259,7 @@ export function IngestionPage() {
       size: 110,
       cell: ({ row }) => {
         const status = sourceStatusView(row.original.status)
-        return <Badge tone={status.tone}>{status.label}</Badge>
+        return <Badge variant={status.tone}>{status.label}</Badge>
       },
     }),
     sourceHelper.display({
@@ -256,7 +270,12 @@ export function IngestionPage() {
         ? (
           <div>
             <div className="text-label text-ink-soft">{formatDateTime(row.original.lastCheckedAt)}</div>
-            {row.original.lastCheckMessage ? <div className="mt-0.5 max-w-[220px] truncate text-meta text-muted" title={row.original.lastCheckMessage}>{row.original.lastCheckMessage}</div> : null}
+            {row.original.lastCheckMessage ? (
+              <Tooltip>
+                <TooltipTrigger render={<div className="mt-0.5 max-w-[220px] truncate text-meta text-muted-foreground" />}>{row.original.lastCheckMessage}</TooltipTrigger>
+                <TooltipPopup>{row.original.lastCheckMessage}</TooltipPopup>
+              </Tooltip>
+            ) : null}
           </div>
         )
         : <span className="text-label text-faint">未检查</span>,
@@ -267,9 +286,9 @@ export function IngestionPage() {
       size: 170,
       cell: ({ row }) => (
         <div className="flex items-center gap-3" onClick={(event) => event.stopPropagation()}>
-          <Button variant="text" onClick={() => setCheckingSource(row.original)}>检查</Button>
+          <Button variant="link" onClick={() => setCheckingSource(row.original)}>检查</Button>
           {row.original.protocol.toUpperCase() === 'JDBC' ? (
-            <Button variant="text" onClick={() => navigate(workLinks.ingestionSourceExplorer(row.original.id))}>
+            <Button variant="link" onClick={() => navigate(workLinks.ingestionSourceExplorer(row.original.id))}>
               <Database size={13} />浏览
             </Button>
           ) : null}
@@ -285,26 +304,26 @@ export function IngestionPage() {
       header: '采集任务',
       cell: ({ row }) => (
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <span className="text-body-sm font-medium text-ink">{row.original.name}</span>
-            <Badge tone={row.original.configured ? 'blue' : 'warn'}>
+            <Badge variant={row.original.configured ? 'info' : 'warning'}>
               {row.original.configured ? `${row.original.templateKey ?? '自定义'} v${row.original.templateVersion ?? 1}` : '未配置'}
             </Badge>
           </div>
-          <div className="mt-0.5 text-meta text-muted">{row.original.id.slice(0, 12)}</div>
+          <div className="mt-0.5 text-meta text-muted-foreground">{row.original.id.slice(0, 12)}</div>
         </div>
       ),
     }),
     jobHelper.display({
       id: 'source',
       header: '数据源',
-      size: 160,
+      size: 130,
       cell: ({ row }) => <span className="text-label">{sourceById.get(row.original.sourceId)?.name ?? '来源未登记'}</span>,
     }),
     jobHelper.display({
       id: 'executor',
       header: '执行通道',
-      size: 130,
+      size: 120,
       cell: ({ row }) => <span className="text-label">{executorLabel(row.original.executor)}</span>,
     }),
     jobHelper.display({
@@ -316,13 +335,18 @@ export function IngestionPage() {
         const latestStatus = run?.status ?? row.original.latestRunStatus
         if (!latestStatus) {
           const lifecycle = jobLifecycleView(row.original.status)
-          return <StatusText tone={lifecycle.tone === 'success' ? 'good' : lifecycle.tone === 'danger' ? 'bad' : 'neutral'}>{lifecycle.label}</StatusText>
+          return <StatusBadge tone={lifecycle.tone === 'success' ? 'good' : lifecycle.tone === 'error' ? 'bad' : 'neutral'}>{lifecycle.label}</StatusBadge>
         }
         const status = runStatusView(latestStatus)
         return (
           <div>
-            <StatusText tone={status.tone === 'healthy' ? 'good' : status.tone === 'danger' ? 'bad' : status.tone === 'warning' ? 'running' : 'neutral'}>{status.label}</StatusText>
-            {run ? <div className="mt-0.5 max-w-[200px] truncate text-meta text-muted" title={businessMessage(run.message)}>{businessMessage(run.message)}</div> : null}
+            <StatusBadge tone={status.tone === 'healthy' ? 'good' : status.tone === 'danger' ? 'bad' : status.tone === 'warning' ? 'running' : 'neutral'}>{status.label}</StatusBadge>
+            {run ? (
+              <Tooltip>
+                <TooltipTrigger render={<div className="mt-0.5 max-w-[200px] truncate text-meta text-muted-foreground" />}>{businessMessage(run.message)}</TooltipTrigger>
+                <TooltipPopup>{businessMessage(run.message)}</TooltipPopup>
+              </Tooltip>
+            ) : null}
           </div>
         )
       },
@@ -333,13 +357,13 @@ export function IngestionPage() {
       size: 100,
       cell: ({ row }) => {
         const lifecycle = jobLifecycleView(row.original.status)
-        return <Badge tone={lifecycle.tone}>{lifecycle.label}</Badge>
+        return <Badge variant={lifecycle.tone}>{lifecycle.label}</Badge>
       },
     }),
     jobHelper.display({
       id: 'actions',
       header: '操作',
-      size: 230,
+      size: 276,
       cell: ({ row }) => {
         const job = row.original
         const run = latestRuns.get(job.id)
@@ -350,69 +374,79 @@ export function IngestionPage() {
         return (
           <div className="flex items-center gap-2" onClick={(event) => event.stopPropagation()}>
             {job.status === 'PAUSED' ? (
-              <Button size="sm" disabled={busy} onClick={() => changeStatus.mutate({ job, status: 'ACTIVE' })}><Play size={12} />启用</Button>
+              <Button variant="outline" size="sm" disabled={busy} onClick={() => changeStatus.mutate({ job, status: 'ACTIVE' })}><Play size={12} />启用</Button>
             ) : job.status === 'ARCHIVED' ? (
-              <Badge>已归档</Badge>
+              <Badge variant="outline">已归档</Badge>
+            ) : activeRun ? (
+              // 已有活动运行时按钮禁用，用提示说明原因（禁用态收不到悬停，按 coss 写法包一层可聚焦的 span）。
+              <Tooltip>
+                <TooltipTrigger render={<span className="inline-flex" tabIndex={0} />}>
+                  <Button variant="outline" size="sm" disabled><Play size={12} />已有运行</Button>
+                </TooltipTrigger>
+                <TooltipPopup>已有活动运行</TooltipPopup>
+              </Tooltip>
             ) : (
-              <Button
-                size="sm"
-                disabled={busy || activeRun}
-                title={activeRun ? '已有活动运行' : undefined}
-                onClick={() => {
-                  if (!job.configured) {
-                    notify('请先保存采集任务配置，再启动运行')
-                    navigate(workLinks.ingestionJob(job.id, 'configuration'))
-                    return
-                  }
-                  startRun.mutate(job)
-                }}
-              >
-                <Play size={12} />{activeRun ? '已有运行' : job.configured ? '启动' : '配置后运行'}
+              <Button variant="outline" size="sm" disabled={busy} onClick={() => {
+                if (!job.configured) {
+                  notify('请先保存采集任务配置，再启动运行')
+                  navigate(workLinks.ingestionJob(job.id, 'configuration'))
+                  return
+                }
+                startRun.mutate(job)
+              }}>
+                <Play size={12} />{job.configured ? '启动' : '配置后运行'}
               </Button>
             )}
             {canRetry ? (
-              <Button size="sm" disabled={busy || activeRun || job.status !== 'ACTIVE'} onClick={() => run && runAction.mutate({ job, run, action: 'retry' })}>
+              <Button variant="outline" size="sm" disabled={busy || activeRun || job.status !== 'ACTIVE'} onClick={() => run && runAction.mutate({ job, run, action: 'retry' })}>
                 <RotateCcw size={12} />重试
               </Button>
             ) : null}
-            <Button variant="text" onClick={() => openJob(job)}>详情</Button>
-            <Popover
-              align="end"
-              trigger={<Button size="icon-plain" aria-label={`更多操作：${job.name}`} title="更多"><MoreHorizontal size={14} /></Button>}
-            >
-              <div className="flex flex-col">
+            <Button variant="link" onClick={() => openJob(job)}>详情</Button>
+            <Menu>
+              <MenuTrigger render={<Button variant="ghost" size="icon" aria-label={`更多操作：${job.name}`} />}>
+                <MoreHorizontal />
+              </MenuTrigger>
+              <MenuPopup align="end">
                 {executorLabel(job.executor) === '平台调度' ? (
-                  <Button variant="quiet" size="sm" className="justify-start" onClick={() => navigate(workLinks.ingestionJob(job.id, 'scheduling'))}>
-                    <CalendarClock size={13} />调度配置
-                  </Button>
+                  <MenuItem onClick={() => navigate(workLinks.ingestionJob(job.id, 'scheduling'))}>
+                    <CalendarClock />
+                    调度配置
+                  </MenuItem>
                 ) : null}
-                <Button variant="quiet" size="sm" className="justify-start" onClick={() => navigate(workLinks.ingestionJob(job.id, 'configuration'))}>
-                  <Settings2 size={13} />任务配置
-                </Button>
+                <MenuItem onClick={() => navigate(workLinks.ingestionJob(job.id, 'configuration'))}>
+                  <Settings2 />
+                  任务配置
+                </MenuItem>
                 {job.status === 'ACTIVE' ? (
-                  <Button variant="quiet" size="sm" className="justify-start" disabled={busy} onClick={() => changeStatus.mutate({ job, status: 'PAUSED' })}>
-                    <Pause size={13} />暂停
-                  </Button>
+                  <MenuItem disabled={busy} onClick={() => changeStatus.mutate({ job, status: 'PAUSED' })}>
+                    <Pause />
+                    暂停
+                  </MenuItem>
                 ) : job.status === 'PAUSED' || job.status === 'DRAFT' ? (
-                  <Button variant="quiet" size="sm" className="justify-start" disabled={busy} onClick={() => changeStatus.mutate({ job, status: 'ACTIVE' })}>
-                    <Play size={13} />启用
-                  </Button>
+                  <MenuItem disabled={busy} onClick={() => changeStatus.mutate({ job, status: 'ACTIVE' })}>
+                    <Play />
+                    启用
+                  </MenuItem>
                 ) : null}
-                <Button variant="quiet" size="sm" className="justify-start" disabled={busy} onClick={() => setCopyTarget(job)}>
-                  <Copy size={13} />复制
-                </Button>
+                <MenuItem disabled={busy} onClick={() => setCopyTarget(job)}>
+                  <Copy />
+                  复制
+                </MenuItem>
                 {run && ACTIVE_RUN_STATUSES.includes(run.status) ? (
-                  <Button variant="quiet" size="sm" className="justify-start" disabled={busy} onClick={() => runAction.mutate({ job, run, action: 'sync' })}>
-                    <RefreshCw size={13} />同步运行状态
-                  </Button>
+                  <MenuItem disabled={busy} onClick={() => runAction.mutate({ job, run, action: 'sync' })}>
+                    <RefreshCw />
+                    同步运行状态
+                  </MenuItem>
                 ) : null}
                 {job.status !== 'ARCHIVED' ? (
-                  <Button variant="quiet" size="sm" className="justify-start" disabled={busy || activeRun} onClick={() => changeStatus.mutate({ job, status: 'ARCHIVED' })}>
-                    <Archive size={13} />归档
-                  </Button>
+                  <MenuItem variant="destructive" disabled={busy || activeRun} onClick={() => changeStatus.mutate({ job, status: 'ARCHIVED' })}>
+                    <Archive />
+                    归档
+                  </MenuItem>
                 ) : null}
-              </div>
-            </Popover>
+              </MenuPopup>
+            </Menu>
           </div>
         )
       },
@@ -427,7 +461,7 @@ export function IngestionPage() {
       cell: ({ row }) => (
         <div>
           <div className="text-body-sm font-medium text-ink">{row.original.job.name}</div>
-          <div className="mt-0.5 text-meta text-muted">{row.original.run.id.slice(0, 12)}</div>
+          <div className="mt-0.5 text-meta text-muted-foreground">{row.original.run.id.slice(0, 12)}</div>
         </div>
       ),
     }),
@@ -437,7 +471,7 @@ export function IngestionPage() {
       size: 140,
       cell: ({ row }) => {
         const status = runStatusView(row.original.run.status)
-        return <StatusText tone={status.tone === 'healthy' ? 'good' : status.tone === 'danger' ? 'bad' : status.tone === 'warning' ? 'running' : 'neutral'}>{status.label}</StatusText>
+        return <StatusBadge tone={status.tone === 'healthy' ? 'good' : status.tone === 'danger' ? 'bad' : status.tone === 'warning' ? 'running' : 'neutral'}>{status.label}</StatusBadge>
       },
     }),
     runHelper.display({
@@ -445,7 +479,7 @@ export function IngestionPage() {
       header: '对账',
       size: 150,
       cell: ({ row }) => row.original.run.reconciliationStatus === 'MANUAL_REQUIRED'
-        ? <Badge tone="warn">待人工对账</Badge>
+        ? <Badge variant="warning">待人工对账</Badge>
         : <span className="text-label text-faint">—</span>,
     }),
     runHelper.display({
@@ -465,14 +499,14 @@ export function IngestionPage() {
           <div className="flex items-center gap-2.5" onClick={(event) => event.stopPropagation()}>
             {run.reconciliationStatus === 'MANUAL_REQUIRED' ? (
               <>
-                <Button variant="text" disabled={busy} onClick={() => runAction.mutate({ job, run, action: 'sync' })}>重新查询</Button>
-                <Button variant="text" disabled={busy} onClick={() => runAction.mutate({ job, run, action: 'confirm-absent' })}>确认不存在</Button>
+                <Button variant="link" disabled={busy} onClick={() => runAction.mutate({ job, run, action: 'sync' })}>重新查询</Button>
+                <Button variant="link" disabled={busy} onClick={() => runAction.mutate({ job, run, action: 'confirm-absent' })}>确认不存在</Button>
               </>
             ) : (
-              <Button variant="text" onClick={() => openJob(job)}>查看任务</Button>
+              <Button variant="link" onClick={() => openJob(job)}>查看任务</Button>
             )}
             {retryableRunStatus(run.status) ? (
-              <Button variant="text" disabled={busy || job.status !== 'ACTIVE'} onClick={() => runAction.mutate({ job, run, action: 'retry' })}>重试</Button>
+              <Button variant="link" disabled={busy || job.status !== 'ACTIVE'} onClick={() => runAction.mutate({ job, run, action: 'retry' })}>重试</Button>
             ) : null}
           </div>
         )
@@ -486,6 +520,9 @@ export function IngestionPage() {
       ? [['', '全部状态'], ['SUCCEEDED', '已完成'], ['FAILED', '失败'], ['RUNNING', '运行中'], ['UNKNOWN', '状态待确认']]
       : [['', '全部状态'], ['enabled', '已启用'], ['paused', '未启用']]
 
+  const statusItems = [
+    ...statusOptions.map(([value, label]) => ({ value, label })),
+  ]
   return (
     <div>
       <Breadcrumb items={[{ label: '数据管理' }, { label: '数据接入' }]} trailing={<><span>本地合成数据不进入生产路径</span></>} />
@@ -494,9 +531,8 @@ export function IngestionPage() {
         description="统一管理数据来源、采集任务与运行记录。"
         actions={
           <>
-            <Button onClick={() => setSourceDialogOpen(true)}><Cable size={14} />登记数据源</Button>
+            <Button variant="outline" onClick={() => setSourceDialogOpen(true)}><Cable size={14} />登记数据源</Button>
             <Button
-              variant="primary"
               onClick={() => {
                 if (sources.length === 0) {
                   notify('请先登记至少一个数据源')
@@ -519,25 +555,26 @@ export function IngestionPage() {
         <SummaryCell label="最近 24h 失败" value={String(failedIn24h)} note="次" icon={<Activity size={17} />} />
       </section>
 
-      <Panel>
-        <div role="tablist" aria-label="数据接入类型" className="flex items-center gap-[21px] border-b border-line px-[18px]">
-          {([
-            { value: 'sources' as const, label: '数据源', count: sources.length },
-            { value: 'jobs' as const, label: '采集任务', count: jobs.length },
-            { value: 'runs' as const, label: '运行记录', count: runRows.length },
-          ]).map((item) => (
-            <button
-              key={item.value}
-              type="button"
-              role="tab"
-              aria-selected={tab === item.value}
-              onClick={() => { setTab(item.value); setKeyword(''); setStatusFilter(''); setModeFilter('') }}
-              className={`-mb-px border-b-2 px-px pt-[13px] pb-3 text-body-sm transition-colors ${tab === item.value ? 'border-blue font-medium text-blue' : 'border-transparent text-muted hover:text-ink'}`}
-            >
-              {item.label}<Count>{item.count}</Count>
-            </button>
-          ))}
-        </div>
+      <FramePanel className="p-0 overflow-clip">
+        <Tabs
+          value={tab}
+          onValueChange={(value) => { setTab(value as typeof tab); setKeyword(''); setStatusFilter(''); setModeFilter('') }}
+          className="gap-0"
+        >
+          <TabsList variant="underline" aria-label="数据接入类型" className="px-[18px]">
+            {[
+              { value: 'sources' as const, label: '数据源', count: sources.length },
+              { value: 'jobs' as const, label: '采集任务', count: jobs.length },
+              { value: 'runs' as const, label: '运行记录', count: runRows.length },
+            ].map((item) => (
+              <TabsTab key={item.value} value={item.value}>
+                {item.label}
+                <Badge variant="outline">{item.count}</Badge>
+              </TabsTab>
+            ))}
+          </TabsList>
+          {/* 三类清单共用一套工具栏与表格，面板跟随当前页签。 */}
+          <TabsPanel value={tab} keepMounted className="outline-none">
 
         <div className="flex items-center justify-between gap-2.5 px-[18px] py-4">
           <div className="flex min-w-0 items-center gap-2">
@@ -546,20 +583,45 @@ export function IngestionPage() {
               onValueChange={(value) => { setKeyword(value); setSourcesPage(0); setJobsPage(0); setRunsPage(0) }}
               placeholder={tab === 'sources' ? '搜索数据源名称或编号' : tab === 'runs' ? '搜索任务、批次或消息' : '搜索任务名称、数据源或编号'}
             />
-            <NativeSelect aria-label="状态筛选" className="w-auto" value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setSourcesPage(0); setJobsPage(0); setRunsPage(0) }}>
-              {statusOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-            </NativeSelect>
+            <Select
+              items={statusItems}
+              value={statusFilter}
+              onValueChange={(next) => { setStatusFilter(next ?? ''); setSourcesPage(0); setJobsPage(0); setRunsPage(0) }}
+            >
+              <SelectTrigger aria-label="状态筛选" className="w-auto min-w-none" size="sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectPopup>
+                {statusItems.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
+                  </SelectItem>
+                ))}
+              </SelectPopup>
+            </Select>
             {tab === 'jobs' ? (
-              <NativeSelect aria-label="模式筛选" className="w-auto" value={modeFilter} onChange={(event) => { setModeFilter(event.target.value); setJobsPage(0) }}>
-                <option value="">全部模式</option>
-                <option value="BATCH">批量同步</option>
-                <option value="CDC">增量变更</option>
-              </NativeSelect>
+              <Select
+                items={MODE_FILTER_ITEMS}
+                value={modeFilter}
+                onValueChange={(next) => { setModeFilter(next ?? ''); setJobsPage(0) }}
+              >
+                <SelectTrigger aria-label="模式筛选" className="w-auto min-w-none" size="sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectPopup>
+                  {MODE_FILTER_ITEMS.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectPopup>
+              </Select>
             ) : null}
           </div>
-          <Button size="icon" aria-label="刷新列表" title="刷新列表" onClick={refresh} disabled={refreshing}>
-            <RefreshCw size={14} className={refreshing ? 'animate-spin' : undefined} />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger render={<Button variant="outline" size="icon" aria-label="刷新列表" onClick={refresh} disabled={refreshing} />}><RefreshCw size={14} className={refreshing ? 'animate-spin' : undefined} /></TooltipTrigger>
+            <TooltipPopup>刷新列表</TooltipPopup>
+          </Tooltip>
         </div>
 
         {unavailable ? (
@@ -569,7 +631,7 @@ export function IngestionPage() {
               icon={<Cable />}
               title="采集控制面不可用"
               description="当前页面没有展示演示状态；请恢复控制面后重新加载。"
-              action={<Button onClick={refresh}><RefreshCw size={13} />重新连接</Button>}
+              action={<Button variant="outline" onClick={refresh}><RefreshCw size={13} />重新连接</Button>}
             />
           </div>
         ) : tab === 'sources' ? (
@@ -582,7 +644,7 @@ export function IngestionPage() {
               rowLabel={(source) => sourceDisplayName(source)}
               loading={sourcesRequest.isPending}
               onRowClick={(source) => navigate(workLinks.ingestionSourceExplorer(source.id))}
-              empty={<EmptyState minHeight={260} icon={<Database />} title={sourcesRequest.isPending ? '正在读取数据源' : '暂无已登记数据源'} description="登记来源后，可检查连通性并浏览库表。" action={<Button onClick={() => setSourceDialogOpen(true)}><Plus size={13} />登记数据源</Button>} />}
+              empty={<EmptyState minHeight={260} icon={<Database />} title={sourcesRequest.isPending ? '正在读取数据源' : '暂无已登记数据源'} description="登记来源后，可检查连通性并浏览库表。" action={<Button variant="outline" onClick={() => setSourceDialogOpen(true)}><Plus size={13} />登记数据源</Button>} />}
             />
             <TablePagination page={Math.min(sourcesPage, sourcesPageCount - 1)} pageSize={SOURCES_PAGE_SIZE} total={filteredSources.length} onPageChange={setSourcesPage} label="数据源分页" />
           </>
@@ -597,12 +659,12 @@ export function IngestionPage() {
               selection={{ selected: selectedJobs, onChange: setSelectedJobs }}
               loading={jobsRequest.isPending}
               onRowClick={openJob}
-              empty={<EmptyState minHeight={260} icon={<Cable />} title={jobsRequest.isPending ? '正在读取采集任务' : '暂无采集任务'} description="先登记数据源，再新建采集任务。" action={<Button onClick={() => navigate(workLinks.ingestionNew())}><Plus size={13} />新建采集任务</Button>} />}
+              empty={<EmptyState minHeight={260} icon={<Cable />} title={jobsRequest.isPending ? '正在读取采集任务' : '暂无采集任务'} description="先登记数据源，再新建采集任务。" action={<Button variant="outline" onClick={() => navigate(workLinks.ingestionNew())}><Plus size={13} />新建采集任务</Button>} />}
             />
             <SelectionBar count={selectedJobs.size}>
-              <Button size="sm" disabled={batchStatus.isPending} onClick={() => setBatchAction('ACTIVE')}><Play size={12} />批量启用</Button>
-              <Button size="sm" disabled={batchStatus.isPending} onClick={() => setBatchAction('PAUSED')}><Pause size={12} />批量暂停</Button>
-              <Button size="sm" variant="text" onClick={() => setSelectedJobs(new Set())}>清空选择</Button>
+              <Button variant="outline" size="sm" disabled={batchStatus.isPending} onClick={() => setBatchAction('ACTIVE')}><Play size={12} />批量启用</Button>
+              <Button variant="outline" size="sm" disabled={batchStatus.isPending} onClick={() => setBatchAction('PAUSED')}><Pause size={12} />批量暂停</Button>
+              <Button size="sm" variant="link" onClick={() => setSelectedJobs(new Set())}>清空选择</Button>
             </SelectionBar>
             <TablePagination page={Math.min(jobsPage, jobsPageCount - 1)} pageSize={JOBS_PAGE_SIZE} total={filteredJobs.length} onPageChange={setJobsPage} label="采集任务分页" />
           </>
@@ -622,7 +684,9 @@ export function IngestionPage() {
           </>
         )}
         {templatesRequest.isError ? <p className="px-[18px] pb-3 text-meta text-amber">模板目录读取失败：新建任务仍可使用自定义 JSON。</p> : null}
-      </Panel>
+          </TabsPanel>
+        </Tabs>
+      </FramePanel>
 
       <SourceRegisterDialog
         open={sourceDialogOpen}
@@ -650,7 +714,7 @@ export function IngestionPage() {
         }}
       />
 
-      <Confirm
+      <ConfirmDialog
         open={batchAction !== null}
         onOpenChange={(open) => { if (!open) setBatchAction(null) }}
         title={batchAction === 'ACTIVE' ? '批量启用采集任务？' : '批量暂停采集任务？'}
@@ -672,10 +736,10 @@ export function IngestionPage() {
 function SummaryCell({ label, value, note, icon }: { label: string; value: string; note: string; icon: ReactNode }) {
   return (
     <div className="flex items-center gap-3 border-r border-line px-[21px] last:border-r-0">
-      <span className="text-muted">{icon}</span>
+      <span className="text-muted-foreground">{icon}</span>
       <div>
-        <small className="block text-label text-muted">{label}</small>
-        <strong className="text-[22px] leading-tight font-medium text-ink">{value}<span className="ml-1.5 text-meta font-normal text-muted">{note}</span></strong>
+        <small className="block text-label text-muted-foreground">{label}</small>
+        <strong className="text-[22px] leading-tight font-medium text-ink">{value}<span className="ml-1.5 text-meta font-normal text-muted-foreground">{note}</span></strong>
       </div>
     </div>
   )

@@ -2,22 +2,26 @@ import { useQuery } from '@tanstack/react-query'
 import { useSearch } from '@tanstack/react-router'
 import { ArrowLeft, Database, Rows3, TableProperties } from 'lucide-react'
 import { useState } from 'react'
-import { Badge } from '../../components/ui/badge'
-import { Button } from '../../components/ui/button'
-import { SearchField } from '../../components/ui/input'
-import { Breadcrumb, PageHeading } from '../../components/ui/page-heading'
-import { Panel, PanelHead } from '../../components/ui/panel'
-import { EmptyState, LoadingBlock } from '../../components/ui/states'
-import { DataTable, TablePagination, listColumnHelper } from '../../components/table/data-table'
+
+import { EmptyState } from '@/components/app/empty-state'
+import { LoadingBlock } from '@/components/app/loading'
+import { SearchField } from '@/components/app/search-field'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { FrameDescription, FrameHeader, FramePanel } from '@/components/ui/frame'
+import { Tooltip, TooltipPopup, TooltipTrigger } from '@/components/ui/tooltip'
+
+import { usePortalNavigate } from '../../app/navigate'
+import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
+import { DataTable, listColumnHelper, TablePagination } from '../../components/table/data-table'
 import { formatDateTime } from '../../data/domain'
 import {
+  type LineageAssetColumn,
   lineageNodeKindLabel,
   lineageSchemaLabel,
   shortNodeName,
-  type LineageAssetColumn,
 } from '../../data/lineageApi'
 import { deepLinks } from '../../data/routes'
-import { usePortalNavigate } from '../../app/navigate'
 import { assetCatalogQuery, assetDetailQuery, assetLineageQuery, lineageSummaryQuery } from './queries'
 
 const columnHelper = listColumnHelper<LineageAssetColumn>()
@@ -45,9 +49,9 @@ export function AssetTechnicalPage() {
   const backPath = deepLinks.asset(detail?.fullyQualifiedName || fqn)
 
   const columns = columnHelper.columns([
-    columnHelper.accessor('name', { header: '物理字段', cell: ({ row }) => <code className="font-mono text-label text-muted">{row.original.name}</code> }),
+    columnHelper.accessor('name', { header: '物理字段', cell: ({ row }) => <code className="font-mono text-label text-muted-foreground">{row.original.name}</code> }),
     columnHelper.accessor('dataType', { header: '类型', size: 180 }),
-    columnHelper.display({ id: 'description', header: '说明', cell: ({ row }) => <span className="text-label text-muted">{row.original.description || '—'}</span> }),
+    columnHelper.display({ id: 'description', header: '说明', cell: ({ row }) => <span className="text-label text-muted-foreground">{row.original.description || '—'}</span> }),
   ])
 
   const pickerAssets = (catalogRequest.data?.assets ?? []).filter((asset) => {
@@ -64,15 +68,22 @@ export function AssetTechnicalPage() {
         <PageHeading
           title="技术视图"
           description="面向数据开发与运维人员的结构、血缘和同步证据；业务定义仍以资产详情为准。"
-          actions={<Button onClick={() => navigate('/assets')}>返回资产目录</Button>}
+          actions={<Button variant="outline" onClick={() => navigate('/assets')}>返回资产目录</Button>}
         />
-        <Panel>
-          <PanelHead title="选择资产" description={catalogRequest.data ? `${lineageSchemaLabel(catalogRequest.data.schema)} · ${pickerAssets.length} 项` : '按库浏览已摄取资产'} />
+        <FramePanel className="p-0 overflow-clip">
+          <FrameHeader className="px-[18px] pt-[18px] pb-3 gap-1">
+            <div className="min-w-0">
+              <h2 className="text-title font-semibold tracking-[-0.2px]">
+                选择资产
+              </h2>
+              <FrameDescription>{catalogRequest.data ? `${lineageSchemaLabel(catalogRequest.data.schema)} · ${pickerAssets.length} 项` : '按库浏览已摄取资产'}</FrameDescription>
+            </div>
+          </FrameHeader>
           <div className="px-[18px] pb-3">
             <SearchField value={keyword} onValueChange={(value) => { setKeyword(value); setPage(0) }} placeholder="搜索表名或全限定名" />
           </div>
           {catalogRequest.isPending ? <LoadingBlock>正在读取资产目录…</LoadingBlock> : null}
-          {catalogRequest.isError ? <EmptyState minHeight={200} icon={<Database />} title="资产目录暂不可用" description="恢复元数据接入后即可选择资产。" action={<Button onClick={() => void catalogRequest.refetch()}>重新读取</Button>} /> : null}
+          {catalogRequest.isError ? <EmptyState minHeight={200} icon={<Database />} title="资产目录暂不可用" description="恢复元数据接入后即可选择资产。" action={<Button variant="outline" onClick={() => void catalogRequest.refetch()}>重新读取</Button>} /> : null}
           {catalogRequest.isSuccess ? (
             <>
               <ul className="m-0 list-none px-4 pb-2">
@@ -85,18 +96,18 @@ export function AssetTechnicalPage() {
                     >
                       <span className="min-w-0">
                         <span className="block truncate text-body-sm text-ink-soft">{asset.displayName || asset.name}</span>
-                        <span className="block truncate font-mono text-meta text-muted">{asset.fullyQualifiedName}</span>
+                        <span className="block truncate font-mono text-meta text-muted-foreground">{asset.fullyQualifiedName}</span>
                       </span>
-                      <span className="shrink-0 text-meta text-muted">{asset.columnCount} 列</span>
+                      <span className="shrink-0 text-meta text-muted-foreground">{asset.columnCount} 列</span>
                     </button>
                   </li>
                 ))}
-                {pickerAssets.length === 0 ? <li className="py-6 text-center text-label text-muted">当前库没有匹配的资产。</li> : null}
+                {pickerAssets.length === 0 ? <li className="py-6 text-center text-label text-muted-foreground">当前库没有匹配的资产。</li> : null}
               </ul>
               <TablePagination page={currentPage} pageSize={10} total={pickerAssets.length} onPageChange={setPage} label="资产选择分页" />
             </>
           ) : null}
-        </Panel>
+        </FramePanel>
       </div>
     )
   }
@@ -109,37 +120,37 @@ export function AssetTechnicalPage() {
         description="技术元数据快照 · 只读结构元数据与已登记链路。"
         actions={
           <>
-            <Button onClick={() => navigate(backPath)}><ArrowLeft size={14} />返回资产详情</Button>
+            <Button variant="outline" onClick={() => navigate(backPath)}><ArrowLeft size={14} />返回资产详情</Button>
           </>
         }
       />
 
       {detailRequest.isPending ? <LoadingBlock>正在读取技术元数据…</LoadingBlock> : null}
       {detailRequest.isError ? (
-        <Panel>
+        <FramePanel className="p-0 overflow-clip">
           <EmptyState
             minHeight={220}
             icon={<TableProperties />}
             title="技术元数据暂不可读"
             description="当前资产的结构或血缘读取失败。可重新读取，或返回资产目录确认当前资产。"
-            action={<div className="flex gap-2"><Button onClick={() => void detailRequest.refetch()}>重新读取</Button><Button onClick={() => navigate('/assets')}>返回资产目录</Button></div>}
+            action={<div className="flex gap-2"><Button variant="outline" onClick={() => void detailRequest.refetch()}>重新读取</Button><Button variant="outline" onClick={() => navigate('/assets')}>返回资产目录</Button></div>}
           />
-        </Panel>
+        </FramePanel>
       ) : null}
 
       {detail ? (
         <div className="space-y-3.5">
-          <Panel>
+          <FramePanel className="p-0 overflow-clip">
             <div className="flex flex-wrap items-start justify-between gap-4 px-5 py-4">
               <div className="flex items-start gap-3">
-                <span className="flex size-9 items-center justify-center rounded-panel border border-line bg-wash text-muted"><TableProperties size={18} /></span>
+                <span className="flex size-9 items-center justify-center rounded-panel border border-line bg-wash text-muted-foreground"><TableProperties size={18} /></span>
                 <div>
-                  <span className="font-mono text-meta text-muted">{detail.fullyQualifiedName}</span>
+                  <span className="font-mono text-meta text-muted-foreground">{detail.fullyQualifiedName}</span>
                   <h2 className="mt-0.5 text-title font-semibold text-ink">{detail.displayName || detail.name}</h2>
-                  <p className="mt-0.5 text-meta text-muted">技术元数据快照 · 元数据中心摄取</p>
+                  <p className="mt-0.5 text-meta text-muted-foreground">技术元数据快照 · 元数据中心摄取</p>
                 </div>
               </div>
-              <Badge tone="success">元数据已摄取</Badge>
+              <Badge variant="success">元数据已摄取</Badge>
             </div>
             <dl className="grid grid-cols-4 gap-4 border-t border-line bg-wash px-5 py-3 max-[1100px]:grid-cols-2">
               <Fact label="实体类型" value="数据表" hint="已摄取的结构元数据" />
@@ -147,24 +158,39 @@ export function AssetTechnicalPage() {
               <Fact label="字段数量" value={String(detail.columns.length)} hint="无数据采样" />
               <Fact label="最近更新" value={detail.updatedAt ? formatDateTime(detail.updatedAt) : '—'} hint="元数据中心摄取时间" />
             </dl>
-          </Panel>
+          </FramePanel>
 
           <div className="grid grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] gap-3.5 max-[1100px]:grid-cols-1">
-            <Panel>
-              <PanelHead title="字段结构" description="物理字段、类型与业务说明" actions={<Rows3 size={16} className="text-muted" />} />
+            <FramePanel className="p-0 overflow-clip">
+              <FrameHeader className="px-[18px] pt-[18px] pb-3 flex-row items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <h2 className="text-title font-semibold tracking-[-0.2px]">
+                    字段结构
+                  </h2>
+                  <FrameDescription>物理字段、类型与业务说明</FrameDescription>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">{<Rows3 size={16} className="text-muted-foreground" />}</div>
+              </FrameHeader>
               <div className="px-5 pb-5">
-                <DataTable columns={columns} data={detail.columns} getRowId={(column) => column.name} empty={<p className="py-3 text-label text-muted">当前资产尚无字段结构。</p>} />
+                <DataTable columns={columns} data={detail.columns} getRowId={(column) => column.name} empty={<p className="py-3 text-label text-muted-foreground">当前资产尚无字段结构。</p>} />
               </div>
-            </Panel>
+            </FramePanel>
 
-            <Panel>
-              <PanelHead title="血缘与列级映射" description="上下游对象与声明式列映射" />
+            <FramePanel className="p-0 overflow-clip">
+              <FrameHeader className="px-[18px] pt-[18px] pb-3 gap-1">
+                <div className="min-w-0">
+                  <h2 className="text-title font-semibold tracking-[-0.2px]">
+                    血缘与列级映射
+                  </h2>
+                  <FrameDescription>上下游对象与声明式列映射</FrameDescription>
+                </div>
+              </FrameHeader>
               <div className="px-5 pb-5">
                 {lineageRequest.isPending ? <LoadingBlock className="min-h-[160px]">正在读取血缘…</LoadingBlock> : null}
                 {lineageRequest.isError ? (
                   <div className="py-6 text-center">
                     <p className="text-body-sm text-ink-soft">血缘暂不可读</p>
-                    <Button size="sm" className="mt-2" onClick={() => void lineageRequest.refetch()}>重新读取</Button>
+                    <Button variant="outline" size="sm" className="mt-2" onClick={() => void lineageRequest.refetch()}>重新读取</Button>
                   </div>
                 ) : null}
                 {lineage ? (
@@ -172,17 +198,17 @@ export function AssetTechnicalPage() {
                     <h3 className="mb-1 text-label font-medium text-ink-soft">上游（{lineage.upstreams.length}）</h3>
                     <ul className="m-0 mb-3 list-none space-y-1 p-0">
                       {lineage.upstreams.map((node) => <NodeRow key={node.fullyQualifiedName} label={lineageNodeKindLabel[node.type]} name={node.displayName || shortNodeName(node)} fqn={node.fullyQualifiedName} mappings={node.columnMappings.length} />)}
-                      {lineage.upstreams.length === 0 ? <li className="text-label text-muted">暂无上游登记。</li> : null}
+                      {lineage.upstreams.length === 0 ? <li className="text-label text-muted-foreground">暂无上游登记。</li> : null}
                     </ul>
                     <h3 className="mb-1 text-label font-medium text-ink-soft">下游（{lineage.downstreams.length}）</h3>
                     <ul className="m-0 list-none space-y-1 p-0">
                       {lineage.downstreams.map((node) => <NodeRow key={node.fullyQualifiedName} label={lineageNodeKindLabel[node.type]} name={node.displayName || shortNodeName(node)} fqn={node.fullyQualifiedName} mappings={node.columnMappings.length} />)}
-                      {lineage.downstreams.length === 0 ? <li className="text-label text-muted">暂无下游登记。</li> : null}
+                      {lineage.downstreams.length === 0 ? <li className="text-label text-muted-foreground">暂无下游登记。</li> : null}
                     </ul>
                   </>
                 ) : null}
               </div>
-            </Panel>
+            </FramePanel>
           </div>
         </div>
       ) : null}
@@ -193,9 +219,9 @@ export function AssetTechnicalPage() {
 function Fact({ label, value, hint }: { label: string; value: string; hint: string }) {
   return (
     <div>
-      <dt className="text-meta text-muted">{label}</dt>
+      <dt className="text-meta text-muted-foreground">{label}</dt>
       <dd className="m-0 mt-0.5 text-body-sm font-medium text-ink-soft">{value}</dd>
-      <small className="text-meta text-muted">{hint}</small>
+      <small className="text-meta text-muted-foreground">{hint}</small>
     </div>
   )
 }
@@ -203,10 +229,13 @@ function Fact({ label, value, hint }: { label: string; value: string; hint: stri
 function NodeRow({ label, name, fqn, mappings }: { label: string; name: string; fqn: string; mappings: number }) {
   return (
     <li className="flex items-center gap-2 rounded-control border border-line px-2.5 py-1.5 text-label">
-      <Badge>{label}</Badge>
-      <span className="min-w-0 flex-1 truncate text-ink-soft" title={fqn}>{name}</span>
-      {mappings > 0 ? <span className="shrink-0 text-meta text-muted">{mappings} 条列映射</span> : null}
-      <span className="shrink-0 font-mono text-meta text-muted">{fqn.split('.')[0]}</span>
+      <Badge variant="outline">{label}</Badge>
+      <Tooltip>
+        <TooltipTrigger render={<span className="min-w-0 flex-1 truncate text-ink-soft" />}>{name}</TooltipTrigger>
+        <TooltipPopup>{fqn}</TooltipPopup>
+      </Tooltip>
+      {mappings > 0 ? <span className="shrink-0 text-meta text-muted-foreground">{mappings} 条列映射</span> : null}
+      <span className="shrink-0 font-mono text-meta text-muted-foreground">{fqn.split('.')[0]}</span>
     </li>
   )
 }

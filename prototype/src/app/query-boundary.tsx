@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientContext, QueryClientProvider } from '@tanstack/react-query'
-import { useContext, useState, type ReactNode } from 'react'
+import { type ReactNode, useContext, useState } from 'react'
 
 /**
  * 独立挂载边界：正式路由复用会话级 QueryClient；仅在无 Provider 的独立挂载

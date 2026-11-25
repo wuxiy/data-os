@@ -1,25 +1,29 @@
 import { useQuery } from '@tanstack/react-query'
 import { Download } from 'lucide-react'
 import { useState } from 'react'
-import { Badge } from '../../components/ui/badge'
-import { Button } from '../../components/ui/button'
-import { NativeSelect } from '../../components/ui/input'
-import { Breadcrumb, PageHeading } from '../../components/ui/page-heading'
-import { Panel, PanelHead } from '../../components/ui/panel'
-import { EmptyState } from '../../components/ui/states'
-import { DataTable, TablePagination, listColumnHelper } from '../../components/table/data-table'
-import { useNotice } from '../../components/ui/toast'
+
+import { EmptyState } from '@/components/app/empty-state'
+import { useNotice } from '@/components/app/notice'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { FrameDescription, FrameHeader, FramePanel } from '@/components/ui/frame'
+import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
+
+import { usePortalNavigate } from '../../app/navigate'
+import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
+import { DataTable, listColumnHelper, TablePagination } from '../../components/table/data-table'
 import {
+  type AssistantAuditView,
   AUDIT_OUTCOME_OPTIONS,
   downloadAssistantAuditCsv,
-  type AssistantAuditView,
 } from '../../data/assistantApi'
 import { formatDateTime } from '../../data/domain'
-import { usePortalNavigate } from '../../app/navigate'
 import { assistantAuditsQuery } from './queries'
 
 const PAGE_SIZE = 10
 const helper = listColumnHelper<AssistantAuditView>()
+
+const OUTCOME_ITEMS = AUDIT_OUTCOME_OPTIONS.map((option) => ({ value: option.value, label: option.label }))
 
 /**
  * 问数审计（独立审计页）：跨问题检索、结局过滤、服务端分页与同口径 CSV 导出。
@@ -56,16 +60,16 @@ export function AssistantAuditPage() {
       cell: ({ row }) => (
         <div>
           <div className="text-body-sm text-ink">{row.original.questionText}</div>
-          <div className="font-mono text-meta text-muted">{row.original.questionCode || '（未命中）'}</div>
+          <div className="font-mono text-meta text-muted-foreground">{row.original.questionCode || '（未命中）'}</div>
         </div>
       ),
     }),
-    helper.display({ id: 'service', header: '数据服务', size: 170, cell: ({ row }) => <span className="font-mono text-label text-muted">{row.original.serviceCode || '—'}</span> }),
+    helper.display({ id: 'service', header: '数据服务', size: 170, cell: ({ row }) => <span className="font-mono text-label text-muted-foreground">{row.original.serviceCode || '—'}</span> }),
     helper.display({
       id: 'outcome',
       header: '结局',
       size: 130,
-      cell: ({ row }) => <Badge tone={row.original.outcome === 'ANSWERED' ? 'success' : 'warn'}>{AUDIT_OUTCOME_OPTIONS.find((option) => option.value === row.original.outcome)?.label ?? row.original.outcome}</Badge>,
+      cell: ({ row }) => <Badge variant={row.original.outcome === 'ANSWERED' ? 'success' : 'warning'}>{AUDIT_OUTCOME_OPTIONS.find((option) => option.value === row.original.outcome)?.label ?? row.original.outcome}</Badge>,
     }),
     helper.display({ id: 'rows', header: '行数', size: 80, meta: { align: 'right' }, cell: ({ row }) => <span className="tabular-nums text-label">{row.original.rowCount}</span> }),
     helper.display({ id: 'elapsed', header: '耗时', size: 90, meta: { align: 'right' }, cell: ({ row }) => <span className="tabular-nums text-label">{row.original.elapsedMs} ms</span> }),
@@ -74,10 +78,10 @@ export function AssistantAuditPage() {
       header: '反馈',
       size: 110,
       cell: ({ row }) => row.original.feedbackRating
-        ? <Badge tone={row.original.feedbackRating === 'HELPFUL' ? 'success' : 'warn'}>{row.original.feedbackRating === 'HELPFUL' ? '有帮助' : '需改进'}</Badge>
+        ? <Badge variant={row.original.feedbackRating === 'HELPFUL' ? 'success' : 'warning'}>{row.original.feedbackRating === 'HELPFUL' ? '有帮助' : '需改进'}</Badge>
         : <span className="text-label text-faint">—</span>,
     }),
-    helper.display({ id: 'detail', header: '说明', cell: ({ row }) => <span className="text-label text-muted">{row.original.detail || '—'}</span> }),
+    helper.display({ id: 'detail', header: '说明', cell: ({ row }) => <span className="text-label text-muted-foreground">{row.original.detail || '—'}</span> }),
   ])
 
   return (
@@ -86,27 +90,42 @@ export function AssistantAuditPage() {
       <PageHeading
         title="问数审计"
         description="跨问题检索与结局过滤；审计只记录问题、服务、结局、行数与耗时，不保存结果行。"
-        actions={<Button onClick={() => navigate('/assistant/workspace')}>返回工作区</Button>}
+        actions={<Button variant="outline" onClick={() => navigate('/assistant/workspace')}>返回工作区</Button>}
       />
 
-      <Panel>
-        <PanelHead
-          title="审计记录"
-          count={total}
-          description="按结局过滤；导出与当前过滤口径一致"
-          actions={
-            <div className="flex items-center gap-2">
-              <NativeSelect aria-label="按结局过滤" className="w-auto" value={outcome} onChange={(event) => { setOutcome(event.target.value); setPage(0) }}>
-                {AUDIT_OUTCOME_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-              </NativeSelect>
-              <Button size="sm" disabled={exporting} onClick={() => void exportCsv()}>
+      <FramePanel className="p-0 overflow-clip">
+        <FrameHeader className="px-[18px] pt-[18px] pb-3 flex-row items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="text-title font-semibold tracking-[-0.2px]">
+              审计记录
+              {total !== undefined ? <Badge variant="outline">{total}</Badge> : null}
+            </h2>
+            <FrameDescription>按结局过滤；导出与当前过滤口径一致</FrameDescription>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">{            <div className="flex items-center gap-2">
+              <Select
+                items={OUTCOME_ITEMS}
+                value={outcome}
+                onValueChange={(next) => { setOutcome(next ?? ''); setPage(0) }}
+              >
+                <SelectTrigger aria-label="按结局过滤" className="w-auto min-w-none" size="sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectPopup>
+                  {OUTCOME_ITEMS.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectPopup>
+              </Select>
+              <Button variant="outline" size="sm" disabled={exporting} onClick={() => void exportCsv()}>
                 <Download size={13} />{exporting ? '导出中…' : '导出 CSV'}
               </Button>
-            </div>
-          }
-        />
+            </div>}</div>
+        </FrameHeader>
         {auditsRequest.isError ? (
-          <EmptyState minHeight={200} title="审计暂不可读" description="请确认当前角色有治理权限后重试。" action={<Button onClick={() => void auditsRequest.refetch()}>重新读取</Button>} />
+          <EmptyState minHeight={200} title="审计暂不可读" description="请确认当前角色有治理权限后重试。" action={<Button variant="outline" onClick={() => void auditsRequest.refetch()}>重新读取</Button>} />
         ) : (
           <DataTable
             columns={columns}
@@ -117,7 +136,7 @@ export function AssistantAuditPage() {
             footer={<TablePagination page={page} pageSize={PAGE_SIZE} total={total} onPageChange={setPage} label="审计分页" />}
           />
         )}
-      </Panel>
+      </FramePanel>
     </div>
   )
 }

@@ -1,21 +1,32 @@
 import {
+  type ColumnDef,
   columnSizingFeature,
   columnVisibilityFeature,
   createColumnHelper,
+  type RowData,
   rowPaginationFeature,
   rowSelectionFeature,
   tableFeatures,
   useTable,
-  type ColumnDef,
-  type RowData,
 } from '@tanstack/react-table'
-import { Columns3, RefreshCw, Maximize2, Minimize2 } from 'lucide-react'
-import { useMemo, type ReactNode } from 'react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { type ReactNode, useMemo } from 'react'
+
+import { EmptyState } from '@/components/app/empty-state'
+import { TableSkeleton } from '@/components/app/table-skeleton'
+import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+} from '@/components/ui/pagination'
+import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+
 import { cn } from '../../lib/utils'
-import { Button } from '../ui/button'
-import { Popover, PopoverOption, PopoverTitle } from '../ui/popover'
-import { SearchField, NativeSelect } from '../ui/input'
-import { EmptyState, Skeleton } from '../ui/states'
 
 /**
  * 列表面板：批准原型的连续表格工作面（39px 表头、56px 行、细分隔线、数字右对齐）。
@@ -55,9 +66,6 @@ export interface DataTableProps<TData extends RowData> {
   selection?: DataTableSelection
   /** 列可见性：键为列 id；未登记的列默认可见。 */
   hiddenColumns?: Set<string>
-  onColumnVisibilityChange?: (next: Set<string>) => void
-  /** 列显示菜单用的人类可读列名，键为列 id。 */
-  columnLabels?: Record<string, string>
   className?: string
   /** 空态；默认是「没有符合条件的记录」。 */
   empty?: ReactNode
@@ -77,8 +85,6 @@ export function DataTable<TData extends RowData>({
   getRowId,
   selection,
   hiddenColumns,
-  onColumnVisibilityChange,
-  columnLabels,
   className,
   empty,
   loading = false,
@@ -98,14 +104,12 @@ export function DataTable<TData extends RowData>({
       id: '__select',
       header: () => null,
       cell: ({ row }) => (
-        <input
-          type="checkbox"
+        <Checkbox
           aria-label={`选择${rowLabel ? rowLabel(row.original) : row.id}`}
           checked={row.getIsSelected()}
           disabled={selection.canSelect ? !selection.canSelect(row.id) : false}
-          onChange={row.getToggleSelectedHandler()}
+          onCheckedChange={(checked) => row.toggleSelected(checked)}
           onClick={(event) => event.stopPropagation()}
-          className="size-[13px] accent-blue"
         />
       ),
       size: 40,
@@ -135,67 +139,66 @@ export function DataTable<TData extends RowData>({
 
   return (
     <div className={cn('min-w-0', className)}>
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse text-left text-body-sm whitespace-nowrap">
-          <thead className="bg-wash text-muted">
-            {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <th
-                    key={header.id}
-                    scope="col"
-                    style={header.column.id === '__select' ? { width: 40 } : header.column.columnDef.size ? { width: header.column.columnDef.size } : undefined}
-                    className={cn(
-                      'h-10 border-y border-line px-4 text-label font-medium',
-                      header.column.id === '__select' && 'pt-[9px] pr-0 pb-[9px] pl-[18px]',
-                    )}
-                  >
-                    {header.isPlaceholder ? null : <table.FlexRender header={header} />}
-                  </th>
-                ))}
-              </tr>
-            ))}
-          </thead>
-          <tbody>
-            {rows.map((row) => {
-              const canClick = Boolean(onRowClick)
-              return (
-                <tr
-                  key={row.id}
-                  aria-label={rowLabel ? rowLabel(row.original) : undefined}
-                  onClick={canClick ? () => onRowClick?.(row.original) : undefined}
-                  tabIndex={canClick ? 0 : undefined}
-                  onKeyDown={canClick ? (event) => {
-                    if (event.target !== event.currentTarget || (event.key !== 'Enter' && event.key !== ' ')) return
-                    event.preventDefault()
-                    onRowClick?.(row.original)
-                  } : undefined}
+      <Table>
+        <TableHeader className="bg-wash text-muted-foreground">
+          {table.getHeaderGroups().map((headerGroup) => (
+            <TableRow key={headerGroup.id}>
+              {headerGroup.headers.map((header) => (
+                <TableHead
+                  key={header.id}
+                  scope="col"
+                  style={header.column.id === '__select' ? { width: 40 } : header.column.columnDef.size ? { width: header.column.columnDef.size } : undefined}
                   className={cn(
-                    'border-b border-line-soft last:border-b-0 hover:bg-wash',
-                    row.getIsSelected() && 'bg-blue-soft',
-                    canClick && 'focus-visible:outline-2 focus-visible:outline-blue focus-visible:outline-offset-[-2px]',
-                    canClick && 'cursor-pointer',
+                    'h-10 border-y border-line px-4 text-label',
+                    header.column.id === '__select' && 'pt-[9px] pr-0 pb-[9px] pl-[18px]',
                   )}
                 >
-                  {row.getVisibleCells().map((cell) => (
-                    <td
-                      key={cell.id}
-                      className={cn(
-                        'h-14 px-4 text-ink-soft',
-                        cell.column.id === '__select' && 'pt-[9px] pr-0 pb-[9px] pl-[18px]',
-                        cell.column.columnDef.meta && (cell.column.columnDef.meta as { align?: string }).align === 'right' && 'text-right tabular-nums',
-                      )}
-                    >
-                      <table.FlexRender cell={cell} />
-                    </td>
-                  ))}
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
-      {loading && rows.length === 0 ? <Skeleton rows={5} className="border-t border-line-soft" /> : null}
+                  {header.isPlaceholder ? null : <table.FlexRender header={header} />}
+                </TableHead>
+              ))}
+            </TableRow>
+          ))}
+        </TableHeader>
+        <TableBody>
+          {rows.map((row) => {
+            const canClick = Boolean(onRowClick)
+            return (
+              <TableRow
+                key={row.id}
+                aria-label={rowLabel ? rowLabel(row.original) : undefined}
+                data-state={row.getIsSelected() ? 'selected' : undefined}
+                onClick={canClick ? () => onRowClick?.(row.original) : undefined}
+                tabIndex={canClick ? 0 : undefined}
+                onKeyDown={canClick ? (event) => {
+                  if (event.target !== event.currentTarget || (event.key !== 'Enter' && event.key !== ' ')) return
+                  event.preventDefault()
+                  onRowClick?.(row.original)
+                } : undefined}
+                className={cn(
+                  'last:border-b-0 hover:bg-wash',
+                  row.getIsSelected() && 'bg-blue-soft',
+                  canClick && 'focus-visible:outline-2 focus-visible:outline-blue focus-visible:outline-offset-[-2px]',
+                  canClick && 'cursor-pointer',
+                )}
+              >
+                {row.getVisibleCells().map((cell) => (
+                  <TableCell
+                    key={cell.id}
+                    className={cn(
+                      'h-14 px-4 text-ink-soft',
+                      cell.column.id === '__select' && 'pt-[9px] pr-0 pb-[9px] pl-[18px]',
+                      cell.column.columnDef.meta && (cell.column.columnDef.meta as { align?: string }).align === 'right' && 'text-right tabular-nums',
+                    )}
+                  >
+                    <table.FlexRender cell={cell} />
+                  </TableCell>
+                ))}
+              </TableRow>
+            )
+          })}
+        </TableBody>
+      </Table>
+      {loading && rows.length === 0 ? <TableSkeleton rows={5} className="border-t border-line-soft" /> : null}
       {!loading && rows.length === 0 ? (empty ?? (
         <EmptyState
           minHeight={300}
@@ -204,85 +207,6 @@ export function DataTable<TData extends RowData>({
         />
       )) : null}
       {footer}
-    </div>
-  )
-}
-
-/** 表格上方工具栏：左侧检索与筛选，右侧刷新、列设置、全屏。 */
-export function TableToolbar({
-  search,
-  searchPlaceholder,
-  onSearchChange,
-  filters,
-  onRefresh,
-  refreshing,
-  columnLabels,
-  hiddenColumns,
-  onColumnVisibilityChange,
-  fullscreen,
-  onToggleFullscreen,
-  actions,
-}: {
-  search?: string
-  searchPlaceholder?: string
-  onSearchChange?: (value: string) => void
-  filters?: ReactNode
-  onRefresh?: () => void
-  refreshing?: boolean
-  columnLabels?: Record<string, string>
-  hiddenColumns?: Set<string>
-  onColumnVisibilityChange?: (next: Set<string>) => void
-  fullscreen?: boolean
-  onToggleFullscreen?: () => void
-  actions?: ReactNode
-}) {
-  return (
-    <div className="flex items-center justify-between gap-2.5 px-[18px] py-4">
-      <div className="flex min-w-0 items-center gap-2">
-        {search !== undefined && onSearchChange ? (
-          <SearchField value={search} onValueChange={onSearchChange} placeholder={searchPlaceholder ?? '搜索'} />
-        ) : null}
-        {filters}
-      </div>
-      <div className="flex shrink-0 items-center gap-2">
-        {actions}
-        {onRefresh ? (
-          <Button size="icon" aria-label="刷新列表" title="刷新列表" onClick={onRefresh} disabled={refreshing}>
-            <RefreshCw size={14} className={refreshing ? 'animate-spin' : undefined} />
-          </Button>
-        ) : null}
-        {columnLabels && onColumnVisibilityChange ? (
-          <Popover
-            trigger={<Button size="icon" aria-label="显示列" title="显示列"><Columns3 size={14} /></Button>}
-          >
-            <PopoverTitle>显示列</PopoverTitle>
-            {Object.entries(columnLabels).map(([id, label]) => (
-              <PopoverOption
-                key={id}
-                checked={!hiddenColumns?.has(id)}
-                onCheckedChange={(checked) => {
-                  const next = new Set(hiddenColumns ?? [])
-                  if (checked) next.delete(id); else next.add(id)
-                  onColumnVisibilityChange(next)
-                }}
-              >
-                {label}
-              </PopoverOption>
-            ))}
-          </Popover>
-        ) : null}
-        {onToggleFullscreen ? (
-          <Button
-            size="icon"
-            aria-pressed={fullscreen}
-            aria-label={fullscreen ? '退出全屏表格' : '全屏表格'}
-            title={fullscreen ? '退出全屏，Esc' : '全屏表格'}
-            onClick={onToggleFullscreen}
-          >
-            {fullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
-          </Button>
-        ) : null}
-      </div>
     </div>
   )
 }
@@ -329,51 +253,74 @@ export function TablePagination({
   const current = Math.min(page, pageCount - 1)
   const start = total === 0 ? 0 : current * pageSize + 1
   const end = Math.min((current + 1) * pageSize, total)
+  const pageSizeItems = (pageSizeOptions ?? []).map((size) => ({ value: String(size), label: <>每页 {size} 条</> }))
   return (
-    <nav aria-label={label} className={cn('flex items-center justify-between gap-3 border-t border-line px-[18px] py-3.5 text-label text-faint', compact && 'flex-wrap gap-y-1 px-2 py-2', className)}>
+    <Pagination
+      aria-label={label}
+      className={cn('justify-between gap-3 border-t border-line px-[18px] py-3.5 text-label text-faint', compact && 'flex-wrap gap-y-1 px-2 py-2', className)}
+    >
       <span className="min-w-0 truncate">
         {compact
           ? (total ? `${start}–${end} / ${total} 条` : '0 条')
           : <>共 {total} 条记录{total ? ` · 第 ${start}–${end} 条` : ''}</>}
       </span>
-      <div className="flex items-center gap-1.5">
+      <PaginationContent>
         {!compact && onPageSizeChange && pageSizeOptions?.length ? (
-          <NativeSelect
-            aria-label="每页条数"
-            className="mr-2 w-auto"
-            value={String(pageSize)}
-            onChange={(event) => onPageSizeChange(Number(event.target.value))}
-          >
-            {pageSizeOptions.map((size) => <option key={size} value={size}>每页 {size} 条</option>)}
-          </NativeSelect>
+          <PaginationItem className="mr-2">
+            <Select
+              items={pageSizeItems}
+              value={String(pageSize)}
+              onValueChange={(next) => onPageSizeChange(Number(next ?? ''))}
+            >
+              <SelectTrigger aria-label="每页条数" className="w-auto min-w-none" size="sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectPopup>
+                {pageSizeItems.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
+                  </SelectItem>
+                ))}
+              </SelectPopup>
+            </Select>
+          </PaginationItem>
         ) : compact ? null : (
-          <span className="mr-2">每页 {pageSize} 条</span>
+          <PaginationItem><span className="mr-2">每页 {pageSize} 条</span></PaginationItem>
         )}
-        <button
-          type="button"
-          aria-label="上一页"
-          disabled={current <= 0}
-          onClick={() => onPageChange(current - 1)}
-          className="inline-flex h-[27px] min-w-[27px] items-center justify-center rounded-chip border border-line px-1.5 text-label disabled:opacity-40"
-        >
-          ‹
-        </button>
+        <PaginationItem>
+          <PaginationLink
+            aria-label="上一页"
+            onClick={() => onPageChange(current - 1)}
+            render={<Button variant="outline" size="icon-sm" disabled={current <= 0} />}
+          >
+            <ChevronLeft />
+          </PaginationLink>
+        </PaginationItem>
         {pageWindow(current, pageCount).map((item, index) => item === '…'
-          ? <span key={`e-${index}`} className="px-0.5">…</span>
-          : item === current
-            ? <span key={item} aria-current="page" className="inline-flex h-[27px] min-w-[27px] items-center justify-center rounded-chip border border-blue-line bg-blue-soft px-1.5 text-label text-blue">{item + 1}</span>
-            : <button key={item} type="button" onClick={() => onPageChange(item)} className="inline-flex h-[27px] min-w-[27px] items-center justify-center rounded-chip border border-line px-1.5 text-label hover:bg-wash">{item + 1}</button>)}
-        <button
-          type="button"
-          aria-label="下一页"
-          disabled={current >= pageCount - 1}
-          onClick={() => onPageChange(current + 1)}
-          className="inline-flex h-[27px] min-w-[27px] items-center justify-center rounded-chip border border-line px-1.5 text-label disabled:opacity-40"
-        >
-          ›
-        </button>
-      </div>
-    </nav>
+          ? <PaginationEllipsis key={`e-${index}`} />
+          : (
+            <PaginationItem key={item}>
+              <PaginationLink
+                isActive={item === current}
+                aria-label={`第 ${item + 1} 页`}
+                onClick={() => onPageChange(item)}
+                render={<Button variant={item === current ? 'outline' : 'ghost'} size="icon-sm" />}
+              >
+                {item + 1}
+              </PaginationLink>
+            </PaginationItem>
+          ))}
+        <PaginationItem>
+          <PaginationLink
+            aria-label="下一页"
+            onClick={() => onPageChange(current + 1)}
+            render={<Button variant="outline" size="icon-sm" disabled={current >= pageCount - 1} />}
+          >
+            <ChevronRight />
+          </PaginationLink>
+        </PaginationItem>
+      </PaginationContent>
+    </Pagination>
   )
 }
 
@@ -381,7 +328,7 @@ export function TablePagination({
 export function SelectionBar({ count, children }: { count: number; children?: ReactNode }) {
   if (count <= 0) return null
   return (
-    <div className="flex items-center gap-3.5 border-t border-blue-line bg-blue-soft px-[18px] py-[7px] text-label text-blue">
+    <div className="flex items-center gap-3.5 border-t bg-accent px-[18px] py-[7px] text-label text-accent-foreground">
       <span>已选择 {count} 项</span>
       {children}
     </div>

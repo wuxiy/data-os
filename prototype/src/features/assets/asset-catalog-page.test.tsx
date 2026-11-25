@@ -1,8 +1,9 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { RouterProvider, createMemoryHistory, createRootRoute, createRoute, createRouter } from '@tanstack/react-router'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { installBrowserApiStubs } from '../../test-support/browser-apis'
+import { renderWithSidebar } from '../../test-support/render-with-sidebar'
 
 vi.mock('../../data/lineageApi', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../data/lineageApi')>()
@@ -72,7 +73,7 @@ function renderPage(entries = ['/assets']) {
     ),
   })
   const router = createRouter({ routeTree: rootRoute.addChildren([indexRoute]), history: createMemoryHistory({ initialEntries: entries }) })
-  return render(<RouterProvider router={router} />)
+  return renderWithSidebar(<RouterProvider router={router} />)
 }
 
 beforeEach(() => {

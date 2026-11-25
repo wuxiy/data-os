@@ -1,17 +1,23 @@
+import { embedDashboard } from '@superset-ui/embedded-sdk'
 import { useQuery } from '@tanstack/react-query'
 import { ChartNoAxesCombined, RefreshCw, ShieldCheck } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { embedDashboard } from '@superset-ui/embedded-sdk'
-import { Badge } from '../../components/ui/badge'
-import { Button } from '../../components/ui/button'
-import { SearchField } from '../../components/ui/input'
-import { Breadcrumb, PageHeading } from '../../components/ui/page-heading'
-import { Count, Panel, PanelHead } from '../../components/ui/panel'
-import { EmptyState, LoadingBlock, Skeleton } from '../../components/ui/states'
-import { TablePagination } from '../../components/table/data-table'
-import { useNotice } from '../../components/ui/toast'
-import { fetchEmbeddableDashboards, fetchGuestToken, supersetEmbedOrigin } from '../../data/analyticsApi'
+
+import { EmptyState } from '@/components/app/empty-state'
+import { LoadingBlock } from '@/components/app/loading'
+import { useNotice } from '@/components/app/notice'
+import { SearchField } from '@/components/app/search-field'
+import { SelectionListItem } from '@/components/app/selection-list-item'
+import { TableSkeleton } from '@/components/app/table-skeleton'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { FrameDescription, FrameHeader, FramePanel } from '@/components/ui/frame'
+import { SidebarMenu, SidebarMenuItem } from '@/components/ui/sidebar'
+
 import { usePortalNavigate } from '../../app/navigate'
+import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
+import { TablePagination } from '../../components/table/data-table'
+import { fetchEmbeddableDashboards, fetchGuestToken, supersetEmbedOrigin } from '../../data/analyticsApi'
 
 const PAGE_SIZE = 8
 
@@ -87,106 +93,118 @@ export function AnalyticsPage() {
         description="业务人员在统一门户查看结果；访问范围以当前账号授权为准。"
         actions={
           <>
-            <Button onClick={() => void catalogRequest.refetch()} disabled={catalogRequest.isFetching}><RefreshCw size={14} className={catalogRequest.isFetching ? 'animate-spin' : undefined} />刷新目录</Button>
-            <Button onClick={() => setEmbedReload((value) => value + 1)} disabled={!selected || embedState === 'mounting'}>重新加载看板</Button>
+            <Button variant="outline" onClick={() => void catalogRequest.refetch()} disabled={catalogRequest.isFetching}><RefreshCw size={14} className={catalogRequest.isFetching ? 'animate-spin' : undefined} />刷新目录</Button>
+            <Button variant="outline" onClick={() => setEmbedReload((value) => value + 1)} disabled={!selected || embedState === 'mounting'}>重新加载看板</Button>
           </>
         }
       />
 
       {catalogRequest.isPending ? <LoadingBlock>正在读取已授权看板…</LoadingBlock> : null}
       {catalogRequest.isError ? (
-        <Panel>
-          <EmptyState minHeight={240} icon={<ChartNoAxesCombined />} title="分析看板暂不可用" description="暂时无法读取看板目录。可重新读取；持续不可用时请联系平台运维核对服务连接。" action={<Button onClick={() => void catalogRequest.refetch()}>重新读取</Button>} />
-        </Panel>
+        <FramePanel className="p-0 overflow-clip">
+          <EmptyState minHeight={240} icon={<ChartNoAxesCombined />} title="分析看板暂不可用" description="暂时无法读取看板目录。可重新读取；持续不可用时请联系平台运维核对服务连接。" action={<Button variant="outline" onClick={() => void catalogRequest.refetch()}>重新读取</Button>} />
+        </FramePanel>
       ) : null}
 
       {catalogRequest.isSuccess && dashboards.length === 0 ? (
-        <Panel>
+        <FramePanel className="p-0 overflow-clip">
           <EmptyState minHeight={240} icon={<ChartNoAxesCombined />} title="暂无已授权看板" description="当前账号没有可查看的已发布看板。请联系分析负责人核对发布与授权范围。" />
-        </Panel>
+        </FramePanel>
       ) : null}
 
       {dashboards.length > 0 ? (
         <div className="grid grid-cols-[280px_minmax(0,1fr)_280px] gap-3.5 max-[1320px]:grid-cols-[260px_minmax(0,1fr)] max-[1100px]:grid-cols-1">
-          <Panel className="flex flex-col">
-            <PanelHead title="已授权看板" count={visible.length} />
+          <FramePanel className="flex flex-col p-0 overflow-clip">
+            <FrameHeader className="px-[18px] pt-[18px] pb-3 gap-1">
+              <div className="min-w-0">
+                <h2 className="text-title font-semibold tracking-[-0.2px]">
+                  已授权看板
+                  {visible.length !== undefined ? <Badge variant="outline">{visible.length}</Badge> : null}
+                </h2>
+              </div>
+            </FrameHeader>
             <div className="px-[18px] pb-2"><SearchField value={keyword} onValueChange={(value) => { setKeyword(value); setPage(0) }} placeholder="搜索看板名称" className="w-full" /></div>
-            <ul className="m-0 min-h-0 flex-1 list-none px-2 pb-2">
+            <SidebarMenu className="m-0 min-h-0 flex-1 px-2 pb-2">
               {visible.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE).map((dashboard) => {
                 const active = dashboard.id === selected?.id
                 return (
-                  <li key={dashboard.id}>
-                    <button
-                      type="button"
-                      aria-pressed={active}
+                  <SidebarMenuItem key={dashboard.id}>
+                    <SelectionListItem
+                      isActive={active}
                       onClick={() => { setSelectedId(dashboard.id); setEmbedState('idle') }}
-                      className={`mb-1 w-full rounded-control px-2.5 py-2 text-left ${active ? 'bg-blue-soft' : 'hover:bg-wash'}`}
                     >
                       <span className="block text-body-sm text-ink-soft">{dashboard.title}</span>
-                      <span className="mt-0.5 block text-meta text-muted">只读视图 · 看板 {dashboard.id}</span>
-                    </button>
-                  </li>
+                      <span className="mt-0.5 block text-meta text-muted-foreground">只读视图 · 看板 {dashboard.id}</span>
+                    </SelectionListItem>
+                  </SidebarMenuItem>
                 )
               })}
               {visible.length === 0 ? (
-                <li className="px-3 py-6 text-center text-label text-muted">
+                <li className="px-3 py-6 text-center text-label text-muted-foreground">
                   没有匹配的看板。
-                  {keyword ? <Button variant="text" size="sm" className="ml-1" onClick={() => { setKeyword(''); setPage(0) }}>清空搜索</Button> : null}
+                  {keyword ? <Button variant="link" size="sm" className="ml-1" onClick={() => { setKeyword(''); setPage(0) }}>清空搜索</Button> : null}
                 </li>
               ) : null}
-            </ul>
+            </SidebarMenu>
             <div className="border-t border-line px-2">
               <TablePagination compact page={currentPage} pageSize={PAGE_SIZE} total={visible.length} onPageChange={setPage} label="分析看板目录分页" className="border-t-0 px-1" />
             </div>
-          </Panel>
+          </FramePanel>
 
-          <Panel>
+          <FramePanel className="p-0 overflow-clip">
             <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line px-5 py-4">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="rounded-chip bg-wash px-1.5 py-0.5 text-meta text-muted">只读嵌入 · 看板 {selected?.id}</span>
-                  <Badge tone={embedState === 'mounted' ? 'success' : embedState === 'error' ? 'warn' : 'neutral'}>{embedState === 'mounted' ? '已嵌入' : embedState === 'error' ? '嵌入失败' : '载入中'}</Badge>
+                  <span className="rounded-chip bg-wash px-1.5 py-0.5 text-meta text-muted-foreground">只读嵌入 · 看板 {selected?.id}</span>
+                  <Badge variant={embedState === 'mounted' ? 'success' : embedState === 'error' ? 'warning' : 'outline'}>{embedState === 'mounted' ? '已嵌入' : embedState === 'error' ? '嵌入失败' : '载入中'}</Badge>
                 </div>
                 <h2 className="mt-1.5 text-subject font-semibold text-ink">{selected?.title}</h2>
-                <p className="mt-1 text-label text-muted">按当前账号授权查看；指标口径与来源可在资产目录中复核。</p>
+                <p className="mt-1 text-label text-muted-foreground">按当前账号授权查看；指标口径与来源可在资产目录中复核。</p>
               </div>
-              <Badge tone="neutral">只读</Badge>
+              <Badge variant="outline">只读</Badge>
             </div>
 
             {embedState === 'error' ? (
               <div className="px-5 py-3">
                 <div role="status" className="rounded-control border border-[#eee2c5] bg-[#fdf9ef] px-3 py-2 text-label text-amber">
                   当前看板未能载入。可重新加载；持续失败时请联系平台运维核对访问配置。
-                  <div className="mt-1.5"><Button size="sm" onClick={() => setEmbedReload((value) => value + 1)}>重新加载看板</Button></div>
+                  <div className="mt-1.5"><Button variant="outline" size="sm" onClick={() => setEmbedReload((value) => value + 1)}>重新加载看板</Button></div>
                 </div>
               </div>
             ) : null}
-            {embedState === 'mounting' ? <div className="px-5 py-3"><Skeleton rows={4} /></div> : null}
+            {embedState === 'mounting' ? <div className="px-5 py-3"><TableSkeleton rows={4} /></div> : null}
             <div ref={mountRef} className="min-h-[520px] px-2 pb-3" aria-label="嵌入式分析仪表盘" data-embed-state={embedState} />
-          </Panel>
+          </FramePanel>
 
-          <Panel className="max-[1320px]:col-span-2 max-[1100px]:col-span-1">
-            <PanelHead title="访问证据" actions={<Badge>受控只读</Badge>} />
+          <FramePanel className="max-[1320px]:col-span-2 max-[1100px]:col-span-1 p-0 overflow-clip">
+            <FrameHeader className="px-[18px] pt-[18px] pb-3 flex-row items-center justify-between gap-3">
+              <div className="min-w-0">
+                <h2 className="text-title font-semibold tracking-[-0.2px]">
+                  访问证据
+                </h2>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">{<Badge variant="outline">受控只读</Badge>}</div>
+            </FrameHeader>
             <div className="px-4 pb-4">
               <div className="mb-3 flex items-center gap-2 rounded-control border border-line bg-wash px-3 py-2">
                 <span className="flex size-7 items-center justify-center rounded-chip bg-paper text-blue"><ShieldCheck size={15} /></span>
                 <div>
                   <strong className="block text-label text-ink-soft">{selected?.title}</strong>
-                  <span className="block text-meta text-muted">看板编号 {selected?.id}</span>
+                  <span className="block text-meta text-muted-foreground">看板编号 {selected?.id}</span>
                 </div>
               </div>
               <dl className="space-y-2 text-label">
-                <div><dt className="text-meta text-muted">访问范围</dt><dd className="m-0 text-ink-soft">仅当前账号已授权的看板</dd></div>
-                <div><dt className="text-meta text-muted">操作权限</dt><dd className="m-0 text-ink-soft">只读查看，不能在门户修改分析定义</dd></div>
-                <div><dt className="text-meta text-muted">会话验证</dt><dd className="m-0 text-ink-soft">访问凭证短时有效，由平台自动续签</dd></div>
-                <div><dt className="text-meta text-muted">加载状态</dt><dd className="m-0 text-ink-soft">{embedState === 'mounted' ? '已完成嵌入；数据结果以看板内刷新时间为准' : embedState === 'error' ? '加载失败，尚未确认数据结果' : '正在验证访问与加载看板'}</dd></div>
+                <div><dt className="text-meta text-muted-foreground">访问范围</dt><dd className="m-0 text-ink-soft">仅当前账号已授权的看板</dd></div>
+                <div><dt className="text-meta text-muted-foreground">操作权限</dt><dd className="m-0 text-ink-soft">只读查看，不能在门户修改分析定义</dd></div>
+                <div><dt className="text-meta text-muted-foreground">会话验证</dt><dd className="m-0 text-ink-soft">访问凭证短时有效，由平台自动续签</dd></div>
+                <div><dt className="text-meta text-muted-foreground">加载状态</dt><dd className="m-0 text-ink-soft">{embedState === 'mounted' ? '已完成嵌入；数据结果以看板内刷新时间为准' : embedState === 'error' ? '加载失败，尚未确认数据结果' : '正在验证访问与加载看板'}</dd></div>
               </dl>
               <div className="mt-3 flex items-center justify-between gap-2 border-t border-line pt-3">
-                <span className="text-meta text-muted">离开看板后嵌入实例释放</span>
-                <Button size="sm" onClick={() => navigate('/assets')}>查看数据资产与血缘</Button>
+                <span className="text-meta text-muted-foreground">离开看板后嵌入实例释放</span>
+                <Button variant="outline" size="sm" onClick={() => navigate('/assets')}>查看数据资产与血缘</Button>
               </div>
             </div>
-          </Panel>
+          </FramePanel>
         </div>
       ) : null}
     </div>

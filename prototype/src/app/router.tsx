@@ -1,8 +1,10 @@
-import { Link, Outlet, createRootRoute, createRoute, createRouter, useRouter } from '@tanstack/react-router'
+import { createRootRoute, createRoute, createRouter, Link, Outlet, useRouter } from '@tanstack/react-router'
 import { TriangleAlert } from 'lucide-react'
-import { Suspense, lazy } from 'react'
-import { EmptyState } from '../components/ui/states'
-import { Button } from '../components/ui/button'
+import { lazy, Suspense } from 'react'
+
+import { EmptyState } from '@/components/app/empty-state'
+import { Button } from '@/components/ui/button'
+
 import { AppShell } from './shell/app-shell'
 
 /**
@@ -56,7 +58,7 @@ function ShellLayout() {
 function RouteLoading() {
   return (
     <section className="flex min-h-[320px] items-center justify-center rounded-panel border border-line bg-paper" aria-busy="true" role="status">
-      <p className="text-label text-muted">正在进入工作区…</p>
+      <p className="text-label text-muted-foreground">正在进入工作区…</p>
     </section>
   )
 }
@@ -85,12 +87,12 @@ function RouteErrorPage({ error }: { error: unknown }) {
         description="当前工作区渲染出错。可以返回总览或重试；若持续失败，请联系平台管理员并提供页面地址。"
         action={
           <div className="flex items-center gap-2">
-            <Button onClick={() => { void router.invalidate() }}>重新加载</Button>
+            <Button variant="outline" onClick={() => { void router.invalidate() }}>重新加载</Button>
             <Link to="/" className="inline-flex min-h-[33px] items-center rounded-control border border-line-strong bg-paper px-3 text-body-sm text-ink-soft">返回总览</Link>
           </div>
         }
       />
-      <p className="px-10 pb-6 text-center font-mono text-meta text-muted">{message}</p>
+      <p className="px-10 pb-6 text-center font-mono text-meta text-muted-foreground">{message}</p>
     </section>
   )
 }

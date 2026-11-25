@@ -1,43 +1,69 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearch } from '@tanstack/react-router'
-import { AlertTriangle, CircleAlert, Plus, RefreshCw, Search, Send, Shield, Trash2 } from 'lucide-react'
+import {
+  AlertTriangle,
+  ChevronDown,
+  CircleAlert,
+  Plus,
+  RefreshCw,
+  Search,
+  Send,
+  Shield,
+  Trash2,
+} from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Badge } from '../../components/ui/badge'
-import { Button } from '../../components/ui/button'
-import { Input, SearchField, NativeSelect } from '../../components/ui/input'
-import { Breadcrumb, PageHeading } from '../../components/ui/page-heading'
-import { Count, Panel, PanelHead, ScopeNote } from '../../components/ui/panel'
-import { Confirm } from '../../components/ui/overlay'
-import { EmptyState, LoadingBlock, LoadingInline, Skeleton } from '../../components/ui/states'
-import { DataTable, TablePagination, listColumnHelper } from '../../components/table/data-table'
-import { useNotice } from '../../components/ui/toast'
+
+import { ConfirmDialog } from '@/components/app/confirm-dialog'
+import { EmptyState } from '@/components/app/empty-state'
+import { LoadingBlock, LoadingInline } from '@/components/app/loading'
+import { useNotice } from '@/components/app/notice'
+import { ScopeNote } from '@/components/app/scope-note'
+import { SearchField } from '@/components/app/search-field'
+import { SelectionListItem } from '@/components/app/selection-list-item'
+import { TableSkeleton } from '@/components/app/table-skeleton'
+import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from '@/components/ui/collapsible'
+import { Field, FieldLabel } from '@/components/ui/field'
+import { FrameDescription, FrameHeader, FramePanel } from '@/components/ui/frame'
+import { Input } from '@/components/ui/input'
+import { RadioGroupPrimitive, RadioPrimitive } from '@/components/ui/radio-group'
+import { SegmentedControl, SegmentedControlItem } from '@/components/ui/segmented-control'
+import { SidebarMenu, SidebarMenuItem } from '@/components/ui/sidebar'
+import { Textarea } from '@/components/ui/textarea'
+import { Tooltip, TooltipPopup, TooltipTrigger } from '@/components/ui/tooltip'
+
+import { usePortalNavigate } from '../../app/navigate'
+import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
+import { DataTable, listColumnHelper, TablePagination } from '../../components/table/data-table'
 import {
   confirmGovernanceIssueRunAbsent,
   deleteQualityRule,
+  type GovernanceIssueDetailApiResponse,
+  type GovernanceIssueEventApiItem,
+  type GovernanceQualityRunApiItem,
+  QUALITY_RULE_TYPE_LABELS,
+  type QualityRuleDefinitionApiItem,
   reconcileGovernanceIssueRun,
   remindGovernanceIssueOwner,
   requestGovernanceIssueRecheck,
   setQualityRuleEnabled,
   syncGovernanceIssueRun,
   updateGovernanceIssueWorkflow,
-  QUALITY_RULE_TYPE_LABELS,
-  type GovernanceIssueEventApiItem,
-  type GovernanceIssueDetailApiResponse,
-  type GovernanceQualityRunApiItem,
-  type QualityRuleDefinitionApiItem,
 } from '../../data/controlPlane'
 import {
   actorLabel,
-  executorLabel,
-  executorOutputView,
   eventTitle,
   eventTone,
+  executorLabel,
+  executorOutputView,
   formatDateTime,
   formatInlineDateTimes,
   isRecheckRetryEvent,
-  isTerminalRun,
   issueStatusLabel,
   issueStatusTone,
+  isTerminalRun,
   looksLikeExecutorOutput,
   notificationStatusLabel,
   runStatusLabel,
@@ -47,7 +73,6 @@ import {
   shortBatchId,
 } from '../../data/domain'
 import { workLinks } from '../../data/routes'
-import { usePortalNavigate } from '../../app/navigate'
 import { governanceIssueQuery, governanceIssuesQuery, qualityRulesQuery } from './queries'
 import { ResponsibilitySheet } from './responsibility-sheet'
 
@@ -84,7 +109,7 @@ function isSafeArtifactLink(value: string) {
 }
 
 function toneBadge(tone: 'healthy' | 'warning' | 'danger' | 'neutral') {
-  return tone === 'healthy' ? 'success' : tone === 'danger' ? 'danger' : tone === 'warning' ? 'warn' : 'neutral'
+  return tone === 'healthy' ? 'success' : tone === 'danger' ? 'error' : tone === 'warning' ? 'warning' : 'outline'
 }
 
 /**
@@ -326,7 +351,7 @@ export function QualityPage() {
       cell: ({ row }) => (
         <div>
           <div className="font-mono text-label text-ink">{row.original.ruleId}</div>
-          <div className="mt-0.5 text-meta text-muted">{QUALITY_RULE_TYPE_LABELS[row.original.ruleType] ?? row.original.ruleType}{row.original.targetColumn ? ` · ${row.original.targetColumn}` : ''}</div>
+          <div className="mt-0.5 text-meta text-muted-foreground">{QUALITY_RULE_TYPE_LABELS[row.original.ruleType] ?? row.original.ruleType}{row.original.targetColumn ? ` · ${row.original.targetColumn}` : ''}</div>
         </div>
       ),
     }),
@@ -335,7 +360,7 @@ export function QualityPage() {
       id: 'enabled',
       header: '状态',
       size: 90,
-      cell: ({ row }) => <Badge tone={row.original.enabled ? 'success' : 'neutral'}>{row.original.enabled ? '启用' : '停用'}</Badge>,
+      cell: ({ row }) => <Badge variant={row.original.enabled ? 'success' : 'outline'}>{row.original.enabled ? '启用' : '停用'}</Badge>,
     }),
     ruleHelper.display({ id: 'updated', header: '更新', size: 130, cell: ({ row }) => <span className="text-label text-faint">{formatDateTime(row.original.updatedAt)}</span> }),
     ruleHelper.display({
@@ -344,11 +369,11 @@ export function QualityPage() {
       size: 210,
       cell: ({ row }) => (
         <div className="flex items-center gap-2.5" onClick={(event) => event.stopPropagation()}>
-          <Button variant="text" onClick={() => navigate(workLinks.qualityRuleEdit(row.original.ruleId))}>编辑</Button>
-          <Button variant="text" disabled={ruleToggle.isPending} onClick={() => ruleToggle.mutate({ ruleId: row.original.ruleId, enabled: !row.original.enabled })}>
+          <Button variant="link" onClick={() => navigate(workLinks.qualityRuleEdit(row.original.ruleId))}>编辑</Button>
+          <Button variant="link" disabled={ruleToggle.isPending} onClick={() => ruleToggle.mutate({ ruleId: row.original.ruleId, enabled: !row.original.enabled })}>
             {row.original.enabled ? '停用' : '启用'}
           </Button>
-          <Button variant="text" className="text-red" onClick={() => setPendingDelete(row.original)}><Trash2 size={12} />删除</Button>
+          <Button variant="link" className="text-red" onClick={() => setPendingDelete(row.original)}><Trash2 size={12} />删除</Button>
         </div>
       ),
     }),
@@ -362,40 +387,43 @@ export function QualityPage() {
         description="定位质量问题，沿证据与责任链推进闭环。"
         actions={
           <>
-            <Button onClick={() => navigate('/governance/quality/scoring')}>评分标准</Button>
-            <Button variant="primary" onClick={() => navigate(workLinks.qualityRuleNew())}><Plus size={14} />新建质量规则</Button>
+            <Button variant="outline" onClick={() => navigate('/governance/quality/scoring')}>评分标准</Button>
+            <Button onClick={() => navigate(workLinks.qualityRuleNew())}><Plus size={14} />新建质量规则</Button>
           </>
         }
       />
 
       {actionErrors.filter((entry) => entry.issueId !== effectiveId).map((entry) => (
-        <div key={JSON.stringify([entry.issueId, entry.action])} role="alert" className="mb-3 flex flex-wrap items-center gap-2 rounded-control border border-red-line bg-red-soft px-4 py-3 text-body-sm text-red">
-          <strong>问题 {entry.issueId} 的操作失败</strong>
-          <span>{entry.message}</span>
-          <Button size="sm" onClick={() => select(entry.issueId)}>查看问题 {entry.issueId}</Button>
-        </div>
+        <Alert key={JSON.stringify([entry.issueId, entry.action])} variant="error" className="mb-3">
+          <CircleAlert />
+          <AlertTitle>问题 {entry.issueId} 的操作失败</AlertTitle>
+          <AlertDescription>{entry.message}</AlertDescription>
+          <AlertAction>
+            <Button variant="outline" size="xs" onClick={() => select(entry.issueId)}>查看问题 {entry.issueId}</Button>
+          </AlertAction>
+        </Alert>
       ))}
 
       {issuesRequest.isPending ? <LoadingBlock>正在读取治理问题…</LoadingBlock> : null}
 
       {issuesRequest.isError ? (
-        <Panel>
+        <FramePanel className="p-0 overflow-clip">
           <EmptyState
             minHeight={240}
             icon={<CircleAlert />}
             title="治理问题控制面不可用"
             description="控制面暂不可用 · 未加载治理问题。当前页面没有展示演示问题；请恢复控制面后重新加载。"
-            action={<Button onClick={() => void issuesRequest.refetch()}>重新连接</Button>}
+            action={<Button variant="outline" onClick={() => void issuesRequest.refetch()}>重新连接</Button>}
           />
-        </Panel>
+        </FramePanel>
       ) : null}
 
       {issuesRequest.isSuccess ? (
         <div className="grid grid-cols-[300px_minmax(0,1fr)_320px] gap-3.5 max-[1320px]:grid-cols-[250px_minmax(0,1fr)_270px] max-[1100px]:grid-cols-1">
-          <Panel className="flex flex-col">
+          <FramePanel className="flex flex-col p-0 overflow-clip">
             <div className="flex items-center justify-between px-[18px] pt-4 pb-2">
-              <h2 className="text-title font-semibold">问题队列<Count>{openIssues.length}</Count></h2>
-              <span className="text-meta text-muted">按 SLA 排序</span>
+              <h2 className="text-title font-semibold">问题队列<Badge variant="outline">{openIssues.length}</Badge></h2>
+              <span className="text-meta text-muted-foreground">按 SLA 排序</span>
             </div>
             <div className="px-[18px] pb-2">
               <SearchField
@@ -405,101 +433,101 @@ export function QualityPage() {
                 className="w-full"
               />
             </div>
-            <div className="flex flex-wrap items-center gap-1 px-[18px] pb-2">
-              {([['open', `待闭环 ${openIssues.length}`], ['closed', `已关闭 ${issues.length - openIssues.length}`], ['all', `全部 ${issues.length}`]] as const).map(([value, label]) => (
-                <button
-                  key={value}
-                  type="button"
-                  aria-pressed={statusFilter === value}
-                  onClick={() => { setStatusFilter(value); setPage(0) }}
-                  className={`rounded-chip border px-1.5 py-0.5 text-label ${statusFilter === value ? 'border-blue-line bg-blue-soft text-blue' : 'border-line bg-paper text-muted hover:bg-wash'}`}
-                >
-                  {label}
-                </button>
-              ))}
-              {openIssues.length > 0 ? <button type="button" onClick={() => setBatchOpen(true)} className="rounded-chip border border-line bg-paper px-1.5 py-0.5 text-label text-muted hover:bg-wash">批量提醒</button> : null}
+            <div className="flex flex-wrap items-center gap-2 px-[18px] pb-2">
+              <SegmentedControl
+                size="sm"
+                render={<RadioGroupPrimitive aria-label="按处理状态筛选" value={statusFilter} onValueChange={(next) => { setStatusFilter(next); setPage(0) }} />}
+              >
+                {([['open', `待闭环 ${openIssues.length}`], ['closed', `已关闭 ${issues.length - openIssues.length}`], ['all', `全部 ${issues.length}`]] as const).map(([value, label]) => (
+                  <SegmentedControlItem key={value} render={<RadioPrimitive.Root value={value} />}>
+                    {label}
+                  </SegmentedControlItem>
+                ))}
+              </SegmentedControl>
+              {openIssues.length > 0 ? <Button variant="outline" size="sm" onClick={() => setBatchOpen(true)}>批量提醒</Button> : null}
             </div>
-            <p className="px-[18px] pb-2 text-meta text-muted">当前筛选 {visibleIssues.length} 项</p>
-            <ul className="m-0 min-h-0 flex-1 list-none overflow-y-auto px-2 pb-2">
+            <p className="px-[18px] pb-2 text-meta text-muted-foreground">当前筛选 {visibleIssues.length} 项</p>
+            <SidebarMenu className="m-0 min-h-0 flex-1 overflow-y-auto px-2 pb-2">
               {pagedIssues.map((issue) => {
                 const active = selected?.id === issue.id
                 return (
-                  <li key={issue.id}>
-                    <button
-                      type="button"
-                      aria-pressed={active}
+                  <SidebarMenuItem key={issue.id}>
+                    <SelectionListItem
+                      isActive={active}
                       onClick={() => select(issue.id)}
-                      className={`mb-1 w-full rounded-control px-2.5 py-2 text-left ${active ? 'bg-blue-soft' : 'hover:bg-wash'}`}
                     >
                       <span className="flex items-center justify-between gap-2">
-                        <span className="font-mono text-meta text-muted">{issue.id}</span>
-                        <Badge tone={toneBadge(severityTone(issue.severity))}>{severityLabel(issue.severity)}风险</Badge>
+                        <span className="font-mono text-meta text-muted-foreground">{issue.id}</span>
+                        <Badge variant={toneBadge(severityTone(issue.severity))}>{severityLabel(issue.severity)}风险</Badge>
                       </span>
                       <span className="mt-1 block text-body-sm text-ink-soft">{issue.title}</span>
-                      <span className="mt-0.5 block text-meta text-muted">{issue.ownerDepartment} · {issue.ownerName} · {issueStatusLabel(issue.status)}</span>
-                    </button>
-                  </li>
+                      <span className="mt-0.5 block text-meta text-muted-foreground">{issue.ownerDepartment} · {issue.ownerName} · {issueStatusLabel(issue.status)}</span>
+                    </SelectionListItem>
+                  </SidebarMenuItem>
                 )
               })}
               {visibleIssues.length === 0 ? (
-                <li className="px-3 py-6 text-center text-label text-muted">
+                <li className="px-3 py-6 text-center text-label text-muted-foreground">
                   当前范围暂无匹配的治理问题
-                  {keyword || statusFilter !== 'all' ? <Button variant="text" size="sm" className="ml-1" onClick={() => { setKeyword(''); setStatusFilter('all'); setPage(0) }}>查看全部问题</Button> : null}
+                  {keyword || statusFilter !== 'all' ? <Button variant="link" size="sm" className="ml-1" onClick={() => { setKeyword(''); setStatusFilter('all'); setPage(0) }}>查看全部问题</Button> : null}
                 </li>
               ) : null}
-            </ul>
+            </SidebarMenu>
             <div className="border-t border-line px-3">
               <TablePagination page={currentPage} pageSize={QUEUE_PAGE_SIZE} total={visibleIssues.length} onPageChange={setPage} label="问题队列分页" compact className="border-t-0 px-0" />
             </div>
-          </Panel>
+          </FramePanel>
 
-          <Panel>
-            {detailRequest.isPending && selected ? <Skeleton rows={5} /> : null}
+          <FramePanel className="p-0 overflow-clip">
+            {detailRequest.isPending && selected ? <TableSkeleton rows={5} /> : null}
             {detailRequest.isError ? (
               <div className="px-5 py-8 text-center">
                 <p className="text-body-sm font-medium text-ink-soft">治理问题详情不可用</p>
-                <p className="mt-1 text-label text-muted">问题详情读取失败，请刷新后重试</p>
-                <Button size="sm" className="mt-3" onClick={() => void detailRequest.refetch()}>重新读取</Button>
+                <p className="mt-1 text-label text-muted-foreground">问题详情读取失败，请刷新后重试</p>
+                <Button variant="outline" size="sm" className="mt-3" onClick={() => void detailRequest.refetch()}>重新读取</Button>
               </div>
             ) : null}
             {selected && detail ? (
               <>
                 <div className="border-b border-line px-5 py-4">
                   <div className="flex flex-wrap items-center gap-2">
-                    <Badge tone={toneBadge(issueStatusTone(selected.status))}>{issueStatusLabel(selected.status)}</Badge>
-                    <span className="text-meta text-muted">更新于 {formatDateTime(selected.updatedAt ?? null)}</span>
+                    <Badge variant={toneBadge(issueStatusTone(selected.status))}>{issueStatusLabel(selected.status)}</Badge>
+                    <span className="text-meta text-muted-foreground">更新于 {formatDateTime(selected.updatedAt ?? null)}</span>
                   </div>
                   <h2 className="mt-2 text-subject font-semibold text-ink">{selected.title}</h2>
-                  <p className="mt-1 text-label text-muted">{selected.id} · {selected.objectLabel || selected.datasetId}</p>
+                  <p className="mt-1 text-label text-muted-foreground">{selected.id} · {selected.objectLabel || selected.datasetId}</p>
                   <dl className="mt-3 grid grid-cols-3 gap-4">
                     <Fact label="责任人" value={`${selected.ownerDepartment} · ${selected.ownerName}`} />
                     <Fact label="SLA 截止" value={formatDateTime(selected.dueAt)} />
                     <Fact label="最近更新" value={formatDateTime(selected.updatedAt ?? null)} />
                   </dl>
                   <div className="mt-3 flex flex-wrap items-center gap-2">
-                    <Button variant="primary" disabled={!canRecheck || busy} onClick={() => selected && recheckMutation.mutate(selected.id)}>
+                    <Button disabled={!canRecheck || busy} onClick={() => selected && recheckMutation.mutate(selected.id)}>
                       {recheckMutation.isPending ? '提交中…' : selected.status === 'RECHECKING' ? '复检中' : '开始复检'}
                     </Button>
                     {detail.latestRun && !isTerminalRun(detail.latestRun.status) ? (
-                      <Button disabled={busy} onClick={() => selected && detail.latestRun && syncMutation.mutate({ issueId: selected.id, runId: detail.latestRun.id })}>
+                      <Button variant="outline" disabled={busy} onClick={() => selected && detail.latestRun && syncMutation.mutate({ issueId: selected.id, runId: detail.latestRun.id })}>
                         <RefreshCw size={14} className={syncMutation.isPending ? 'animate-spin' : undefined} />{syncMutation.isPending ? '同步中…' : '同步复检结果'}
                       </Button>
                     ) : null}
-                    <Button disabled={busy || selected.status === 'CLOSED'} onClick={() => remindMutation.mutate(selected.id)}>
+                    <Button variant="outline" disabled={busy || selected.status === 'CLOSED'} onClick={() => remindMutation.mutate(selected.id)}>
                       {remindMutation.isPending ? '提醒中…' : selected.status === 'CLOSED' ? '问题已关闭' : '提醒责任人'}
                     </Button>
-                    <Button onClick={() => setChainOpen(true)}><Shield size={13} />责任链</Button>
-                    {selected.status === 'CLOSED' ? <span className="text-meta text-muted">问题已关闭，主操作停用；如需重新处理请从队列选择未闭环问题</span> : null}
+                    <Button variant="outline" onClick={() => setChainOpen(true)}><Shield size={13} />责任链</Button>
+                    {selected.status === 'CLOSED' ? <span className="text-meta text-muted-foreground">问题已关闭，主操作停用；如需重新处理请从队列选择未闭环问题</span> : null}
                   </div>
                   {selected.status === 'RECHECKING' ? <p className="mt-2 text-label text-amber">复检请求已登记，正在等待执行器异步回写；本状态尚不代表质量规则通过。</p> : null}
                   {actionErrors.filter((entry) => entry.issueId === selected.id).map((entry) => (
-                    <p key={entry.action} role="alert" className="mt-2 text-body-sm text-red">{entry.message}</p>
+                    <Alert key={entry.action} variant="error" className="mt-2">
+                      <CircleAlert />
+                      <AlertDescription>{entry.message}</AlertDescription>
+                    </Alert>
                   ))}
                 </div>
 
                 <div className="flex items-center justify-between px-5 pt-4 pb-2">
                   <h3 className="text-label font-medium text-ink-soft">处理记录</h3>
-                  <span className="text-meta text-muted">{detail.events.length} 条事件</span>
+                  <span className="text-meta text-muted-foreground">{detail.events.length} 条事件</span>
                 </div>
                 <ol className="m-0 list-none px-5 pb-4">
                   {groupedTimeline(detail.events).map((group) => group.kind === 'retries' ? (
@@ -507,22 +535,27 @@ export function QualityPage() {
                       <div className="text-body-sm font-medium text-ink-soft">
                         复检投递重试（共 {group.events.length} 条）
                       </div>
-                      <details className="mt-1 text-label text-muted">
-                        <summary className="cursor-pointer">展开每次记录</summary>
-                        {group.events.map((event) => (
-                          <p key={event.id} className="mt-1">
-                            {formatDateTime(event.createdAt)} · {eventTitle(event.eventType)}{event.note ? ` · ${formatInlineDateTimes(event.note)}` : ''}
-                          </p>
-                        ))}
-                      </details>
+                      <Collapsible className="mt-1 text-label text-muted-foreground">
+                        <CollapsibleTrigger className="inline-flex cursor-pointer items-center gap-2 data-panel-open:[&_svg]:rotate-180">
+                          展开每次记录
+                          <ChevronDown className="size-4" />
+                        </CollapsibleTrigger>
+                        <CollapsiblePanel>
+                          {group.events.map((event) => (
+                            <p key={event.id} className="mt-1">
+                              {formatDateTime(event.createdAt)} · {eventTitle(event.eventType)}{event.note ? ` · ${formatInlineDateTimes(event.note)}` : ''}
+                            </p>
+                          ))}
+                        </CollapsiblePanel>
+                      </Collapsible>
                     </li>
                   ) : (
                     <li key={group.event.id} className="border-l border-line pb-4 pl-5">
                       <div className="flex items-start justify-between gap-3">
                         <strong className="text-body-sm font-medium text-ink-soft">{eventTitle(group.event.eventType)}</strong>
-                        <time className="shrink-0 text-meta text-muted">{formatDateTime(group.event.createdAt)}</time>
+                        <time className="shrink-0 text-meta text-muted-foreground">{formatDateTime(group.event.createdAt)}</time>
                       </div>
-                      <p className="mt-1 text-label leading-relaxed text-muted">
+                      <p className="mt-1 text-label leading-relaxed text-muted-foreground">
                         {executorOutputView(group.event.note).folded
                           ? <>{formatInlineDateTimes(executorOutputView(group.event.note).head)}…</>
                           : formatInlineDateTimes(group.event.note)} · {actorLabel(group.event.actor)}
@@ -530,33 +563,39 @@ export function QualityPage() {
                     </li>
                   ))}
                   {detail.events.length === 0 ? (
-                    <li className="pl-1 text-label text-muted">问题来自质量规则目录，等待责任人处理。</li>
+                    <li className="pl-1 text-label text-muted-foreground">问题来自质量规则目录，等待责任人处理。</li>
                   ) : null}
                 </ol>
 
                 <div className="border-t border-line px-5 py-4">
-                  <label htmlFor="processing-note" className="mb-1.5 block text-body-sm text-ink-soft">处理说明</label>
-                  {looksLikeExecutorOutput(selected.processingNote) ? (
-                    <details className="mb-2 rounded-control border border-line bg-wash px-3 py-2 text-label text-muted">
-                      <summary className="cursor-pointer">历史执行器输出（仅参考，不作为处理结论）</summary>
-                      <pre className="mt-1 max-h-[160px] overflow-auto whitespace-pre-wrap font-mono text-meta">{selected.processingNote}</pre>
-                    </details>
-                  ) : null}
-                  <textarea
-                    id="processing-note"
-                    value={note}
-                    onChange={(event) => {
-                      const value = event.target.value
-                      setNote(value)
-                      if (selected) noteDrafts.current.set(selected.id, value)
-                    }}
-                    disabled={!canEdit || busy}
-                    placeholder={canEdit ? '填写人工处理结论（处置动作、原因与复核口径）' : ''}
-                    className="min-h-[96px] w-full rounded-control border border-line-strong bg-paper px-2.5 py-2 text-body-sm text-ink-soft disabled:bg-wash disabled:text-faint"
-                  />
+                  <Field>
+                    <FieldLabel htmlFor="processing-note">处理说明</FieldLabel>
+                    {looksLikeExecutorOutput(selected.processingNote) ? (
+                      <Collapsible className="rounded-control border border-line bg-wash px-3 py-2 text-label text-muted-foreground">
+                        <CollapsibleTrigger className="inline-flex w-full cursor-pointer items-center gap-2 font-medium data-panel-open:[&_svg]:rotate-180">
+                          历史执行器输出（仅参考，不作为处理结论）
+                          <ChevronDown className="size-4" />
+                        </CollapsibleTrigger>
+                        <CollapsiblePanel>
+                          <pre className="mt-1 max-h-[160px] overflow-auto whitespace-pre-wrap font-mono text-meta">{selected.processingNote}</pre>
+                        </CollapsiblePanel>
+                      </Collapsible>
+                    ) : null}
+                    <Textarea
+                      id="processing-note"
+                      value={note}
+                      onChange={(event) => {
+                        const value = event.target.value
+                        setNote(value)
+                        if (selected) noteDrafts.current.set(selected.id, value)
+                      }}
+                      disabled={!canEdit || busy}
+                      placeholder={canEdit ? '填写人工处理结论（处置动作、原因与复核口径）' : ''}
+                      className="min-h-[96px] [&_[data-slot=textarea]]:min-h-inherit"
+                    />
+                  </Field>
                   <div className="mt-2 flex justify-end">
                     <Button
-                      variant="primary"
                       disabled={!canEdit || !note.trim() || busy}
                       onClick={() => selected && noteMutation.mutate({ issueId: selected.id, status: selected.status === 'CLOSED' ? 'CLOSED' : 'IN_PROGRESS', text: note.trim() })}
                     >
@@ -568,14 +607,14 @@ export function QualityPage() {
             ) : (!detailRequest.isPending && !detailRequest.isError) ? (
               <EmptyState minHeight={320} icon={<Search />} title="请选择一个治理问题" description="从左侧队列选择问题，查看证据、处理记录与责任链。" />
             ) : null}
-          </Panel>
+          </FramePanel>
 
-          <Panel>
+          <FramePanel className="p-0 overflow-clip">
             {selected && detail ? (
               <div className="px-4 py-4">
                 <div className="mb-2 flex items-center justify-between">
                   <h3 className="text-label font-medium text-ink-soft">影响与证据</h3>
-                  <Badge tone={toneBadge(severityTone(selected.severity))}>{severityLabel(selected.severity)}风险</Badge>
+                  <Badge variant={toneBadge(severityTone(selected.severity))}>{severityLabel(selected.severity)}风险</Badge>
                 </div>
                 <EvidenceBox title="影响范围">{selected.impact}</EvidenceBox>
                 <EvidenceBox title="规则证据">{selected.ruleId}<br />规则结果来源：治理规则运行记录</EvidenceBox>
@@ -585,9 +624,12 @@ export function QualityPage() {
                     <div className="mt-2 border-t border-line pt-2">
                       <strong className="text-label text-ink-soft">历史执行批次（{detail.runs.length}）</strong>
                       {detail.runs.slice(1).map((run) => (
-                        <div key={run.id} className="mt-1 flex items-center gap-2 text-meta text-muted">
-                          <Badge tone={toneBadge(runStatusTone(run.status))}>{runStatusLabel(run.status)}</Badge>
-                          <span title={run.executionBatchId}>{shortBatchId(run.executionBatchId)}</span>
+                        <div key={run.id} className="mt-1 flex items-center gap-2 text-meta text-muted-foreground">
+                          <Badge variant={toneBadge(runStatusTone(run.status))}>{runStatusLabel(run.status)}</Badge>
+                          <Tooltip>
+                            <TooltipTrigger render={<span />}>{shortBatchId(run.executionBatchId)}</TooltipTrigger>
+                            <TooltipPopup>{run.executionBatchId}</TooltipPopup>
+                          </Tooltip>
                           <time>{formatDateTime(run.submittedAt)}</time>
                           <small>{run.sampleEvidence.length} 条证据</small>
                         </div>
@@ -600,10 +642,10 @@ export function QualityPage() {
                     <strong>质量执行批次待人工对账</strong>
                     <p className="mt-1">{detail.latestRun.reconciliationMessage ?? '外部执行器未能可靠返回状态，请先重新查询；确认不存在后才允许结束本批次。'}</p>
                     <div className="mt-1.5 flex gap-2">
-                      <Button size="sm" disabled={busy} onClick={() => selected && detail.latestRun && reconcileMutation.mutate({ issueId: selected.id, runId: detail.latestRun.id })}>
+                      <Button variant="outline" size="sm" disabled={busy} onClick={() => selected && detail.latestRun && reconcileMutation.mutate({ issueId: selected.id, runId: detail.latestRun.id })}>
                         {reconcileMutation.isPending ? '查询中…' : '重新查询'}
                       </Button>
-                      <Button size="sm" variant="danger-outline" disabled={busy} onClick={() => selected && detail.latestRun && confirmAbsentMutation.mutate({ issueId: selected.id, runId: detail.latestRun.id })}>
+                      <Button size="sm" variant="destructive-outline" disabled={busy} onClick={() => selected && detail.latestRun && confirmAbsentMutation.mutate({ issueId: selected.id, runId: detail.latestRun.id })}>
                         {confirmAbsentMutation.isPending ? '确认中…' : '确认不存在'}
                       </Button>
                     </div>
@@ -613,7 +655,7 @@ export function QualityPage() {
                   {detail.notifications.length > 0
                     ? detail.notifications.slice(0, 3).map((notification) => (
                       <p key={notification.id} className="mb-1.5">
-                        <Badge tone={notification.status === 'SENT' ? 'success' : notification.status === 'FAILED' ? 'danger' : 'warn'}>{notificationStatusLabel(notification.status)}</Badge>
+                        <Badge variant={notification.status === 'SENT' ? 'success' : notification.status === 'FAILED' ? 'error' : 'warning'}>{notificationStatusLabel(notification.status)}</Badge>
                         <span className="ml-1.5">{notification.channel} · {notification.recipient}</span>
                         <br />{notification.subject}
                         {notification.lastError ? <><br /><span className="text-red">{notification.lastError}</span></> : null}
@@ -624,17 +666,21 @@ export function QualityPage() {
                 <EvidenceBox title="责任归属">{selected.ownerDepartment} · {selected.ownerName}<br />来源：治理问题记录</EvidenceBox>
               </div>
             ) : null}
-          </Panel>
+          </FramePanel>
         </div>
       ) : null}
 
-      <Panel className="mt-3.5">
-        <PanelHead
-          title="质量规则"
-          count={rulesRequest.data?.total}
-          description="动态规则台账：保存即推送质量执行器编译，失败原因如实回显"
-          actions={<Button size="sm" variant="primary" onClick={() => navigate(workLinks.qualityRuleNew())}><Plus size={13} />新建规则</Button>}
-        />
+      <FramePanel className="mt-3.5 p-0 overflow-clip">
+        <FrameHeader className="px-[18px] pt-[18px] pb-3 flex-row items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="text-title font-semibold tracking-[-0.2px]">
+              质量规则
+              {rulesRequest.data?.total !== undefined ? <Badge variant="outline">{rulesRequest.data?.total}</Badge> : null}
+            </h2>
+            <FrameDescription>动态规则台账：保存即推送质量执行器编译，失败原因如实回显</FrameDescription>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">{<Button size="sm" onClick={() => navigate(workLinks.qualityRuleNew())}><Plus size={13} />新建规则</Button>}</div>
+        </FrameHeader>
         <ScopeNote>删除会从执行器同步摘除规则；如需暂停执行请使用「停用」。已产生的治理问题与运行记录保留。</ScopeNote>
         <DataTable
           columns={ruleColumns}
@@ -643,12 +689,12 @@ export function QualityPage() {
           rowLabel={(rule) => rule.ruleId}
           loading={rulesRequest.isPending}
           empty={rulesRequest.isError
-            ? <EmptyState minHeight={200} icon={<CircleAlert />} title="质量规则暂不可用" description="无法读取规则台账，不能据此判断当前是否存在规则。" action={<Button onClick={() => void rulesRequest.refetch()}>重新读取规则</Button>} />
+            ? <EmptyState minHeight={200} icon={<CircleAlert />} title="质量规则暂不可用" description="无法读取规则台账，不能据此判断当前是否存在规则。" action={<Button variant="outline" onClick={() => void rulesRequest.refetch()}>重新读取规则</Button>} />
             : <EmptyState minHeight={200} icon={<Shield />} title="还没有动态质量规则" description="新建规则后保存即推送执行器；执行器对目标表列做实校验。" />}
         />
-      </Panel>
+      </FramePanel>
 
-      <Confirm
+      <ConfirmDialog
         open={batchOpen}
         onOpenChange={setBatchOpen}
         title={`提醒 ${openIssues.length} 个待闭环问题的责任人`}
@@ -659,7 +705,7 @@ export function QualityPage() {
         onConfirm={() => batchRemindMutation.mutate(openIssues.map((issue) => issue.id))}
       />
 
-      <Confirm
+      <ConfirmDialog
         open={pendingDelete !== null}
         onOpenChange={(open) => { if (!open) setPendingDelete(null) }}
         title={`删除 ${pendingDelete?.ruleId ?? ''}`}
@@ -680,7 +726,7 @@ export function QualityPage() {
 function Fact({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="mb-0.5 text-meta text-muted">{label}</dt>
+      <dt className="mb-0.5 text-meta text-muted-foreground">{label}</dt>
       <dd className="m-0 text-body-sm text-ink-soft">{value}</dd>
     </div>
   )
@@ -690,7 +736,7 @@ function EvidenceBox({ title, children }: { title: string; children: React.React
   return (
     <div className="mb-2.5 rounded-control border border-line bg-wash px-3 py-2.5">
       <h4 className="mb-1 text-label font-medium text-ink-soft">{title}</h4>
-      <div className="text-label leading-relaxed text-muted">{children}</div>
+      <div className="text-label leading-relaxed text-muted-foreground">{children}</div>
     </div>
   )
 }
@@ -700,9 +746,13 @@ function RunEvidence({ run }: { run: GovernanceQualityRunApiItem }) {
   return (
     <>
       <p>
-        <Badge tone={toneBadge(runStatusTone(run.status))}>{runStatusLabel(run.status)}</Badge>
+        <Badge variant={toneBadge(runStatusTone(run.status))}>{runStatusLabel(run.status)}</Badge>
         <br />执行器：{executorLabel(run.executor)}
-        <br />批次：<code className="font-mono text-meta" title={run.executionBatchId}>{shortBatchId(run.executionBatchId)}</code>
+        <br />批次：
+        <Tooltip>
+          <TooltipTrigger render={<code className="font-mono text-meta" />}>{shortBatchId(run.executionBatchId)}</TooltipTrigger>
+          <TooltipPopup className="font-mono text-xs">{run.executionBatchId}</TooltipPopup>
+        </Tooltip>
         <br />提交：{formatDateTime(run.submittedAt)}
         {run.finishedAt ? <><br />完成：{formatDateTime(run.finishedAt)}</> : null}
       </p>
@@ -710,10 +760,23 @@ function RunEvidence({ run }: { run: GovernanceQualityRunApiItem }) {
         尝试 {run.attemptCount} 次{run.nextPollAt ? <> · {formatDateTime(run.nextPollAt)} 自动同步轮询结果（也可手动同步）</> : null}
       </p>
       {view ? (
-        <p className="mt-1">
-          {view.head}
-          {view.folded ? <>…<details className="mt-1 text-meta"><summary className="cursor-pointer">查看完整执行输出</summary><pre className="mt-1 max-h-[180px] overflow-auto whitespace-pre-wrap font-mono">{view.folded}</pre></details></> : null}
-        </p>
+        <>
+          <p className="mt-1">
+            {view.head}
+            {view.folded ? '…' : null}
+          </p>
+          {view.folded ? (
+            <Collapsible className="mt-1 text-meta">
+              <CollapsibleTrigger className="inline-flex cursor-pointer items-center gap-2 data-panel-open:[&_svg]:rotate-180">
+                查看完整执行输出
+                <ChevronDown className="size-4" />
+              </CollapsibleTrigger>
+              <CollapsiblePanel>
+                <pre className="mt-1 max-h-[180px] overflow-auto whitespace-pre-wrap font-mono">{view.folded}</pre>
+              </CollapsiblePanel>
+            </Collapsible>
+          ) : null}
+        </>
       ) : null}
       {run.lastError ? <p className="mt-1 text-red">最近错误：{run.lastError}</p> : null}
       {run.artifactUri ? (

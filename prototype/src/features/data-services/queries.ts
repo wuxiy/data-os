@@ -1,12 +1,13 @@
 import { queryOptions } from '@tanstack/react-query'
+
 import {
   fetchDataServiceCalls,
   fetchDataServiceContractEvents,
   fetchDataServiceDetail,
   fetchDataServiceExports,
   fetchDataServiceOverview,
-  fetchDataServiceSubscriptions,
   fetchDataServices,
+  fetchDataServiceSubscriptions,
 } from '../../data/dataServicesApi'
 
 /** 数据服务域 Query：清单、概览与从属资源各自独立缓存与失败。 */

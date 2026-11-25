@@ -1,6 +1,7 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { installBrowserApiStubs } from '../test-support/browser-apis'
+import { renderWithSidebar } from '../test-support/render-with-sidebar'
 
 // 2026-11-09 走查 P1 回归锁：日期参数必须「输入即提交值」。
 // 旧实现用 DatePicker，手输日期未确认就点「按参数执行」时末字段值不随请求
@@ -50,7 +51,7 @@ beforeEach(() => {
 
 describe('AssistantLive 参数表单', () => {
   it('手输两个日期后立即执行，两个参数都随请求提交（不再丢失末字段）', async () => {
-    render(<AssistantLive onNotice={vi.fn()} />)
+    renderWithSidebar(<AssistantLive onNotice={vi.fn()} />)
 
     const question = await screen.findByText('查询每天的用药记录量')
     fireEvent.click(question)
@@ -71,7 +72,7 @@ describe('AssistantLive 参数表单', () => {
   })
 
   it('参数标签优先中文说明；无说明时按常见参数名兜底映射', async () => {
-    render(<AssistantLive onNotice={vi.fn()} />)
+    renderWithSidebar(<AssistantLive onNotice={vi.fn()} />)
     fireEvent.click(await screen.findByText('查询每天的用药记录量'))
     expect(await screen.findByLabelText('开始日期')).toBeTruthy()
     expect(screen.getByLabelText('结束日期')).toBeTruthy()

@@ -1,26 +1,56 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CheckCircle2, CircleAlert, GitMerge, GitPullRequestArrow, LoaderCircle, RefreshCw, ShieldCheck, XCircle } from 'lucide-react'
+import {
+  CheckCircle2,
+  CircleAlert,
+  GitMerge,
+  GitPullRequestArrow,
+  LoaderCircle,
+  RefreshCw,
+  ShieldCheck,
+  X,
+  XCircle,
+} from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
+
+import { ConfirmDialog } from '@/components/app/confirm-dialog'
+import { EmptyState } from '@/components/app/empty-state'
+import { LoadingBlock } from '@/components/app/loading'
+import { SearchField } from '@/components/app/search-field'
+import { SelectionListItem } from '@/components/app/selection-list-item'
+import { TableSkeleton } from '@/components/app/table-skeleton'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
+import {
+  Drawer,
+  DrawerClose,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerPanel,
+  DrawerPopup,
+  DrawerTitle,
+} from '@/components/ui/drawer'
+import { FrameDescription, FrameHeader, FramePanel } from '@/components/ui/frame'
+import { Label } from '@/components/ui/label'
+import { SidebarMenu, SidebarMenuItem } from '@/components/ui/sidebar'
+import { Tooltip, TooltipPopup, TooltipTrigger } from '@/components/ui/tooltip'
+
 import { QueryBoundary } from '../app/query-boundary'
-import { Badge } from '../components/ui/badge'
-import { Button } from '../components/ui/button'
-import { SearchField } from '../components/ui/input'
-import { Confirm, Sheet, SheetBody, SheetFooterActions } from '../components/ui/overlay'
-import { Panel, PanelHead } from '../components/ui/panel'
-import { EmptyState, LoadingBlock, Skeleton } from '../components/ui/states'
-import { DataTable, TablePagination, listColumnHelper } from '../components/table/data-table'
+import { DataTable, listColumnHelper, TablePagination } from '../components/table/data-table'
 import { formatDateTime } from '../data/domain'
 import {
   decideMpiTask,
   fetchMpiCandidates,
   fetchMpiMetrics,
   fetchMpiPerson,
+  type MpiCandidateItem,
   mpiEvidenceLine,
+  type MpiPersonDetail,
   mpiRuleLabel,
   rebuildMpi,
   splitMpiPerson,
-  type MpiCandidateItem,
-  type MpiPersonDetail,
 } from '../data/mpiApi'
 
 /**
@@ -150,7 +180,7 @@ function MpiWorkspace({ onNotice }: { onNotice: (message: string) => void }) {
 
   return (
     <div>
-      <div className="mb-3 flex flex-wrap items-center gap-2 text-label text-muted">
+      <div className="mb-3 flex flex-wrap items-center gap-2 text-label text-muted-foreground">
         <i aria-hidden="true" className={`size-1.5 rounded-full ${unavailable ? 'bg-[#929daa]' : 'bg-[#4d8c6e]'}`} />
         {loading ? '正在连接 MPI 服务…' : unavailable ? 'MPI 服务暂不可用 · 不可用时不展示演示候选' : 'MPI 服务已连接 · 候选与决策来自 mpi-service'}
       </div>
@@ -166,85 +196,96 @@ function MpiWorkspace({ onNotice }: { onNotice: (message: string) => void }) {
       ) : null}
 
       {unavailable ? (
-        <Panel className="mb-3.5">
+        <FramePanel className="mb-3.5 p-0 overflow-clip">
           <EmptyState
             minHeight={200}
             icon={<CircleAlert />}
             title="MPI 服务不可用"
             description="当前页面不展示演示候选；请恢复 mpi-service 后重新加载。"
-            action={<Button onClick={refreshQueue}>重新连接</Button>}
+            action={<Button variant="outline" onClick={refreshQueue}>重新连接</Button>}
           />
-        </Panel>
+        </FramePanel>
       ) : null}
 
       {loading && !unavailable ? <LoadingBlock>正在读取复核队列与身份信息…</LoadingBlock> : null}
 
       {!loading && !unavailable ? (
         <div className="grid grid-cols-[300px_minmax(0,1fr)] gap-3.5 max-[1100px]:grid-cols-1">
-          <Panel className="flex flex-col">
-            <PanelHead title="候选队列" count={metricsRequest.data?.reviewPending ?? candidates.length} description="按规则评分降序" />
+          <FramePanel className="flex flex-col p-0 overflow-clip">
+            <FrameHeader className="px-[18px] pt-[18px] pb-3 gap-1">
+              <div className="min-w-0">
+                <h2 className="text-title font-semibold tracking-[-0.2px]">
+                  候选队列
+                  {metricsRequest.data?.reviewPending ?? candidates.length !== undefined ? <Badge variant="outline">{metricsRequest.data?.reviewPending ?? candidates.length}</Badge> : null}
+                </h2>
+                <FrameDescription>按规则评分降序</FrameDescription>
+              </div>
+            </FrameHeader>
             <div className="px-[18px] pb-2">
               <SearchField value={query} onValueChange={(value) => { setQuery(value); setPage(0) }} placeholder="姓名 / 卡号 / 规则（全队列检索）" label="搜索复核候选" className="w-full" />
             </div>
-            {searchRequest.isError ? <p role="alert" className="px-[18px] pb-2 text-label text-red">候选搜索失败，请调整关键词后重试</p> : null}
-            {searchRequest.isFetching ? <p className="px-[18px] pb-2 text-meta text-muted">正在全队列检索…</p> : null}
-            <ul className="m-0 min-h-0 flex-1 list-none px-2 pb-2">
+            {searchRequest.isError ? (
+              <Alert variant="error" className="mx-[18px] mb-2">
+                <CircleAlert />
+                <AlertDescription>候选搜索失败，请调整关键词后重试</AlertDescription>
+              </Alert>
+            ) : null}
+            {searchRequest.isFetching ? <p className="px-[18px] pb-2 text-meta text-muted-foreground">正在全队列检索…</p> : null}
+            <SidebarMenu className="m-0 min-h-0 flex-1 px-2 pb-2">
               {paged.map((candidate) => {
                 const active = selected?.taskId === candidate.taskId
                 return (
-                  <li key={candidate.taskId}>
-                    <button
-                      type="button"
-                      aria-pressed={active}
+                  <SidebarMenuItem key={candidate.taskId}>
+                    <SelectionListItem
+                      isActive={active}
                       onClick={() => { setSelectedTaskId(candidate.taskId); setConfirmed(false) }}
-                      className={`mb-1 w-full rounded-control px-2.5 py-2 text-left ${active ? 'bg-blue-soft' : 'hover:bg-wash'}`}
                     >
-                      <span className="block text-meta text-muted">{mpiRuleLabel[candidate.ruleId] ?? candidate.ruleId}</span>
+                      <span className="block text-meta text-muted-foreground">{mpiRuleLabel[candidate.ruleId] ?? candidate.ruleId}</span>
                       <span className="mt-0.5 block text-body-sm text-ink-soft">{candidate.identityA.name} ↔ {candidate.identityB.name}</span>
-                      <span className="mt-0.5 block text-meta text-muted">{candidate.identityA.institution} · {candidate.identityA.cardNo || '无卡号'}</span>
-                    </button>
-                  </li>
+                      <span className="mt-0.5 block text-meta text-muted-foreground">{candidate.identityA.institution} · {candidate.identityA.cardNo || '无卡号'}</span>
+                    </SelectionListItem>
+                  </SidebarMenuItem>
                 )
               })}
               {candidates.length === 0 ? (
-                <li className="px-3 py-6 text-center text-label text-muted">
+                <li className="px-3 py-6 text-center text-label text-muted-foreground">
                   {debounced ? '全队列未找到匹配候选，请调整姓名 / 卡号 / 规则关键词' : '当前没有待复核候选'}
                 </li>
               ) : null}
-            </ul>
+            </SidebarMenu>
             {!debounced && queueTotal != null && queueTotal > candidates.length ? (
-              <p className="px-[18px] pb-2 text-meta text-muted">已加载前 {candidates.length} 条（共 {queueTotal} 条待复核；可用上方搜索定位）</p>
+              <p className="px-[18px] pb-2 text-meta text-muted-foreground">已加载前 {candidates.length} 条（共 {queueTotal} 条待复核；可用上方搜索定位）</p>
             ) : null}
             {debounced && searchRequest.data && searchRequest.data.total > searchRequest.data.items.length ? (
-              <p className="px-[18px] pb-2 text-meta text-muted">命中 {searchRequest.data.total} 条，已加载前 {searchRequest.data.items.length} 条</p>
+              <p className="px-[18px] pb-2 text-meta text-muted-foreground">命中 {searchRequest.data.total} 条，已加载前 {searchRequest.data.items.length} 条</p>
             ) : null}
             <div className="border-t border-line px-2">
               <TablePagination page={currentPage} pageSize={8} total={candidates.length} onPageChange={setPage} label="复核候选分页" compact className="border-t-0 px-1" />
             </div>
             <div className="px-[18px] py-2">
-              <Button size="sm" onClick={() => rebuild.mutate()} disabled={rebuild.isPending}>
+              <Button variant="outline" size="sm" onClick={() => rebuild.mutate()} disabled={rebuild.isPending}>
                 <RefreshCw size={13} className={rebuild.isPending ? 'animate-spin' : undefined} />{rebuild.isPending ? '重算中…' : '重算主索引'}
               </Button>
             </div>
-          </Panel>
+          </FramePanel>
 
-          <Panel>
+          <FramePanel className="p-0 overflow-clip">
             {selected ? (
               <>
                 <div className="border-b border-line px-5 py-4">
                   <div className="flex flex-wrap items-center gap-2">
-                    <Badge tone="warn">需人工确认</Badge>
-                    <span className="text-label text-muted">{evidence.filter((item) => !item.match).length} 项证据不一致 · 请逐项核对</span>
+                    <Badge variant="warning">需人工确认</Badge>
+                    <span className="text-label text-muted-foreground">{evidence.filter((item) => !item.match).length} 项证据不一致 · 请逐项核对</span>
                   </div>
                   <h2 className="mt-1.5 text-subject font-semibold text-ink">{selected.identityA.name} 与 {selected.identityB.name}</h2>
-                  <p className="mt-1 text-label text-muted">{mpiRuleLabel[selected.ruleId] ?? selected.ruleId} · 候选对 {selected.pairId} · 规则版本 v1</p>
+                  <p className="mt-1 text-label text-muted-foreground">{mpiRuleLabel[selected.ruleId] ?? selected.ruleId} · 候选对 {selected.pairId} · 规则版本 v1</p>
                 </div>
                 <div className="px-5 py-4">
                   <DataTable
                     columns={identityColumns}
                     data={identityRows}
                     getRowId={(row) => row.field}
-                    empty={<p className="py-2 text-label text-muted">当前候选缺少可比对的身份属性。</p>}
+                    empty={<p className="py-2 text-label text-muted-foreground">当前候选缺少可比对的身份属性。</p>}
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-3.5 px-5 pb-4 max-[1100px]:grid-cols-1">
@@ -252,7 +293,7 @@ function MpiWorkspace({ onNotice }: { onNotice: (message: string) => void }) {
                     <div className="mb-2 flex items-center justify-between">
                       <div>
                         <h3 className="text-label font-medium text-ink-soft">匹配证据</h3>
-                        <p className="text-meta text-muted">逐字段对比 · 敏感值已掩码</p>
+                        <p className="text-meta text-muted-foreground">逐字段对比 · 敏感值已掩码</p>
                       </div>
                       <ShieldCheck size={16} className="text-blue" />
                     </div>
@@ -263,18 +304,18 @@ function MpiWorkspace({ onNotice }: { onNotice: (message: string) => void }) {
                           {mpiEvidenceLine(item)}
                         </li>
                       ))}
-                      {evidence.length === 0 ? <li className="text-label text-muted">该候选对没有逐字段证据。</li> : null}
+                      {evidence.length === 0 ? <li className="text-label text-muted-foreground">该候选对没有逐字段证据。</li> : null}
                     </ul>
                   </section>
                   <section className="rounded-control border border-line px-3.5 py-3">
                     <div className="mb-2 flex items-center justify-between">
                       <div>
                         <h3 className="text-label font-medium text-ink-soft">操作影响</h3>
-                        <p className="text-meta text-muted">决策即审计，人工否决高于规则</p>
+                        <p className="text-meta text-muted-foreground">决策即审计，人工否决高于规则</p>
                       </div>
                       <GitMerge size={16} className="text-blue" />
                     </div>
-                    <dl className="m-0 space-y-1.5 text-label text-muted">
+                    <dl className="m-0 space-y-1.5 text-label text-muted-foreground">
                       <div><dt className="font-medium text-ink-soft">确认同人</dt><dd className="m-0">两身份并入黄金人（决策源=人工），可在详情中拆分撤销</dd></div>
                       <div><dt className="font-medium text-ink-soft">确认不同人</dt><dd className="m-0">终态否决：该对永不再自动候选或自动合并</dd></div>
                       <div><dt className="font-medium text-ink-soft">误合并防护</dt><dd className="m-0">卡号复用等弱证据冲突一律进入本队列，不自动合并</dd></div>
@@ -282,15 +323,18 @@ function MpiWorkspace({ onNotice }: { onNotice: (message: string) => void }) {
                   </section>
                 </div>
                 <div className="border-t border-line px-5 py-4">
-                  <label className="flex items-start gap-2 text-label text-muted">
-                    <input type="checkbox" className="mt-0.5 size-[13px] accent-blue" checked={confirmed} disabled={decision.isPending} onChange={(event) => setConfirmed(event.target.checked)} />
-                    我已核对身份属性与证据。错误合并的临床风险高于漏合并——弱证据冲突请确认不同人。
-                  </label>
+                  <div className="flex items-start gap-2">
+                    <Checkbox id="mpi-review-confirm" className="mt-0.5" checked={confirmed} disabled={decision.isPending} onCheckedChange={setConfirmed} />
+                    <div className="flex flex-col gap-1">
+                      <Label htmlFor="mpi-review-confirm">我已核对身份属性与证据</Label>
+                      <p className="text-muted-foreground text-xs">错误合并的临床风险高于漏合并——弱证据冲突请确认不同人。</p>
+                    </div>
+                  </div>
                   <div className="mt-3 flex justify-end gap-2">
-                    <Button onClick={() => decision.mutate({ taskId: selected.taskId, resolution: 'DIFFERENT_PERSON' })} disabled={decision.isPending}>
+                    <Button variant="outline" onClick={() => decision.mutate({ taskId: selected.taskId, resolution: 'DIFFERENT_PERSON' })} disabled={decision.isPending}>
                       <GitPullRequestArrow size={14} />确认不同人
                     </Button>
-                    <Button variant="primary" disabled={!confirmed || decision.isPending} onClick={() => decision.mutate({ taskId: selected.taskId, resolution: 'SAME_PERSON' })}>
+                    <Button disabled={!confirmed || decision.isPending} onClick={() => decision.mutate({ taskId: selected.taskId, resolution: 'SAME_PERSON' })}>
                       {decision.isPending ? <LoaderCircle size={14} className="animate-spin" /> : <GitMerge size={14} />}确认同人并合并
                     </Button>
                   </div>
@@ -299,7 +343,7 @@ function MpiWorkspace({ onNotice }: { onNotice: (message: string) => void }) {
             ) : (
               <EmptyState minHeight={360} icon={<ShieldCheck />} title="当前没有待复核候选" description="点击左侧「重算主索引」装载最新数据，或用搜索定位历史候选。" />
             )}
-          </Panel>
+          </FramePanel>
         </div>
       ) : null}
 
@@ -312,7 +356,7 @@ function MpiWorkspace({ onNotice }: { onNotice: (message: string) => void }) {
         />
       ) : null}
 
-      <Confirm
+      <ConfirmDialog
         open={splitTarget !== null}
         onOpenChange={(open) => { if (!open) setSplitTarget(null) }}
         title="拆分黄金人身份"
@@ -341,7 +385,7 @@ function MetricCell({ label, value, alert = false }: { label: string; value: num
   return (
     <div className="border-r border-line px-[18px] last:border-r-0">
       <strong className={`block text-[22px] leading-tight font-medium ${alert ? 'text-amber' : 'text-ink'}`}>{value}</strong>
-      <span className="text-label text-muted">{label}</span>
+      <span className="text-label text-muted-foreground">{label}</span>
     </div>
   )
 }
@@ -366,51 +410,64 @@ function MpiPersonSheet({
   const canSplit = activeLinks.length > 1
 
   return (
-    <Sheet
-      open
-      onOpenChange={(open) => { if (!open) onClose() }}
-      title="黄金人详情"
-      subtitle={person?.goldenName ?? '黄金人 · 身份链接与审计'}
-      width={610}
-      footer={<SheetFooterActions hint="拆分是不可逆的人工决策；操作与决策源都会进入审计。"><Button onClick={onClose}>关闭</Button></SheetFooterActions>}
-    >
-      <SheetBody>
-        {personRequest.isPending ? <LoadingBlock className="min-h-[200px]">正在读取黄金人…</LoadingBlock> : null}
-        {personRequest.isError ? <p role="alert" className="text-body-sm text-red">黄金人详情不可用，请稍后重试</p> : null}
-        {person ? (
-          <>
-            <h3 className="mb-1 text-label font-medium text-ink-soft">身份链接（当前有效成员）</h3>
-            <ul className="m-0 mb-4 list-none p-0">
-              {activeLinks.map((link) => (
-                <li key={link.sourceIdentifier} className="flex flex-wrap items-center gap-2 border-b border-line-soft py-2 last:border-b-0">
-                  <span className="min-w-0 flex-1 truncate font-mono text-label text-muted">{link.sourceIdentifier}</span>
-                  <Badge tone={link.decisionSource === 'MANUAL' ? 'blue' : 'neutral'}>{link.decisionSource === 'MANUAL' ? '人工' : '规则'}</Badge>
-                  <Button
-                    size="sm"
-                    variant="danger-outline"
-                    disabled={!canSplit}
-                    title={canSplit ? undefined : '至少保留一个有效身份'}
-                    onClick={() => onRequestSplit(link.sourceIdentifier)}
-                  >
-                    拆分
-                  </Button>
-                </li>
-              ))}
-              {activeLinks.length === 0 ? <li className="py-2 text-label text-muted">暂无有效身份链接。</li> : null}
-            </ul>
-            <h3 className="mb-1 text-label font-medium text-ink-soft">操作历史（最近 20 条）</h3>
-            <ol className="m-0 list-none p-0">
-              {(person.history ?? []).map((event, index) => (
-                <li key={`${event.action}-${event.createdAt}-${index}`} className="border-b border-line-soft py-1.5 text-label text-muted last:border-b-0">
-                  {event.action} · {event.actor} · {formatDateTime(event.createdAt)}
-                </li>
-              ))}
-              {(person.history ?? []).length === 0 ? <li className="py-2 text-label text-muted">暂无历史事件</li> : null}
-            </ol>
-            {!canSplit ? <p className="mt-3 text-meta text-muted">只剩一个有效身份时不能拆分。</p> : null}
-          </>
-        ) : null}
-      </SheetBody>
-    </Sheet>
+    <Drawer open onOpenChange={(open) => { if (!open) onClose() }} position="right">
+      <DrawerPopup className="max-w-[610px]" variant="straight" showCloseButton={false}>
+        <DrawerClose className="absolute end-2 top-2 z-1" render={<Button size="icon" variant="ghost" aria-label="关闭" />}>
+          <X />
+        </DrawerClose>
+        <DrawerHeader className="pr-14">
+          <DrawerTitle>黄金人详情</DrawerTitle>
+          <DrawerDescription>{person?.goldenName ?? '黄金人 · 身份链接与审计'}</DrawerDescription>
+        </DrawerHeader>
+        <DrawerPanel>
+          {personRequest.isPending ? <LoadingBlock className="min-h-[200px]">正在读取黄金人…</LoadingBlock> : null}
+          {personRequest.isError ? (
+            <Alert variant="error">
+              <CircleAlert />
+              <AlertDescription>黄金人详情不可用，请稍后重试</AlertDescription>
+            </Alert>
+          ) : null}
+          {person ? (
+            <>
+              <h3 className="mb-1 text-label font-medium text-ink-soft">身份链接（当前有效成员）</h3>
+              <ul className="m-0 mb-4 list-none p-0">
+                {activeLinks.map((link) => (
+                  <li key={link.sourceIdentifier} className="flex flex-wrap items-center gap-2 border-b border-line-soft py-2 last:border-b-0">
+                    <span className="min-w-0 flex-1 truncate font-mono text-label text-muted-foreground">{link.sourceIdentifier}</span>
+                    <Badge variant={link.decisionSource === 'MANUAL' ? 'info' : 'outline'}>{link.decisionSource === 'MANUAL' ? '人工' : '规则'}</Badge>
+                    {canSplit ? (
+                      <Button size="sm" variant="destructive-outline" onClick={() => onRequestSplit(link.sourceIdentifier)}>拆分</Button>
+                    ) : (
+                      // 禁用态收不到悬停与焦点：按 coss 的写法包一层可聚焦的 span 来承载原因。
+                      <Tooltip>
+                        <TooltipTrigger render={<span className="inline-flex" tabIndex={0} />}>
+                          <Button size="sm" variant="destructive-outline" disabled>拆分</Button>
+                        </TooltipTrigger>
+                        <TooltipPopup>至少保留一个有效身份</TooltipPopup>
+                      </Tooltip>
+                    )}
+                  </li>
+                ))}
+                {activeLinks.length === 0 ? <li className="py-2 text-label text-muted-foreground">暂无有效身份链接。</li> : null}
+              </ul>
+              <h3 className="mb-1 text-label font-medium text-ink-soft">操作历史（最近 20 条）</h3>
+              <ol className="m-0 list-none p-0">
+                {(person.history ?? []).map((event, index) => (
+                  <li key={`${event.action}-${event.createdAt}-${index}`} className="border-b border-line-soft py-1.5 text-label text-muted-foreground last:border-b-0">
+                    {event.action} · {event.actor} · {formatDateTime(event.createdAt)}
+                  </li>
+                ))}
+                {(person.history ?? []).length === 0 ? <li className="py-2 text-label text-muted-foreground">暂无历史事件</li> : null}
+              </ol>
+              {!canSplit ? <p className="mt-3 text-meta text-muted-foreground">只剩一个有效身份时不能拆分。</p> : null}
+            </>
+          ) : null}
+        </DrawerPanel>
+        <DrawerFooter>
+          <span className="text-muted-foreground text-xs sm:mr-auto">拆分是不可逆的人工决策；操作与决策源都会进入审计。</span>
+          <Button variant="outline" onClick={onClose}>关闭</Button>
+        </DrawerFooter>
+      </DrawerPopup>
+    </Drawer>
   )
 }

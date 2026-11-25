@@ -16,6 +16,7 @@ import { spawn } from 'node:child_process'
 import { mkdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { chromium } from 'playwright'
+import { resolveRoutes } from './routes.mjs'
 
 const args = process.argv.slice(2)
 const flag = (name, fallback = undefined) => {
@@ -30,37 +31,26 @@ const flows = flowArgIndex >= 0 ? String(args[flowArgIndex + 1] ?? 'all').split(
 const wantsFlow = (name) => flows.includes(name) || flows.includes('all')
 const shotsDir = flag('shots', null)
 const routeArg = flag('routes', null)
+// 800 是 coss Sidebar 桌面模式的下界（以下是抽屉）：侧栏展开时内容区最窄，所以每一档路由都要在这里过一遍。
 const widths = [
   { width: 1440, height: 900 },
   { width: 1280, height: 800 },
+  { width: 800, height: 900 },
 ]
 
 // FE7 全量矩阵：17 个既有入口 + 10 个新工作页（动态页用受控测试 ID，mock 控制面可命中）。
-const ROUTES = routeArg
-  ? String(routeArg).split(',').map((item) => item.trim()).filter(Boolean)
-  : [
-    '/', '/ingestion', '/governance', '/governance/standards', '/governance/mapping', '/governance/quality',
-    '/mpi/review', '/assets', '/assets/technical', '/analysis', '/ai-data', '/data-services', '/assistant',
-    '/assistant/workspace', '/operations-center', '/delivery-center', '/operations',
-    '/ingestion/new',
-    '/ingestion/sources/src-lis-001/explorer',
-    '/ingestion/jobs/job-lab-result-001',
-    '/ingestion/jobs/job-ds-workflow-004?tab=scheduling',
-    '/governance/quality/rules/new',
-    '/governance/quality/rules/quality.ep.order.paystatus-range/edit',
-    '/governance/quality/scoring',
-    '/data-services/new',
-    '/assistant/workspace/questions/new',
-    '/assistant/workspace/questions/medicine-record-daily',
-    '/assistant/workspace/questions/medicine-record-daily?tab=try',
-    '/assistant/workspace/audit',
-  ]
+// 清单与「接口不可达」冒烟共用 qa/routes.mjs。
+const ROUTES = resolveRoutes(routeArg)
 
 const failures = []
 const checked = []
+// 当前段落与各段落实际执行的断言数：通过时也要看得出壳交互、各业务流到底跑没跑、跑了多少条。
+let section = '路由矩阵'
+const sectionAssertions = new Map()
 
 function record(ok, message) {
-  if (!ok) failures.push(message)
+  sectionAssertions.set(section, (sectionAssertions.get(section) ?? 0) + 1)
+  if (!ok) failures.push(section === '路由矩阵' ? message : `${section}：${message}`)
 }
 
 async function waitForServer(url, timeoutMs = 30_000) {
@@ -139,6 +129,7 @@ try {
     }
   }
 
+  section = '壳交互'
   /* 壳交互（FE1）：页签保留、关闭回退与未知路径的显式空态。 */
   await page.setViewportSize(widths[0])
   // 页签是会话状态：清空后只留下本流程打开的两个页签，回退目标才是确定的。
@@ -160,12 +151,43 @@ try {
   record((await page.locator('main').textContent())?.includes('页面不存在') ?? false, '未知路径必须显示「页面不存在」而不是静默首页')
   record((await page.title()).includes('医数中枢'), '未知路径仍保留站点标题')
 
+  /* 窄屏断点：coss Sidebar 在 800px 以下是抽屉、800px 起是侧栏（coss 的 useIsMobile 取 max-md，其 md 为 800）。 */
+  section = '窄屏断点'
+  await page.setViewportSize({ width: 799, height: 900 })
+  await page.goto(`${base}/`, { waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(600)
+  record((await page.locator('[data-slot="sidebar-container"]').count()) === 0, '799px 不应渲染桌面侧栏（应为抽屉）')
+  await page.locator('[data-slot="sidebar-trigger"]').click()
+  await page.waitForTimeout(600)
+  const drawer = page.locator('[data-slot="sidebar"][data-mobile="true"]')
+  // 抽屉没打开时后面几步无从谈起：记下失败就跳过，别让脚本卡在找不到的元素上。
+  const drawerOpened = await drawer.isVisible()
+  record(drawerOpened, '799px 点击顶栏的导航按钮必须打开导航抽屉')
+  if (drawerOpened) {
+    record((await drawer.locator('nav[aria-label="主导航"] a').count()) > 0, '导航抽屉必须包含主导航链接')
+    await drawer.getByRole('link', { name: '数据接入', exact: true }).click()
+    await page.waitForTimeout(600)
+    record(new URL(page.url()).pathname === '/ingestion', `抽屉内点击「数据接入」后未跳转：${page.url()}`)
+    record((await drawer.count()) === 0, '抽屉内导航后抽屉必须收起')
+  }
+  await page.setViewportSize({ width: 800, height: 900 })
+  await page.goto(`${base}/`, { waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(600)
+  const desktopSidebarWidth = await page.evaluate(() => {
+    const container = document.querySelector('[data-slot="sidebar-container"]')
+    return container ? Math.round(container.getBoundingClientRect().width) : 0
+  })
+  record(desktopSidebarWidth >= 200, `800px 必须渲染展开的桌面侧栏（实测 ${desktopSidebarWidth}px）`)
+  await page.setViewportSize(widths[0])
+
   /* FE2 业务流（需要 mock 控制面）：短表单登记、调度预览、库表浏览。 */
+  section = '业务流 fe2'
   if (wantsFlow('fe2')) {
     await page.goto(`${base}/ingestion`, { waitUntil: 'domcontentloaded' })
     await page.waitForTimeout(400)
     await page.getByRole('button', { name: '登记数据源' }).click()
-    const dialog = page.getByRole('dialog')
+    // coss Toast 本身也是 dialog 角色：表单弹窗按标题定位，避免把回执提示也算进来。
+    const dialog = page.getByRole('dialog', { name: '登记数据源' })
     await dialog.waitFor({ timeout: 5000 })
     await dialog.getByLabel('来源名称').fill('QA 登记来源')
     await dialog.getByRole('button', { name: '登记来源' }).click()
@@ -192,6 +214,7 @@ try {
   }
 
   /* FE3 业务流（需要 mock 控制面）：问题深链、规则编辑回填、标准版本切换。 */
+  section = '业务流 fe3'
   if (wantsFlow('fe3')) {
     await page.goto(`${base}/governance/quality?issue=DQ-20261116-001`, { waitUntil: 'domcontentloaded' })
     await page.waitForTimeout(700)
@@ -202,17 +225,20 @@ try {
     await page.goto(`${base}/governance/quality/rules/quality.ep.order.paystatus-range/edit`, { waitUntil: 'domcontentloaded' })
     await page.waitForTimeout(700)
     record((await page.locator('#rule-id').inputValue()) === 'quality.ep.order.paystatus-range', '规则编辑必须回填规则编号')
-    record((await page.locator('#rule-type').inputValue()) === 'VAL_SET', '规则编辑必须回填规则类型')
+    // 规则类型是 coss Select：触发器回显所选选项的文案（含类型代码），不再是原生 select 的 value。
+    record((await page.locator('#rule-type').innerText()).includes('VAL_SET'), '规则编辑必须回填规则类型')
 
     await page.goto(`${base}/governance/standards`, { waitUntil: 'domcontentloaded' })
     await page.waitForTimeout(700)
     record((await page.locator('main').textContent())?.includes('挂号渠道标准') ?? false, '标准清单必须渲染')
-    await page.getByRole('button', { name: /v1/ }).first().click()
+    // 版本切换是 coss SegmentedControl + 单选原语：当前版本由 radio 角色承载。
+    await page.getByRole('radio', { name: /v1/ }).first().click()
     await page.waitForTimeout(400)
     record((await page.locator('main').textContent())?.includes('当前查看 v1') ?? false, '版本切换必须改变当前查看版本')
   }
 
   /* FE4 业务流（需要 mock 控制面）：资产页签、技术深链、MPI 队列检索。 */
+  section = '业务流 fe4'
   if (wantsFlow('fe4')) {
     await page.goto(`${base}/assets`, { waitUntil: 'domcontentloaded' })
     await page.waitForTimeout(700)
@@ -236,12 +262,14 @@ try {
   }
 
   /* FE5 业务流（需要 mock 控制面）：问数参数执行、服务发布、AI 评测、审计过滤。 */
+  section = '业务流 fe5'
   if (wantsFlow('fe5')) {
     await page.goto(`${base}/assistant`, { waitUntil: 'domcontentloaded' })
     await page.waitForTimeout(700)
     await page.getByRole('button', { name: /查询每天的用药记录量/ }).first().click()
-    await page.getByLabel('开始日期').fill('2026-11-01')
-    await page.getByLabel('结束日期').fill('2026-11-09')
+    // 日期参数是 coss DatePicker：同一标签还挂在「选择开始日期」日历按钮上，按文本框角色只认输入框。
+    await page.getByRole('textbox', { name: /开始日期/ }).fill('2026-11-01')
+    await page.getByRole('textbox', { name: /结束日期/ }).fill('2026-11-09')
     await page.getByRole('button', { name: '按参数执行' }).click()
     await page.waitForTimeout(700)
     record((await page.locator('main').textContent())?.includes('分析结果') ?? false, '问数执行后必须出现分析结果')
@@ -262,14 +290,18 @@ try {
 
     await page.goto(`${base}/assistant/workspace/audit`, { waitUntil: 'domcontentloaded' })
     await page.waitForTimeout(700)
-    await page.getByLabel('按结局过滤').selectOption('REFUSED_NO_MATCH')
+    // 结局过滤是 coss Select（列表框弹出层）：点开触发器再点选项。断言落在表格正文上——
+    // 原生 select 时代取整个 main 的文本，选项文案本身就在 main 里，那条断言恒为真。
+    await page.getByRole('combobox', { name: '按结局过滤' }).click()
+    await page.getByRole('option', { name: '拒答·无匹配' }).click()
     await page.waitForTimeout(600)
-    const auditText = await page.locator('main').textContent()
+    const auditText = await page.locator('main table tbody').textContent()
     record(auditText?.includes('拒答·无匹配') ?? false, '审计结局过滤必须生效')
     record(auditText?.includes('查询每天的用药记录量') === false, '过滤后不应出现已回答记录')
   }
 
   /* FE6 业务流（需要 mock 控制面）：交付提交阻断、前置机登记、运营待办下钻。 */
+  section = '业务流 fe6'
   if (wantsFlow('fe6')) {
     await page.goto(`${base}/delivery-center`, { waitUntil: 'domcontentloaded' })
     await page.waitForTimeout(700)
@@ -282,7 +314,7 @@ try {
     await page.goto(`${base}/operations`, { waitUntil: 'domcontentloaded' })
     await page.waitForTimeout(700)
     await page.getByRole('button', { name: '登记前置机' }).click()
-    const edgeDialog = page.getByRole('dialog')
+    const edgeDialog = page.getByRole('dialog', { name: '登记前置机' })
     await edgeDialog.waitFor({ timeout: 5000 })
     await edgeDialog.getByLabel('名称').fill('QA 前置机')
     await edgeDialog.getByLabel('主机').fill('10.0.0.99')
@@ -304,4 +336,8 @@ if (failures.length) {
   for (const failure of failures) console.error(` - ${failure}`)
   process.exit(1)
 }
-console.log(`browser smoke passed: ${checked.length} 次路由检查（${ROUTES.length} 路由 × ${widths.length} 宽度）`)
+// 业务流只在显式传了 --flows 时执行：把实际跑过的段落写进通过行，免得参数写错时一条没跑也显示通过。
+const ranSummary = [...sectionAssertions]
+  .filter(([name]) => name !== '路由矩阵')
+  .map(([name, count]) => `${name} ${count} 项断言`)
+console.log(`browser smoke passed: ${checked.length} 次路由检查（${ROUTES.length} 路由 × ${widths.length} 宽度）${ranSummary.length ? `；${ranSummary.join('、')}` : ''}`)

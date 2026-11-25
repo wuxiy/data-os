@@ -1,23 +1,26 @@
 import { useQuery } from '@tanstack/react-query'
 import { Activity, ChevronRight, CloudCog, Inbox, RefreshCw } from 'lucide-react'
 import { useMemo } from 'react'
-import { Badge } from '../../components/ui/badge'
-import { Breadcrumb, PageHeading } from '../../components/ui/page-heading'
-import { MetricCard, MetricStrip } from '../../components/ui/metric'
-import { Count, Panel, PanelHead } from '../../components/ui/panel'
-import { LoadingBlock, Skeleton } from '../../components/ui/states'
-import { Button } from '../../components/ui/button'
+
+import { EmptyState } from '@/components/app/empty-state'
+import { LoadingBlock } from '@/components/app/loading'
+import { useNotice } from '@/components/app/notice'
+import { TableSkeleton } from '@/components/app/table-skeleton'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { FrameDescription, FrameHeader, FramePanel } from '@/components/ui/frame'
+
+import { usePortalNavigate } from '../../app/navigate'
+import { MetricCard, MetricStrip } from '../../components/app/metric'
+import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
 import { DataTable, listColumnHelper } from '../../components/table/data-table'
-import { EmptyState } from '../../components/ui/states'
 import { formatDateTime } from '../../data/domain'
 import {
   EVENT_DOMAIN_LABEL,
   EVENT_TYPE_LABEL,
-  WORK_ITEM_SOURCE_LABEL,
   type OperationsWorkItem,
+  WORK_ITEM_SOURCE_LABEL,
 } from '../../data/operationsApi'
-import { usePortalNavigate } from '../../app/navigate'
-import { useNotice } from '../../components/ui/toast'
 import { operationsEventsQuery, operationsSummaryQuery, operationsWorkItemsQuery } from './queries'
 
 /**
@@ -61,7 +64,7 @@ const workItemColumns = helper.columns([
     size: 84,
     cell: ({ row }) => {
       const severity = row.original.severity
-      return <Badge tone={severity === 'CRITICAL' || severity === 'HIGH' ? 'danger' : severity === 'MEDIUM' ? 'warn' : 'neutral'}>{SEVERITY_LABEL[severity] ?? severity}</Badge>
+      return <Badge variant={severity === 'CRITICAL' || severity === 'HIGH' ? 'error' : severity === 'MEDIUM' ? 'warning' : 'outline'}>{SEVERITY_LABEL[severity] ?? severity}</Badge>
     },
   }),
   helper.accessor('title', { header: '待办' }),
@@ -69,7 +72,7 @@ const workItemColumns = helper.columns([
     id: 'source',
     header: '来源',
     size: 170,
-    cell: ({ row }) => <code className="font-mono text-label text-muted">{WORK_ITEM_SOURCE_LABEL[row.original.sourceType] ?? row.original.sourceType}</code>,
+    cell: ({ row }) => <code className="font-mono text-label text-muted-foreground">{WORK_ITEM_SOURCE_LABEL[row.original.sourceType] ?? row.original.sourceType}</code>,
   }),
   helper.display({
     id: 'asOf',
@@ -139,10 +142,10 @@ export function OverviewPage() {
         description="从数据接入到可信使用，掌握每一条数据链路。"
         actions={
           <>
-            <Button onClick={refresh} disabled={refreshing}>
+            <Button variant="outline" onClick={refresh} disabled={refreshing}>
               <RefreshCw size={14} className={refreshing ? 'animate-spin' : undefined} />刷新
             </Button>
-            <Button variant="primary" onClick={() => navigate('/governance')}>查看待办</Button>
+            <Button onClick={() => navigate('/governance')}>查看待办</Button>
           </>
         }
       />
@@ -150,7 +153,7 @@ export function OverviewPage() {
       {summaryQuery.isPending ? (
         <MetricStrip>
           {Array.from({ length: 4 }, (_, index) => (
-            <div key={index} className="min-h-[104px] rounded-panel border border-line bg-paper px-4 py-3"><Skeleton rows={1} className="px-0 py-0" /></div>
+            <div key={index} className="min-h-[104px] rounded-panel border border-line bg-paper px-4 py-3"><TableSkeleton rows={1} className="px-0 py-0" /></div>
           ))}
         </MetricStrip>
       ) : summaryQuery.isError ? (
@@ -160,7 +163,7 @@ export function OverviewPage() {
             <h2 className="text-title font-semibold text-ink">运营投影暂不可用</h2>
             <p className="mt-1 text-body-sm text-ink-soft">控制面运营摘要不可达，暂无法展示真实指标；请恢复连接后重新读取。</p>
           </div>
-          <Button onClick={() => void summaryQuery.refetch()}>重新加载</Button>
+          <Button variant="outline" onClick={() => void summaryQuery.refetch()}>重新加载</Button>
         </section>
       ) : (
         <MetricStrip>
@@ -184,27 +187,31 @@ export function OverviewPage() {
             <h2 className="text-body-sm font-semibold text-ink">
               组件覆盖 {components ? `${components.ready}/${components.total}` : '—'} · {components?.state === 'READY' ? '全部就绪' : components?.state === 'DEGRADED' ? '存在降级' : '状态未知'}
             </h2>
-            <p className="mt-1 text-label text-muted">
+            <p className="mt-1 text-label text-muted-foreground">
               覆盖 {components ? `${components.ready} 就绪 / ${components.degraded} 降级 / ${components.unknown} 未知` : '…'}；平台组件明细在「平台运维」。
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2.5">
-          <Badge tone={components?.state === 'READY' ? 'success' : components?.state === 'DEGRADED' ? 'warn' : 'neutral'}>
+          <Badge variant={components?.state === 'READY' ? 'success' : components?.state === 'DEGRADED' ? 'warning' : 'outline'}>
             {components?.state === 'READY' ? '全部就绪' : components?.state === 'DEGRADED' ? '存在降级' : '状态未知'}
           </Badge>
-          <Button size="sm" onClick={refresh}>刷新</Button>
+          <Button variant="outline" size="sm" onClick={refresh}>刷新</Button>
         </div>
       </section>
 
       <div className="grid grid-cols-[minmax(0,1.8fr)_minmax(280px,1fr)] gap-[18px] max-[1100px]:grid-cols-1">
-        <Panel>
-          <PanelHead
-            title="优先处理"
-            count={workItemsQuery.data?.length}
-            description="按严重度排序 · 完整清单在运营中心"
-            actions={<Button variant="text" onClick={() => navigate('/operations-center')}>查看全部<ChevronRight size={13} /></Button>}
-          />
+        <FramePanel className="p-0 overflow-clip">
+          <FrameHeader className="px-[18px] pt-[18px] pb-3 flex-row items-center justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="text-title font-semibold tracking-[-0.2px]">
+                优先处理
+                {workItemsQuery.data?.length !== undefined ? <Badge variant="outline">{workItemsQuery.data?.length}</Badge> : null}
+              </h2>
+              <FrameDescription>按严重度排序 · 完整清单在运营中心</FrameDescription>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">{<Button variant="link" onClick={() => navigate('/operations-center')}>查看全部<ChevronRight size={13} /></Button>}</div>
+          </FrameHeader>
           <DataTable
             columns={workItemColumns}
             data={topItems}
@@ -213,41 +220,47 @@ export function OverviewPage() {
             loading={workItemsQuery.isPending}
             onRowClick={openWorkItem}
             empty={workItemsQuery.isError
-              ? <EmptyState minHeight={220} icon={<CloudCog />} title="运营待办投影暂不可用" description="可以重新加载；本页不显示静态回退。" action={<Button onClick={() => void workItemsQuery.refetch()}>重新加载</Button>} />
+              ? <EmptyState minHeight={220} icon={<CloudCog />} title="运营待办投影暂不可用" description="可以重新加载；本页不显示静态回退。" action={<Button variant="outline" onClick={() => void workItemsQuery.refetch()}>重新加载</Button>} />
               : <EmptyState minHeight={220} icon={<Inbox />} title="当前没有待处理的跨域事项" description="待办来自各业务域的真实记录。" />}
           />
-        </Panel>
+        </FramePanel>
 
-        <Panel>
-          <PanelHead title="最近事件" description="跨域操作留痕" actions={<span className="text-label text-muted">近 48 小时</span>} />
+        <FramePanel className="p-0 overflow-clip">
+          <FrameHeader className="px-[18px] pt-[18px] pb-3 flex-row items-center justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="text-title font-semibold tracking-[-0.2px]">
+                最近事件
+              </h2>
+              <FrameDescription>跨域操作留痕</FrameDescription>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">{<span className="text-label text-muted-foreground">近 48 小时</span>}</div>
+          </FrameHeader>
           <div className="px-5 pb-5" aria-busy={eventsQuery.isPending}>
             {eventsQuery.isPending ? <LoadingBlock className="min-h-[160px]">正在读取事件…</LoadingBlock> : null}
             {eventsQuery.isError ? (
               <div className="space-y-2 py-6 text-center">
                 <p className="text-body-sm font-medium text-ink-soft">事件暂不可用</p>
-                <p className="text-label text-muted">无法读取近期事件，可重新加载。</p>
-                <Button size="sm" onClick={() => void eventsQuery.refetch()}>重新加载</Button>
+                <p className="text-label text-muted-foreground">无法读取近期事件，可重新加载。</p>
+                <Button variant="outline" size="sm" onClick={() => void eventsQuery.refetch()}>重新加载</Button>
               </div>
             ) : null}
-            {eventsQuery.isSuccess && (eventsQuery.data?.length ?? 0) === 0 ? <p className="py-8 text-center text-label text-muted">近 48 小时无跨域事件。</p> : null}
+            {eventsQuery.isSuccess && (eventsQuery.data?.length ?? 0) === 0 ? <p className="py-8 text-center text-label text-muted-foreground">近 48 小时无跨域事件。</p> : null}
             <ol className="m-0 list-none p-0">
               {(eventsQuery.data ?? []).slice(0, 10).map((event, index) => (
                 <li key={`${event.domain}-${index}`} className="border-b border-line-soft py-2.5 last:border-b-0">
                   <div className="flex items-start justify-between gap-3">
                     <strong className="text-label font-medium text-ink-soft">{EVENT_DOMAIN_LABEL[event.domain] ?? event.domain} · {EVENT_TYPE_LABEL[event.type] ?? event.type}</strong>
-                    <span className="shrink-0 text-meta text-muted">{formatDateTime(event.asOf)}</span>
+                    <span className="shrink-0 text-meta text-muted-foreground">{formatDateTime(event.asOf)}</span>
                   </div>
-                  <p className="mt-1 text-label leading-relaxed text-muted">{event.detail}</p>
+                  <p className="mt-1 text-label leading-relaxed text-muted-foreground">{event.detail}</p>
                 </li>
               ))}
             </ol>
-            <p className="mt-3 flex items-center gap-1.5 border-t border-line pt-3 text-meta text-muted"><CloudCog size={13} />事件与待办同源于运营投影，两处口径一致。</p>
+            <p className="mt-3 flex items-center gap-1.5 border-t border-line pt-3 text-meta text-muted-foreground"><CloudCog size={13} />事件与待办同源于运营投影，两处口径一致。</p>
           </div>
-        </Panel>
+        </FramePanel>
       </div>
     </div>
   )
 }
 
-/** 数量角标导出供面板标题复用（保留命名一致性）。 */
-export { Count }

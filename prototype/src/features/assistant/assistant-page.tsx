@@ -1,9 +1,10 @@
-import { Breadcrumb, PageHeading } from '../../components/ui/page-heading'
-import { Button } from '../../components/ui/button'
-import { useNotice } from '../../components/ui/toast'
-import { AssistantLive } from '../../pages/AssistantLive'
-import { useAuth } from '../../app/providers'
+import { useNotice } from '@/components/app/notice'
+import { Button } from '@/components/ui/button'
+
 import { usePortalNavigate } from '../../app/navigate'
+import { useAuth } from '../../app/providers'
+import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
+import { AssistantLive } from '../../pages/AssistantLive'
 
 /**
  * 智能问数入口：`/assistant` 为受控问数面，`/assistant/workspace` 为专业工作区
@@ -24,9 +25,9 @@ export function AssistantPage({ professional = false }: { professional?: boolean
           : '已验证问题 · 受控执行 · 可复核证据。'}
         actions={
           professional
-            ? <Button onClick={() => navigate('/assistant')}>返回问数面</Button>
+            ? <Button variant="outline" onClick={() => navigate('/assistant')}>返回问数面</Button>
             : assistantGovernance
-              ? <Button onClick={() => navigate('/assistant/workspace')}>专业工作区</Button>
+              ? <Button variant="outline" onClick={() => navigate('/assistant/workspace')}>专业工作区</Button>
               : null
         }
       />

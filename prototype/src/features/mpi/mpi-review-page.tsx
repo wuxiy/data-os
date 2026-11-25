@@ -1,8 +1,9 @@
-import { Breadcrumb, PageHeading } from '../../components/ui/page-heading'
-import { Button } from '../../components/ui/button'
-import { useNotice } from '../../components/ui/toast'
-import { MpiReviewLive } from '../../pages/MpiReviewLive'
+import { useNotice } from '@/components/app/notice'
+import { Button } from '@/components/ui/button'
+
 import { usePortalNavigate } from '../../app/navigate'
+import { Breadcrumb, PageHeading } from '../../components/app/page-heading'
+import { MpiReviewLive } from '../../pages/MpiReviewLive'
 
 /**
  * 患者主索引入口：复核工作台保持常驻宽对照（不被压进弹窗），
@@ -17,7 +18,7 @@ export function MpiReviewPage() {
       <PageHeading
         title="患者主索引"
         description="逐条复核候选身份，弱证据冲突一律人工决策；决策即审计。"
-        actions={<Button onClick={() => navigate('/assets')}>查看资产目录</Button>}
+        actions={<Button variant="outline" onClick={() => navigate('/assets')}>查看资产目录</Button>}
       />
       <MpiReviewLive onNotice={notify} />
     </div>
