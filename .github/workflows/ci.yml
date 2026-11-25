@@ -165,6 +165,9 @@ jobs:
       - name: Build portal
         run: npm run build
 
+      - name: Check bundle budget
+        run: node qa/bundle-budget.mjs
+
   deployment-manifests:
     name: validate production manifests
     runs-on: ubuntu-latest

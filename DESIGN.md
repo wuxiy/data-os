@@ -208,8 +208,8 @@
 
 - **外观随组件，不逐个校准。** 控件的密度、圆角、阴影、浮层动效与交互形态取 coss 自带样式；不再为目标像素值覆写组件类名。需要收窄时用 coss 提供的变体与尺寸（如 `size="sm"`、`variant="outline"`），而不是自写类。
 - **品牌只经令牌进入。** 色板与离线字体仍以 `prototype/src/styles/tokens.css` 为唯一来源：品牌色板不变（深石墨绿导航、浅灰白画布、灰玉绿主动作），通过文件末尾的令牌桥映射到 coss 的语义令牌（`primary`、`muted`、`border`、`sidebar-*` 等）。coss 源码原样放在 `src/components/ui`，不打补丁。
-- **写法是组合，不是门面。** 页面里直接组合 coss 部件（`Field` + `FieldLabel`、`Dialog` + `DialogPopup` + `DialogHeader`、`FramePanel` + `FrameHeader`）。项目自有件只保留没有 coss 对应物的少数几个，放 `src/components/app`；薄组合（如 EmptyState、Breadcrumb、SearchField、DatePicker、ConfirmDialog）内部必须是 coss 部件。
+- **写法是组合，不是门面。** 页面里直接组合 coss 部件（`Field` + `FieldLabel`、`Dialog` + `DialogPopup` + `DialogHeader`、`FramePanel` + `FrameHeader`）。项目自有件只保留没有 coss 对应物的少数几个，放 `src/components/app`；薄组合（如 EmptyState、Breadcrumb、SearchField、DatePicker、ConfirmDialog、SelectionListItem）内部必须是 coss 部件。
 - **信息架构不变。** 分组侧栏、顶栏搜索与已访问页签、指标横带、单层工作面、质量工作台三栏（1280 起）照旧；运行模式与真实范围仍由壳的横幅单一承载。
 - **语义优先于外观。** 始终有选中值的用 RadioGroup 原语，可清除的筛选用 ToggleGroup，切换内容面板用 Tabs；静态说明用 `role="note"` 的 Alert，反馈类才是 `role="alert"`。后果确认的初始焦点在取消；脏数据退出先原位询问，取消按钮同样经过守卫。
 - **可访问性底线不变。** 可见键盘焦点；可操作表格行支持 Enter/空格，行内控件不触发行操作；加载、空结果、接口失败和演示模式分别呈现，不以虚构数据填补真实接口不可用状态。不做深色模式：系统深色偏好下样式不变。
-- **已知取舍。** 窄屏侧栏断点由 lg 变为 md（coss Sidebar 约定）；体积增加与保留为自定义的部件见改造记录 §7。
+- **已知取舍。** 窄屏侧栏断点随 coss：800px 以下是抽屉（旧壳为 1024px），800–1023 是展开的侧栏，可折叠成图标栏。主从列表的选中项用 coss `SidebarMenuButton`。体积（gzip）：首屏闭包 JS 约 220 KB（`main` 205 KB），全部 JS 约 489 KB（`main` 353 KB），由 `qa/bundle-budget.mjs` 卡上限。明细见改造记录 §11。
