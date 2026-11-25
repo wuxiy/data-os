@@ -31,9 +31,11 @@ const flows = flowArgIndex >= 0 ? String(args[flowArgIndex + 1] ?? 'all').split(
 const wantsFlow = (name) => flows.includes(name) || flows.includes('all')
 const shotsDir = flag('shots', null)
 const routeArg = flag('routes', null)
+// 800 是 coss Sidebar 桌面模式的下界（以下是抽屉）：侧栏展开时内容区最窄，所以每一档路由都要在这里过一遍。
 const widths = [
   { width: 1440, height: 900 },
   { width: 1280, height: 800 },
+  { width: 800, height: 900 },
 ]
 
 // FE7 全量矩阵：17 个既有入口 + 10 个新工作页（动态页用受控测试 ID，mock 控制面可命中）。
@@ -148,6 +150,35 @@ try {
   await page.waitForTimeout(500)
   record((await page.locator('main').textContent())?.includes('页面不存在') ?? false, '未知路径必须显示「页面不存在」而不是静默首页')
   record((await page.title()).includes('医数中枢'), '未知路径仍保留站点标题')
+
+  /* 窄屏断点：coss Sidebar 在 800px 以下是抽屉、800px 起是侧栏（coss 的 useIsMobile 取 max-md，其 md 为 800）。 */
+  section = '窄屏断点'
+  await page.setViewportSize({ width: 799, height: 900 })
+  await page.goto(`${base}/`, { waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(600)
+  record((await page.locator('[data-slot="sidebar-container"]').count()) === 0, '799px 不应渲染桌面侧栏（应为抽屉）')
+  await page.locator('[data-slot="sidebar-trigger"]').click()
+  await page.waitForTimeout(600)
+  const drawer = page.locator('[data-slot="sidebar"][data-mobile="true"]')
+  // 抽屉没打开时后面几步无从谈起：记下失败就跳过，别让脚本卡在找不到的元素上。
+  const drawerOpened = await drawer.isVisible()
+  record(drawerOpened, '799px 点击顶栏的导航按钮必须打开导航抽屉')
+  if (drawerOpened) {
+    record((await drawer.locator('nav[aria-label="主导航"] a').count()) > 0, '导航抽屉必须包含主导航链接')
+    await drawer.getByRole('link', { name: '数据接入', exact: true }).click()
+    await page.waitForTimeout(600)
+    record(new URL(page.url()).pathname === '/ingestion', `抽屉内点击「数据接入」后未跳转：${page.url()}`)
+    record((await drawer.count()) === 0, '抽屉内导航后抽屉必须收起')
+  }
+  await page.setViewportSize({ width: 800, height: 900 })
+  await page.goto(`${base}/`, { waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(600)
+  const desktopSidebarWidth = await page.evaluate(() => {
+    const container = document.querySelector('[data-slot="sidebar-container"]')
+    return container ? Math.round(container.getBoundingClientRect().width) : 0
+  })
+  record(desktopSidebarWidth >= 200, `800px 必须渲染展开的桌面侧栏（实测 ${desktopSidebarWidth}px）`)
+  await page.setViewportSize(widths[0])
 
   /* FE2 业务流（需要 mock 控制面）：短表单登记、调度预览、库表浏览。 */
   section = '业务流 fe2'
