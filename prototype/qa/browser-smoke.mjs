@@ -37,6 +37,8 @@ const widths = [
   { width: 1280, height: 800 },
   { width: 800, height: 900 },
 ]
+// 路由矩阵在 main 出现后的落定等待：mock（本地）用默认 600ms；指向真实环境时用 --settle 放宽。
+const settleMs = Number(flag('settle', 600))
 
 // FE7 全量矩阵：17 个既有入口 + 10 个新工作页（动态页用受控测试 ID，mock 控制面可命中）。
 // 清单与「接口不可达」冒烟共用 qa/routes.mjs。
@@ -104,7 +106,8 @@ try {
       record(Boolean(response && response.status() < 400), `${route} 返回 HTTP ${response?.status()}`)
       // 等页面标题与主工作区出现；本地无后端时页面应落到「不可用/待接入」而不是白屏。
       await page.waitForFunction(() => Boolean(document.querySelector('main')), null, { timeout: 15_000 }).catch(() => {})
-      await page.waitForTimeout(600)
+      // 落定时间：mock 本地 600ms 足够；跨网络对真实环境（--base 指向 dev）用 --settle 放宽。
+      await page.waitForTimeout(settleMs)
 
       const snapshot = await page.evaluate(() => ({
         title: document.title,
